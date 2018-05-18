@@ -1,6 +1,8 @@
 package arrays
 
 import (
+	"unsafe"
+
 	"github.com/dereklstinson/cuda"
 )
 
@@ -32,6 +34,16 @@ func CreateCUArray3d(ray HArray3d) (CUArray3d, error) {
 	dray.hostdata = ray.copydata()
 
 	return dray, nil
+}
+
+//DPTR returns the device Pointer
+func (ray *CUArray3d) DPTR() unsafe.Pointer {
+	return ray.devicedata.Ptr
+}
+
+//returns XYZ sizes
+func (ray *CUArray3d) XYZ() (int, int, int) {
+	return ray.x, ray.y, ray.z
 }
 
 //Clone makes a clone of the CUArray3d.
