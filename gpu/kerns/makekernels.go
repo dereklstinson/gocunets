@@ -21,16 +21,19 @@ type makefile struct {
 	lines []string
 }
 
-func MakeMakeFile(directory string, dotCUname string, device cuda.Device) string {
+//MakeMakeFile is a hack that I want to get rid of, but it is a way to prototype .cu files when making neural networks, using devices with different compute capapbilities
+func MakeMakeFile(directory string, dotCUname string, device cuda.Device) (string, error) {
 
 	attmajor, err := device.Attr(cuda.DevAttrComputeCapabilityMajor)
 	if err != nil {
 		fmt.Println(err)
+		return "", err
 	}
 	majstr := strconv.Itoa(attmajor)
 	attminor, err := device.Attr(cuda.DevAttrComputeCapabilityMinor)
 	if err != nil {
 		fmt.Println(err)
+		return "", err
 	}
 	minstr := strconv.Itoa(attminor)
 	computecapability := majstr + minstr
@@ -38,9 +41,11 @@ func MakeMakeFile(directory string, dotCUname string, device cuda.Device) string
 	newname := dotCUname
 	if strings.Contains(dotCUname, ".cu") {
 		newname = strings.TrimSuffix(dotCUname, ".cu")
+
 	} else {
 		dotCUname = dotCUname + ".cu"
 	}
+	newname = newname + ".ptx"
 	var some makefile
 	//some.lines=make([]string,13)
 	some.lines = make([]string, 2)
@@ -50,13 +55,13 @@ func MakeMakeFile(directory string, dotCUname string, device cuda.Device) string
 	data := []byte(some.lines[0] + some.lines[1])
 	err = os.MkdirAll(directory, 0644)
 	if err != nil {
-		fmt.Println(err)
-		panic(err)
+		fmt.Println("can't make directory", err)
+		return "", err
 	}
 	err = ioutil.WriteFile(directory+"Makefile", data, 0644)
 	if err != nil {
 		fmt.Println(err)
-		panic(err)
+		return "", err
 	}
 	newcommand := exec.Command("make")
 	newcommand.Dir = directory
@@ -64,16 +69,17 @@ func MakeMakeFile(directory string, dotCUname string, device cuda.Device) string
 	err = newcommand.Run()
 	if err != nil {
 		fmt.Println("*****Something Is wrong with the" + dotCUname + "file*******")
-		panic(err)
+		return "", err
 	}
-	return newname
+	return newname, nil
 }
 
-func LoadPTXFile(filelocation string) string {
+//ReadPTXFile will return the ptx data
+func ReadPTXFile(folderlocation, filename string) (string, error) {
 
-	ptxdata, err := ioutil.ReadFile(filelocation)
+	ptxdata, err := ioutil.ReadFile(folderlocation + filename)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return string(ptxdata)
+	return string(ptxdata), nil
 }
