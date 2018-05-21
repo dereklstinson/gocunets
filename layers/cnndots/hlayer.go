@@ -76,6 +76,7 @@ func (layer *HLayer3d) Backward(input *arrays.HArray3d, outputgrads *arrays.HArr
 	outy := outputgrads.Y
 	inx := input.X
 	iny := input.Y
+	inz := input.Z
 	var wg sync.WaitGroup
 	var mux sync.RWMutex
 	//tempgrads:=make([]arrays.HArray3d,len(layer.neurons))
@@ -89,17 +90,20 @@ func (layer *HLayer3d) Backward(input *arrays.HArray3d, outputgrads *arrays.HArr
 			fysize := layer.neurons[neuron].Y
 			for ax, px := 0, -layer.x.pad; ax < outx; ax, px = ax+1, px+sx { //I am hoping the compiler will see this and do indexing
 				for ay, py := 0, -layer.y.pad; ay < outy; ay, py = ay+1, py+sy { //same here
-					grad := outputgrads.ValueAt(ax, ay, neuron)
-					for fx := 0; fx < fxsize; fx++ {
-						ox := px + fx
+					grad := outputgrads.ValueAt(ax, ay, neuron) // output location which is also the gradient location
+					for fx := 0; fx < fxsize; fx++ {            //f is location on filter
+						ox := px + fx //o is location on input
 						for fy := 0; fy < fysize; fy++ {
 							oy := py + fy
 							if ox >= 0 && ox < inx && oy >= 0 && oy < iny {
+								//       filter location
 								nxy := (fx * layer.neurons[neuron].Y * layer.neurons[neuron].Z) + (fy * layer.neurons[neuron].Z)
+								// neuron depth location
 								nd := layer.neurons[neuron].Z
-								vxy := (ox * input.Y * input.Z) + (oy * input.Z)
+								// inx is inputsize x ... iny is inputsize y so vxy is the inputlocation
+								vxy := (ox * iny * inz) + (oy * inz)
 								for fd := 0; fd < nd; fd++ {
-									idx1 := vxy + fd
+									idx1 := vxy + fd //
 									idx2 := nxy + fd
 									layer.gradadds[neuron].Data[idx2] += input.Data[idx1] * grad
 									//	returngrads.Data[idx1] += layer.neurons[neuron].Data[idx2] * grad
