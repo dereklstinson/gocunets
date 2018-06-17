@@ -7,11 +7,15 @@ import (
 
 //Layer is a struct that holds a cnn layer info
 type Layer struct {
-	cD          *gocudnn.ConvolutionD
-	wD          *gocudnn.FilterD
-	dwD         *gocudnn.FilterD
-	w           gocudnn.Memer
-	dw          gocudnn.Memer
+	cD    *gocudnn.ConvolutionD
+	wD    *gocudnn.FilterD
+	dwD   *gocudnn.FilterD
+	biasD *gocudnn.TensorD
+	w     gocudnn.Memer
+	dw    gocudnn.Memer
+
+	bias gocudnn.Memer
+
 	size        gocudnn.SizeT
 	fwdAlgo     gocudnn.ConvFwdAlgo
 	bwdAlgodata gocudnn.ConvBwdDataAlgo
@@ -22,13 +26,13 @@ type Layer struct {
 }
 
 type xtras struct {
-	wspace gocudnn.Memer
 	alpha  gocudnn.CScalar
+	alpha2 gocudnn.CScalar
 	beta   gocudnn.CScalar
 }
 
-//FilterSetup sets up the cnn layer to be built. But doesn't build it yet.
-func FilterSetup(input *gocudnn.TensorD,
+//LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
+func LayerSetup(input *gocudnn.TensorD,
 	wD *gocudnn.FilterD,
 	cD *gocudnn.ConvolutionD,
 	fwdAlgo gocudnn.ConvFwdAlgo,
@@ -72,27 +76,6 @@ func (c *Layer) SetFwdScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar) {
 	c.fwd.alpha, c.fwd.beta = alpha, beta
 }
 
-//SetFwdWorkSpace sets the fwd workspace
-func (c *Layer) SetFwdWorkSpace(bytesize gocudnn.SizeT) error {
-	var err error
-	c.fwd.wspace, err = gocudnn.Malloc(bytesize)
-	return err
-}
-
-//SetBwdDataWorkSpace sets the backward Data workspace
-func (c *Layer) SetBwdDataWorkSpace(bytesize gocudnn.SizeT) error {
-	var err error
-	c.fwd.wspace, err = gocudnn.Malloc(bytesize)
-	return err
-}
-
-//SetBwdFilterWorkSpace sets the backward filter workspace
-func (c *Layer) SetBwdFilterWorkSpace(bytesize gocudnn.SizeT) error {
-	var err error
-	c.fwd.wspace, err = gocudnn.Malloc(bytesize)
-	return err
-}
-
 //SetBwdDataScalars sets the alpha and beta scalars, the defaults are alpha=1, beta=0 and are initialized in the function FilterSetup
 func (c *Layer) SetBwdDataScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar) {
 	c.bwdd.alpha, c.bwdd.beta = alpha, beta
@@ -104,12 +87,17 @@ func (c *Layer) SetBwdFilterScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar)
 }
 
 //ForwardProp performs the ForwardProp
-func (c *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
-	return handle.ConvolutionForward(c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, c.fwd.wspace, c.fwd.beta, y.TensorD(), y.Mem())
+func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+	return handle.ConvolutionForward(c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, wspace, c.fwd.beta, y.TensorD(), y.Mem())
+}
+
+//ForwardBiasActivation does the forward bias activation cudnn algorithm
+func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x layers.IO, wpsace gocudnn.Memer, z layers.IO, aD *gocudnn.ActivationD, y layers.IO) error {
+	return handle.ConvolutionBiasActivationForward(c.fwd.alpha, x.TensorD(), x.DMem(), c.wD, c.w, c.cD, c.fwdAlgo, wpsace, c.fwd.alpha2, z.TensorD(), z.DMem(), c.biasD, c.bias, aD, y.TensorD(), y.Mem())
 }
 
 //BackPropData performs the BackPropData
-func (c *Layer) BackPropData(handle *gocudnn.Handle, dx, dy *layers.IO) error {
+func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, dx, dy *layers.IO) error {
 	return handle.ConvolutionBackwardData(
 		c.bwdd.alpha,
 		c.wD,
@@ -118,16 +106,16 @@ func (c *Layer) BackPropData(handle *gocudnn.Handle, dx, dy *layers.IO) error {
 		dy.Mem(),
 		c.cD,
 		c.bwdAlgodata,
-		c.bwdd.wspace,
+		wspace,
 		c.bwdd.beta,
 		dx.TensorD(),
 		dx.DMem())
 
 }
 
-//BackPropFilter does the backward propagation for the filter
-func (c *Layer) BackPropFilter(handle *gocudnn.Handle, x, dy *layers.IO) error {
-	return handle.ConvolutionBackwardFilter(c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, c.bwdf.wspace, c.bwdf.beta, c.dwD, c.dw)
+//BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
+func (c *Layer) BackPropFilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, dy *layers.IO) error {
+	return handle.ConvolutionBackwardFilter(c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, wspace, c.bwdf.beta, c.dwD, c.dw)
 
 }
 
