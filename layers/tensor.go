@@ -1,3 +1,4 @@
+//Package layers contains shared things between layers.  It also contains functions that will be supplimental to cudnn.
 package layers
 
 import gocudnn "github.com/dereklstinson/GoCudnn"
