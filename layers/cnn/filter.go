@@ -24,6 +24,7 @@ type Layer struct {
 	fwd         xtras
 	bwdd        xtras
 	bwdf        xtras
+	datatype    gocudnn.DataType
 }
 
 type xtras struct {
@@ -70,6 +71,7 @@ func LayerSetup(input *gocudnn.TensorD,
 			alpha2: alpha2,
 			beta:   beta,
 		},
+		datatype: datatype,
 	}, nil
 }
 
@@ -90,7 +92,12 @@ func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta gocudnn.CScalar) {
 
 //ForwardProp performs the ForwardProp
 func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
-	return handle.ConvolutionForward(c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, wspace, c.fwd.beta, y.TensorD(), y.Mem())
+	err := handle.ConvolutionForward(c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, wspace, c.fwd.beta, y.TensorD(), y.Mem())
+	if err != nil {
+		return err
+	}
+	return handle.AddTensor(c.datatype, c.fwd.alpha, c.biasD, c.bias, c.fwd.beta, y.TensorD(), y.Mem())
+
 }
 
 //ForwardBiasActivation does the forward bias activation cudnn algorithm
@@ -117,7 +124,12 @@ func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, dx, d
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
 func (c *Layer) BackPropFilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, dy *layers.IO) error {
-	return handle.ConvolutionBackwardFilter(c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, wspace, c.bwdf.beta, c.dwD, c.dw)
+	err := handle.ConvolutionBackwardFilter(c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, wspace, c.bwdf.beta, c.dwD, c.dw)
+	if err != nil {
+		return err
+	}
+
+	return handle.ConvolutionBackwardBias(c.bwdf.alpha, dy.TensorD(), dy.Mem(), c.bwdf.beta, c.biasD, c.dbias)
 
 }
 
