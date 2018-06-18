@@ -56,19 +56,16 @@ func LayerSetup(input *gocudnn.TensorD,
 		bwdAlgodata: bwdAlgodata,
 		bwdAlgoFilt: bwdAlgoFilt,
 		fwd: xtras{
-
 			alpha:  alpha,
 			alpha2: alpha2,
 			beta:   beta,
 		},
 		bwdd: xtras{
-
 			alpha:  alpha,
 			alpha2: alpha2,
 			beta:   beta,
 		},
 		bwdf: xtras{
-
 			alpha:  alpha,
 			alpha2: alpha2,
 			beta:   beta,
