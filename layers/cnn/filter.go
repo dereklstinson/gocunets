@@ -1,3 +1,4 @@
+//Package cnn contains structs and methods used to do forward, and backward operations for convolution layers
 package cnn
 
 import (
@@ -5,17 +6,17 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//Layer is a struct that holds a cnn layer info
+//Layer is a struct that holds  filter, bias and convolution descriptors.
+//The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos.
 type Layer struct {
-	cD    *gocudnn.ConvolutionD
-	wD    *gocudnn.FilterD
-	dwD   *gocudnn.FilterD
-	biasD *gocudnn.TensorD
-	w     gocudnn.Memer
-	dw    gocudnn.Memer
-
-	bias gocudnn.Memer
-
+	cD          *gocudnn.ConvolutionD
+	wD          *gocudnn.FilterD
+	dwD         *gocudnn.FilterD
+	biasD       *gocudnn.TensorD
+	w           gocudnn.Memer
+	dw          gocudnn.Memer
+	bias        gocudnn.Memer
+	dbias       gocudnn.Memer
 	size        gocudnn.SizeT
 	fwdAlgo     gocudnn.ConvFwdAlgo
 	bwdAlgodata gocudnn.ConvBwdDataAlgo
@@ -45,6 +46,7 @@ func LayerSetup(input *gocudnn.TensorD,
 	}
 
 	alpha := gocudnn.FindScalar(datatype, 1)
+	alpha2 := gocudnn.FindScalar(datatype, 1)
 	beta := gocudnn.FindScalar(datatype, 0)
 	return &Layer{
 		size:        sizeinbytes,
@@ -55,35 +57,38 @@ func LayerSetup(input *gocudnn.TensorD,
 		bwdAlgoFilt: bwdAlgoFilt,
 		fwd: xtras{
 
-			alpha: alpha,
-			beta:  beta,
+			alpha:  alpha,
+			alpha2: alpha2,
+			beta:   beta,
 		},
 		bwdd: xtras{
 
-			alpha: alpha,
-			beta:  beta,
+			alpha:  alpha,
+			alpha2: alpha2,
+			beta:   beta,
 		},
 		bwdf: xtras{
 
-			alpha: alpha,
-			beta:  beta,
+			alpha:  alpha,
+			alpha2: alpha2,
+			beta:   beta,
 		},
 	}, nil
 }
 
-//SetFwdScalars sets the alpha and beta scalars, the defaults are alpha=1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetFwdScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar) {
-	c.fwd.alpha, c.fwd.beta = alpha, beta
+//SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetFwdScalars(alpha, alpha2, beta gocudnn.CScalar) {
+	c.fwd.alpha, c.fwd.alpha2, c.fwd.beta = alpha, alpha2, beta
 }
 
-//SetBwdDataScalars sets the alpha and beta scalars, the defaults are alpha=1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetBwdDataScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar) {
-	c.bwdd.alpha, c.bwdd.beta = alpha, beta
+//SetBwdDataScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetBwdDataScalars(alpha, alpha2, beta gocudnn.CScalar) {
+	c.bwdd.alpha, c.bwdd.alpha2, c.bwdd.beta = alpha, alpha2, beta
 }
 
-//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha=1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetBwdFilterScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar) {
-	c.bwdf.alpha, c.bwdf.beta = alpha, beta
+//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta gocudnn.CScalar) {
+	c.bwdf.alpha, c.bwdf.alpha2, c.bwdf.beta = alpha, alpha2, beta
 }
 
 //ForwardProp performs the ForwardProp
