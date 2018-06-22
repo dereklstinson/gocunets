@@ -101,7 +101,7 @@ func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *
 }
 
 //ForwardBiasActivation does the forward bias activation cudnn algorithm
-func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x layers.IO, wpsace gocudnn.Memer, z layers.IO, aD *gocudnn.ActivationD, y layers.IO) error {
+func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x *layers.IO, wpsace gocudnn.Memer, z *layers.IO, aD *gocudnn.ActivationD, y *layers.IO) error {
 	return handle.ConvolutionBiasActivationForward(c.fwd.alpha, x.TensorD(), x.DMem(), c.wD, c.w, c.cD, c.fwdAlgo, wpsace, c.fwd.alpha2, z.TensorD(), z.DMem(), c.biasD, c.bias, aD, y.TensorD(), y.Mem())
 }
 

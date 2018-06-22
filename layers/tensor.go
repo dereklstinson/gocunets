@@ -1,7 +1,11 @@
 //Package layers contains shared things between layers.  It also contains functions that will be supplimental to cudnn.
 package layers
 
-import gocudnn "github.com/dereklstinson/GoCudnn"
+import (
+	"errors"
+
+	gocudnn "github.com/dereklstinson/GoCudnn"
+)
 
 //IO is input and output of a convolution layer.  It is the communication between layers and networks
 type IO struct {
@@ -23,4 +27,26 @@ func (i *IO) Mem() gocudnn.Memer {
 //DMem returns the error backprop memory for the tensor memory
 func (i *IO) DMem() gocudnn.Memer {
 	return i.dmem
+}
+
+//BuildIO builds an IO
+func BuildIO(desc *gocudnn.TensorD, mem, dmem gocudnn.Memer) *IO {
+	return &IO{
+		desc: desc,
+		mem:  mem,
+		dmem: dmem,
+	}
+}
+
+//LoadMem Replaces The memory on the device.
+func (i *IO) LoadMem(mem gocudnn.Memer, kind gocudnn.MemcpyKind) error {
+	size, err := i.desc.GetSizeInBytes()
+	if err != nil {
+		return err
+	}
+	if size != mem.ByteSize() {
+		return errors.New("Memory Size doesn't Match Descriptor")
+	}
+	gocudnn.CudaMemCopy(i.mem, mem, size, kind)
+	return nil
 }
