@@ -241,10 +241,26 @@ func (h *Helper) GetBestAlgoConsidering(handle *gocudnn.Handle, wspacesize gocud
 func (helper *Helper) ReturnDescriptors() (*gocudnn.TensorD, *gocudnn.FilterD, *gocudnn.ConvolutionD, *gocudnn.TensorD) {
 	return helper.inputdesc, helper.filter, helper.convdesc, helper.outputdesc
 }
-func (helper *Helper) DestroyDescriptors() (error, error, error, error) {
+func (helper *Helper) DestroyDescriptors() error {
+	var some string
 	err := helper.outputdesc.DestroyDescriptor()
-	err1 := helper.filter.DestroyDescriptor()
-	err2 := helper.outputdesc.DestroyDescriptor()
-	err3 := helper.convdesc.DestroyDescriptor()
-	return err, err1, err2, err3
+	if err != nil {
+		some = some + err.Error() + ","
+	}
+	err = helper.filter.DestroyDescriptor()
+	if err != nil {
+		some = some + err.Error() + ","
+	}
+	err = helper.outputdesc.DestroyDescriptor()
+	if err != nil {
+		some = some + err.Error() + ","
+	}
+	err = helper.convdesc.DestroyDescriptor()
+	if err != nil {
+		some = some + err.Error() + ","
+	}
+	if some == "" {
+		return nil
+	}
+	return errors.New(some)
 }
