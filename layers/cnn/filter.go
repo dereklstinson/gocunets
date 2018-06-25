@@ -9,6 +9,8 @@ import (
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos.
 type Layer struct {
+	cfuncs      gocudnn.ConvolutionFuncs
+	tfuncs      gocudnn.TensorFuncs
 	cD          *gocudnn.ConvolutionD
 	wD          *gocudnn.FilterD
 	dwD         *gocudnn.FilterD
@@ -92,22 +94,23 @@ func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta gocudnn.CScalar) {
 
 //ForwardProp performs the ForwardProp
 func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
-	err := handle.ConvolutionForward(c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, wspace, c.fwd.beta, y.TensorD(), y.Mem())
+	err := c.cfuncs.Fwd.ConvolutionForward(handle, c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, wspace, c.fwd.beta, y.TensorD(), y.Mem())
 	if err != nil {
 		return err
 	}
-	return handle.AddTensor(c.datatype, c.fwd.alpha, c.biasD, c.bias, c.fwd.beta, y.TensorD(), y.Mem())
+	return c.tfuncs.AddTensor(handle, c.datatype, c.fwd.alpha, c.biasD, c.bias, c.fwd.beta, y.TensorD(), y.Mem())
 
 }
 
 //ForwardBiasActivation does the forward bias activation cudnn algorithm
 func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x *layers.IO, wpsace gocudnn.Memer, z *layers.IO, aD *gocudnn.ActivationD, y *layers.IO) error {
-	return handle.ConvolutionBiasActivationForward(c.fwd.alpha, x.TensorD(), x.DMem(), c.wD, c.w, c.cD, c.fwdAlgo, wpsace, c.fwd.alpha2, z.TensorD(), z.DMem(), c.biasD, c.bias, aD, y.TensorD(), y.Mem())
+	return c.cfuncs.Fwd.ConvolutionBiasActivationForward(handle, c.fwd.alpha, x.TensorD(), x.DMem(), c.wD, c.w, c.cD, c.fwdAlgo, wpsace, c.fwd.alpha2, z.TensorD(), z.DMem(), c.biasD, c.bias, aD, y.TensorD(), y.Mem())
 }
 
 //BackPropData performs the BackPropData
 func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, dx, dy *layers.IO) error {
-	return handle.ConvolutionBackwardData(
+	return c.cfuncs.Bwd.ConvolutionBackwardData(
+		handle,
 		c.bwdd.alpha,
 		c.wD,
 		c.w,
@@ -124,12 +127,12 @@ func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, dx, d
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
 func (c *Layer) BackPropFilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, dy *layers.IO) error {
-	err := handle.ConvolutionBackwardFilter(c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, wspace, c.bwdf.beta, c.dwD, c.dw)
+	err := c.cfuncs.Bwd.ConvolutionBackwardFilter(handle, c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, wspace, c.bwdf.beta, c.dwD, c.dw)
 	if err != nil {
 		return err
 	}
 
-	return handle.ConvolutionBackwardBias(c.bwdf.alpha, dy.TensorD(), dy.Mem(), c.bwdf.beta, c.biasD, c.dbias)
+	return c.cfuncs.Bwd.ConvolutionBackwardBias(handle, c.bwdf.alpha, dy.TensorD(), dy.Mem(), c.bwdf.beta, c.biasD, c.dbias)
 
 }
 

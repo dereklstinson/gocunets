@@ -7,9 +7,10 @@ import (
 
 //Layer is an activation layer
 type Layer struct {
-	aD  *gocudnn.ActivationD
-	fwd xtras
-	bwd xtras
+	funcs gocudnn.ActivationFuncs
+	aD    *gocudnn.ActivationD
+	fwd   xtras
+	bwd   xtras
 }
 
 //LayerSetup sets up the activation Layer
@@ -44,10 +45,10 @@ func (a *Layer) UpDateBwdCScalars(alpha gocudnn.CScalar, beta gocudnn.CScalar) {
 
 //ForwardProp does the forward propigation of the activation layer
 func (a *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
-	return handle.ActivationForward(a.aD, a.fwd.alpha, x.TensorD(), x.Mem(), a.fwd.beta, y.TensorD(), y.Mem())
+	return a.funcs.ActivationForward(handle, a.aD, a.fwd.alpha, x.TensorD(), x.Mem(), a.fwd.beta, y.TensorD(), y.Mem())
 }
 
 //BackProp does the backward propigation of the activation layer
 func (a *Layer) BackProp(handle *gocudnn.Handle, y, x *layers.IO) error {
-	return handle.ActivationBackward(a.aD, a.bwd.alpha, y.TensorD(), y.Mem(), y.TensorD(), y.DMem(), x.TensorD(), x.Mem(), a.bwd.beta, x.TensorD(), x.DMem())
+	return a.funcs.ActivationBackward(handle, a.aD, a.bwd.alpha, y.TensorD(), y.Mem(), y.TensorD(), y.DMem(), x.TensorD(), x.Mem(), a.bwd.beta, x.TensorD(), x.DMem())
 }

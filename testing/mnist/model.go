@@ -43,13 +43,14 @@ func errcheck(err error) {
 	}
 }
 func model() network {
-
-	shape := gocudnn.Shape //simple arguments to array maker
+	handle := gocudnn.NewHandle()
+	shape := gocudnn.Shape //simple arguments to array maker  x
 	var flg gocudnn.Flags
 	Float := flg.DataType.Float()
 	NCHW := flg.TensorFormat.NCHW()
+	var Tensor gocudnn.Tensor
 
-	inputDesc, err := gocudnn.NewTensor4dDescriptor(Float, NCHW, shape(1, 1, 28, 28))
+	inputDesc, err := Tensor.NewTensor4dDescriptor(Float, NCHW, shape(1, 1, 28, 28))
 	errcheck(err)
 	size, err := inputDesc.GetSizeInBytes()
 	errcheck(err)
@@ -68,14 +69,29 @@ func model() network {
 	/*
 	   Layer 1
 	*/
-
+	var Convolution gocudnn.Convolution
 	crosscorr := flg.ConvolutionMode.CrossCorrelation()
-	convdesc, err := gocudnn.NewConvolution2dDescriptor(crosscorr, Float, shape(2, 2), shape(1, 1), shape(1, 1))
-	ConvPref:=flg.ConvolutionFwdPref.NoWorkSpace()
+	ConvD1, err := Convolution.NewConvolution2dDescriptor(crosscorr, Float, shape(2, 2), shape(1, 1), shape(1, 1))
+
 	errcheck(err)
-filter1,err:=	gocudnn.NewFilter4dDescriptor(Float,NCHW,shape(10,10,5,5)
-errcheck(err)
-    cnn.LayerSetup(inputDesc,filter1,convdesc,)
+	var Filter gocudnn.Filter
+	filter1, err := Filter.NewFilter4dDescriptor(Float, NCHW, shape(10, 1, 5, 5))
+	errcheck(err)
+	outputdims, err := ConvD1.GetConvolution2dForwardOutputDim(inputDesc, filter1)
+	errcheck(err)
+	outputdesc1, err := Tensor.NewTensor4dDescriptor(Float, NCHW, outputdims)
+	errcheck(err)
+	ConvFWDAlgo1, err := Convolution.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, inputDesc, filter1, ConvD1, outputdesc1, Convolution.Flgs.Fwd.Pref.NoWorkSpace(), 0)
+	errcheck(err)
+	ConvBWdAlgoData1, err := Convolution.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, filter1, outputdesc1, ConvD1, inputDesc, Convolution.Flgs.Bwd.DataPref.NoWorkSpace(), 0)
+	errcheck(err)
+	ConvBWdAlgoFilt1, err := Convolution.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, inputDesc, outputdesc1, ConvD1, filter1, Convolution.Flgs.Bwd.FltrPref.NoWorkspace(), 0)
+	errcheck(err)
+	filtsize, err := filter1.TensorD().GetSizeInBytes()
+	errcheck(err)
+	layer1, err := cnn.LayerSetup(inputDesc, filter1, ConvD1, ConvFWDAlgo1, ConvBWdAlgoData1, ConvBWdAlgoFilt1, filtsize)
+	errcheck(err)
+	networkmod.Append(layer1)
 	return networkmod
 }
 
