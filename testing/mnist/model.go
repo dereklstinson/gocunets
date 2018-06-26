@@ -7,6 +7,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
+	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/dereklstinson/GoCudnn"
 )
@@ -16,42 +17,55 @@ func main() {
 }
 
 type section struct {
-	inout      bool
-	io         *layers.IO
-	filter     bool
-	filt       *cnn.Layer
-	activation bool
-	actv       *activation.Layer
-	pool       bool
-	pooling    *pooling.Layer
-}
-type network struct {
-	model []section
+	hasfilter     bool
+	filter        *cnn.Layer
+	hasactivation bool
+	activation    *activation.Layer
+	haspooling    bool
+	pooling       *pooling.Layer
+	hassoftmax    bool
+	softmax       *softmax.Layer
 }
 
-func (net *network) Append(input interface{}) {
-	switch x := input.(type) {
+type layer struct {
+	x    *layers.IO
+	y    *layers.IO
+	sect section
+}
+
+func createlayer(input *layers.IO, sect interface{}, output *layers.IO) (layer, error) {
+	var l layer
+	l.x = input
+	l.y = output
+	switch x := sect.(type) {
 	case *cnn.Layer:
-		var sect section
-		sect.filter = true
-		sect.filt = x
-		net.model = append(net.model, sect)
-	case *layers.IO:
-		var sect section
-		sect.inout = true
-		sect.io = x
-		net.model = append(net.model, sect)
+		l.sect.hasfilter = true
+		l.sect.filter = x
 	case *activation.Layer:
-		var sect section
-		sect.activation = true
-		sect.actv = x
-		net.model = append(net.model, sect)
+		l.sect.hasactivation = true
+		l.sect.activation = x
 	case *pooling.Layer:
-		var sect section
-		sect.pool = true
-		sect.pooling = x
-		net.model = append(net.model, sect)
+		l.sect.haspooling = true
+		l.sect.pooling = x
+	case *softmax.Layer:
+		l.sect.hassoftmax = true
+		l.sect.softmax = x
+	default:
+		return l, errors.New("not supported sect")
 	}
+	return l, nil
+
+}
+
+type network struct {
+	model []layer
+}
+
+func (net *network) Append(input layer, e error) {
+	if e != nil {
+		panic(e)
+	}
+	net.model = append(net.model, input)
 }
 func errcheck(err error) {
 	if err != nil {
@@ -82,10 +96,9 @@ func model() network {
 	err = gocudnn.CudaMemCopy(inputmemDevice, inputmemHost, size, HTD)
 	errcheck(err)
 
-	inputlayer := layers.BuildIO(inputDesc, inputmemDevice, nil)
+	IO01 := layers.BuildIO(inputDesc, inputmemDevice, nil)
 	var networkmod network
 
-	networkmod.Append(inputlayer)
 	/*
 	   Layer 1 Convolution
 	*/
@@ -101,12 +114,11 @@ func model() network {
 	inputDesc, Filter1D, ConvD1, Output1D := Layer1Helper.ReturnDescriptors()
 	filter1size, err := Filter1D.TensorD().GetSizeInBytes()
 	errcheck(err)
-	layer1, err := cnn.LayerSetup(inputDesc, Filter1D, ConvD1, *AlgoFwd1, *AlgoBwdData1, *AlgoBwdFilt1, filter1size)
+	convlayer1, err := cnn.LayerSetup(inputDesc, Filter1D, ConvD1, *AlgoFwd1, *AlgoBwdData1, *AlgoBwdFilt1, filter1size)
 	errcheck(err)
-	err = layer1.Build()
+	err = convlayer1.Build()
 
 	errcheck(err)
-	networkmod.Append(layer1)
 
 	/*
 		IO12
@@ -118,15 +130,16 @@ func model() network {
 	errcheck(err)
 	doutputmem12, err := gocudnn.Malloc(outputsize1)
 	errcheck(err)
-	networkmod.Append(layers.BuildIO(Output1D, outputmem12, doutputmem12))
+	IO12 := layers.BuildIO(Output1D, outputmem12, doutputmem12)
+	networkmod.Append(createlayer(IO01, convlayer1, IO12))
 	/*
 	   Layer 2 Activation
 	*/
 	var Activation gocudnn.Activation
 	Activation1, err := Activation.NewActivationDescriptor(Activation.Flgs.Relu(), Tensor.Flgs.NaN.NotPropagateNan(), 0)
 	errcheck(err)
-	alayer := activation.LayerSetup(Activation1, gocudnn.CFloat(1), gocudnn.CFloat(0), gocudnn.CFloat(1), gocudnn.CFloat(0))
-	networkmod.Append(alayer)
+	ActiveLayer2 := activation.LayerSetup(Activation1, gocudnn.CFloat(1), gocudnn.CFloat(0), gocudnn.CFloat(1), gocudnn.CFloat(0))
+
 	/*
 	   IO23
 	*/
@@ -135,7 +148,8 @@ func model() network {
 	errcheck(err)
 	doutputmem23, err := gocudnn.Malloc(outputsize1)
 	errcheck(err)
-	networkmod.Append(layers.BuildIO(Output1D, outputmem23, doutputmem23))
+	IO23 := layers.BuildIO(Output1D, outputmem23, doutputmem23)
+	networkmod.Append(createlayer(IO12, ActiveLayer2, IO23))
 
 	/*
 		Layer 3 Pooling
@@ -146,7 +160,6 @@ func model() network {
 	Layer3Pool := pooling.LayerSetup(PoolD, gocudnn.CFloat(1), gocudnn.CFloat(0), gocudnn.CFloat(1), gocudnn.CFloat(0))
 	pooloutdims, err := PoolD.GetPoolingForwardOutputDim(Output1D)
 	errcheck(err)
-	networkmod.Append(Layer3Pool)
 
 	/*
 		IO34
@@ -160,7 +173,8 @@ func model() network {
 	errcheck(err)
 	doutputmem34, err := gocudnn.Malloc(outputforIO34)
 	errcheck(err)
-	networkmod.Append(layers.BuildIO(IO34TensorD, outputmem34, doutputmem34))
+	IO34 := layers.BuildIO(IO34TensorD, outputmem34, doutputmem34)
+	networkmod.Append(createlayer(IO23, Layer3Pool, IO34))
 	/*
 	   Layer 4 Convolution
 	*/
@@ -175,12 +189,11 @@ func model() network {
 	inputDesc4, Filter4D, ConvD4, Output4D := Layer4Helper.ReturnDescriptors()
 	filter4size, err := Filter4D.TensorD().GetSizeInBytes()
 	errcheck(err)
-	layer4, err := cnn.LayerSetup(inputDesc4, Filter4D, ConvD4, *AlgoFwd4, *AlgoBwdData4, *AlgoBwdFilt4, filter4size)
+	convlayer4, err := cnn.LayerSetup(inputDesc4, Filter4D, ConvD4, *AlgoFwd4, *AlgoBwdData4, *AlgoBwdFilt4, filter4size)
 	errcheck(err)
-	err = layer4.Build()
+	err = convlayer4.Build()
 
 	errcheck(err)
-	networkmod.Append(layer4)
 
 	/*
 		IO45
@@ -192,7 +205,8 @@ func model() network {
 	errcheck(err)
 	doutputmem45, err := gocudnn.Malloc(outputsize4)
 	errcheck(err)
-	networkmod.Append(layers.BuildIO(Output4D, outputmem45, doutputmem45))
+	IO45 := layers.BuildIO(Output4D, outputmem45, doutputmem45)
+	networkmod.Append(createlayer(IO34, convlayer4, IO45))
 	/*
 	   Layer 5 Activation
 	*/
@@ -200,7 +214,7 @@ func model() network {
 	Activation5, err := Activation.NewActivationDescriptor(Activation.Flgs.Relu(), Tensor.Flgs.NaN.NotPropagateNan(), 0)
 	errcheck(err)
 	alayer5 := activation.LayerSetup(Activation5, gocudnn.CFloat(1), gocudnn.CFloat(0), gocudnn.CFloat(1), gocudnn.CFloat(0))
-	networkmod.Append(alayer5)
+
 	/*
 	   IO56
 	*/
@@ -209,7 +223,9 @@ func model() network {
 	errcheck(err)
 	doutputmem56, err := gocudnn.Malloc(outputsize4)
 	errcheck(err)
-	networkmod.Append(layers.BuildIO(Output4D, outputmem56, doutputmem56))
+	IO56 := layers.BuildIO(Output4D, outputmem56, doutputmem56)
+
+	networkmod.Append(createlayer(IO45, alayer5, IO56))
 
 	/*
 		Layer 6 Pooling
@@ -220,7 +236,6 @@ func model() network {
 	Layer6Pool := pooling.LayerSetup(PoolD6, gocudnn.CFloat(1), gocudnn.CFloat(0), gocudnn.CFloat(1), gocudnn.CFloat(0))
 	pooloutdims6, err := PoolD.GetPoolingForwardOutputDim(Output4D)
 	errcheck(err)
-	networkmod.Append(Layer6Pool)
 
 	/*
 		IO67
@@ -234,7 +249,8 @@ func model() network {
 	errcheck(err)
 	doutputmem67, err := gocudnn.Malloc(outputforIO67)
 	errcheck(err)
-	networkmod.Append(layers.BuildIO(IO67TensorD, outputmem67, doutputmem67))
+	IO67 := layers.BuildIO(IO67TensorD, outputmem67, doutputmem67)
+	networkmod.Append(createlayer(IO56, Layer6Pool, IO67))
 
 	/*
 		Layer 7 Convolution
@@ -252,12 +268,41 @@ func model() network {
 	inputDesc7, Filter7D, ConvD7, Output7D := Layer7Helper.ReturnDescriptors()
 	filter7size, err := Filter7D.TensorD().GetSizeInBytes()
 	errcheck(err)
-	layer7, err := cnn.LayerSetup(inputDesc7, Filter7D, ConvD7, *AlgoFwd7, *AlgoBwdData7, *AlgoBwdFilt7, filter7size)
+	convlayer7, err := cnn.LayerSetup(inputDesc7, Filter7D, ConvD7, *AlgoFwd7, *AlgoBwdData7, *AlgoBwdFilt7, filter7size)
 	errcheck(err)
-	err = layer7.Build()
+	err = convlayer7.Build()
+	errcheck(err)
+	/*
+		IO78
+	*/
 
+	outputforIO78, err := Output7D.GetSizeInBytes()
 	errcheck(err)
-	networkmod.Append(layer7)
+	outputmem78, err := gocudnn.Malloc(outputforIO78)
+	errcheck(err)
+	doutputmem78, err := gocudnn.Malloc(outputforIO78)
+	errcheck(err)
+	IO78 := layers.BuildIO(Output7D, outputmem78, doutputmem78)
+	networkmod.Append(createlayer(IO67, convlayer7, IO78))
+
+	/*
+	 Layer 8	SoftMax
+	*/
+
+	softmax8 := softmax.BuildDefault()
+
+	/*
+		IO89
+	*/
+
+	outputforIO89, err := Output7D.GetSizeInBytes()
+	errcheck(err)
+	outputmem89, err := gocudnn.Malloc(outputforIO89)
+	errcheck(err)
+	doutputmem89, err := gocudnn.Malloc(outputforIO89)
+	errcheck(err)
+	IO89 := layers.BuildIO(Output7D, outputmem89, doutputmem89)
+	networkmod.Append(createlayer(IO78, softmax8, IO89))
 
 	return networkmod
 }
