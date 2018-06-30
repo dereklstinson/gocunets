@@ -103,7 +103,9 @@ func model() network {
 	   Layer 1 Convolution
 	*/
 
-	Layer1Helper, Conv1, Tens1, _ := cnn.ConvolutionHelper()
+	Layer1Helper := cnn.CreateLayerHelper()
+	Conv1 := cnn.CreateConvolutionHelper()
+	Tens1 := cnn.CreateTensorHelper()
 	Layer1Helper.CoreSettings(false, Float, Conv1.Flgs.Mode.CrossCorrelation(), Tens1.Flgs.Format.NCHW())
 	err = Layer1Helper.InputInsert(inputDesc)
 	errcheck(err)
@@ -178,7 +180,10 @@ func model() network {
 	/*
 	   Layer 4 Convolution
 	*/
-	Layer4Helper, Conv4, Tens4, _ := cnn.ConvolutionHelper()
+	Layer4Helper := cnn.CreateLayerHelper()
+	Conv4 := cnn.CreateConvolutionHelper()
+	Tens4 := cnn.CreateTensorHelper()
+
 	Layer4Helper.CoreSettings(false, Float, Conv4.Flgs.Mode.CrossCorrelation(), Tens4.Flgs.Format.NCHW())
 	err = Layer4Helper.InputInsert(IO34TensorD)
 	errcheck(err)
@@ -256,7 +261,9 @@ func model() network {
 		Layer 7 Convolution
 
 	*/
-	Layer7Helper, Conv7, Tens7, _ := cnn.ConvolutionHelper()
+	Layer7Helper := cnn.CreateLayerHelper()
+	Conv7 := cnn.CreateConvolutionHelper()
+	Tens7 := cnn.CreateTensorHelper()
 	Layer7Helper.CoreSettings(false, Float, Conv7.Flgs.Mode.CrossCorrelation(), Tens7.Flgs.Format.NCHW())
 	err = Layer7Helper.InputInsert(IO67TensorD)
 	errcheck(err)

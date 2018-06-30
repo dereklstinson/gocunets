@@ -7,7 +7,7 @@ import (
 )
 
 //Layer is a struct that holds  filter, bias and convolution descriptors.
-//The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos.
+//The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
 	cfuncs      gocudnn.ConvolutionFuncs
 	tfuncs      gocudnn.TensorFuncs

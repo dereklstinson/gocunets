@@ -19,9 +19,25 @@ type Helper struct {
 	outputdesc *gocudnn.TensorD
 }
 
-func ConvolutionHelper() (Helper, gocudnn.Convolution, gocudnn.Tensor, gocudnn.Filter) {
+//CreateLayerHelper Creates and returns a helper for the convolutional layer
+func CreateLayerHelper() Helper {
 
-	return Helper{}, gocudnn.Convolution{}, gocudnn.Tensor{}, gocudnn.Filter{}
+	return Helper{}
+}
+
+//CreateTensorHelper creates and returns a gocudnn.Tensor
+func CreateTensorHelper() gocudnn.Tensor {
+	return gocudnn.Tensor{}
+}
+
+//CreateConvolutionHelper creates and returns a gocudnn.Convolution
+func CreateConvolutionHelper() gocudnn.Convolution {
+	return gocudnn.Convolution{}
+}
+
+//CreateFilterHelper creates and returns a gocudnn.Filter
+func CreateFilterHelper() gocudnn.Filter {
+	return gocudnn.Filter{}
 }
 
 func (h *Helper) CoreSettings(
