@@ -2,42 +2,61 @@
 package layers
 
 import (
-	"errors"
+	"github.com/dereklstinson/GoCuNets/tensor"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //IO is input and output of a convolution layer.  It is the communication between layers and networks
 type IO struct {
-	desc *gocudnn.TensorD
-	mem  gocudnn.Memer
-	dmem gocudnn.Memer
+	x  *tensor.Tensor
+	dx *tensor.Tensor
 }
 
-//TensorD returns the descriptor tensor
-func (i *IO) TensorD() *gocudnn.TensorD {
-	return i.desc
+func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+	return i.x.Properties()
 }
 
-//Mem returns the main memery
+//DTensor returns d tensor
+func (i *IO) DTensor() *tensor.Tensor {
+	return i.dx
+}
+
+//Tensor returns the tensor
+func (i *IO) Tensor() *tensor.Tensor {
+	return i.x
+}
+
+//Mem returns the main memery //Legacy func will go away
 func (i *IO) Mem() gocudnn.Memer {
-	return i.mem
+	return i.x.Memer()
 }
 
-//DMem returns the error backprop memory for the tensor memory
+//DMem returns the error backprop memory for the tensor memory  //Legacy func will go away
 func (i *IO) DMem() gocudnn.Memer {
-	return i.dmem
+	return i.dx.Memer()
 }
 
 //BuildIO builds an IO
-func BuildIO(desc *gocudnn.TensorD, mem, dmem gocudnn.Memer) *IO {
-	return &IO{
-		desc: desc,
-		mem:  mem,
-		dmem: dmem,
+func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
+	x, err := tensor.Create(fmt, dtype, dims)
+	if err != nil {
+		x.Destroy()
+		return nil, err
 	}
+	dx, err := tensor.Create(fmt, dtype, dims)
+	if err != nil {
+		x.Destroy()
+		dx.Destroy()
+		return nil, err
+	}
+	return &IO{
+		x:  x,
+		dx: dx,
+	}, nil
 }
 
+/*
 //LoadMem Replaces The memory on the device.
 func (i *IO) LoadMem(mem gocudnn.Memer, kind gocudnn.MemcpyKind) error {
 	size, err := i.desc.GetSizeInBytes()
@@ -50,3 +69,4 @@ func (i *IO) LoadMem(mem gocudnn.Memer, kind gocudnn.MemcpyKind) error {
 	gocudnn.CudaMemCopy(i.mem, mem, size, kind)
 	return nil
 }
+*/

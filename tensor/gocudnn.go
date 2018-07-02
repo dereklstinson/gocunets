@@ -35,7 +35,38 @@ func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Te
 	}
 
 	if len(dims) > 4 {
+		tens, err := thelper.NewTensorNdDescriptorEx(fmt, dtype, dims)
+		if err != nil {
+			return nil, err
+		}
+		filts, err := fhelper.NewFilterNdDescriptor(dtype, fmt, dims)
+		if err != nil {
+			tens.DestroyDescriptor()
+			return nil, err
+		}
+		size, err := tens.GetSizeInBytes()
+		if err != nil {
+			tens.DestroyDescriptor()
+			filts.DestroyDescriptor()
+			return nil, err
+		}
 
+		newmemer, err := gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
+		if err != nil {
+			newmemer, err = gocudnn.Malloc(size)
+			if err != nil {
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+			}
+
+		}
+		return &Tensor{
+			tD:  tens,
+			fD:  filts,
+			mem: newmemer,
+			fmt: fmt,
+		}, nil
 	}
 
 	tens, err := thelper.NewTensor4dDescriptor(dtype, fmt, dims)
@@ -71,6 +102,30 @@ func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Te
 		fmt: fmt,
 	}, nil
 
+}
+
+//TensorD returns the tensor descriptor for Tensor
+func (t *Tensor) TensorD() *gocudnn.TensorD {
+	return t.tD
+}
+
+//FilterD returns the filter descriptor for Tensor
+func (t *Tensor) FilterD() *gocudnn.FilterD {
+	return t.fD
+}
+
+//Memer returns the Memer for Tensor
+func (t *Tensor) Memer() gocudnn.Memer {
+	return t.mem
+}
+
+//Properties returns the properties of the tensor
+func (t *Tensor) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+	a, b, _, err := t.tD.GetDescrptor()
+	if err != nil {
+		return t.fmt, a, b, err
+	}
+	return t.fmt, a, b, nil
 }
 
 //ZeroClone returns a zero clone of the the memory

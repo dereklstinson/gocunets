@@ -74,12 +74,12 @@ func errcheck(err error) {
 }
 func model() network {
 	handle := gocudnn.NewHandle()
-	shape := gocudnn.Shape //simple arguments to array maker  x
+	var Tensor gocudnn.Tensor
+	shape := Tensor.Shape //simple arguments to array maker  x
 	pad := shape
 	dilation := shape
 	stride := shape
 
-	var Tensor gocudnn.Tensor
 	Float := Tensor.Flgs.Data.Float()
 	NCHW := Tensor.Flgs.Format.NCHW()
 
