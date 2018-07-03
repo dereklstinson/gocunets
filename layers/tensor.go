@@ -16,6 +16,7 @@ type IO struct {
 	dims []int32
 }
 
+//Properties returns the tensorformat, datatype and a slice of dims that describe the tensor
 func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
 	return i.x.Properties()
 }

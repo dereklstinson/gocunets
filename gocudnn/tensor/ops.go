@@ -21,7 +21,7 @@ Else opTensorCompType must be float.
 If the input tensor B is the same tensor as the destination tensor C, then the input tensor A also must be the same tensor as the destination tensor C.
 */
 
-//OpAdd does and addition Operation
+//OpAdd does addition Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
 func (t *Tensor) OpAdd(h *gocudnn.Handle, A, B *Tensor, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
@@ -59,7 +59,239 @@ func (t *Tensor) OpAdd(h *gocudnn.Handle, A, B *Tensor, alpha1, alpha2, beta flo
 		return errors.New("Not supported Format to make zero")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet, t.propnan)
+	defer opdesc.DestroyDescriptor()
+	if err != nil {
+		return err
+	}
+	err = t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
+	return err
+}
 
-	t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
+//OpMult does a multiplication Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
+func (t *Tensor) OpMult(h *gocudnn.Handle, A, B *Tensor, alpha1, alpha2, beta float64) error {
+
+	_, dtypet, _, err := t.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeA, _, err := A.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeB, _, err := B.Properties()
+	if err != nil {
+		return err
+	}
+	if dtypeA != dtypeB || dtypeA != dtypet {
+		return errors.New("Data Types don't match")
+	}
+	var a gocudnn.CScalar
+	var b gocudnn.CScalar
+	var c gocudnn.CScalar
+	switch dtypet {
+	case t.thelp.Flgs.Data.Double():
+		a = gocudnn.CDouble(alpha1)
+		b = gocudnn.CDouble(alpha2)
+		c = gocudnn.CDouble(beta)
+	case t.thelp.Flgs.Data.Float():
+		a = gocudnn.CFloat(alpha1)
+		b = gocudnn.CFloat(alpha2)
+		c = gocudnn.CFloat(beta)
+	case t.thelp.Flgs.Data.Int32():
+		a = gocudnn.CInt(alpha1)
+		b = gocudnn.CInt(alpha2)
+		c = gocudnn.CInt(beta)
+	default:
+		return errors.New("Not supported Format to make zero")
+	}
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet, t.propnan)
+	defer opdesc.DestroyDescriptor()
+	if err != nil {
+		return err
+	}
+	err = t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
+	return opdesc.DestroyDescriptor()
+}
+
+//OpAdd does and Not OperationNot performed on only the A  C = op ( alpha1[0] * A) + beta[0] * C,
+func (t *Tensor) OpNot(h *gocudnn.Handle, A *Tensor, alpha1, beta float64) error {
+
+	_, dtypet, _, err := t.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeA, _, err := A.Properties()
+	if err != nil {
+		return err
+	}
+
+	if dtypeA != dtypet {
+		return errors.New("Data Types don't match")
+	}
+	var a gocudnn.CScalar
+	//var b gocudnn.CScalar
+	var c gocudnn.CScalar
+	switch dtypet {
+	case t.thelp.Flgs.Data.Double():
+		a = gocudnn.CDouble(alpha1)
+		//	b = gocudnn.CDouble(alpha2)
+		c = gocudnn.CDouble(beta)
+	case t.thelp.Flgs.Data.Float():
+		a = gocudnn.CFloat(alpha1)
+		//	b = gocudnn.CFloat(alpha2)
+		c = gocudnn.CFloat(beta)
+	case t.thelp.Flgs.Data.Int32():
+		a = gocudnn.CInt(alpha1)
+		//	b = gocudnn.CInt(alpha2)
+		c = gocudnn.CInt(beta)
+	default:
+		return errors.New("Not supported Format to make zero")
+	}
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet, t.propnan)
+	defer opdesc.DestroyDescriptor()
+	if err != nil {
+		return err
+	}
+	err = t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, nil, nil, nil, c, t.tD, t.mem)
+
+	return err
+}
+
+//OpAdd does and max comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
+func (t *Tensor) OpMax(h *gocudnn.Handle, A, B *Tensor, alpha1, alpha2, beta float64) error {
+
+	_, dtypet, _, err := t.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeA, _, err := A.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeB, _, err := B.Properties()
+	if err != nil {
+		return err
+	}
+	if dtypeA != dtypeB || dtypeA != dtypet {
+		return errors.New("Data Types don't match")
+	}
+	var a gocudnn.CScalar
+	var b gocudnn.CScalar
+	var c gocudnn.CScalar
+	switch dtypet {
+	case t.thelp.Flgs.Data.Double():
+		a = gocudnn.CDouble(alpha1)
+		b = gocudnn.CDouble(alpha2)
+		c = gocudnn.CDouble(beta)
+	case t.thelp.Flgs.Data.Float():
+		a = gocudnn.CFloat(alpha1)
+		b = gocudnn.CFloat(alpha2)
+		c = gocudnn.CFloat(beta)
+	case t.thelp.Flgs.Data.Int32():
+		a = gocudnn.CInt(alpha1)
+		b = gocudnn.CInt(alpha2)
+		c = gocudnn.CInt(beta)
+	default:
+		return errors.New("Not supported Format to make zero")
+	}
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Max(), dtypet, t.propnan)
+	defer opdesc.DestroyDescriptor()
+	if err == nil {
+		return err
+	}
+	err = t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
+	return err
+}
+
+//OpAdd does and min comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
+func (t *Tensor) OpMin(h *gocudnn.Handle, A, B *Tensor, alpha1, alpha2, beta float64) error {
+
+	_, dtypet, _, err := t.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeA, _, err := A.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeB, _, err := B.Properties()
+	if err != nil {
+		return err
+	}
+	if dtypeA != dtypeB || dtypeA != dtypet {
+		return errors.New("Data Types don't match")
+	}
+	var a gocudnn.CScalar
+	var b gocudnn.CScalar
+	var c gocudnn.CScalar
+	switch dtypet {
+	case t.thelp.Flgs.Data.Double():
+		a = gocudnn.CDouble(alpha1)
+		b = gocudnn.CDouble(alpha2)
+		c = gocudnn.CDouble(beta)
+	case t.thelp.Flgs.Data.Float():
+		a = gocudnn.CFloat(alpha1)
+		b = gocudnn.CFloat(alpha2)
+		c = gocudnn.CFloat(beta)
+	case t.thelp.Flgs.Data.Int32():
+		a = gocudnn.CInt(alpha1)
+		b = gocudnn.CInt(alpha2)
+		c = gocudnn.CInt(beta)
+	default:
+		return errors.New("Not supported Format to make zero")
+	}
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Min(), dtypet, t.propnan)
+	defer opdesc.DestroyDescriptor()
+	if err == nil {
+		return err
+	}
+	err = t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
+	return err
+}
+
+//Op does and Not Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
+func (t *Tensor) OpSqrt(h *gocudnn.Handle, A, B *Tensor, alpha1, alpha2, beta float64) error {
+
+	_, dtypet, _, err := t.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeA, _, err := A.Properties()
+	if err != nil {
+		return err
+	}
+	_, dtypeB, _, err := B.Properties()
+	if err != nil {
+		return err
+	}
+	if dtypeA != dtypeB || dtypeA != dtypet {
+		return errors.New("Data Types don't match")
+	}
+	var a gocudnn.CScalar
+	var b gocudnn.CScalar
+	var c gocudnn.CScalar
+	switch dtypet {
+	case t.thelp.Flgs.Data.Double():
+		a = gocudnn.CDouble(alpha1)
+		b = gocudnn.CDouble(alpha2)
+		c = gocudnn.CDouble(beta)
+	case t.thelp.Flgs.Data.Float():
+		a = gocudnn.CFloat(alpha1)
+		b = gocudnn.CFloat(alpha2)
+		c = gocudnn.CFloat(beta)
+	case t.thelp.Flgs.Data.Int32():
+		a = gocudnn.CInt(alpha1)
+		b = gocudnn.CInt(alpha2)
+		c = gocudnn.CInt(beta)
+	default:
+		return errors.New("Not supported Format to make zero")
+	}
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Sqrt(), dtypet, t.propnan)
+	defer opdesc.DestroyDescriptor()
+	if err == nil {
+		return err
+	}
+	defer opdesc.DestroyDescriptor()
+	err = t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
 	return opdesc.DestroyDescriptor()
 }
