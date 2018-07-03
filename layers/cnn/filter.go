@@ -12,13 +12,8 @@ type Layer struct {
 	cfuncs      gocudnn.ConvolutionFuncs
 	tfuncs      gocudnn.TensorFuncs
 	cD          *gocudnn.ConvolutionD
-	wD          *gocudnn.FilterD
-	dwD         *gocudnn.FilterD
-	biasD       *gocudnn.TensorD
-	w           gocudnn.Memer
-	dw          gocudnn.Memer
-	bias        gocudnn.Memer
-	dbias       gocudnn.Memer
+	w           *layers.IO
+	bias        *layers.IO
 	size        gocudnn.SizeT
 	fwdAlgo     gocudnn.ConvFwdAlgo
 	bwdAlgodata gocudnn.ConvBwdDataAlgo
@@ -37,13 +32,13 @@ type xtras struct {
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func LayerSetup(input *gocudnn.TensorD,
-	wD *gocudnn.FilterD,
+	w *layers.IO,
 	cD *gocudnn.ConvolutionD,
 	fwdAlgo gocudnn.ConvFwdAlgo,
 	bwdAlgodata gocudnn.ConvBwdDataAlgo,
 	bwdAlgoFilt gocudnn.ConvBwdFiltAlgo,
 	sizeinbytes gocudnn.SizeT) (*Layer, error) {
-	datatype, _, _, err := wD.GetDescriptor()
+	_, datatype, _, err := w.Properties()
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +49,7 @@ func LayerSetup(input *gocudnn.TensorD,
 	return &Layer{
 		size:        sizeinbytes,
 		cD:          cD,
-		wD:          wD,
+		w:           w,
 		fwdAlgo:     fwdAlgo,
 		bwdAlgodata: bwdAlgodata,
 		bwdAlgoFilt: bwdAlgoFilt,
@@ -94,48 +89,94 @@ func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta gocudnn.CScalar) {
 
 //ForwardProp performs the ForwardProp
 func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
-	err := c.cfuncs.Fwd.ConvolutionForward(handle, c.fwd.alpha, x.TensorD(), x.Mem(), c.wD, c.w, c.cD, c.fwdAlgo, wspace, c.fwd.beta, y.TensorD(), y.Mem())
+	err := c.cfuncs.Fwd.ConvolutionForward(handle, c.fwd.alpha,
+		x.Tensor().TD(),
+		x.Mem(),
+		c.w.Tensor().FD(),
+		c.w.Mem(),
+		c.cD,
+		c.fwdAlgo,
+		wspace,
+		c.fwd.beta,
+		y.Tensor().TD(),
+		y.Mem())
 	if err != nil {
 		return err
 	}
-	return c.tfuncs.AddTensor(handle, c.datatype, c.fwd.alpha, c.biasD, c.bias, c.fwd.beta, y.TensorD(), y.Mem())
+	return c.tfuncs.AddTensor(handle, c.datatype, c.fwd.alpha, c.bias.Tensor().TD(), c.bias.Mem(), c.fwd.beta, y.Tensor().TD(), y.Mem())
 
 }
 
 //ForwardBiasActivation does the forward bias activation cudnn algorithm
 func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x *layers.IO, wpsace gocudnn.Memer, z *layers.IO, aD *gocudnn.ActivationD, y *layers.IO) error {
-	return c.cfuncs.Fwd.ConvolutionBiasActivationForward(handle, c.fwd.alpha, x.TensorD(), x.DMem(), c.wD, c.w, c.cD, c.fwdAlgo, wpsace, c.fwd.alpha2, z.TensorD(), z.DMem(), c.biasD, c.bias, aD, y.TensorD(), y.Mem())
+	return c.cfuncs.Fwd.ConvolutionBiasActivationForward(
+		handle,
+		c.fwd.alpha,
+		x.Tensor().TD(),
+		x.Mem(),
+		c.w.DTensor().FD(),
+		c.w.DMem(),
+		c.cD,
+		c.fwdAlgo,
+		wpsace,
+		c.fwd.alpha2,
+		z.Tensor().TD(),
+		z.DMem(),
+		c.bias.DTensor().TD(),
+		c.bias.Mem(),
+		aD,
+		y.Tensor().TD(),
+		y.Mem())
 }
 
 //BackPropData performs the BackPropData
-func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, dx, dy *layers.IO) error {
+func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
 	return c.cfuncs.Bwd.ConvolutionBackwardData(
 		handle,
 		c.bwdd.alpha,
-		c.wD,
-		c.w,
-		dy.TensorD(),
-		dy.Mem(),
+		c.w.Tensor().FD(),
+		c.w.Mem(),
+		y.DTensor().TD(),
+		y.DMem(),
 		c.cD,
 		c.bwdAlgodata,
 		wspace,
 		c.bwdd.beta,
-		dx.TensorD(),
-		dx.DMem())
+		x.DTensor().TD(),
+		x.DMem())
 
 }
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
-func (c *Layer) BackPropFilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, dy *layers.IO) error {
-	err := c.cfuncs.Bwd.ConvolutionBackwardFilter(handle, c.bwdf.alpha, x.TensorD(), x.Mem(), dy.TensorD(), dy.DMem(), c.cD, c.bwdAlgoFilt, wspace, c.bwdf.beta, c.dwD, c.dw)
+func (c *Layer) BackPropFilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+	err := c.cfuncs.Bwd.ConvolutionBackwardFilter(
+		handle,
+		c.bwdf.alpha,
+		x.Tensor().TD(),
+		x.Mem(),
+		y.DTensor().TD(),
+		y.DMem(),
+		c.cD,
+		c.bwdAlgoFilt,
+		wspace,
+		c.bwdf.beta,
+		c.w.DTensor().FD(),
+		c.w.DMem())
 	if err != nil {
 		return err
 	}
 
-	return c.cfuncs.Bwd.ConvolutionBackwardBias(handle, c.bwdf.alpha, dy.TensorD(), dy.Mem(), c.bwdf.beta, c.biasD, c.dbias)
+	return c.cfuncs.Bwd.ConvolutionBackwardBias(handle,
+		c.bwdf.alpha,
+		y.DTensor().TD(),
+		y.DMem(),
+		c.bwdf.beta,
+		c.bias.DTensor().TD(),
+		c.bias.DMem())
 
 }
 
+/*
 //Build builds the CNNlayer with the descriptors that are in it.  Returns how much memory is left to use
 func (c *Layer) Build() error {
 	var err error
@@ -150,3 +191,5 @@ func (c *Layer) Build() error {
 	return nil
 
 }
+
+*/

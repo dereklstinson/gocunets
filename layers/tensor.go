@@ -2,15 +2,18 @@
 package layers
 
 import (
-	"github.com/dereklstinson/GoCuNets/tensor"
+	"fmt"
+
+	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//IO is input and output of a convolution layer.  It is the communication between layers and networks
+//IO is an all purpose struct that contains an x tensor and a dx tensor used for training
 type IO struct {
-	x  *tensor.Tensor
-	dx *tensor.Tensor
+	x    *tensor.Tensor
+	dx   *tensor.Tensor
+	dims []int32
 }
 
 func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
@@ -54,6 +57,23 @@ func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*I
 		x:  x,
 		dx: dx,
 	}, nil
+}
+
+//Destroy frees all the memory assaciated with the tensor inside of IO
+func (i *IO) Destroy() error {
+	var flag bool
+	err := i.dx.Destroy()
+	if err != nil {
+		flag = true
+	}
+	err1 := i.x.Destroy()
+	if err1 != nil {
+		flag = true
+	}
+	if flag == true {
+		return fmt.Errorf("error:x: %s,dx: %s", err, err1)
+	}
+	return nil
 }
 
 /*

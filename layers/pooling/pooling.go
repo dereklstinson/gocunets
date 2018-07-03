@@ -33,10 +33,10 @@ func LayerSetup(pD *gocudnn.PoolingD, fwdalpha, fwdbeta, bwdalpha, bwdbeta gocud
 
 //ForwardProp performs the pooling forward propigation
 func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y layers.IO) error {
-	return l.funcs.PoolingForward(handle, l.pD, l.fwd.alpha, x.TensorD(), x.Mem(), l.fwd.beta, y.TensorD(), y.Mem())
+	return l.funcs.PoolingForward(handle, l.pD, l.fwd.alpha, x.Tensor().TD(), x.Tensor().Memer(), l.fwd.beta, y.Tensor().TD(), y.Tensor().Memer())
 }
 
 //BackProp performs the pooling backward propigation
 func (l *Layer) BackProp(handle *gocudnn.Handle, x, y layers.IO) error {
-	return l.funcs.PoolingBackward(handle, l.pD, l.fwd.alpha, y.TensorD(), y.Mem(), y.TensorD(), y.DMem(), x.TensorD(), x.Mem(), l.fwd.beta, x.TensorD(), x.DMem())
+	return l.funcs.PoolingBackward(handle, l.pD, l.fwd.alpha, y.Tensor().TD(), y.Tensor().Memer(), y.DTensor().TD(), y.DTensor().Memer(), x.Tensor().TD(), x.Tensor().Memer(), l.fwd.beta, x.DTensor().TD(), x.DTensor().Memer())
 }

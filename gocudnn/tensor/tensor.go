@@ -13,12 +13,26 @@ import (
 
 //Tensor holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Tensor struct {
-	tD    *gocudnn.TensorD
-	fD    *gocudnn.FilterD
-	mem   gocudnn.Memer
-	fmt   gocudnn.TensorFormat
-	thelp gocudnn.Tensor
-	fhelp gocudnn.Filter
+	tD      *gocudnn.TensorD
+	fD      *gocudnn.FilterD
+	dtype   gocudnn.DataType
+	propnan gocudnn.PropagationNAN
+	mem     gocudnn.Memer
+	fmt     gocudnn.TensorFormat
+	thelp   gocudnn.Tensor
+	fhelp   gocudnn.Filter
+	ophelp  gocudnn.OpTensor
+	//scalar gocudnn.CScalar
+}
+
+//SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN
+func (t *Tensor) SetPropNan() {
+	t.propnan = t.thelp.Flgs.NaN.PropagateNan()
+}
+
+//SetNotPropNan will set the nan propigation flag to NotPropigationNan (NotPropigationNan is default)
+func (t *Tensor) SetNoTPropNan() {
+	t.propnan = t.thelp.Flgs.NaN.NotPropagateNan()
 }
 
 //Flags returns a struct that passes gocudnn flags through methods used in building the tensor
@@ -62,10 +76,11 @@ func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Te
 
 		}
 		return &Tensor{
-			tD:  tens,
-			fD:  filts,
-			mem: newmemer,
-			fmt: fmt,
+			tD:    tens,
+			fD:    filts,
+			mem:   newmemer,
+			fmt:   fmt,
+			dtype: dtype,
 		}, nil
 	}
 
@@ -96,27 +111,33 @@ func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Te
 
 	}
 	return &Tensor{
-		tD:  tens,
-		fD:  filts,
-		mem: newmemer,
-		fmt: fmt,
+		tD:    tens,
+		fD:    filts,
+		mem:   newmemer,
+		fmt:   fmt,
+		dtype: dtype,
 	}, nil
 
 }
 
-//TensorD returns the tensor descriptor for Tensor
-func (t *Tensor) TensorD() *gocudnn.TensorD {
+//TD returns the tensor descriptor for Tensor
+func (t *Tensor) TD() *gocudnn.TensorD {
 	return t.tD
 }
 
-//FilterD returns the filter descriptor for Tensor
-func (t *Tensor) FilterD() *gocudnn.FilterD {
+//FD returns the filter descriptor for Tensor
+func (t *Tensor) FD() *gocudnn.FilterD {
 	return t.fD
 }
 
 //Memer returns the Memer for Tensor
 func (t *Tensor) Memer() gocudnn.Memer {
 	return t.mem
+}
+
+//Size returns the size in bytes in type gocudnn.SizeT
+func (t *Tensor) Size() (gocudnn.SizeT, error) {
+	return t.tD.GetSizeInBytes()
 }
 
 //Properties returns the properties of the tensor
@@ -187,28 +208,6 @@ func (t *Tensor) ZeroClone(handle *gocudnn.Handle) (*Tensor, error) {
 	return &Tensor{tD: tens, fD: filt, mem: newmem, fmt: t.fmt}, nil
 }
 
-//SetAllValues sets all the values in the tensor to whatever is passed. It does this by looking at the format that is held in the tensor descriptor and auto retypes it.
-func (t *Tensor) SetAllValues(handle *gocudnn.Handle, input float64) error {
-	dtype, _, _, err := t.tD.GetDescrptor()
-
-	if err != nil {
-		return err
-	}
-	switch dtype {
-	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CDouble(input))
-	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CFloat(input))
-	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CInt(input))
-	default:
-		return errors.New("Not supported Format to make Set All Values")
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
 func destroy(t *Tensor) error {
 	var flag bool
 
@@ -225,7 +224,7 @@ func destroy(t *Tensor) error {
 		flag = true
 	}
 	if flag == true {
-		return fmt.Errorf("Error:: TensorD: %s,FilterD: %s,Memory: %s", err1, err2, err3)
+		return fmt.Errorf("error::TensorD: %sFilterD: %sMemory: %s", err1, err2, err3)
 	}
 	return nil
 }
@@ -234,5 +233,3 @@ func destroy(t *Tensor) error {
 func (t *Tensor) Destroy() error {
 	return destroy(t)
 }
-
-//func (t *Tensor) AddAll()

@@ -5,64 +5,66 @@ import (
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is a fcnn layer for a network
 type Layer struct {
-	neurons     *tensor.Tensor
-	operation   *gocudnn.ConvolutionD
-	convfwdalgo *gocudnn.ConvFwdAlgo
-	convbwddata *gocudnn.ConvBwdDataAlgo
-	convbwdfilt *gocudnn.ConvBwdFiltAlgo
+	neurons   *layers.IO
+	bias      *layers.IO
+	operation *gocudnn.ConvolutionD
+	fwdalgo   gocudnn.ConvFwdAlgo
+	bwddata   gocudnn.ConvBwdDataAlgo
+	bwdfilt   gocudnn.ConvBwdFiltAlgo
 }
 
+//CreateFromInput will take the input that is given to it and along with the handle and number of neurons wanted for the layer,
+// and returns a default settings layer with all the dims set to 1(except for the feature map outputs). It will also return the *layer.IO for the output of that layer
 func CreateFromInput(handle *gocudnn.Handle, neurons int32, input layers.IO) (*Layer, *layers.IO, error) {
-	fmt, dtype, shape, err := some.Properties()
+	_, _, shape, err := input.Properties()
 	if err != nil {
 		return nil, nil, err
 	}
-	var convhelp gocudnn.Convolution
-	f := convhelp.Flgs
-	var thelp gocudnn.Tensor
-	sh := thelp.Shape
+
 	if len(shape) == 4 {
-		x := shape[0] * shape[1]
-		shape[0] = neurons
-		shape[1] = x
-		tens, err := tensor.Create(fmt, dtype, shape)
-
-		if err != nil {
-			tens.Destroy()
-			return nil, nil, err
-		}
-		conv, err := convhelp.NewConvolution2dDescriptor(f.Mode.CrossCorrelation(), dtype, sh(0, 0), sh(1, 1), sh(1, 1))
-		if err != nil {
-			tens.Destroy()
-			conv.DestroyDescriptor()
-			return nil, nil, err
-		}
-		outputdems, err := conv.GetConvolution2dForwardOutputDim(input.Tensor(), tens.FilterD())
-		if err != nil {
-			return nil, nil, err
-		}
-		err = dimscheck(outputdems, []int32{neurons, 1, 1, 1})
-		if err != nil {
-			return nil, nil, err
-		}
-		output, err := tensor.Create(fmt, dtype, outputdems)
-		if err != nil {
-			return nil, nil, err
-		}
-		fwdalgo, err := convhelp.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, some.Tensor(), tens.FilterD, conv, output.TensorD, convhelp.Flgs.Fwd.Pref.NoWorkSpace, 0)
-		if err != nil {
-			return nil, nil, err
-		}
-		return nil, &Layer{neurons: tens, operation: conv}, nil
+		return create4dfrominput(handle, neurons, input)
 	}
-	return nil, nil, nil
+	if len(shape) < 4 {
+		return nil, nil, errors.New("input dims should be at least 4")
+	}
 
+	return createNdfrominput(handle, neurons, input)
+
+}
+func (l *Layer) ForwardProp() error {
+
+	return nil
+}
+
+//Destroy frees all the memory associated with Layer both device and host memory (descriptors/algos)
+func (l *Layer) Destroy() error {
+	return destroy(l)
+}
+func destroy(l *Layer) error {
+	var flag bool
+
+	err1 := l.bias.Destroy()
+	if err1 != nil {
+		flag = true
+	}
+	err2 := l.neurons.Destroy()
+	if err2 != nil {
+		flag = true
+	}
+	err3 := l.operation.DestroyDescriptor()
+	if err3 != nil {
+		flag = true
+	}
+
+	if flag == true {
+		return fmt.Errorf("error:TensorD: %s,FilterD: %s,Memory: %s", err1, err2, err3)
+	}
+	return nil
 }
 
 func dimscheck(a, b []int32) error {

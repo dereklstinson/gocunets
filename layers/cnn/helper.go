@@ -3,20 +3,20 @@ package cnn
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Helper Struct is used to help build the layer
 type Helper struct {
-	nd         bool
-	datatype   gocudnn.DataType
-	mode       gocudnn.ConvolutionMode
-	format     gocudnn.TensorFormat
-	dim        int
-	convdesc   *gocudnn.ConvolutionD
-	inputdesc  *gocudnn.TensorD
-	filter     *gocudnn.FilterD
-	outputdesc *gocudnn.TensorD
+	datatype gocudnn.DataType
+	mode     gocudnn.ConvolutionMode
+	format   gocudnn.TensorFormat
+	dim      int
+	convdesc *gocudnn.ConvolutionD
+	x        *layers.IO
+	w        *layers.IO
+	y        *layers.IO
 }
 
 //CreateLayerHelper Creates and returns a helper for the convolutional layer
@@ -40,96 +40,96 @@ func CreateFilterHelper() gocudnn.Filter {
 	return gocudnn.Filter{}
 }
 
+//CoreSettigns sets up the core settigns
 func (h *Helper) CoreSettings(
-	nd bool,
 	datatype gocudnn.DataType,
 	mode gocudnn.ConvolutionMode,
 	format gocudnn.TensorFormat) {
-	h.nd = nd
 	h.datatype = datatype
 	h.mode = mode
 	h.format = format
 }
-func (h *Helper) InputInsert(inputdesc *gocudnn.TensorD) error {
-	dtype, dim, _, err := inputdesc.GetDescrptor()
-	h.dim = len(dim)
-	if h.nd == true && len(dim) == 4 {
-		return errors.New("input dims not matching nd/4d format")
-	}
+
+func (h *Helper) DeriveCoreSettings(x *layers.IO) error {
+	fmt, dtype, dims, err := x.Properties()
 	if err != nil {
 		return err
 	}
-	if dtype != h.datatype {
-		return errors.New("inputdatatype doesn't match datatype of helper")
-	}
-	h.inputdesc = inputdesc
+	h.dim = len(dims)
+	h.datatype = dtype
+	h.format = fmt
+	h.x = x
 	return nil
 }
 
 func (h *Helper) InputSetup(data gocudnn.DataType, format gocudnn.TensorFormat, shape []int32) error {
-	nd := false
-	h.dim = len(shape)
-	if len(shape) != 4 {
-		nd = true
-	}
-	h.nd = nd
-	var t gocudnn.Tensor
 
-	if nd == false {
-		desc, err := t.NewTensor4dDescriptor(data, format, shape)
-		h.inputdesc = desc
-		return err
-	}
-
-	desc, err := t.NewTensorNdDescriptorEx(format, data, shape)
-	h.inputdesc = desc
-
+	desc, err := layers.BuildIO(format, data, shape)
+	h.x = desc
 	return err
+
 }
 
 func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
-	var f gocudnn.Filter
 	var c gocudnn.Convolution
-	var t gocudnn.Tensor
+	var err error
 	if len(shape) != h.dim {
 		return errors.New("Shape length doesn't match dims")
 	}
+	if len(shape) < 4 {
+		return errors.New("Shape should be an array of at least 4 dims not used should be marked as 1")
+	}
 	if len(shape) == 4 {
-		Filtdesc, err := f.NewFilter4dDescriptor(h.datatype, h.format, shape)
+		h.w, err = layers.BuildIO(h.format, h.datatype, shape)
 		if err != nil {
+			h.w.Destroy()
 			return err
 		}
-		h.filter = Filtdesc
-		ConvDesc, err := c.NewConvolution2dDescriptor(h.mode, h.datatype, pad, stride, dialation)
+
+		h.convdesc, err = c.NewConvolution2dDescriptor(h.mode, h.datatype, pad, stride, dialation)
 		if err != nil {
+			h.w.Destroy()
+			h.convdesc.DestroyDescriptor()
 			return err
 		}
-		h.convdesc = ConvDesc
-		outputdims, err := ConvDesc.GetConvolution2dForwardOutputDim(h.inputdesc, Filtdesc)
+
+		outputdims, err := h.convdesc.GetConvolution2dForwardOutputDim(h.x.Tensor().TD(), h.w.Tensor().FD())
 		if err != nil {
+			h.w.Destroy()
+			h.convdesc.DestroyDescriptor()
 			return err
 		}
-		h.outputdesc, err = t.NewTensor4dDescriptor(h.datatype, h.format, outputdims)
+		h.y, err = layers.BuildIO(h.format, h.datatype, outputdims)
 		if err != nil {
+			h.w.Destroy()
+			h.convdesc.DestroyDescriptor()
+			h.y.Destroy()
 			return err
 		}
+
 	}
-	Filtdesc, err := f.NewFilterNdDescriptor(h.datatype, h.format, shape)
+	h.w, err = layers.BuildIO(h.format, h.datatype, shape)
+	if err != nil {
+		h.w.Destroy()
+		return err
+	}
+
+	h.convdesc, err = c.NewConvolutionNdDescriptor(h.mode, h.datatype, pad, stride, dialation)
 	if err != nil {
 		return err
 	}
-	h.filter = Filtdesc
-	ConvDesc, err := c.NewConvolutionNdDescriptor(h.mode, h.datatype, pad, stride, dialation)
+
+	outputdims, err := h.convdesc.GetConvolutionNdForwardOutputDim(h.x.Tensor().TD(), h.w.Tensor().FD())
 	if err != nil {
+		h.w.Destroy()
+		h.convdesc.DestroyDescriptor()
 		return err
 	}
-	h.convdesc = ConvDesc
-	outputdims, err := ConvDesc.GetConvolutionNdForwardOutputDim(h.inputdesc, Filtdesc)
+	h.y, err = layers.BuildIO(h.format, h.datatype, outputdims)
 	if err != nil {
-		return err
-	}
-	h.outputdesc, err = t.NewTensorNdDescriptorEx(h.format, h.datatype, outputdims)
-	if err != nil {
+		h.w.Destroy()
+		h.convdesc.DestroyDescriptor()
+		h.y.Destroy()
 		return err
 	}
 	return nil
@@ -138,15 +138,15 @@ func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
 func (h *Helper) GetAlgosLists(handle *gocudnn.Handle, maxlist int32) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerf, []gocudnn.ConvBwdFiltAlgoPerf, error) {
 	var c gocudnn.Convolution
 	//	size, err:=c.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle)
-	fwdlist, err := c.Funcs.Fwd.FindConvolutionForwardAlgorithm(handle, h.inputdesc, h.filter, h.convdesc, h.outputdesc, maxlist)
+	fwdlist, err := c.Funcs.Fwd.FindConvolutionForwardAlgorithm(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), maxlist)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	bwddatalist, err := c.Funcs.Bwd.FindConvolutionBackwardDataAlgorithm(handle, h.filter, h.outputdesc, h.convdesc, h.inputdesc, maxlist)
+	bwddatalist, err := c.Funcs.Bwd.FindConvolutionBackwardDataAlgorithm(handle, h.w.DTensor().FD(), h.y.DTensor().TD(), h.convdesc, h.x.DTensor().TD(), maxlist)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	bwdfiltlist, err := c.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithm(handle, h.inputdesc, h.outputdesc, h.convdesc, h.filter, maxlist)
+	bwdfiltlist, err := c.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithm(handle, h.x.DTensor().TD(), h.y.DTensor().TD(), h.convdesc, h.w.Tensor().FD(), maxlist)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -162,33 +162,33 @@ func (h *Helper) GetBestAlgoConsidering(handle *gocudnn.Handle, wspacesize gocud
 	var c gocudnn.Convolution
 	if speedpreffastest == true {
 		fastest := c.Flgs.Fwd.Pref.PreferFastest()
-		fastestfwd, err := c.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, h.inputdesc, h.filter, h.convdesc, h.outputdesc, fastest, 0)
+		fastestfwd, err := c.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), fastest, 0)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		fastestflagdataback := c.Flgs.Bwd.DataPref.PreferFastest()
-		fastestbwddata, err := c.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, h.filter, h.outputdesc, h.convdesc, h.inputdesc, fastestflagdataback, 0)
+		fastestbwddata, err := c.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, h.w.Tensor().FD(), h.y.DTensor().TD(), h.convdesc, h.x.DTensor().TD(), fastestflagdataback, 0)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		fastestflagfiltback := c.Flgs.Bwd.FltrPref.PrefFastest()
-		fastestbwdfilt, err := c.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, h.inputdesc, h.outputdesc, h.convdesc, h.filter, fastestflagfiltback, 0)
+		fastestbwdfilt, err := c.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, h.x.DTensor().TD(), h.y.Tensor().TD(), h.convdesc, h.w.Tensor().FD(), fastestflagfiltback, 0)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
-		fwdsize, err := c.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle, h.inputdesc, h.filter, h.convdesc, h.outputdesc, fastestfwd)
+		fwdsize, err := c.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), fastestfwd)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		largest := fwdsize
-		bwddatasize, err := c.Funcs.Bwd.GetConvolutionBackwardDataWorkspaceSize(handle, h.filter, h.outputdesc, h.convdesc, h.inputdesc, fastestbwddata)
+		bwddatasize, err := c.Funcs.Bwd.GetConvolutionBackwardDataWorkspaceSize(handle, h.w.Tensor().FD(), h.y.Tensor().TD(), h.convdesc, h.x.Tensor().TD(), fastestbwddata)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		if bwddatasize > largest {
 			largest = bwddatasize
 		}
-		bwdfiltsize, err := c.Funcs.Bwd.GetConvolutionBackwardFilterWorkspaceSize(handle, h.inputdesc, h.outputdesc, h.convdesc, h.filter, fastestbwdfilt)
+		bwdfiltsize, err := c.Funcs.Bwd.GetConvolutionBackwardFilterWorkspaceSize(handle, h.x.Tensor().TD(), h.y.Tensor().TD(), h.convdesc, h.w.Tensor().FD(), fastestbwdfilt)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -200,17 +200,17 @@ func (h *Helper) GetBestAlgoConsidering(handle *gocudnn.Handle, wspacesize gocud
 	if speedpreffastest == false && wspacesize == 0 {
 		//I copied and pasted this so don't pay attention to the vars
 		fastest := c.Flgs.Fwd.Pref.NoWorkSpace()
-		fastestfwd, err := c.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, h.inputdesc, h.filter, h.convdesc, h.outputdesc, fastest, 0)
+		fastestfwd, err := c.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), fastest, 0)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		fastestflagdataback := c.Flgs.Bwd.DataPref.NoWorkSpace()
-		fastestbwddata, err := c.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, h.filter, h.outputdesc, h.convdesc, h.inputdesc, fastestflagdataback, 0)
+		fastestbwddata, err := c.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, h.w.Tensor().FD(), h.y.Tensor().TD(), h.convdesc, h.x.Tensor().TD(), fastestflagdataback, 0)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		fastestflagfiltback := c.Flgs.Bwd.FltrPref.NoWorkSpace()
-		fastestbwdfilt, err := c.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, h.inputdesc, h.outputdesc, h.convdesc, h.filter, fastestflagfiltback, 0)
+		fastestbwdfilt, err := c.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, h.x.Tensor().TD(), h.y.Tensor().TD(), h.convdesc, h.w.Tensor().FD(), fastestflagfiltback, 0)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -219,33 +219,33 @@ func (h *Helper) GetBestAlgoConsidering(handle *gocudnn.Handle, wspacesize gocud
 	}
 	//I copied and pasted this so don't pay attention to the vars
 	fastest := c.Flgs.Fwd.Pref.SpecifyWorkSpaceLimit()
-	fastestfwd, err := c.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, h.inputdesc, h.filter, h.convdesc, h.outputdesc, fastest, wspacesize)
+	fastestfwd, err := c.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), fastest, wspacesize)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
 	fastestflagdataback := c.Flgs.Bwd.DataPref.SpecifyWorkSpaceLimit()
-	fastestbwddata, err := c.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, h.filter, h.outputdesc, h.convdesc, h.inputdesc, fastestflagdataback, wspacesize)
+	fastestbwddata, err := c.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, h.w.Tensor().FD(), h.y.Tensor().TD(), h.convdesc, h.x.Tensor().TD(), fastestflagdataback, wspacesize)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
 	fastestflagfiltback := c.Flgs.Bwd.FltrPref.SpecifyWorkSpaceLimit()
-	fastestbwdfilt, err := c.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, h.inputdesc, h.outputdesc, h.convdesc, h.filter, fastestflagfiltback, wspacesize)
+	fastestbwdfilt, err := c.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, h.x.Tensor().TD(), h.y.Tensor().TD(), h.convdesc, h.w.Tensor().FD(), fastestflagfiltback, wspacesize)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
-	fwdsize, err := c.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle, h.inputdesc, h.filter, h.convdesc, h.outputdesc, fastestfwd)
+	fwdsize, err := c.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), fastestfwd)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
 	largest := fwdsize
-	bwddatasize, err := c.Funcs.Bwd.GetConvolutionBackwardDataWorkspaceSize(handle, h.filter, h.outputdesc, h.convdesc, h.inputdesc, fastestbwddata)
+	bwddatasize, err := c.Funcs.Bwd.GetConvolutionBackwardDataWorkspaceSize(handle, h.w.Tensor().FD(), h.y.Tensor().TD(), h.convdesc, h.x.Tensor().TD(), fastestbwddata)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
 	if bwddatasize > largest {
 		largest = bwddatasize
 	}
-	bwdfiltsize, err := c.Funcs.Bwd.GetConvolutionBackwardFilterWorkspaceSize(handle, h.inputdesc, h.outputdesc, h.convdesc, h.filter, fastestbwdfilt)
+	bwdfiltsize, err := c.Funcs.Bwd.GetConvolutionBackwardFilterWorkspaceSize(handle, h.x.Tensor().TD(), h.y.Tensor().TD(), h.convdesc, h.w.Tensor().FD(), fastestbwdfilt)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
@@ -254,12 +254,18 @@ func (h *Helper) GetBestAlgoConsidering(handle *gocudnn.Handle, wspacesize gocud
 	}
 	return &fastestfwd, &fastestbwddata, &fastestbwdfilt, largest, nil
 }
-func (helper *Helper) ReturnDescriptors() (*gocudnn.TensorD, *gocudnn.FilterD, *gocudnn.ConvolutionD, *gocudnn.TensorD) {
-	return helper.inputdesc, helper.filter, helper.convdesc, helper.outputdesc
+
+//ReturnDescriptors will return the helper desriptors.  x, w, convdesc, y
+func (h *Helper) ReturnDescriptors() (*layers.IO, *layers.IO, *gocudnn.ConvolutionD, *layers.IO) {
+	return h.x, h.w, h.convdesc, h.y
 }
-func (helper *Helper) DestroyDescriptors() error {
+
+/*
+//Don't run this
+func (helper *Helper) Destroy() error {
 	var some string
 	err := helper.outputdesc.DestroyDescriptor()
+
 	if err != nil {
 		some = some + err.Error() + ","
 	}
@@ -280,3 +286,4 @@ func (helper *Helper) DestroyDescriptors() error {
 	}
 	return errors.New(some)
 }
+*/
