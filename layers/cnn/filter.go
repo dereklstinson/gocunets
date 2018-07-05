@@ -46,6 +46,7 @@ func LayerSetup(input *gocudnn.TensorD,
 	alpha := gocudnn.FindScalar(datatype, 1)
 	alpha2 := gocudnn.FindScalar(datatype, 1)
 	beta := gocudnn.FindScalar(datatype, 0)
+	beta2 := gocudnn.FindScalar(datatype, 1)
 	return &Layer{
 		size:        sizeinbytes,
 		cD:          cD,
@@ -66,7 +67,7 @@ func LayerSetup(input *gocudnn.TensorD,
 		bwdf: xtras{
 			alpha:  alpha,
 			alpha2: alpha2,
-			beta:   beta,
+			beta:   beta2,
 		},
 		datatype: datatype,
 	}, nil
@@ -82,7 +83,7 @@ func (c *Layer) SetBwdDataScalars(alpha, alpha2, beta gocudnn.CScalar) {
 	c.bwdd.alpha, c.bwdd.alpha2, c.bwdd.beta = alpha, alpha2, beta
 }
 
-//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
+//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=1 and are initialized in the function FilterSetup
 func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta gocudnn.CScalar) {
 	c.bwdf.alpha, c.bwdf.alpha2, c.bwdf.beta = alpha, alpha2, beta
 }
@@ -103,7 +104,7 @@ func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *
 	if err != nil {
 		return err
 	}
-	return c.tfuncs.AddTensor(handle, c.datatype, c.fwd.alpha, c.bias.Tensor().TD(), c.bias.Mem(), c.fwd.beta, y.Tensor().TD(), y.Mem())
+	return c.tfuncs.AddTensor(handle, c.fwd.alpha, c.bias.Tensor().TD(), c.bias.Mem(), c.fwd.beta, y.Tensor().TD(), y.Mem())
 
 }
 

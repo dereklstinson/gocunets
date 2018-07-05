@@ -40,7 +40,7 @@ func CreateFilterHelper() gocudnn.Filter {
 	return gocudnn.Filter{}
 }
 
-//CoreSettigns sets up the core settigns
+//CoreSettings sets up the core settigns
 func (h *Helper) CoreSettings(
 	datatype gocudnn.DataType,
 	mode gocudnn.ConvolutionMode,
@@ -135,7 +135,7 @@ func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
 	return nil
 }
 
-func (h *Helper) GetAlgosLists(handle *gocudnn.Handle, maxlist int32) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerf, []gocudnn.ConvBwdFiltAlgoPerf, error) {
+func (h *Helper) GetAlgosLists(handle *gocudnn.Handle, maxlist int32) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerformance, []gocudnn.ConvBwdFiltAlgoPerformance, error) {
 	var c gocudnn.Convolution
 	//	size, err:=c.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle)
 	fwdlist, err := c.Funcs.Fwd.FindConvolutionForwardAlgorithm(handle, h.x.Tensor().TD(), h.w.Tensor().FD(), h.convdesc, h.y.Tensor().TD(), maxlist)

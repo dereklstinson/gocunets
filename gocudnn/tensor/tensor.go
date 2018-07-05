@@ -31,7 +31,7 @@ func (t *Tensor) SetPropNan() {
 }
 
 //SetNotPropNan will set the nan propigation flag to NotPropigationNan (NotPropigationNan is default)
-func (t *Tensor) SetNoTPropNan() {
+func (t *Tensor) SetNotPropNan() {
 	t.propnan = t.thelp.Flgs.NaN.NotPropagateNan()
 }
 
