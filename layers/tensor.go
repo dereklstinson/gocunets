@@ -21,13 +21,13 @@ func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, erro
 	return i.x.Properties()
 }
 
-//DTensor returns d tensor
-func (i *IO) DTensor() *tensor.Tensor {
+//DeltaT returns d tensor
+func (i *IO) DeltaT() *tensor.Tensor {
 	return i.dx
 }
 
-//Tensor returns the tensor
-func (i *IO) Tensor() *tensor.Tensor {
+//T returns the tensor
+func (i *IO) T() *tensor.Tensor {
 	return i.x
 }
 

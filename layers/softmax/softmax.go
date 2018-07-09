@@ -28,13 +28,13 @@ func BuildDefault() *Layer {
 //ForwardProp performs the forward propigation
 func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	var s gocudnn.SoftMax
-	err := s.Funcs.SoftMaxForward(handle, l.algo, l.mode, l.alpha, x.Tensor().TD(), x.Tensor().Memer(), l.beta, y.Tensor().TD(), y.Tensor().Memer())
+	err := s.Funcs.SoftMaxForward(handle, l.algo, l.mode, l.alpha, x.T().TD(), x.T().Memer(), l.beta, y.T().TD(), y.T().Memer())
 	return err
 }
 
 //BackProp performs the backward propigation
 func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	var s gocudnn.SoftMax
-	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.Tensor().TD(), y.Tensor().Memer(), y.Tensor().TD(), y.DMem(), l.beta, x.DTensor().TD(), x.DTensor().Memer())
+	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
 	return err
 }

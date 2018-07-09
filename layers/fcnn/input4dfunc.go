@@ -30,7 +30,7 @@ func create4dfrominput(handle *gocudnn.Handle, neurons int32, input layers.IO) (
 		conv.DestroyDescriptor()
 		return nil, nil, err
 	}
-	outputdems, err := conv.GetConvolution2dForwardOutputDim(input.Tensor().TD(), tens.Tensor().FD())
+	outputdems, err := conv.GetConvolution2dForwardOutputDim(input.T().TD(), tens.T().FD())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,15 +42,15 @@ func create4dfrominput(handle *gocudnn.Handle, neurons int32, input layers.IO) (
 	if err != nil {
 		return nil, nil, err
 	}
-	fwdalgo, err := convhelp.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, input.Tensor().TD(), tens.Tensor().FD(), conv, output.Tensor().TD(), convhelp.Flgs.Fwd.Pref.NoWorkSpace(), 0)
+	fwdalgo, err := convhelp.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, input.T().TD(), tens.T().FD(), conv, output.T().TD(), convhelp.Flgs.Fwd.Pref.NoWorkSpace(), 0)
 	if err != nil {
 		return nil, nil, err
 	}
-	bwddata, err := convhelp.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, tens.Tensor().FD(), output.DTensor().TD(), conv, input.Tensor().TD(), convhelp.Flgs.Bwd.DataPref.NoWorkSpace(), 0)
+	bwddata, err := convhelp.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, tens.T().FD(), output.DeltaT().TD(), conv, input.T().TD(), convhelp.Flgs.Bwd.DataPref.NoWorkSpace(), 0)
 	if err != nil {
 		return nil, nil, err
 	}
-	bwdfilt, err := convhelp.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, input.Tensor().TD(), output.DTensor().TD(), conv, tens.Tensor().FD(), convhelp.Flgs.Bwd.FltrPref.NoWorkSpace(), 0)
+	bwdfilt, err := convhelp.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, input.T().TD(), output.DeltaT().TD(), conv, tens.T().FD(), convhelp.Flgs.Bwd.FltrPref.NoWorkSpace(), 0)
 	if err != nil {
 		return nil, nil, err
 	}
