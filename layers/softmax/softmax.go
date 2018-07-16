@@ -1,40 +1,51 @@
 package softmax
 
 import (
+	"errors"
+
+	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/softmax"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is a layer that holds the algos for softmax
 type Layer struct {
-	algo  gocudnn.SoftMaxAlgorithm
-	mode  gocudnn.SoftMaxMode
-	alpha gocudnn.CScalar
-	beta  gocudnn.CScalar
+	s *softmax.SoftMax
 }
 
 //BuildDefault builds a default layer (only option for now)
-func BuildDefault() *Layer {
-	var s gocudnn.SoftMax
+func BuildDefault(input *layers.IO) (*Layer, *layers.IO, error) {
 
-	return &Layer{
-		algo:  s.Flgs.Algo.Fast(),
-		mode:  s.Flgs.Mode.Instance(),
-		alpha: gocudnn.CFloat(1),
-		beta:  gocudnn.CFloat(0),
+	fmt, dtype, dims, err := input.Properties()
+	output, err := layers.BuildIO(fmt, dtype, dims)
+	sftmax := softmax.BuildDefault()
+	if err != nil {
+		return nil, nil, err
 	}
+	return &Layer{
+		s: sftmax,
+	}, output, nil
 }
 
-//ForwardProp performs the forward propigation
+//ForwardProp performs the forward propigation y is the output
 func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
-	var s gocudnn.SoftMax
-	err := s.Funcs.SoftMaxForward(handle, l.algo, l.mode, l.alpha, x.T().TD(), x.T().Memer(), l.beta, y.T().TD(), y.T().Memer())
-	return err
+	return l.s.ForwardProp(handle, x.T(), y.T())
+	//	err := s.Funcs.SoftMaxForward(handle, l.algo, l.mode, l.alpha, x.T().TD(), x.T().Memer(), l.beta, y.T().TD(), y.T().Memer())
+	//	return err
 }
 
-//BackProp performs the backward propigation
-func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
-	var s gocudnn.SoftMax
-	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
-	return err
+//BackProp performs the backward propigation // x is the output
+func (l *Layer) BackProp(handle *gocudnn.Handle, y, x *layers.IO) error {
+	return l.s.BackProp(handle, y.T(), y.DeltaT(), x.DeltaT())
+	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
+	//	return err
+}
+func (l *Layer) LoadAnswer(y *layers.IO, answers ffgocudnn.Memer, flag gocudnn.MemcpyKind) error {
+	dest := y.DeltaT().Memer().ByteSize()
+	src := answers.ByteSize()
+	if dest != src {
+		return errors.New("Memory dest and src not equal")
+	}
+	return gocudnn.CudaMemCopy(y.DeltaT().Memer(), answers, dest, flag)
+
 }

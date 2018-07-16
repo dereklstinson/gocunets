@@ -14,7 +14,16 @@ type Layer struct {
 }
 
 //LayerSetup sets up the activation Layer
-func LayerSetup(act *activation.Activation, fwdalpha, fwdbeta, bwdalpha, bwdbeta float64) *Layer {
+func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.PropagationNAN, coef float64, fwdalpha, fwdbeta, bwdalpha, bwdbeta float64) (*Layer, *layers.IO, error) {
+	fmt, dtype, dims, err := input.Properties()
+	act, err := activation.Create(mode, NanProp, coef)
+	if err != nil {
+		return nil, nil, err
+	}
+	output, err := layers.BuildIO(fmt, dtype, dims)
+	if err != nil {
+		return nil, nil, err
+	}
 	return &Layer{
 		act: act,
 		fwd: xtras{
@@ -25,7 +34,7 @@ func LayerSetup(act *activation.Activation, fwdalpha, fwdbeta, bwdalpha, bwdbeta
 			alpha: bwdalpha,
 			beta:  bwdbeta,
 		},
-	}
+	}, output, nil
 }
 
 type xtras struct {

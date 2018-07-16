@@ -27,12 +27,63 @@ type xtras struct {
 	beta   float64
 }
 
+//AIOLayerSetupDefault builds a layer based on the input, and other values passed.
+//It will choose the propigation algos with the consideration of not wanting any workspace.
+//It will also build and pass the outputlayer.
+func AIOLayerSetupDefault(
+	handle *gocudnn.Handle,
+	input *layers.IO,
+	filterdims []int32,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32,
+
+) (*Layer, *layers.IO, error) {
+
+	fmt, dtype, _, err := input.Properties()
+	if err != nil {
+		return nil, nil, err
+	}
+	layer, err := LayerSetup(fmt, dtype, filterdims, convmode, pad, stride, dilation)
+	if err != nil {
+		return nil, nil, err
+	}
+	output, err := layer.MakeOutputTensor(input)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = layer.SetBestAlgosConsidering(handle, input, output, 0, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	return layer, output, nil
+
+}
+
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
-func LayerSetup(input *gocudnn.TensorD,
-	w *layers.IO,
-	conv *convolution.Convolution,
-	sizeinbytes gocudnn.SizeT,
-	workspacesize gocudnn.SizeT) (*Layer, error) {
+func LayerSetup(
+	fmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	filterdims []int32,
+	convmode gocudnn.ConvolutionMode,
+	//data gocudnn.DataType,
+	pad,
+	stride,
+	dialation []int32,
+) (*Layer, error) {
+	conv, err := convolution.Create(convmode, dtype, pad, stride, dialation)
+	if err != nil {
+		return nil, err
+	}
+	w, err := layers.BuildIO(fmt, dtype, filterdims)
+	if err != nil {
+		return nil, err
+	}
+	sizeinbytes, err := w.T().Size()
+	if err != nil {
+		return nil, err
+	}
 	bias, err := buildbias(w)
 	if err != nil {
 		return nil, err
@@ -47,11 +98,11 @@ func LayerSetup(input *gocudnn.TensorD,
 	beta := 0.0
 	beta2 := 1.0
 	return &Layer{
-		size:       sizeinbytes,
-		conv:       conv,
-		wspacesize: workspacesize,
-		w:          w,
-		bias:       bias,
+		size: sizeinbytes,
+		conv: conv,
+
+		w:    w,
+		bias: bias,
 		fwd: xtras{
 			alpha:  alpha,
 			alpha2: alpha2,
@@ -78,6 +129,16 @@ func buildbias(weights *layers.IO) (*layers.IO, error) {
 	for i := 1; i < len(dims); i++ {
 		dims[i] = int32(1)
 	}
+	return layers.BuildIO(fmt, dtype, dims)
+}
+
+//MakeOutputTensor makes the output tensor of the layer
+func (c *Layer) MakeOutputTensor(input *layers.IO) (*layers.IO, error) {
+	dims, err := c.conv.OutputDim(input.T(), c.w.T())
+	if err != nil {
+		return nil, err
+	}
+	fmt, dtype, _, err := c.w.Properties()
 	return layers.BuildIO(fmt, dtype, dims)
 }
 
