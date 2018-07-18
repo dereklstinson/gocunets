@@ -1,4 +1,4 @@
-package arrays
+package gomem
 
 import "errors"
 

@@ -1,4 +1,4 @@
-package arrays
+package gomem
 
 //Harray3dTestArray1 Used for testing purposes
 func Harray3dTestArray1() HArray3d {

@@ -7,16 +7,15 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//Convolution is a struct
-type Convolution struct {
+//Ops is a struct
+type Ops struct {
 	desc    *gocudnn.ConvolutionD
 	helper  gocudnn.Convolution
 	fwdalgo gocudnn.ConvFwdAlgo
 	bwddata gocudnn.ConvBwdDataAlgo
 	bwdfilt gocudnn.ConvBwdFiltAlgo
-
-	dims  int
-	group int
+	dims    int
+	group   int
 }
 
 //Flags returns the flags that are used for convolution
@@ -24,15 +23,15 @@ func Flags() gocudnn.ConvolutionFlags {
 	return gocudnn.ConvolutionFlags{}
 }
 
-//Create Creates a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
-func Create(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Convolution, error) {
+//Set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
+func Build(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(pad) == 2 {
 		desc, err := helper.NewConvolution2dDescriptor(mode, data, pad, stride, dilation)
 		if err != nil {
 			return nil, err
 		}
-		return &Convolution{
+		return &Ops{
 			desc: desc,
 			dims: len(pad),
 		}, nil
@@ -41,7 +40,7 @@ func Create(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, di
 	if err != nil {
 		return nil, err
 	}
-	return &Convolution{
+	return &Ops{
 		desc:    desc,
 		dims:    len(pad),
 		fwdalgo: helper.Flgs.Fwd.Algo.Direct(),
@@ -52,18 +51,18 @@ func Create(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, di
 }
 
 //Group links the convolution with a group number
-func (c *Convolution) Group(group int32) error {
+func (c *Ops) Group(group int32) error {
 	return c.desc.SetGroupCount(group)
 }
 
 //Group is a group of convolution functions
 type Group struct {
-	g   []*Convolution
+	g   []*Ops
 	num int32
 }
 
 //MakeGroup takes a slice of convolution pointers and links them into a group
-func MakeGroup(groupnumber int32, group []*Convolution) (Group, error) {
+func MakeGroup(groupnumber int32, group []*Ops) (Group, error) {
 	var err error
 	for i := 0; i < len(group); i++ {
 		err = group[i].desc.SetGroupCount(groupnumber)
@@ -78,12 +77,12 @@ func MakeGroup(groupnumber int32, group []*Convolution) (Group, error) {
 }
 
 //SetMathType sets the mathtype
-func (c *Convolution) SetMathType(math gocudnn.MathType) error {
+func (c *Ops) SetMathType(math gocudnn.MathType) error {
 	return c.desc.SetMathType(math)
 }
 
 //AlgoLists Algo lists returns slices of performances for the fwd algos and bwd algos
-func (c *Convolution) AlgoLists(handle *gocudnn.Handle, x, dx, w, dw, y, dy *tensor.Tensor) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerformance, []gocudnn.ConvBwdFiltAlgoPerformance, error) {
+func (c *Ops) AlgoLists(handle *gocudnn.Handle, x, dx, w, dw, y, dy *tensor.Volume) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerformance, []gocudnn.ConvBwdFiltAlgoPerformance, error) {
 	maxfwd, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle)
 	if err != nil {
 		return nil, nil, nil, err
@@ -112,7 +111,7 @@ func (c *Convolution) AlgoLists(handle *gocudnn.Handle, x, dx, w, dw, y, dy *ten
 }
 
 //OutputDim will return the dims of what the output tensor should be
-func (c *Convolution) OutputDim(input *tensor.Tensor, filter *tensor.Tensor) ([]int32, error) {
+func (c *Ops) OutputDim(input *tensor.Volume, filter *tensor.Volume) ([]int32, error) {
 	_, _, dims, err := input.Properties()
 	if err != nil {
 		return nil, err
@@ -132,41 +131,41 @@ func (c *Convolution) OutputDim(input *tensor.Tensor, filter *tensor.Tensor) ([]
 }
 
 //WorkSizeFwd returns the worksize for the forward algo
-func (c *Convolution) WorkSizeFwd(handle *gocudnn.Handle, x, w, y tensor.Tensor) (gocudnn.SizeT, error) {
+func (c *Ops) WorkSizeFwd(handle *gocudnn.Handle, x, w, y tensor.Volume) (gocudnn.SizeT, error) {
 	return c.helper.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle, x.TD(), w.FD(), c.desc, y.TD(), c.fwdalgo)
 }
 
 //SetFwdAlgo sets fwd algo
-func (c *Convolution) SetFwdAlgo(algo gocudnn.ConvFwdAlgo) {
+func (c *Ops) SetFwdAlgo(algo gocudnn.ConvFwdAlgo) {
 	c.fwdalgo = algo
 }
 
 //SetBwdDataAlgo sets the backward data algo
-func (c *Convolution) SetBwdDataAlgo(algo gocudnn.ConvBwdDataAlgo) {
+func (c *Ops) SetBwdDataAlgo(algo gocudnn.ConvBwdDataAlgo) {
 	c.bwddata = algo
 }
 
 //SetBwdFiltAlgo sets the backward filters
-func (c *Convolution) SetBwdFiltAlgo(algo gocudnn.ConvBwdFiltAlgo) {
+func (c *Ops) SetBwdFiltAlgo(algo gocudnn.ConvBwdFiltAlgo) {
 	c.bwdfilt = algo
 }
 
 //SetAlgos sets all the algos
-func (c *Convolution) SetAlgos(fwd gocudnn.ConvFwdAlgo, bwdd gocudnn.ConvBwdDataAlgo, bwdf gocudnn.ConvBwdFiltAlgo) {
+func (c *Ops) SetAlgos(fwd gocudnn.ConvFwdAlgo, bwdd gocudnn.ConvBwdDataAlgo, bwdf gocudnn.ConvBwdFiltAlgo) {
 	c.fwdalgo = fwd
 	c.bwddata = bwdd
 	c.bwdfilt = bwdf
 }
 
 //BwdPropData dx = alpha * BwdPropData(w,dy)+beta*dx
-func (c *Convolution) BwdPropData(
+func (c *Ops) BwdPropData(
 	handle *gocudnn.Handle,
 	alpha float64,
-	w *tensor.Tensor,
-	dy *tensor.Tensor,
+	w *tensor.Volume,
+	dy *tensor.Volume,
 	wspace gocudnn.Memer,
 	beta float64,
-	dx *tensor.Tensor) error {
+	dx *tensor.Volume) error {
 	t := tensor.Flags()
 	var a gocudnn.CScalar
 	var b gocudnn.CScalar
@@ -199,15 +198,15 @@ func (c *Convolution) BwdPropData(
 }
 
 //BwdPropFilt dw = alpha * BwdPropFilt(x,dy)+beta*dw
-func (c *Convolution) BwdPropFilt(
+func (c *Ops) BwdPropFilt(
 	handle *gocudnn.Handle,
 	alpha float64,
-	x *tensor.Tensor,
+	x *tensor.Volume,
 
-	dy *tensor.Tensor,
+	dy *tensor.Volume,
 	wspace gocudnn.Memer,
 	beta float64,
-	dw *tensor.Tensor) error {
+	dw *tensor.Volume) error {
 	t := tensor.Flags()
 	var a gocudnn.CScalar
 	var b gocudnn.CScalar
@@ -240,14 +239,14 @@ func (c *Convolution) BwdPropFilt(
 }
 
 //FwdProp    y= alpha * Convolution(x,w)+ beta*y
-func (c *Convolution) FwdProp(
+func (c *Ops) FwdProp(
 	handle *gocudnn.Handle,
 	alpha float64,
-	x *tensor.Tensor,
-	w *tensor.Tensor,
+	x *tensor.Volume,
+	w *tensor.Volume,
 	wspace gocudnn.Memer,
 	beta float64,
-	y *tensor.Tensor) error {
+	y *tensor.Volume) error {
 	t := tensor.Flags()
 
 	var a gocudnn.CScalar
@@ -281,12 +280,12 @@ func (c *Convolution) FwdProp(
 }
 
 //BwdBias does the backward bias calculation
-func (c *Convolution) BwdBias(
+func (c *Ops) BwdBias(
 	handle *gocudnn.Handle,
 	alpha float64,
-	dy *tensor.Tensor,
+	dy *tensor.Volume,
 	beta float64,
-	dbias *tensor.Tensor) error {
+	dbias *tensor.Volume) error {
 	t := tensor.Flags()
 	_, dtypedy, _, err := dy.Properties()
 	if err != nil {
@@ -333,7 +332,7 @@ func (c *Convolution) BwdBias(
 }
 
 //Destroy destroys the convolution descriptor and sets everything else that isn't a pointer to zero
-func (c *Convolution) Destroy() error {
+func (c *Ops) Destroy() error {
 	err := c.desc.DestroyDescriptor()
 	if err != nil {
 		return err
@@ -344,7 +343,7 @@ func (c *Convolution) Destroy() error {
 }
 
 //this will set the fastest algo with  no workspace if an error is returned then no settings will be changed
-func (c *Convolution) setnowspace(handle *gocudnn.Handle, x, y, w *tensor.Tensor) error {
+func (c *Ops) setnowspace(handle *gocudnn.Handle, x, y, w *tensor.Volume) error {
 	preff := c.helper.Flgs.Fwd.Pref.NoWorkSpace()
 	prefbd := c.helper.Flgs.Bwd.DataPref.NoWorkSpace()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.NoWorkSpace()
@@ -371,7 +370,7 @@ func (c *Convolution) setnowspace(handle *gocudnn.Handle, x, y, w *tensor.Tensor
 }
 
 //this will set the fastest algo with the memory limit given if an error is returned no settings will be changed
-func (c *Convolution) setwspacelimit(handle *gocudnn.Handle, x, y, w *tensor.Tensor, wspacesize int) (gocudnn.SizeT, error) {
+func (c *Ops) setwspacelimit(handle *gocudnn.Handle, x, y, w *tensor.Volume, wspacesize int) (gocudnn.SizeT, error) {
 	preff := c.helper.Flgs.Fwd.Pref.SpecifyWorkSpaceLimit()
 	prefbd := c.helper.Flgs.Bwd.DataPref.SpecifyWorkSpaceLimit()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.SpecifyWorkSpaceLimit()
@@ -416,7 +415,7 @@ func (c *Convolution) setwspacelimit(handle *gocudnn.Handle, x, y, w *tensor.Ten
 }
 
 //this will set the fastest algos to to the struct and return the largest worksize for fwd, bwdd, bwdf. if an error is found nothing will be set.
-func (c *Convolution) setfastest(handle *gocudnn.Handle, x, y, w *tensor.Tensor) (gocudnn.SizeT, error) {
+func (c *Ops) setfastest(handle *gocudnn.Handle, x, y, w *tensor.Volume) (gocudnn.SizeT, error) {
 	preff := c.helper.Flgs.Fwd.Pref.PreferFastest()
 	prefbd := c.helper.Flgs.Bwd.DataPref.PreferFastest()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.PrefFastest()
@@ -467,11 +466,11 @@ func (c *Convolution) setfastest(handle *gocudnn.Handle, x, y, w *tensor.Tensor)
 //if fastest is marked true. Then it will find the fastest algo no mater what worksize is.
 //if fastest is set to false. It will check if wspace is greater than zero then it will set the algos to the fastest algo considering the workspace size, and return the largest wspacesize in all the algos
 //else it will find and set the fastest algos with no workspace size and return 0
-func (c *Convolution) SetBestAlgosConsidering(
+func (c *Ops) SetBestAlgosConsidering(
 	handle *gocudnn.Handle,
-	x *tensor.Tensor,
-	y *tensor.Tensor,
-	w *tensor.Tensor,
+	x *tensor.Volume,
+	y *tensor.Volume,
+	w *tensor.Volume,
 	wspacesize int,
 	fastest bool) (
 	gocudnn.SizeT,

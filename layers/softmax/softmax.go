@@ -10,15 +10,15 @@ import (
 
 //Layer is a layer that holds the algos for softmax
 type Layer struct {
-	s *softmax.SoftMax
+	s *softmax.Ops
 }
 
 //BuildDefault builds a default layer (only option for now)
-func BuildDefault(input *layers.IO) (*Layer, *layers.IO, error) {
+func BuildDefault(input *layers.IO, managemem bool) (*Layer, *layers.IO, error) {
 
 	fmt, dtype, dims, err := input.Properties()
-	output, err := layers.BuildIO(fmt, dtype, dims)
-	sftmax := softmax.BuildDefault()
+	output, err := layers.BuildIO(fmt, dtype, dims, managemem)
+	sftmax := softmax.Build()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -40,7 +40,7 @@ func (l *Layer) BackProp(handle *gocudnn.Handle, y, x *layers.IO) error {
 	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
 	//	return err
 }
-func (l *Layer) LoadAnswer(y *layers.IO, answers ffgocudnn.Memer, flag gocudnn.MemcpyKind) error {
+func (l *Layer) LoadAnswer(y *layers.IO, answers gocudnn.Memer, flag gocudnn.MemcpyKind) error {
 	dest := y.DeltaT().Memer().ByteSize()
 	src := answers.ByteSize()
 	if dest != src {

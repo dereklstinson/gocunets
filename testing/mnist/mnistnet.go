@@ -8,7 +8,6 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/fcnn"
-	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
 )
 
@@ -24,35 +23,36 @@ func main() {
 	CMode := convolution.Flags().Mode.CrossCorrelation() //.CrossCorrelation()
 	AMode := gocudnn.ActivationModeFlag{}.Relu()
 	NanProp := gocudnn.PropagationNANFlag{}.NotPropagateNan()
+	memmanaged := true
 	//	dims := gocudnn.Tensor.Shape
 
 	//input tensor
-	input, err := layers.BuildIO(fmt, dtype, dims(1, 1, 28, 28))
+	input, err := layers.BuildIO(fmt, dtype, dims(1, 1, 28, 28), memmanaged)
 	cherror(err)
 	//Setting Up Network
 	//Convolution Layer
-	layer1, output1, err := cnn.AIOLayerSetupDefault(handle, input, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1))
+	layer1, output1, err := cnn.AIOLayerSetupDefault(handle, input, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1), memmanaged)
 	cherror(err)
 	//Activation Layer
-	activation1, aoutput1, err := activation.LayerSetup(output1, Amode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0)
+	activation1, aoutput1, err := activation.LayerSetup(output1, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
-	pooling1, err := pooling.LayerSetup()
+	//pooling1 = pooling.LayerSetup()
 	//Convolution Layer
-	layer2, output2, err := cnn.AIOLayerSetupDefault(handle, aoutput1, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1))
+	layer2, output2, err := cnn.AIOLayerSetupDefault(handle, aoutput1, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1), memmanaged)
 	cherror(err)
 	//Activation Layer
-	activation2, aoutput2, err := activation.LayerSetup(output2, Amode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0)
+	activation2, aoutput2, err := activation.LayerSetup(output2, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//Convolution Layer
-	layer3, output3, err := cnn.AIOLayerSetupDefault(handle, aoutput2, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1))
+	layer3, output3, err := cnn.AIOLayerSetupDefault(handle, aoutput2, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1), memmanaged)
 	cherror(err)
 	//Activation Layer
-	activation3, aoutput3, err := activation.LayerSetup(output3, Amode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0)
+	activation3, aoutput3, err := activation.LayerSetup(output3, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//Fully Connected Layer ////Modified Convolution Layer :-)
-	layer4, output4, err := fcnn.CreateFromInput(handle, int32(10), aoutput3)
+	layer4, output4, err := fcnn.CreateFromInput(handle, int32(10), aoutput3, memmanaged)
 	//Output Layer
-	softmax, answer, err := softmax.BuildDefault(output4)
+	softmax, answer, err := softmax.BuildDefault(output4, memmanaged)
 	cherror(err)
 
 	//TrainingFunc
@@ -60,7 +60,7 @@ func main() {
 
 	for {
 		//training
-		for i := 0; i < len(batchsize); i++ {
+		for i := 0; i < batchsize; i++ {
 			//Will Need A Load Input Func
 			//Forward Section
 			err = layer1.ForwardProp(handle, nil, input, output1)
@@ -75,8 +75,8 @@ func main() {
 			cherror(err)
 			err = activation3.ForwardProp(handle, output3, aoutput3)
 			cherror(err)
-			err = layer4.ForwardProp()
-			err = softmax.ForwardProp(handle, Output4, answer)
+			err = layer4.ForwardProp(handle, aoutput3, output4)
+			err = softmax.ForwardProp(handle, output4, answer)
 		}
 
 	}

@@ -11,8 +11,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//Tensor holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
-type Tensor struct {
+//Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
+type Volume struct {
 	tD      *gocudnn.TensorD
 	fD      *gocudnn.FilterD
 	dtype   gocudnn.DataType
@@ -22,16 +22,17 @@ type Tensor struct {
 	thelp   gocudnn.Tensor
 	fhelp   gocudnn.Filter
 	ophelp  gocudnn.OpTensor
+	managed bool
 	//scalar gocudnn.CScalar
 }
 
 //SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN
-func (t *Tensor) SetPropNan() {
+func (t *Volume) SetPropNan() {
 	t.propnan = t.thelp.Flgs.NaN.PropagateNan()
 }
 
 //SetNotPropNan will set the nan propigation flag to NotPropigationNan (NotPropigationNan is default)
-func (t *Tensor) SetNotPropNan() {
+func (t *Volume) SetNotPropNan() {
 	t.propnan = t.thelp.Flgs.NaN.NotPropagateNan()
 }
 
@@ -40,20 +41,23 @@ func Flags() gocudnn.TensorFlags {
 	return gocudnn.TensorFlags{}
 }
 
-//Create creates a tensor and mallocs the memory for the tensor
-func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Tensor, error) {
+//Build creates a tensor and mallocs the memory for the tensor
+func Build(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
 	var thelper gocudnn.Tensor
 	var fhelper gocudnn.Filter
 	if len(dims) < 4 {
 		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
 	}
-
+	var newmemer *gocudnn.Malloced
+	var tens *gocudnn.TensorD
+	var filts *gocudnn.FilterD
+	var err error
 	if len(dims) > 4 {
-		tens, err := thelper.NewTensorNdDescriptorEx(fmt, dtype, dims)
+		tens, err = thelper.NewTensorNdDescriptorEx(fmt, dtype, dims)
 		if err != nil {
 			return nil, err
 		}
-		filts, err := fhelper.NewFilterNdDescriptor(dtype, fmt, dims)
+		filts, err = fhelper.NewFilterNdDescriptor(dtype, fmt, dims)
 		if err != nil {
 			tens.DestroyDescriptor()
 			return nil, err
@@ -64,53 +68,71 @@ func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Te
 			filts.DestroyDescriptor()
 			return nil, err
 		}
-
-		newmemer, err := gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			newmemer, err = gocudnn.Malloc(size)
+		if managed == true {
+			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
 			if err != nil {
+
 				tens.DestroyDescriptor()
 				filts.DestroyDescriptor()
 				return nil, err
 			}
 
+		} else {
+
+			newmemer, err = gocudnn.Malloc(size)
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+
+			}
+
 		}
-		return &Tensor{
-			tD:    tens,
-			fD:    filts,
-			mem:   newmemer,
-			fmt:   fmt,
-			dtype: dtype,
-		}, nil
-	}
 
-	tens, err := thelper.NewTensor4dDescriptor(dtype, fmt, dims)
-	if err != nil {
-		return nil, err
-	}
-	filts, err := fhelper.NewFilter4dDescriptor(dtype, fmt, dims)
-	if err != nil {
-		tens.DestroyDescriptor()
-		return nil, err
-	}
-	size, err := tens.GetSizeInBytes()
-	if err != nil {
-		tens.DestroyDescriptor()
-		filts.DestroyDescriptor()
-		return nil, err
-	}
+	} else {
 
-	newmemer, err := gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
-	if err != nil {
-		newmemer, err = gocudnn.Malloc(size)
+		tens, err = thelper.NewTensor4dDescriptor(dtype, fmt, dims)
+		if err != nil {
+			return nil, err
+		}
+		filts, err = fhelper.NewFilter4dDescriptor(dtype, fmt, dims)
+		if err != nil {
+			tens.DestroyDescriptor()
+			return nil, err
+		}
+		size, err := tens.GetSizeInBytes()
 		if err != nil {
 			tens.DestroyDescriptor()
 			filts.DestroyDescriptor()
 			return nil, err
 		}
+		if managed == true {
+
+			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+
+			}
+
+		} else {
+			newmemer, err = gocudnn.Malloc(size)
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+
+			}
+
+		}
 
 	}
-	return &Tensor{
+
+	return &Volume{
 		tD:    tens,
 		fD:    filts,
 		mem:   newmemer,
@@ -121,27 +143,27 @@ func Create(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*Te
 }
 
 //TD returns the tensor descriptor for Tensor
-func (t *Tensor) TD() *gocudnn.TensorD {
+func (t *Volume) TD() *gocudnn.TensorD {
 	return t.tD
 }
 
 //FD returns the filter descriptor for Tensor
-func (t *Tensor) FD() *gocudnn.FilterD {
+func (t *Volume) FD() *gocudnn.FilterD {
 	return t.fD
 }
 
 //Memer returns the Memer for Tensor
-func (t *Tensor) Memer() gocudnn.Memer {
+func (t *Volume) Memer() gocudnn.Memer {
 	return t.mem
 }
 
 //Size returns the size in bytes in type gocudnn.SizeT
-func (t *Tensor) Size() (gocudnn.SizeT, error) {
+func (t *Volume) Size() (gocudnn.SizeT, error) {
 	return t.tD.GetSizeInBytes()
 }
 
 //Properties returns the properties of the tensor
-func (t *Tensor) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+func (t *Volume) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
 	a, b, _, err := t.tD.GetDescrptor()
 	if err != nil {
 		return t.fmt, a, b, err
@@ -150,7 +172,7 @@ func (t *Tensor) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, 
 }
 
 //ZeroClone returns a zero clone of the the memory
-func (t *Tensor) ZeroClone(handle *gocudnn.Handle) (*Tensor, error) {
+func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 
 	if t.tD == nil || t.fD == nil || t.mem == nil {
 		return nil, errors.New("Tensor is nil")
@@ -205,10 +227,10 @@ func (t *Tensor) ZeroClone(handle *gocudnn.Handle) (*Tensor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Tensor{tD: tens, fD: filt, mem: newmem, fmt: t.fmt}, nil
+	return &Volume{tD: tens, fD: filt, mem: newmem, fmt: t.fmt}, nil
 }
 
-func destroy(t *Tensor) error {
+func destroy(t *Volume) error {
 	var flag bool
 
 	err1 := t.tD.DestroyDescriptor()
@@ -230,6 +252,6 @@ func destroy(t *Tensor) error {
 }
 
 //Destroy will release the memory of the tensor
-func (t *Tensor) Destroy() error {
+func (t *Volume) Destroy() error {
 	return destroy(t)
 }

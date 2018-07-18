@@ -3,11 +3,13 @@ package tensor
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/utils"
+
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //SetValues sets all the values in the tensor to whatever is passed. It does this by looking at the format that is held in the tensor descriptor and auto retypes it.
-func (t *Tensor) SetValues(handle *gocudnn.Handle, input float64) error {
+func (t *Volume) SetValues(handle *gocudnn.Handle, input float64) error {
 	dtype, _, _, err := t.tD.GetDescrptor()
 
 	if err != nil {
@@ -34,7 +36,7 @@ func (t *Tensor) SetValues(handle *gocudnn.Handle, input float64) error {
 }
 
 //ScaleValues values will scale the values to the scalar passed
-func (t *Tensor) ScaleValues(h *gocudnn.Handle, alpha float64) error {
+func (t *Volume) ScaleValues(h *gocudnn.Handle, alpha float64) error {
 	dtype, _, _, err := t.tD.GetDescrptor()
 	if err != nil {
 		return err
@@ -58,7 +60,7 @@ func (t *Tensor) ScaleValues(h *gocudnn.Handle, alpha float64) error {
 //AddTo formula is  (t *Tensor)= alpha*(A)+beta*(t *Tensor)
 //Dim max is 5. Number of dims need to be the same.  Dim size need to match or be equal to 1.
 //In the later case the same value from the A tensor for the dims will be used to blend into (t *Tensor).
-func (t *Tensor) AddTo(h *gocudnn.Handle, A *Tensor, alpha, beta float64) error {
+func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, alpha, beta float64) error {
 	dtype, _, _, err := t.tD.GetDescrptor()
 	if err != nil {
 		return err
@@ -94,6 +96,113 @@ func (t *Tensor) AddTo(h *gocudnn.Handle, A *Tensor, alpha, beta float64) error 
 	}
 
 	return t.thelp.Funcs.AddTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
+}
+
+//SetRandom sets Random Value to weights
+func (t *Volume) SetRandom(mean, max, fanin float64) error {
+	_, dtype, dims, err := t.Properties()
+	if err != nil {
+		return err
+	}
+	vol := volume(dims)
+	vol1 := int(vol)
+	size, err := t.Size()
+	if err != nil {
+		return err
+	}
+
+	switch dtype {
+
+	case t.thelp.Flgs.Data.Double():
+		randomizedvol := make([]gocudnn.CDouble, vol)
+		for i := 0; i < vol1; i++ {
+			randomizedvol[i] = gocudnn.CDouble(utils.RandWeightSet(mean, max, fanin))
+		}
+		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		if err != nil {
+			return err
+		}
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		if err != nil {
+			return err
+		}
+		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+	case t.thelp.Flgs.Data.Float():
+		randomizedvol := make([]gocudnn.CFloat, vol)
+		for i := 0; i < vol1; i++ {
+			randomizedvol[i] = gocudnn.CFloat(utils.RandWeightSet(mean, max, fanin))
+		}
+		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		if err != nil {
+			return err
+		}
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		if err != nil {
+			return err
+		}
+
+		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+	case t.thelp.Flgs.Data.Int32():
+		if max > -1 && max < 1 {
+			return errors.New("Max needs to be changed because it will only be zero")
+		}
+		randomizedvol := make([]gocudnn.CInt, vol)
+		for i := 0; i < vol1; i++ {
+			randomizedvol[i] = gocudnn.CInt(utils.RandWeightSet(mean, max, fanin))
+		}
+		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		if err != nil {
+			return err
+		}
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		if err != nil {
+			return err
+		}
+		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+	case t.thelp.Flgs.Data.Int8():
+		if (max > -1 && max < 1) || max > 127 {
+			return errors.New("Unsupported Max Value for datatype")
+		}
+		randomizedvol := make([]gocudnn.CInt8, vol)
+		for i := 0; i < vol1; i++ {
+			randomizedvol[i] = gocudnn.CInt8(utils.RandWeightSet(mean, max, fanin))
+		}
+		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		if err != nil {
+			return err
+		}
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		if err != nil {
+			return err
+		}
+		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+	case t.thelp.Flgs.Data.UInt8():
+		if max < 1 || max > 255 {
+			return errors.New("Unsupported Max Value for datatype")
+		}
+		randomizedvol := make([]gocudnn.CUInt8, vol)
+		for i := 0; i < vol1; i++ {
+			randomizedvol[i] = gocudnn.CUInt8(utils.RandWeightSet(mean, max, fanin))
+		}
+		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		if err != nil {
+			return err
+		}
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		if err != nil {
+			return err
+		}
+		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+	}
+	return errors.New("Unreachable Area has been reached")
+}
+
+func volume(dims []int32) int32 {
+	mult := int32(1)
+	for i := 0; i < len(dims); i++ {
+		mult *= dims[i]
+	}
+	return mult
 }
 
 //Transform tensor

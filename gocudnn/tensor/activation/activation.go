@@ -7,8 +7,8 @@ import (
 	"github.com/dereklstinson/GoCudnn"
 )
 
-//Activation is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.
-type Activation struct {
+//Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.
+type Ops struct {
 	helper gocudnn.Activation
 	desc   *gocudnn.ActivationD
 }
@@ -18,28 +18,28 @@ func Flags() (gocudnn.ActivationModeFlag, gocudnn.PropagationNANFlag) {
 	return gocudnn.ActivationModeFlag{}, gocudnn.PropagationNANFlag{}
 }
 
-//Create creates an activation struct given the properties passed in function
-func Create(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) (*Activation, error) {
+//Build creates an activation struct given the properties passed in function
+func Build(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) (*Ops, error) {
 	var hlp gocudnn.Activation
 	x, err := hlp.NewActivationDescriptor(mode, nan, coef)
-	return &Activation{
+	return &Ops{
 		desc: x,
 	}, err
 }
 
 //Properties returns the values that were used to Create the Activation struct
-func (act *Activation) Properties() (gocudnn.ActivationMode, gocudnn.PropagationNAN, float64, error) {
+func (act *Ops) Properties() (gocudnn.ActivationMode, gocudnn.PropagationNAN, float64, error) {
 	return act.desc.GetDescriptor()
 
 }
 
 //FwdProp is the forward propigation function for the Activation struct
-func (act *Activation) FwdProp(
+func (act *Ops) FwdProp(
 	handle *gocudnn.Handle,
 	alpha float64,
-	x *tensor.Tensor,
+	x *tensor.Volume,
 	beta float64,
-	y *tensor.Tensor) error {
+	y *tensor.Volume) error {
 	_, dtypex, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -79,14 +79,14 @@ func (act *Activation) FwdProp(
 }
 
 //BwdProp is the backwards propigation of the activation struct
-func (act *Activation) BwdProp(
+func (act *Ops) BwdProp(
 	handle *gocudnn.Handle,
 	alpha float64,
-	y *tensor.Tensor,
-	dy *tensor.Tensor,
-	x *tensor.Tensor,
+	y *tensor.Volume,
+	dy *tensor.Volume,
+	x *tensor.Volume,
 	beta float64,
-	dx *tensor.Tensor,
+	dx *tensor.Volume,
 ) error {
 	_, dtypedx, _, err := dx.Properties()
 	if err != nil {
@@ -134,7 +134,7 @@ func (act *Activation) BwdProp(
 }
 
 //Destroy destroys the cuda allocated memory associated with Activation
-func (act *Activation) Destroy() error {
+func (act *Ops) Destroy() error {
 
 	return act.desc.DestroyDescriptor()
 }

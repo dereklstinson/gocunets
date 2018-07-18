@@ -11,8 +11,8 @@ import (
 
 //IO is an all purpose struct that contains an x tensor and a dx tensor used for training
 type IO struct {
-	x    *tensor.Tensor
-	dx   *tensor.Tensor
+	x    *tensor.Volume
+	dx   *tensor.Volume
 	dims []int32
 }
 
@@ -22,12 +22,12 @@ func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, erro
 }
 
 //DeltaT returns d tensor
-func (i *IO) DeltaT() *tensor.Tensor {
+func (i *IO) DeltaT() *tensor.Volume {
 	return i.dx
 }
 
 //T returns the tensor
-func (i *IO) T() *tensor.Tensor {
+func (i *IO) T() *tensor.Volume {
 	return i.x
 }
 
@@ -42,13 +42,13 @@ func (i *IO) DMem() gocudnn.Memer {
 }
 
 //BuildIO builds an IO
-func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
-	x, err := tensor.Create(fmt, dtype, dims)
+func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	x, err := tensor.Build(fmt, dtype, dims, managed)
 	if err != nil {
 		x.Destroy()
 		return nil, err
 	}
-	dx, err := tensor.Create(fmt, dtype, dims)
+	dx, err := tensor.Build(fmt, dtype, dims, managed)
 	if err != nil {
 		x.Destroy()
 		dx.Destroy()

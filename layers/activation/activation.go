@@ -8,19 +8,19 @@ import (
 
 //Layer is an activation layer
 type Layer struct {
-	act *activation.Activation
+	act *activation.Ops
 	fwd xtras
 	bwd xtras
 }
 
 //LayerSetup sets up the activation Layer
-func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.PropagationNAN, coef float64, fwdalpha, fwdbeta, bwdalpha, bwdbeta float64) (*Layer, *layers.IO, error) {
+func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.PropagationNAN, coef float64, fwdalpha, fwdbeta, bwdalpha, bwdbeta float64, memmanaged bool) (*Layer, *layers.IO, error) {
 	fmt, dtype, dims, err := input.Properties()
-	act, err := activation.Create(mode, NanProp, coef)
+	act, err := activation.Build(mode, NanProp, coef)
 	if err != nil {
 		return nil, nil, err
 	}
-	output, err := layers.BuildIO(fmt, dtype, dims)
+	output, err := layers.BuildIO(fmt, dtype, dims, memmanaged)
 	if err != nil {
 		return nil, nil, err
 	}

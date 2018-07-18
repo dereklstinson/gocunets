@@ -10,7 +10,7 @@ import (
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
-	conv       *convolution.Convolution
+	conv       *convolution.Ops
 	w          *layers.IO
 	bias       *layers.IO
 	size       gocudnn.SizeT
@@ -38,18 +38,18 @@ func AIOLayerSetupDefault(
 	pad,
 	stride,
 	dilation []int32,
-
+	managedmem bool,
 ) (*Layer, *layers.IO, error) {
 
 	fmt, dtype, _, err := input.Properties()
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := LayerSetup(fmt, dtype, filterdims, convmode, pad, stride, dilation)
+	layer, err := LayerSetup(fmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
-	output, err := layer.MakeOutputTensor(input)
+	output, err := layer.MakeOutputTensor(input, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,12 +71,13 @@ func LayerSetup(
 	pad,
 	stride,
 	dialation []int32,
+	managedmem bool,
 ) (*Layer, error) {
-	conv, err := convolution.Create(convmode, dtype, pad, stride, dialation)
+	conv, err := convolution.Build(convmode, dtype, pad, stride, dialation)
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(fmt, dtype, filterdims)
+	w, err := layers.BuildIO(fmt, dtype, filterdims, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func LayerSetup(
 	if err != nil {
 		return nil, err
 	}
-	bias, err := buildbias(w)
+	bias, err := buildbias(w, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func LayerSetup(
 		datatype: datatype,
 	}, nil
 }
-func buildbias(weights *layers.IO) (*layers.IO, error) {
+func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 	fmt, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return nil, err
@@ -129,17 +130,17 @@ func buildbias(weights *layers.IO) (*layers.IO, error) {
 	for i := 1; i < len(dims); i++ {
 		dims[i] = int32(1)
 	}
-	return layers.BuildIO(fmt, dtype, dims)
+	return layers.BuildIO(fmt, dtype, dims, managedmem)
 }
 
 //MakeOutputTensor makes the output tensor of the layer
-func (c *Layer) MakeOutputTensor(input *layers.IO) (*layers.IO, error) {
+func (c *Layer) MakeOutputTensor(input *layers.IO, managedmem bool) (*layers.IO, error) {
 	dims, err := c.conv.OutputDim(input.T(), c.w.T())
 	if err != nil {
 		return nil, err
 	}
 	fmt, dtype, _, err := c.w.Properties()
-	return layers.BuildIO(fmt, dtype, dims)
+	return layers.BuildIO(fmt, dtype, dims, managedmem)
 }
 
 //SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup

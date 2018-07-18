@@ -7,11 +7,11 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-type Pooling struct {
+type Ops struct {
 	desc *gocudnn.PoolingD
 }
 
-func BuildPooling(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input tensor.Tensor, window, padding, stride []int32) (*Pooling, error) {
+func Build(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input tensor.Volume, window, padding, stride []int32) (*Ops, error) {
 	_, _, dims, err := input.Properties()
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func BuildPooling(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input te
 		if err != nil {
 			return nil, err
 		}
-		return &Pooling{
+		return &Ops{
 			desc: desc,
 		}, nil
 	}
@@ -33,8 +33,7 @@ func BuildPooling(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input te
 	if err != nil {
 		return nil, err
 	}
-	return &Pooling{
+	return &Ops{
 		desc: desc,
 	}, nil
 }
-func 

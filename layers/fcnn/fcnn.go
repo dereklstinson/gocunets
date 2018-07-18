@@ -14,7 +14,7 @@ import (
 type Layer struct {
 	neurons *layers.IO
 	bias    *layers.IO
-	conv    *convolution.Convolution
+	conv    *convolution.Ops
 	fwd     xtras
 	bwdd    xtras
 	bwdf    xtras
@@ -27,7 +27,7 @@ type xtras struct {
 
 //CreateFromInput will take the input that is given to it and along with the handle and number of neurons wanted for the layer,
 // and returns a default settings layer with all the dims set to 1(except for the feature map outputs). It will also return the *layer.IO for the output of that layer
-func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO) (*Layer, *layers.IO, error) {
+func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, managedmem bool) (*Layer, *layers.IO, error) {
 	mode := convolution.Flags().Mode.CrossCorrelation()
 	fmt, dtype, shape, err := input.Properties()
 	if err != nil {
@@ -37,17 +37,17 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO) (*
 		return nil, nil, errors.New("input dims should be at least 4")
 	}
 
-	conv, err := convolution.Create(mode, dtype, []int32{0, 0}, []int32{1, 1}, []int32{1, 1})
+	conv, err := convolution.Build(mode, dtype, []int32{0, 0}, []int32{1, 1}, []int32{1, 1})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	shape[neurons] = neurons
-	weights, err := layers.BuildIO(fmt, dtype, shape)
+	weights, err := layers.BuildIO(fmt, dtype, shape, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
-	bias, err := layers.BuildIO(fmt, dtype, []int32{neurons, 1, 1, 1})
+	bias, err := layers.BuildIO(fmt, dtype, []int32{neurons, 1, 1, 1}, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -56,7 +56,7 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO) (*
 	if err != nil {
 		return nil, nil, err
 	}
-	output, err := layers.BuildIO(fmt, dtype, odims)
+	output, err := layers.BuildIO(fmt, dtype, odims, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}

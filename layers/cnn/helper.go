@@ -62,15 +62,15 @@ func (h *Helper) DeriveCoreSettings(x *layers.IO) error {
 	return nil
 }
 
-func (h *Helper) InputSetup(data gocudnn.DataType, format gocudnn.TensorFormat, shape []int32) error {
+func (h *Helper) InputSetup(data gocudnn.DataType, format gocudnn.TensorFormat, shape []int32, managedmem bool) error {
 
-	desc, err := layers.BuildIO(format, data, shape)
+	desc, err := layers.BuildIO(format, data, shape, managedmem)
 	h.x = desc
 	return err
 
 }
 
-func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
+func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32, managedmem bool) error {
 	var c gocudnn.Convolution
 	var err error
 	if len(shape) != h.dim {
@@ -80,7 +80,7 @@ func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
 		return errors.New("Shape should be an array of at least 4 dims not used should be marked as 1")
 	}
 	if len(shape) == 4 {
-		h.w, err = layers.BuildIO(h.format, h.datatype, shape)
+		h.w, err = layers.BuildIO(h.format, h.datatype, shape, managedmem)
 		if err != nil {
 			h.w.Destroy()
 			return err
@@ -99,7 +99,7 @@ func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
 			h.convdesc.DestroyDescriptor()
 			return err
 		}
-		h.y, err = layers.BuildIO(h.format, h.datatype, outputdims)
+		h.y, err = layers.BuildIO(h.format, h.datatype, outputdims, managedmem)
 		if err != nil {
 			h.w.Destroy()
 			h.convdesc.DestroyDescriptor()
@@ -108,7 +108,7 @@ func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
 		}
 
 	}
-	h.w, err = layers.BuildIO(h.format, h.datatype, shape)
+	h.w, err = layers.BuildIO(h.format, h.datatype, shape, managedmem)
 	if err != nil {
 		h.w.Destroy()
 		return err
@@ -125,7 +125,7 @@ func (h *Helper) FilterSetup(shape, pad, stride, dialation []int32) error {
 		h.convdesc.DestroyDescriptor()
 		return err
 	}
-	h.y, err = layers.BuildIO(h.format, h.datatype, outputdims)
+	h.y, err = layers.BuildIO(h.format, h.datatype, outputdims, managedmem)
 	if err != nil {
 		h.w.Destroy()
 		h.convdesc.DestroyDescriptor()

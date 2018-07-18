@@ -22,6 +22,6 @@ func gauassian() float64 {
 }
 
 //RandWeightSet sets a randomweight based on min max values
-func RandWeightSet(min, max, fanin float64) float64 {
-	return Gaussian(min, max) * (math.Sqrt((2.0) / (fanin)))
+func RandWeightSet(mean, max, fanin float64) float64 {
+	return Gaussian(mean, max) * (math.Sqrt((2.0) / (fanin)))
 }

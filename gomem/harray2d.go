@@ -1,4 +1,4 @@
-package arrays
+package gomem
 
 //probably going to delete this
 
