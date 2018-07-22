@@ -76,7 +76,9 @@ func main() {
 			err = activation3.ForwardProp(handle, output3, aoutput3)
 			cherror(err)
 			err = layer4.ForwardProp(handle, aoutput3, output4)
+			cherror(err)
 			err = softmax.ForwardProp(handle, output4, answer)
+			cherror(err)
 		}
 
 	}
