@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
+	"github.com/dereklstinson/GoCuNets/trainer"
 
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -18,6 +19,8 @@ type Layer struct {
 	fwd     xtras
 	bwdd    xtras
 	bwdf    xtras
+	train   trainer.Momentum
+	btrain  trainer.Momentum
 }
 type xtras struct {
 	alpha1 float64
@@ -42,7 +45,7 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 		return nil, nil, err
 	}
 
-	shape[neurons] = neurons
+	shape[0] = neurons
 	weights, err := layers.BuildIO(fmt, dtype, shape, managedmem)
 	if err != nil {
 		return nil, nil, err
@@ -96,13 +99,22 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	return y.T().AddTo(handle, l.bias.T(), l.fwd.alpha1, l.fwd.beta)
 }
 
+//BackProp does the backpropigation for both the data and filter
+func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+	err := l.backpropdata(handle, x, y)
+	if err != nil {
+		return err
+	}
+	return l.backpropfilter(handle, x, y)
+}
+
 //BackPropData does the backprop data operation
-func (l *Layer) BackPropData(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) backpropdata(handle *gocudnn.Handle, x, y *layers.IO) error {
 	return l.conv.BwdPropData(handle, l.bwdd.alpha1, l.neurons.T(), y.DeltaT(), nil, l.bwdd.beta, x.DeltaT())
 }
 
 //BackPropFilter does the back prop filter operation
-func (l *Layer) BackPropFilter(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) backpropfilter(handle *gocudnn.Handle, x, y *layers.IO) error {
 	err := l.conv.BwdPropFilt(handle, l.bwdf.alpha1, x.T(), y.DeltaT(), nil, l.bwdf.beta, l.neurons.DeltaT())
 	if err != nil {
 		return err
@@ -136,6 +148,23 @@ func destroy(l *Layer) error {
 	return nil
 }
 
+//SetupTrainer sets up the momentum trainer
+func (l *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momentum float64) error {
+	l.train = trainer.SetupMomentum(decay1, decay2, rate, momentum)
+	l.btrain = trainer.SetupMomentum(decay1, decay2, rate, momentum)
+	err := l.btrain.LoadGsum(handle, l.bias)
+	if err != nil {
+		return err
+	}
+	return l.train.LoadGsum(handle, l.neurons)
+}
+func (l *Layer) UpdateWeights(handle *gocudnn.Handle) error {
+	err := l.train.UpdateWeights(handle, l.neurons)
+	if err != nil {
+		return err
+	}
+	return l.btrain.UpdateWeights(handle, l.bias)
+}
 func dimscheck(a, b []int32) error {
 	if len(a) != len(b) {
 		return errors.New("num of dims not same")

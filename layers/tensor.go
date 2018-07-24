@@ -60,6 +60,16 @@ func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, man
 	}, nil
 }
 
+//LoadTValues loads a piece of memory that was made in golang and loads into a tensor volume in cuda.
+func (i *IO) LoadTValues(input *gocudnn.GoPointer) error {
+	return i.x.LoadMem(input)
+}
+
+//LoadDeltaTValues loads a piece of memory that was made in golang and loads into a delta tensor volume in cuda.
+func (i *IO) LoadDeltaTValues(input *gocudnn.GoPointer) error {
+	return i.dx.LoadMem(input)
+}
+
 //Destroy frees all the memory assaciated with the tensor inside of IO
 func (i *IO) Destroy() error {
 	var flag bool

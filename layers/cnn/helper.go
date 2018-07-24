@@ -1,5 +1,6 @@
 package cnn
 
+/*
 import (
 	"errors"
 

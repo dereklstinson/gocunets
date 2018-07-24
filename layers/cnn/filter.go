@@ -4,6 +4,7 @@ package cnn
 import (
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -19,12 +20,34 @@ type Layer struct {
 	bwdd       xtras
 	bwdf       xtras
 	datatype   gocudnn.DataType
+	train      trainer.Momentum
+	btrain     trainer.Momentum
 }
 
 type xtras struct {
 	alpha  float64
 	alpha2 float64
 	beta   float64
+}
+
+//update weights updates the weights of the neurons
+func (c *Layer) UpdateWeights(handle *gocudnn.Handle) error {
+	err := c.train.UpdateWeights(handle, c.w)
+	if err != nil {
+		return err
+	}
+	return c.btrain.UpdateWeights(handle, c.bias)
+}
+
+//SetupTrainer sets up the momentum trainer
+func (c *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momentum float64) error {
+	c.train = trainer.SetupMomentum(decay1, decay2, rate, momentum)
+	c.btrain = trainer.SetupMomentum(decay1, decay2, rate, momentum)
+	err := c.btrain.LoadGsum(handle, c.bias)
+	if err != nil {
+		return err
+	}
+	return c.train.LoadGsum(handle, c.w)
 }
 
 //AIOLayerSetupDefault builds a layer based on the input, and other values passed.
@@ -198,8 +221,18 @@ func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x *layers.IO, wpsa
 }
 */
 
+//BackProp does the backprop for the data and the filter
+func (c *Layer) BackProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+	var err error
+	err = c.backpropdata(handle, wspace, x, y)
+	if err != nil {
+		return err
+	}
+	return c.backpropfilter(handle, wspace, x, y)
+}
+
 //BackPropData performs the BackPropData
-func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+func (c *Layer) backpropdata(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
 	return c.conv.BwdPropData(
 		handle,
 		c.bwdd.alpha,
@@ -213,7 +246,7 @@ func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y 
 }
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
-func (c *Layer) BackPropFilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+func (c *Layer) backpropfilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
 	err := c.conv.BwdPropFilt(
 		handle,
 		c.bwdf.alpha,

@@ -98,6 +98,25 @@ func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, alpha, beta float64) error 
 	return t.thelp.Funcs.AddTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
 }
 
+//LoadMem will Load the mem with
+func (t *Volume) LoadMem(input gocudnn.Memer) error {
+
+	if t.mem.ByteSize() != input.ByteSize() {
+		return errors.New("MemSize Not same in bytes")
+	}
+	kind, err := gocudnn.MemCpyDeterminer(input, t.mem)
+	if err != nil {
+		return err
+	}
+
+	if t.managed == true {
+		return gocudnn.CudaMemCopy(t.mem, input, input.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
+
+	}
+	return gocudnn.CudaMemCopy(t.mem, input, input.ByteSize(), kind)
+
+}
+
 //SetRandom sets Random Value to weights
 func (t *Volume) SetRandom(mean, max, fanin float64) error {
 	_, dtype, dims, err := t.Properties()
