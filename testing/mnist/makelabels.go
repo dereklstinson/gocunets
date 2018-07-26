@@ -23,7 +23,7 @@ type LabeledData struct {
 }
 
 func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) ([]LabeledData, error) {
-
+	
 	labelfile, err := os.Open(filedirectory + filenameLabel)
 	if err != nil {
 		return nil, err

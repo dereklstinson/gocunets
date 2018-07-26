@@ -31,6 +31,8 @@ func (i *IO) T() *tensor.Volume {
 	return i.x
 }
 
+/*
+
 //Mem returns the main memery //Legacy func will go away
 func (i *IO) Mem() gocudnn.Memer {
 	return i.x.Memer()
@@ -40,7 +42,7 @@ func (i *IO) Mem() gocudnn.Memer {
 func (i *IO) DMem() gocudnn.Memer {
 	return i.dx.Memer()
 }
-
+*/
 //BuildIO builds an IO
 func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
 	x, err := tensor.Build(fmt, dtype, dims, managed)

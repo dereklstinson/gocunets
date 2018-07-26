@@ -2,6 +2,8 @@
 package cnn
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -30,7 +32,7 @@ type xtras struct {
 	beta   float64
 }
 
-//update weights updates the weights of the neurons
+//
 func (c *Layer) UpdateWeights(handle *gocudnn.Handle) error {
 	err := c.train.UpdateWeights(handle, c.w)
 	if err != nil {
@@ -72,6 +74,11 @@ func AIOLayerSetupDefault(
 	if err != nil {
 		return nil, nil, err
 	}
+	err = layer.MakeRandomFromFanin(input)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = layer.bias.T().SetValues(handle, 0.0)
 	output, err := layer.MakeOutputTensor(input, managedmem)
 	if err != nil {
 		return nil, nil, err
@@ -82,6 +89,27 @@ func AIOLayerSetupDefault(
 	}
 	return layer, output, nil
 
+}
+
+//MakeRandomFromFanin does what it says it will make the weights random considering the fanin
+func (c *Layer) MakeRandomFromFanin(input *layers.IO) error {
+	_, _, dims, err := input.Properties()
+	if err != nil {
+		return err
+	}
+	if len(dims) < 5 {
+		fanin := float64(dims[1] * dims[2] * dims[3])
+		err := c.w.T().SetRandom(0, 1.0, fanin)
+		if err != nil {
+			return err
+		}
+
+	}
+	if len(dims) > 4 {
+		return errors.New("Not Available yet")
+	}
+
+	return nil
 }
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
@@ -104,6 +132,7 @@ func LayerSetup(
 	if err != nil {
 		return nil, err
 	}
+
 	sizeinbytes, err := w.T().Size()
 	if err != nil {
 		return nil, err

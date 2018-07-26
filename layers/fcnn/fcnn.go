@@ -54,7 +54,10 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 	if err != nil {
 		return nil, nil, err
 	}
-
+	err = bias.T().SetValues(handle, 0.0)
+	if err != nil {
+		return nil, nil, err
+	}
 	odims, err := conv.OutputDim(input.T(), weights.T())
 	if err != nil {
 		return nil, nil, err
@@ -67,7 +70,7 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 	if err != nil {
 		return nil, nil, err
 	}
-	return &Layer{
+	lyer := &Layer{
 		neurons: weights,
 		bias:    bias,
 		conv:    conv,
@@ -86,7 +89,54 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 			alpha2: 1.0,
 			beta:   1.0,
 		},
-	}, output, nil
+	}
+	err = lyer.MakeRandomFromFanin(input)
+	if err != nil {
+		return nil, nil, err
+	}
+	return lyer, output, nil
+	/*
+		return &Layer{
+			neurons: weights,
+			bias:    bias,
+			conv:    conv,
+			fwd: xtras{
+				alpha1: 1.0,
+				alpha2: 1.0,
+				beta:   0.0,
+			},
+			bwdd: xtras{
+				alpha1: 1.0,
+				alpha2: 1.0,
+				beta:   0.0,
+			},
+			bwdf: xtras{
+				alpha1: 1.0,
+				alpha2: 1.0,
+				beta:   1.0,
+			},
+		}, output, nil
+	*/
+}
+
+//MakeRandomFromFanin does what it says it will make the weights random considering the fanin
+func (l *Layer) MakeRandomFromFanin(input *layers.IO) error {
+	_, _, dims, err := input.Properties()
+	if err != nil {
+		return err
+	}
+	if len(dims) < 5 {
+		fanin := float64(dims[1] * dims[2] * dims[3])
+		err := l.neurons.T().SetRandom(0, 1.0, fanin)
+		if err != nil {
+			return err
+		}
+
+	}
+	if len(dims) > 4 {
+		return errors.New("Not Available yet")
+	}
+	return nil
 }
 
 //ForwardProp does the forward propigation
