@@ -1,8 +1,9 @@
-package main
+package dfuncs
 
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 )
@@ -18,26 +19,31 @@ const (
 )
 
 type LabeledData struct {
-	data  []float32
-	label []float32
+	Data  []float32
+	Label []float32
 }
 
 func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) ([]LabeledData, error) {
-	
+
 	labelfile, err := os.Open(filedirectory + filenameLabel)
 	if err != nil {
+		//	panic(err)
 		return nil, err
+		//	panic(err)
 	}
 	alllabels, err := readLabelFile(labelfile)
 	if err != nil {
+		//	panic(err)
 		return nil, err
 	}
 	datafile, err := os.Open(filedirectory + filenameData)
 	if err != nil {
+		//	panic(err)
 		return nil, err
 	}
 	alldata, err := readImageFile(datafile)
 	if err != nil {
+		//	panic(err)
 		return nil, err
 	}
 	if len(alldata) != len(alllabels) {
@@ -45,8 +51,8 @@ func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) 
 	}
 	labeled := make([]LabeledData, len(alldata))
 	for i := 0; i < len(alldata); i++ {
-		labeled[i].data = alldata[i]
-		labeled[i].label = alldata[i]
+		labeled[i].Data = alldata[i]
+		labeled[i].Label = alldata[i]
 	}
 	return labeled, nil
 }
@@ -59,9 +65,11 @@ func readLabelFile(r io.Reader) ([][]float32, error) {
 		n     int32
 	)
 	if err = binary.Read(r, binary.BigEndian, &magic); err != nil {
+		//panic(err)
 		return nil, err
 	}
 	if magic != labelMagic {
+		fmt.Println(magic, labelMagic)
 		return nil, os.ErrInvalid
 	}
 	if err = binary.Read(r, binary.BigEndian, &n); err != nil {

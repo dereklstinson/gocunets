@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
+	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
 	"github.com/dereklstinson/GoCudnn"
 	//	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -12,16 +13,25 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
+	//	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 func main() {
 	//cudnn context
+	var cuda gocudnn.Cuda
+	//cuda.
+	devices, err := cuda.GetDeviceList()
+	cherror(err)
+	devicenum := len(devices)
+	fmt.Println("Number of Devices:", devicenum)
+	err = devices[0].Set()
+	cherror(err)
 	handle := gocudnn.NewHandle()
 	var dtypeflags gocudnn.DataTypeFlag
 	var fmtflags gocudnn.TensorFormatFlag
 	//flags to set up network
 
-	fmt := fmtflags.NCHW()
+	frmt := fmtflags.NCHW()
 	dtype := dtypeflags.Float()
 	CMode := convolution.Flags().Mode.CrossCorrelation() //.CrossCorrelation()
 	AMode := gocudnn.ActivationModeFlag{}.Relu()
@@ -35,7 +45,7 @@ func main() {
 	dilation := dims
 
 	//input tensor
-	input, err := layers.BuildIO(fmt, dtype, dims(1, 1, 28, 28), memmanaged)
+	input, err := layers.BuildIO(frmt, dtype, dims(1, 1, 28, 28), memmanaged)
 	cherror(err)
 	//Setting Up Network
 
@@ -100,9 +110,21 @@ func main() {
 	err = layer4.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 
-	for {
+	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
+	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
+	cherror(err)
+	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
+	cherror(err)
+	trainepoch := len(trainingdata)
+	fmt.Println("Length of Training Data", len(trainingdata))
+	fmt.Println("Length of Testing Data", len(testingdata))
+	//Since Data is so small we can load it all into the GPU
+
+	for j := 0; j < trainepoch; {
 		//training
+
 		for i := 0; i < batchsize; i++ {
+			j++
 			//Will Need A Load Input Func
 			//Forward Section
 			err = layer1.ForwardProp(handle, nil, input, output1)
@@ -173,6 +195,28 @@ func main() {
 
 	//	c1.OutputDim(input)
 	//	cnn.LayerSetup(cflgs.)
+	err = devices[0].Reset()
+	cherror(err)
+}
+func InputData(data []dfuncs.LabeledData, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) ([]*layers.IO, error) {
+	inputs := make([]*layers.IO, len(data))
+	var err error
+	for i := 0; i < len(inputs); i++ {
+		inputs[i], err = layers.BuildIO(frmt, dtype, dims, managed)
+		if err != nil {
+			return nil, err
+		}
+		dataptr, err := gocudnn.MakeGoPointer(data[i].Data)
+		if err != nil {
+			return nil, err
+		}
+		err = inputs[i].LoadTValues(dataptr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return inputs, nil
 }
 
 func dims(args ...int) []int32 {
