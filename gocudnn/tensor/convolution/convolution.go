@@ -276,6 +276,20 @@ func (c *Ops) FwdProp(
 	default:
 		return errors.New("Not supported Format")
 	}
+	/*
+		fmt.Println("1: ", handle)
+		fmt.Println("2: ", a)
+		fmt.Println("3: ", x.TD())
+		fmt.Println("5: ", x.Memer())
+		fmt.Println("6: ", w.FD())
+		fmt.Println("7: ", w.Memer())
+		fmt.Println("8: ", c.desc)
+		fmt.Println("9: ", c.fwdalgo)
+		fmt.Println("10: ", wspace)
+		fmt.Println("11: ", b)
+		fmt.Println("12: ", y.TD())
+		fmt.Println("13: ", y.Memer()x)
+	*/
 	return c.helper.Funcs.Fwd.ConvolutionForward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.desc, c.fwdalgo, wspace, b, y.TD(), y.Memer())
 }
 

@@ -89,7 +89,7 @@ func main() {
 	//MathNote: output= ((input-filter+2*padding)/stride) +1 -> (4-2/2) +1 =2
 
 	//Fully Connected Layer ////Modified Convolution Layer :-)
-	layer4, output4, err := fcnn.CreateFromInput(handle, int32(10), aoutput3, memmanaged)
+	layer4, output4, err := fcnn.CreateFromInput(handle, int32(10), poutput3, memmanaged)
 	//Output Layer
 	softmax, answer, err := softmax.BuildDefault(output4, memmanaged)
 	cherror(err)
@@ -119,15 +119,37 @@ func main() {
 	fmt.Println("Length of Training Data", len(trainingdata))
 	fmt.Println("Length of Testing Data", len(testingdata))
 	//Since Data is so small we can load it all into the GPU
+	var gputrainingdata []*layers.IO
+	var gputestingdata []*layers.IO
+	for i := 0; i < len(trainingdata); i++ {
+		//fmt.Println(trainingdata[i].Data)
+		data, err := gocudnn.MakeGoPointer(trainingdata[i].Data)
+		cherror(err)
+		label, err := gocudnn.MakeGoPointer(trainingdata[i].Label)
+		cherror(err)
+		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, true)
+		cherror(err)
+		gputrainingdata = append(gputrainingdata, inpt)
+	}
+	for i := 0; i < len(testingdata); i++ {
+		data, err := gocudnn.MakeGoPointer(testingdata[i].Data)
+		cherror(err)
+		label, err := gocudnn.MakeGoPointer(testingdata[i].Label)
+		cherror(err)
+		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, true)
+		cherror(err)
+		gputestingdata = append(gputestingdata, inpt)
+	}
+	//workspace, err := gocudnn.Malloc(gocudnn.SizeT(0))
+	cherror(err)
 
 	for j := 0; j < trainepoch; {
 		//training
 
 		for i := 0; i < batchsize; i++ {
-			j++
-			//Will Need A Load Input Func
+
 			//Forward Section
-			err = layer1.ForwardProp(handle, nil, input, output1)
+			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
 			err = activation1.ForwardProp(handle, output1, aoutput1)
 			cherror(err)
@@ -151,9 +173,9 @@ func main() {
 			cherror(err)
 
 			//Will Need an Actual answers func
-
+			answer.DeltaT().LoadMem(input.DeltaT().Memer())
 			//Backward Section
-			err = softmax.BackProp(handle, output4, answer)
+			err = softmax.BackProp(handle, output4, gputrainingdata[i])
 			cherror(err)
 			err = layer4.BackProp(handle, poutput3, output4)
 			cherror(err)
@@ -175,7 +197,9 @@ func main() {
 			cherror(err)
 			err = layer1.BackProp(handle, nil, input, output1)
 			cherror(err)
+			j++
 		}
+
 		err = layer1.UpdateWeights(handle)
 		cherror(err)
 		err = layer2.UpdateWeights(handle)
@@ -184,6 +208,7 @@ func main() {
 		cherror(err)
 		err = layer4.UpdateWeights(handle)
 		cherror(err)
+		fmt.Println("Samples Seen ", j)
 	}
 
 	/*

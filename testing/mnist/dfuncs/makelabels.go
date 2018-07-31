@@ -52,7 +52,7 @@ func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) 
 	labeled := make([]LabeledData, len(alldata))
 	for i := 0; i < len(alldata); i++ {
 		labeled[i].Data = alldata[i]
-		labeled[i].Label = alldata[i]
+		labeled[i].Label = alllabels[i]
 	}
 	return labeled, nil
 }

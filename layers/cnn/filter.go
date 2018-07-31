@@ -175,14 +175,25 @@ func LayerSetup(
 	}, nil
 }
 func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
-	fmt, dtype, dims, err := weights.Properties()
+	frmt, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return nil, err
 	}
-	for i := 1; i < len(dims); i++ {
+
+	//This is a hack. It will only work with only one type of data arangement. This will need a switch for the different types.  {
+
+	outputmaps := dims[0]
+	for i := 0; i < len(dims); i++ {
+
 		dims[i] = int32(1)
 	}
-	return layers.BuildIO(fmt, dtype, dims, managedmem)
+
+	dims[1] = outputmaps
+	//fmt.Println("Bias Dims:", dims)
+
+	//	}
+
+	return layers.BuildIO(frmt, dtype, dims, managedmem)
 }
 
 //MakeOutputTensor makes the output tensor of the layer
@@ -222,6 +233,12 @@ func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *
 	if err != nil {
 		return err
 	}
+	/*
+		_, _, outputdims, _ := y.Properties()
+		fmt.Println("Output Dims: ", outputdims)
+		_, _, biasdims, _ := c.bias.Properties()
+		fmt.Println("Bias Dims: ", biasdims)
+	*/
 	return y.T().AddTo(handle, c.bias.T(), c.fwd.alpha, c.fwd.beta)
 
 }

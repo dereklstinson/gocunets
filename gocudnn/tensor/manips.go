@@ -2,6 +2,7 @@ package tensor
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/utils"
 
@@ -102,7 +103,9 @@ func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, alpha, beta float64) error 
 func (t *Volume) LoadMem(input gocudnn.Memer) error {
 
 	if t.mem.ByteSize() != input.ByteSize() {
-		return errors.New("LoadMem: MemSize Not same in bytes")
+		destsize := strconv.Itoa(int(t.mem.ByteSize()))
+		srcsize := strconv.Itoa(int(input.ByteSize()))
+		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + " " + srcsize)
 	}
 	kind, err := gocudnn.MemCpyDeterminer(input, t.mem)
 	if err != nil {

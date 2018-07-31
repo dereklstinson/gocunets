@@ -250,6 +250,19 @@ func destroy(t *Volume) error {
 	}
 	return nil
 }
+func (t *Volume) Print() error {
+	switch x := t.mem.(type) {
+	case *gocudnn.Malloced:
+		x.ByteSize
+		x.Atributes().Type
+		return nil
+	case *gocudnn.GoPointer:
+		return nil
+	default:
+		return nil
+
+	}
+}
 
 //Destroy will release the memory of the tensor
 func (t *Volume) Destroy() error {

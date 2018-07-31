@@ -2,6 +2,7 @@
 package layers
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
@@ -30,19 +31,46 @@ func (i *IO) DeltaT() *tensor.Volume {
 func (i *IO) T() *tensor.Volume {
 	return i.x
 }
+func addtoerror(addition string, current error) error {
+	errorstring := current.Error()
+	return errors.New(addition + ": " + errorstring)
+}
+func TrainingInputIO(fmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	inputdims, answerdims []int32,
+	image, answer *gocudnn.GoPointer,
+	managed bool,
+) (*IO, error) {
+	x, err := tensor.Build(fmt, dtype, inputdims, managed)
+	if err != nil {
+		x.Destroy()
+		err = addtoerror("Building InputDims", err)
+		return nil, err
+	}
+	dx, err := tensor.Build(fmt, dtype, answerdims, managed)
+	if err != nil {
+		err = addtoerror("Building answerdims", err)
+		x.Destroy()
+		dx.Destroy()
+		return nil, err
+	}
+	err = x.LoadMem(image)
+	if err != nil {
+		err = addtoerror("Loading Images", err)
+		return nil, err
+	}
+	err = dx.LoadMem(answer)
+	if err != nil {
+		err = addtoerror("Loading Answers", err)
+		return nil, err
+	}
+	return &IO{
+		x:  x,
+		dx: dx,
+	}, nil
 
-/*
-
-//Mem returns the main memery //Legacy func will go away
-func (i *IO) Mem() gocudnn.Memer {
-	return i.x.Memer()
 }
 
-//DMem returns the error backprop memory for the tensor memory  //Legacy func will go away
-func (i *IO) DMem() gocudnn.Memer {
-	return i.dx.Memer()
-}
-*/
 //BuildIO builds an IO
 func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
 	x, err := tensor.Build(fmt, dtype, dims, managed)

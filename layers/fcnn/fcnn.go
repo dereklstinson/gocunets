@@ -50,7 +50,7 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 	if err != nil {
 		return nil, nil, err
 	}
-	bias, err := layers.BuildIO(fmt, dtype, []int32{neurons, 1, 1, 1}, managedmem)
+	bias, err := layers.BuildIO(fmt, dtype, []int32{1, neurons, 1, 1}, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,12 +138,25 @@ func (l *Layer) MakeRandomFromFanin(input *layers.IO) error {
 	}
 	return nil
 }
+func appenderror(message string, err error) error {
+	orig := err.Error()
+	return errors.New(message + ": " + orig)
+}
 
 //ForwardProp does the forward propigation
 func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+	/*
+		xfmt, xdtype, xdims, _ := x.Properties()
+		yfmt, ydtype, ydims, _ := y.Properties()
+		nfmt, ndtype, ndims, _ := l.neurons.Properties()
+
+			fmt.Println("x:", xfmt, xdtype, xdims)
+			fmt.Println("y:", yfmt, ydtype, ydims)
+			fmt.Println("n: ", nfmt, ndtype, ndims)
+	*/
 	err := l.conv.FwdProp(handle, l.fwd.alpha1, x.T(), l.neurons.T(), nil, l.fwd.beta, y.T())
 	if err != nil {
-		return err
+		return appenderror("FCNN FwdProp", err)
 	}
 
 	return y.T().AddTo(handle, l.bias.T(), l.fwd.alpha1, l.fwd.beta)
