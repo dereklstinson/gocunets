@@ -208,7 +208,7 @@ func main() {
 		cherror(err)
 		err = layer4.UpdateWeights(handle)
 		cherror(err)
-		fmt.Println("Samples Seen ", j)
+
 	}
 
 	/*

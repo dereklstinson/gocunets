@@ -4,6 +4,7 @@
 //the strides
 package tensor
 
+import "C"
 import (
 	"errors"
 	"fmt"
@@ -250,18 +251,107 @@ func destroy(t *Volume) error {
 	}
 	return nil
 }
-func (t *Volume) Print() error {
-	switch x := t.mem.(type) {
-	case *gocudnn.Malloced:
-		x.ByteSize
-		x.Atributes().Type
-		return nil
-	case *gocudnn.GoPointer:
-		return nil
-	default:
-		return nil
 
+//arraysize will return the size of the array and will return 0 if unsupported type is used.
+func arraysize(dtype gocudnn.DataType, size gocudnn.SizeT) int {
+	var flg gocudnn.DataTypeFlag
+	x := int(size)
+	switch dtype {
+	case flg.Double():
+		return x / 8
+	case flg.Float():
+		return x / 4
+	case flg.Int32():
+		return x / 4
+	case flg.UInt8():
+		return x
+	case flg.Int8():
+		return x
+	default:
+		return 0
 	}
+}
+
+func (t *Volume) PrintUnifiedMem() error {
+	kind := gocudnn.MemcpyKindFlag{}.Default()
+	return t.printmem(kind)
+}
+
+func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
+	var flg gocudnn.DataTypeFlag
+	sib := t.mem.ByteSize()
+	as := arraysize(t.dtype, sib)
+
+	switch t.dtype {
+	case flg.Double():
+		array := make([]C.double, as)
+		ptr, err := gocudnn.MakeGoPointer(array)
+		if err != nil {
+			return err
+		}
+		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		if err != nil {
+			return err
+		}
+		fmt.Println(array)
+	case flg.Float():
+		array := make([]C.float, as)
+		ptr, err := gocudnn.MakeGoPointer(array)
+
+		if err != nil {
+			return err
+		}
+		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		if err != nil {
+			return err
+		}
+		fmt.Println(array)
+	case flg.Int32():
+		array := make([]C.int, as)
+		ptr, err := gocudnn.MakeGoPointer(array)
+
+		if err != nil {
+			return err
+		}
+		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		if err != nil {
+			return err
+		}
+		fmt.Println(array)
+	case flg.UInt8():
+		array := make([]C.uchar, as)
+		ptr, err := gocudnn.MakeGoPointer(array)
+
+		if err != nil {
+			return err
+		}
+		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		if err != nil {
+			return err
+		}
+		fmt.Println(array)
+	case flg.Int8():
+		array := make([]C.schar, as)
+		ptr, err := gocudnn.MakeGoPointer(array)
+		if err != nil {
+			return err
+		}
+		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		if err != nil {
+			return err
+		}
+		fmt.Println(array)
+	default:
+		return errors.New("Unsupoorted Format")
+	}
+
+	return nil
+}
+
+//PrintDeviceMem.  Kind of a shortcut function. I would like to build a more extensive function in the future where it would just know what to do without much user input.  It would use this function so it is not a waste.
+func (t *Volume) PrintDeviceMem() error {
+	kind := gocudnn.MemcpyKindFlag{}.DeviceToHost()
+	return t.printmem(kind)
 }
 
 //Destroy will release the memory of the tensor
