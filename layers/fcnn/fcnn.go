@@ -221,12 +221,12 @@ func (l *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momen
 	}
 	return l.train.LoadGsum(handle, l.neurons)
 }
-func (l *Layer) UpdateWeights(handle *gocudnn.Handle) error {
-	err := l.train.UpdateWeights(handle, l.neurons)
+func (l *Layer) UpdateWeights(handle *gocudnn.Handle, batch int) error {
+	err := l.train.UpdateWeights2(handle, l.neurons, float64(batch))
 	if err != nil {
 		return err
 	}
-	return l.btrain.UpdateWeights(handle, l.bias)
+	return l.btrain.UpdateWeights2(handle, l.bias, float64(batch))
 }
 func dimscheck(a, b []int32) error {
 	if len(a) != len(b) {

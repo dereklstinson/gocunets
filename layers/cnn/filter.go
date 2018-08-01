@@ -33,12 +33,12 @@ type xtras struct {
 }
 
 //
-func (c *Layer) UpdateWeights(handle *gocudnn.Handle) error {
-	err := c.train.UpdateWeights(handle, c.w)
+func (c *Layer) UpdateWeights(handle *gocudnn.Handle, batch int) error {
+	err := c.train.UpdateWeights2(handle, c.w, float64(batch))
 	if err != nil {
 		return err
 	}
-	return c.btrain.UpdateWeights(handle, c.bias)
+	return c.btrain.UpdateWeights2(handle, c.bias, float64(batch))
 }
 
 //SetupTrainer sets up the momentum trainer

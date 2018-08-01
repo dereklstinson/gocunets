@@ -35,7 +35,7 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 }
 
 //BackProp performs the backward propigation // x is the output
-func (l *Layer) BackProp(handle *gocudnn.Handle, y, x *layers.IO) error {
+func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	return l.s.BackProp(handle, y.T(), y.DeltaT(), x.DeltaT())
 	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
 	//	return err

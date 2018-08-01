@@ -22,6 +22,7 @@ If the input tensor B is the same tensor as the destination tensor C, then the i
 */
 
 //OpAdd does addition Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
+//Or vol= op(alpha1 *A, alpha2 *B)+(beta *vol)
 func (t *Volume) OpAdd(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()

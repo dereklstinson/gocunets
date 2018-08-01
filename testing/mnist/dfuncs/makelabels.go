@@ -85,7 +85,28 @@ func readLabelFile(r io.Reader) ([][]float32, error) {
 	}
 	return labels, nil
 }
+func NormalizeData(data []LabeledData, average float32) []LabeledData {
+	size := len(data)
+	for i := 0; i < size; i++ {
+		for j := 0; j < len(data[i].Data); j++ {
+			data[i].Data[j] = data[i].Data[j] / average
+		}
 
+	}
+	return data
+}
+func FindAverage(input []LabeledData) float32 {
+	inputsize := len(input)
+	datasize := len(input[0].Data)
+	var adder float32
+	for i := 0; i < inputsize; i++ {
+
+		for j := 0; j < datasize; j++ {
+			adder += input[i].Data[j]
+		}
+	}
+	return adder / float32(inputsize*datasize)
+}
 func makeonehotstate(input uint8) []float32 {
 	x := make([]float32, 10)
 	x[input] = float32(1.0)

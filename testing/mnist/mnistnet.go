@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
@@ -17,6 +18,7 @@ import (
 )
 
 func main() {
+	gocudnn.Cuda{}.LockHostThread()
 	//cudnn context
 	var cuda gocudnn.Cuda
 	//cuda.
@@ -27,6 +29,10 @@ func main() {
 	err = devices[0].Set()
 	cherror(err)
 	handle := gocudnn.NewHandle()
+	stream, err := gocudnn.CreateStream()
+	cherror(err)
+	err = handle.SetStream(stream)
+	cherror(err)
 	var dtypeflags gocudnn.DataTypeFlag
 	var fmtflags gocudnn.TensorFormatFlag
 	//flags to set up network
@@ -95,12 +101,12 @@ func main() {
 	cherror(err)
 	//	actual, err := layers.BuildIO(fmt, dtype, []int32{1, 10, 1, 1}, true)
 	//TrainingFunc
-	batchsize := 16 // how many forward and backward runs before updating weights.
+	batchsize := 20 // how many forward and backward runs before updating weights.
 
 	//Setup Layer Trainers
 	//Decay isn't available right now so................
 	decay1, decay2 := 0.0, 0.0
-	rate, momentum := .01, .6
+	rate, momentum := -.01, -.9
 	err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 	err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
@@ -115,7 +121,16 @@ func main() {
 	cherror(err)
 	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
 	cherror(err)
+	//Lets go ahead and normalize this data
+	fmt.Println("Makeing Labeled Data")
+	averagetest := dfuncs.FindAverage(testingdata)
+	averagetrain := dfuncs.FindAverage(trainingdata)
+	fmt.Println("Finding Average Value")
+	averagetotal := ((6.0 * averagetest) + averagetrain) / float32(7)
 	trainepoch := len(trainingdata)
+	fmt.Println("Normalizing Data")
+	trainingdata = dfuncs.NormalizeData(trainingdata, averagetotal)
+	testingdata = dfuncs.NormalizeData(testingdata, averagetotal)
 	fmt.Println("Length of Training Data", len(trainingdata))
 	fmt.Println("Length of Testing Data", len(testingdata))
 	//Since Data is so small we can load it all into the GPU
@@ -142,72 +157,92 @@ func main() {
 	}
 	//workspace, err := gocudnn.Malloc(gocudnn.SizeT(0))
 	cherror(err)
+	epochs := 20
+	for k := 0; k < epochs; k++ {
+		netoutput := make([][]float32, trainepoch)
+		desiredoutput := make([][]float32, trainepoch)
+		for j := 0; j < trainepoch; { //I add the j++ at the end of this
 
-	for j := 0; j < trainepoch; {
-		//training
+			//erroroutput:=make([][]float32,batchsize)
+			for i := 0; i < batchsize; i++ {
+				netoutput[j] = make([]float32, 10)
+				desiredoutput[j] = make([]float32, 10)
+				//	erroroutput[i] = make([]float32, 10)
+				//Forward Section
+				err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
+				cherror(err)
+				err = activation1.ForwardProp(handle, output1, aoutput1)
+				cherror(err)
+				err = pooling1.ForwardProp(handle, aoutput1, poutput1)
+				cherror(err)
+				err = layer2.ForwardProp(handle, nil, poutput1, output2)
+				cherror(err)
+				err = activation2.ForwardProp(handle, output2, aoutput2)
+				cherror(err)
+				err = pooling2.ForwardProp(handle, aoutput2, poutput2)
+				cherror(err)
+				err = layer3.ForwardProp(handle, nil, poutput2, output3)
+				cherror(err)
+				err = activation3.ForwardProp(handle, output3, aoutput3)
+				cherror(err)
+				err = pooling3.ForwardProp(handle, aoutput3, poutput3)
+				cherror(err)
+				err = layer4.ForwardProp(handle, poutput3, output4)
+				cherror(err)
+				err = softmax.ForwardProp(handle, output4, answer)
+				cherror(err)
 
-		for i := 0; i < batchsize; i++ {
+				//Will Need an Actual answers func
+				err = answer.DeltaT().LoadMem(gputrainingdata[j].DeltaT().Memer())
+				cherror(err)
+				//Backward Section
+				err = answer.T().Memer().FillSlice(netoutput[j])
+				cherror(err)
+				err = answer.DeltaT().Memer().FillSlice(desiredoutput[j])
+				cherror(err)
+				err = softmax.BackProp(handle, output4, answer)
 
-			//Forward Section
-			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
+				cherror(err)
+				err = layer4.BackProp(handle, poutput3, output4)
+				cherror(err)
+				err = pooling3.BackProp(handle, aoutput3, poutput3)
+				cherror(err)
+				err = activation3.BackProp(handle, output3, aoutput3)
+				cherror(err)
+				err = layer3.BackProp(handle, nil, poutput2, output3)
+				cherror(err)
+				err = pooling2.BackProp(handle, aoutput2, poutput2)
+				cherror(err)
+				err = activation2.BackProp(handle, output2, aoutput2)
+				cherror(err)
+				err = layer2.BackProp(handle, nil, poutput1, output2)
+				cherror(err)
+				err = pooling1.BackProp(handle, aoutput1, poutput1)
+				cherror(err)
+				err = activation1.BackProp(handle, output1, aoutput1)
+				cherror(err)
+				err = layer1.BackProp(handle, nil, input, output1)
+				cherror(err)
+				j++
+				err = stream.Sync()
+				cherror(err)
+
+			}
+			//fmt.Println(netoutput[j])
+			//fmt.Println(desiredoutput[j])
+			err = layer1.UpdateWeights(handle, batchsize)
 			cherror(err)
-			err = activation1.ForwardProp(handle, output1, aoutput1)
+			err = layer2.UpdateWeights(handle, batchsize)
 			cherror(err)
-			err = pooling1.ForwardProp(handle, aoutput1, poutput1)
+			err = layer3.UpdateWeights(handle, batchsize)
 			cherror(err)
-			err = layer2.ForwardProp(handle, nil, poutput1, output2)
-			cherror(err)
-			err = activation2.ForwardProp(handle, output2, aoutput2)
-			cherror(err)
-			err = pooling2.ForwardProp(handle, aoutput2, poutput2)
-			cherror(err)
-			err = layer3.ForwardProp(handle, nil, poutput2, output3)
-			cherror(err)
-			err = activation3.ForwardProp(handle, output3, aoutput3)
-			cherror(err)
-			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
-			cherror(err)
-			err = layer4.ForwardProp(handle, poutput3, output4)
-			cherror(err)
-			err = softmax.ForwardProp(handle, output4, answer)
+			err = layer4.UpdateWeights(handle, batchsize)
 			cherror(err)
 
-			//Will Need an Actual answers func
-			answer.DeltaT().LoadMem(input.DeltaT().Memer())
-			//Backward Section
-			err = softmax.BackProp(handle, output4, gputrainingdata[i])
-			cherror(err)
-			err = layer4.BackProp(handle, poutput3, output4)
-			cherror(err)
-			err = pooling3.BackProp(handle, aoutput3, poutput3)
-			cherror(err)
-			err = activation3.BackProp(handle, output3, aoutput3)
-			cherror(err)
-			err = layer3.BackProp(handle, nil, poutput2, output3)
-			cherror(err)
-			err = pooling2.BackProp(handle, aoutput2, poutput2)
-			cherror(err)
-			err = activation2.BackProp(handle, output2, aoutput2)
-			cherror(err)
-			err = layer2.BackProp(handle, nil, poutput1, output2)
-			cherror(err)
-			err = pooling1.BackProp(handle, aoutput1, poutput1)
-			cherror(err)
-			err = activation1.BackProp(handle, output1, aoutput1)
-			cherror(err)
-			err = layer1.BackProp(handle, nil, input, output1)
-			cherror(err)
-			j++
 		}
 
-		err = layer1.UpdateWeights(handle)
-		cherror(err)
-		err = layer2.UpdateWeights(handle)
-		cherror(err)
-		err = layer3.UpdateWeights(handle)
-		cherror(err)
-		err = layer4.UpdateWeights(handle)
-		cherror(err)
+		percent, loss := batchoutputchecker(netoutput, desiredoutput, trainepoch)
+		fmt.Println("Epoch Percent Correct: ", percent, "		Epoch Loss: ", loss, "                  Epoch Number: ", k)
 
 	}
 
@@ -220,8 +255,33 @@ func main() {
 
 	//	c1.OutputDim(input)
 	//	cnn.LayerSetup(cflgs.)
+	gocudnn.Cuda{}.UnLockHostThread()
 	err = devices[0].Reset()
 	cherror(err)
+}
+
+func batchoutputchecker(actual, desired [][]float32, batchsize int) (float32, float32) {
+	var batchloss float32
+	var percent float32
+	var position int
+	//	delta := float64(-math.Log(float64(output.SoftOutputs[i]))) * desiredoutput[i]
+	for i := 0; i < batchsize; i++ {
+		for j := 0; j < 10; j++ {
+			maxvalue := actual[i][j]
+			if maxvalue < actual[i][j] {
+				maxvalue = actual[i][j]
+				position = j
+			}
+			if desired[i][j] > .5 {
+
+				batchloss += float32(-math.Log(float64(actual[i][j])))
+			}
+
+		}
+		percent += desired[i][position]
+
+	}
+	return percent / float32(batchsize), batchloss / float32(batchsize)
 }
 func InputData(data []dfuncs.LabeledData, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) ([]*layers.IO, error) {
 	inputs := make([]*layers.IO, len(data))
