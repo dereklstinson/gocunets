@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
@@ -106,7 +107,7 @@ func main() {
 	//Setup Layer Trainers
 	//Decay isn't available right now so................
 	decay1, decay2 := 0.0, 0.0
-	rate, momentum := -.01, -.9
+	rate, momentum := -.01, .9
 	err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 	err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
@@ -121,18 +122,29 @@ func main() {
 	cherror(err)
 	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
 	cherror(err)
+
+	/*
+		Double Checking to see if it would make images of number...It did
+		for i := 0; i < len(trainingdata); i++ {
+			err = trainingdata[i].MakeJPG("/home/derek/mnistimages/", strconv.Itoa(trainingdata[i].Number), i)
+			if err != nil {
+				panic(err)
+			}
+		}
+	*/
 	//Lets go ahead and normalize this data
 	fmt.Println("Makeing Labeled Data")
 	averagetest := dfuncs.FindAverage(testingdata)
 	averagetrain := dfuncs.FindAverage(trainingdata)
 	fmt.Println("Finding Average Value")
-	averagetotal := ((6.0 * averagetest) + averagetrain) / float32(7)
+	averagetotal := ((6.0 * averagetrain) + averagetest) / float32(7)
 	trainepoch := len(trainingdata)
 	fmt.Println("Normalizing Data")
 	trainingdata = dfuncs.NormalizeData(trainingdata, averagetotal)
 	testingdata = dfuncs.NormalizeData(testingdata, averagetotal)
 	fmt.Println("Length of Training Data", len(trainingdata))
 	fmt.Println("Length of Testing Data", len(testingdata))
+
 	//Since Data is so small we can load it all into the GPU
 	var gputrainingdata []*layers.IO
 	var gputestingdata []*layers.IO
@@ -142,7 +154,7 @@ func main() {
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(trainingdata[i].Label)
 		cherror(err)
-		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, true)
+		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, memmanaged)
 		cherror(err)
 		gputrainingdata = append(gputrainingdata, inpt)
 	}
@@ -151,7 +163,7 @@ func main() {
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(testingdata[i].Label)
 		cherror(err)
-		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, true)
+		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, memmanaged)
 		cherror(err)
 		gputestingdata = append(gputestingdata, inpt)
 	}
@@ -169,8 +181,18 @@ func main() {
 				desiredoutput[j] = make([]float32, 10)
 				//	erroroutput[i] = make([]float32, 10)
 				//Forward Section
+				debugarray := make([]float32, 28*28)
+				err = gputrainingdata[j].T().Memer().FillSlice(debugarray)
+				cherror(err)
+				var lab dfuncs.LabeledData
+				lab.Data = debugarray
+				lab.Label = trainingdata[j].Label
+				lab.Number = trainingdata[j].Number
+				err = lab.MakeJPG("/home/derek/mnistgpumemcopy/", strconv.Itoa(lab.Number), j)
+				cherror(err)
 				err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 				cherror(err)
+
 				err = activation1.ForwardProp(handle, output1, aoutput1)
 				cherror(err)
 				err = pooling1.ForwardProp(handle, aoutput1, poutput1)
@@ -191,7 +213,8 @@ func main() {
 				cherror(err)
 				err = softmax.ForwardProp(handle, output4, answer)
 				cherror(err)
-
+				err = stream.Sync()
+				cherror(err)
 				//Will Need an Actual answers func
 				err = answer.DeltaT().LoadMem(gputrainingdata[j].DeltaT().Memer())
 				cherror(err)
@@ -200,6 +223,9 @@ func main() {
 				cherror(err)
 				err = answer.DeltaT().Memer().FillSlice(desiredoutput[j])
 				cherror(err)
+				stream.Sync()
+				fmt.Println(netoutput[j])
+				fmt.Println(desiredoutput[j])
 				err = softmax.BackProp(handle, output4, answer)
 
 				cherror(err)
@@ -223,10 +249,10 @@ func main() {
 				cherror(err)
 				err = layer1.BackProp(handle, nil, input, output1)
 				cherror(err)
-				j++
+
 				err = stream.Sync()
 				cherror(err)
-
+				j++
 			}
 			//fmt.Println(netoutput[j])
 			//fmt.Println(desiredoutput[j])

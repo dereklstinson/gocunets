@@ -23,8 +23,9 @@ const (
 )
 
 type LabeledData struct {
-	Data  []float32
-	Label []float32
+	Data   []float32
+	Number int
+	Label  []float32
 }
 
 func (data LabeledData) MakeJPG(folder, name string, index int) error {
@@ -66,7 +67,7 @@ func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) 
 		return nil, err
 		//	panic(err)
 	}
-	alllabels, err := readLabelFile(labelfile)
+	alllabels, numbers, err := readLabelFile(labelfile)
 	if err != nil {
 		//	panic(err)
 		return nil, err
@@ -88,11 +89,12 @@ func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) 
 	for i := 0; i < len(alldata); i++ {
 		labeled[i].Data = alldata[i]
 		labeled[i].Label = alllabels[i]
+		labeled[i].Number = numbers[i]
 	}
 	return labeled, nil
 }
 
-func readLabelFile(r io.Reader) ([][]float32, error) {
+func readLabelFile(r io.Reader) ([][]float32, []int, error) {
 	var err error
 
 	var (
@@ -101,24 +103,26 @@ func readLabelFile(r io.Reader) ([][]float32, error) {
 	)
 	if err = binary.Read(r, binary.BigEndian, &magic); err != nil {
 		//panic(err)
-		return nil, err
+		return nil, nil, err
 	}
 	if magic != labelMagic {
 		fmt.Println(magic, labelMagic)
-		return nil, os.ErrInvalid
+		return nil, nil, os.ErrInvalid
 	}
 	if err = binary.Read(r, binary.BigEndian, &n); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	labels := make([][]float32, n)
+	numbers := make([]int, n)
 	for i := 0; i < int(n); i++ {
 		var l uint8
 		if err := binary.Read(r, binary.BigEndian, &l); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		numbers[i] = int(l)
 		labels[i] = append(labels[i], makeonehotstate(l)...)
 	}
-	return labels, nil
+	return labels, numbers, nil
 }
 func NormalizeData(data []LabeledData, average float32) []LabeledData {
 	size := len(data)
