@@ -2,6 +2,7 @@ package tensor
 
 import (
 	"errors"
+	"fmt"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -25,15 +26,15 @@ If the input tensor B is the same tensor as the destination tensor C, then the i
 //Or vol= op(alpha1 *A, alpha2 *B)+(beta *vol)
 func (t *Volume) OpAdd(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
+	fmtt, dtypet, _, err := t.Properties()
 	if err != nil {
 		return err
 	}
-	_, dtypeA, _, err := A.Properties()
+	fmtA, dtypeA, _, err := A.Properties()
 	if err != nil {
 		return err
 	}
-	_, dtypeB, _, err := B.Properties()
+	fmtB, dtypeB, _, err := B.Properties()
 	if err != nil {
 		return err
 	}
@@ -71,10 +72,15 @@ func (t *Volume) OpAdd(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet, t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err != nil {
-		return err
+		return errorappend("NewOpTensorDescriptor: ", err)
 	}
-
+	fmt.Println(t.propnan, A.propnan, B.propnan)
+	fmt.Println(fmtt, fmtA, fmtB)
+	fmt.Println(t.mem.Ptr())
 	return t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.mem, b, B.tD, B.mem, c, t.tD, t.mem)
+}
+func errorappend(comment string, err error) error {
+	return errors.New(comment + ": " + err.Error())
 }
 
 //OpMult does a multiplication Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,

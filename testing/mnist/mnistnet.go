@@ -29,7 +29,7 @@ func main() {
 	err = devices[0].Set()
 	cherror(err)
 	handle := gocudnn.NewHandle()
-	stream, err := gocudnn.CreateStream()
+	stream, err := gocudnn.CreateBlockingStream()
 	cherror(err)
 	err = handle.SetStream(stream)
 	cherror(err)

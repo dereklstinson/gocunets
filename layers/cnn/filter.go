@@ -32,24 +32,36 @@ type xtras struct {
 	beta   float64
 }
 
+func appenderror(comment string, err error) error {
+	return errors.New(comment + ": " + err.Error())
+}
+
 //
 func (c *Layer) UpdateWeights(handle *gocudnn.Handle, batch int) error {
-	err := c.train.UpdateWeights2(handle, c.w, float64(batch))
+	err := c.train.UpdateWeights(handle, c.w, float64(batch))
 	if err != nil {
-		return err
+		return appenderror("UpdateWeights-Weights", err)
 	}
-	return c.btrain.UpdateWeights2(handle, c.bias, float64(batch))
+	err = c.btrain.UpdateWeights(handle, c.bias, float64(batch))
+	if err != nil {
+		return appenderror("UpdateWeights-Bias", err)
+	}
+	return nil
 }
 
 //SetupTrainer sets up the momentum trainer
 func (c *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momentum float64) error {
 	c.train = trainer.SetupMomentum(decay1, decay2, rate, momentum)
-	c.btrain = trainer.SetupMomentum(decay1, decay2, rate, momentum)
-	err := c.btrain.LoadGsum(handle, c.bias)
+	err := c.train.LoadGsum(handle, c.w)
 	if err != nil {
 		return err
 	}
-	return c.train.LoadGsum(handle, c.w)
+	c.btrain = trainer.SetupMomentum(decay1, decay2, rate, momentum)
+	err = c.btrain.LoadGsum(handle, c.bias)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //AIOLayerSetupDefault builds a layer based on the input, and other values passed.

@@ -209,8 +209,13 @@ func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 	if err != nil {
 		return nil, err
 	}
+	var newmem *gocudnn.Malloced
+	if t.managed == true {
+		newmem, err = gocudnn.MallocManaged(t.mem.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
+	} else {
+		newmem, err = gocudnn.Malloc(t.mem.ByteSize())
+	}
 
-	newmem, err := gocudnn.Malloc(t.mem.ByteSize())
 	if err != nil {
 		return nil, err
 	}

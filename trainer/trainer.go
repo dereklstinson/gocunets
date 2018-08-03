@@ -5,6 +5,7 @@ package trainer
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -61,13 +62,19 @@ func errorappender(comment string, err error) error {
 }
 func (t *Momentum) UpdateWeights2(handle *gocudnn.Handle, weights *layers.IO, batch float64) error {
 	var err error
-	/*err = weights.DeltaT().ScaleValues(handle, 1.0/batch)
+	err = weights.DeltaT().ScaleValues(handle, 1.0/batch)
 	if err != nil {
 
 		return errorappender("updateweights2: ScaleValues", err)
 	}
-	*/
-	err = t.gsum.OpAdd(handle, weights.DeltaT(), t.gsum, -t.rate, t.momentum, 0.0)
+
+	a, b, c, _ := weights.Properties()
+	fmt.Println("Weight Properties:", a, b, c)
+	d, e, f, _ := t.gsum.Properties()
+	fmt.Println("Gsum Properties:", d, e, f)
+	fmt.Println("rate:", t.rate)
+	fmt.Println("momentum", t.momentum)
+	err = t.gsum.OpAdd(handle, weights.DeltaT(), weights.DeltaT(), -t.rate, 0.0, t.momentum)
 	if err != nil {
 
 		return errorappender("updateweights2: OpAdd Momentum", err)
@@ -81,8 +88,13 @@ func (t *Momentum) UpdateWeights2(handle *gocudnn.Handle, weights *layers.IO, ba
 }
 
 //UpdateWeights for now is just the momentum operation.  I might have to make a new cuda library for gocudnn. I will have to check that out.
-func (t *Momentum) UpdateWeights(handle *gocudnn.Handle, weights *layers.IO) error {
+func (t *Momentum) UpdateWeights(handle *gocudnn.Handle, weights *layers.IO, batch float64) error {
 	var err error
+	err = weights.DeltaT().ScaleValues(handle, 1.0/batch)
+	if err != nil {
+
+		return errorappender("updateweights: ScaleValues", err)
+	}
 	err = t.gsum.AddTo(handle, weights.DeltaT(), t.rate, t.momentum)
 	if err != nil {
 		return err

@@ -4,8 +4,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"io"
 	"os"
+	"strconv"
 )
 
 const numLabels = 10
@@ -23,6 +27,37 @@ type LabeledData struct {
 	Label []float32
 }
 
+func (data LabeledData) MakeJPG(folder, name string, index int) error {
+	dir := folder + "/" + name + "/"
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	newfile, err := os.Create(dir + strconv.Itoa(index) + ".jpg")
+	if err != nil {
+		return err
+	}
+	defer newfile.Close()
+	image := data.convert()
+	return jpeg.Encode(newfile, image, nil)
+}
+func (data LabeledData) convert() image.Image {
+	var rect image.Rectangle
+
+	rect.Min.X = 0
+	rect.Min.Y = 0
+	rect.Max.X = 28
+	rect.Max.Y = 28
+	img := image.NewRGBA(rect)
+	for i := 0; i < 28; i++ {
+		for j := 0; j < 28; j++ {
+			pix := uint8(data.Data[i*28+j])
+
+			img.Set(j, i, color.RGBA{pix, pix, pix, 255})
+		}
+	}
+	return img
+}
 func LoadMNIST(filedirectory string, filenameLabel string, filenameData string) ([]LabeledData, error) {
 
 	labelfile, err := os.Open(filedirectory + filenameLabel)
