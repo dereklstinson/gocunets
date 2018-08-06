@@ -288,7 +288,7 @@ func (c *Ops) FwdProp(
 		fmt.Println("10: ", wspace)
 		fmt.Println("11: ", b)
 		fmt.Println("12: ", y.TD())
-		fmt.Println("13: ", y.Memer()x)
+		fmt.Println("13: ", y.Memer())
 	*/
 	return c.helper.Funcs.Fwd.ConvolutionForward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.desc, c.fwdalgo, wspace, b, y.TD(), y.Memer())
 }

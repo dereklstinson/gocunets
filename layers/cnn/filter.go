@@ -92,7 +92,7 @@ func AIOLayerSetupDefault(
 		return nil, nil, err
 	}
 	err = layer.bias.T().SetValues(handle, 0.0)
-	output, err := layer.MakeOutputTensor(input, managedmem)
+	output, err := layer.MakeOutputTensor(handle, input, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -217,13 +217,25 @@ func (c *Layer) DeltaWeights(input interface{}) error {
 }
 
 //MakeOutputTensor makes the output tensor of the layer
-func (c *Layer) MakeOutputTensor(input *layers.IO, managedmem bool) (*layers.IO, error) {
+func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, managedmem bool) (*layers.IO, error) {
 	dims, err := c.conv.OutputDim(input.T(), c.w.T())
 	if err != nil {
 		return nil, err
 	}
 	fmt, dtype, _, err := c.w.Properties()
-	return layers.BuildIO(fmt, dtype, dims, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	output, err := layers.BuildIO(fmt, dtype, dims, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	/*	err = output.T().SetValues(handle, 1.0)
+		if err != nil {
+			return nil, err
+		}
+	*/
+	return output, nil
 }
 
 //SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
@@ -252,6 +264,7 @@ func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
 
 //ForwardProp performs the ForwardProp
 func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+	//	fmt.Println("alpha: ", c.fwd.alpha, ",   beta: ", c.fwd.beta)
 	err := c.conv.FwdProp(handle, c.fwd.alpha,
 		x.T(),
 		c.w.T(),
@@ -268,7 +281,7 @@ func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *
 		_, _, biasdims, _ := c.bias.Properties()
 		fmt.Println("Bias Dims: ", biasdims)
 	*/
-	return y.T().AddTo(handle, c.bias.T(), c.fwd.alpha, c.fwd.beta)
+	return y.T().AddTo(handle, c.bias.T(), 1.0, 1.0)
 
 }
 

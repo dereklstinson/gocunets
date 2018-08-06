@@ -159,7 +159,14 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 		return appenderror("FCNN FwdProp", err)
 	}
 
-	return y.T().AddTo(handle, l.bias.T(), l.fwd.alpha1, l.fwd.beta)
+	return y.T().AddTo(handle, l.bias.T(), 1.0, 1.0)
+}
+func (l *Layer) WeightsFillSlice(input interface{}) error {
+	return l.neurons.T().Memer().FillSlice(input)
+
+}
+func (l *Layer) DeltaWeights(input interface{}) error {
+	return l.neurons.DeltaT().Memer().FillSlice(input)
 }
 
 //BackProp does the backpropigation for both the data and filter

@@ -7,11 +7,13 @@ import (
 
 //Ops does the softmax algo
 type Ops struct {
-	algo   gocudnn.SoftMaxAlgorithm
-	helper gocudnn.SoftMax
-	mode   gocudnn.SoftMaxMode
-	alpha  gocudnn.CScalar
-	beta   gocudnn.CScalar
+	algo      gocudnn.SoftMaxAlgorithm
+	helper    gocudnn.SoftMax
+	mode      gocudnn.SoftMaxMode
+	alpha     gocudnn.CScalar
+	beta      gocudnn.CScalar
+	backalpha gocudnn.CScalar
+	backbeta  gocudnn.CScalar
 }
 
 //Build builds a default layer (only option for now)
@@ -21,10 +23,12 @@ func Build() *Ops {
 	//	output, err := layers.BuildIO(fmt, dtype, dims)
 
 	return &Ops{
-		algo:  s.Flgs.Algo.Fast(),
-		mode:  s.Flgs.Mode.Instance(),
-		alpha: gocudnn.CFloat(1),
-		beta:  gocudnn.CFloat(0),
+		algo:      s.Flgs.Algo.Fast(),
+		mode:      s.Flgs.Mode.Channel(),
+		backalpha: gocudnn.CFloat(-1),
+		alpha:     gocudnn.CFloat(1),
+		beta:      gocudnn.CFloat(0),
+		backbeta:  gocudnn.CFloat(0),
 	}
 }
 
@@ -38,6 +42,6 @@ func (s *Ops) ForwardProp(handle *gocudnn.Handle, x, y *tensor.Volume) error {
 //BackProp performs the backward propigation
 func (s *Ops) BackProp(handle *gocudnn.Handle, y, dy, dx *tensor.Volume) error {
 
-	err := s.helper.Funcs.SoftMaxBackward(handle, s.algo, s.mode, s.alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), s.beta, dx.TD(), dx.Memer())
+	err := s.helper.Funcs.SoftMaxBackward(handle, s.algo, s.mode, s.backalpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), s.backbeta, dx.TD(), dx.Memer())
 	return err
 }

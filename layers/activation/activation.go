@@ -54,6 +54,7 @@ func (a *Layer) UpDateBwdCScalars(alpha, beta float64) {
 
 //ForwardProp does the forward propigation of the activation layer
 func (a *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+	//fmt.Println(a.fwd.alpha, a.fwd.beta)
 	return a.act.FwdProp(handle, a.fwd.alpha, x.T(), a.fwd.beta, y.T())
 }
 
