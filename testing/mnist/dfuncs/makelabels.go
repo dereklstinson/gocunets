@@ -128,7 +128,8 @@ func NormalizeData(data []LabeledData, average float32) []LabeledData {
 	size := len(data)
 	for i := 0; i < size; i++ {
 		for j := 0; j < len(data[i].Data); j++ {
-			data[i].Data[j] = data[i].Data[j] / average
+
+			data[i].Data[j] = (data[i].Data[j] - average) / float32(255)
 		}
 
 	}

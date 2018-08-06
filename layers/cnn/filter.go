@@ -3,6 +3,7 @@ package cnn
 
 import (
 	"errors"
+	"image"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -207,6 +208,13 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 
 	return layers.BuildIO(frmt, dtype, dims, managedmem)
 }
+func (c *Layer) WeightsFillSlice(input interface{}) error {
+	return c.w.T().Memer().FillSlice(input)
+
+}
+func (c *Layer) DeltaWeights(input interface{}) error {
+	return c.w.DeltaT().Memer().FillSlice(input)
+}
 
 //MakeOutputTensor makes the output tensor of the layer
 func (c *Layer) MakeOutputTensor(input *layers.IO, managedmem bool) (*layers.IO, error) {
@@ -231,6 +239,15 @@ func (c *Layer) SetBwdDataScalars(alpha, alpha2, beta float64) {
 //SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=1 and are initialized in the function FilterSetup
 func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta float64) {
 	c.bwdf.alpha, c.bwdf.alpha2, c.bwdf.beta = alpha, alpha2, beta
+}
+func (c *Layer) SaveImagesToFile(dir string) error {
+	return c.w.SaveImagesToFile(dir)
+}
+func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
+	return c.w.Images()
+}
+func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
+	return c.bias.Images()
 }
 
 //ForwardProp performs the ForwardProp

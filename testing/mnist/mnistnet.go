@@ -170,6 +170,7 @@ func main() {
 	//workspace, err := gocudnn.Malloc(gocudnn.SizeT(0))
 	cherror(err)
 	epochs := 20
+	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
 		netoutput := make([][]float32, trainepoch)
 		desiredoutput := make([][]float32, trainepoch)
@@ -192,8 +193,34 @@ func main() {
 				cherror(err)
 				err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 				cherror(err)
+				//err = gputrainingdata[j].T().Memer().FillSlice(inputslicefromgpumem)
+				//	cherror(err)
+				//fmt.Println(inputslicefromgpumem)
+				wghts := make([]float32, 20*5*5)
+				err = layer1.WeightsFillSlice(wghts)
 
+				cherror(err)
+				fmt.Println(wghts)
+
+				outpt1 := make([]float32, 20*28*28)
+				output1.T().Memer().FillSlice(outpt1)
+				fmt.Println(outpt1)
+				/*
+					err = gputrainingdata[j].SaveImagesToFile("/home/derek/mnistfirstlayerinput")
+					cherror(err)
+					err = layer1.SaveImagesToFile("/home/derek/mnistfirstlayerweights")
+					cherror(err)
+					err = output1.SaveImagesToFile("/home/derek/mnistfirstlayeroutput")
+					cherror(err)
+
+				*/
+				for {
+
+				}
 				err = activation1.ForwardProp(handle, output1, aoutput1)
+
+				cherror(err)
+
 				cherror(err)
 				err = pooling1.ForwardProp(handle, aoutput1, poutput1)
 				cherror(err)
