@@ -278,19 +278,19 @@ func arraysize(dtype gocudnn.DataType, size gocudnn.SizeT) int {
 }
 
 //PrintUnifiedMem prints the unified Memory
-func (t *Volume) PrintUnifiedMem() error {
+func (t *Volume) PrintUnifiedMem(comment string) error {
 	kind := gocudnn.MemcpyKindFlag{}.Default()
-	return t.printmem(kind)
+	return t.printmem(comment, kind)
 }
 
-func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
+func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 	var flg gocudnn.DataTypeFlag
 	sib := t.mem.ByteSize()
 	as := arraysize(t.dtype, sib)
 
 	switch t.dtype {
 	case flg.Double():
-		array := make([]C.double, as)
+		array := make([]float64, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 		if err != nil {
 			return err
@@ -299,9 +299,9 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(array)
+		fmt.Println(comment, array)
 	case flg.Float():
-		array := make([]C.float, as)
+		array := make([]float32, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 
 		if err != nil {
@@ -311,9 +311,9 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(array)
+		fmt.Println(comment, array)
 	case flg.Int32():
-		array := make([]C.int, as)
+		array := make([]int32, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 
 		if err != nil {
@@ -323,9 +323,9 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(array)
+		fmt.Println(comment, array)
 	case flg.UInt8():
-		array := make([]C.uchar, as)
+		array := make([]byte, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 
 		if err != nil {
@@ -335,9 +335,9 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(array)
+		fmt.Println(comment, array)
 	case flg.Int8():
-		array := make([]C.schar, as)
+		array := make([]int8, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 		if err != nil {
 			return err
@@ -346,7 +346,7 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(array)
+		fmt.Println(comment, array)
 	default:
 		return errors.New("Unsupoorted Format")
 	}
@@ -355,9 +355,9 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 }
 
 //PrintDeviceMem Kind of a shortcut function. I would like to build a more extensive function in the future where it would just know what to do without much user input.
-func (t *Volume) PrintDeviceMem() error {
+func (t *Volume) PrintDeviceMem(comment string) error {
 	kind := gocudnn.MemcpyKindFlag{}.DeviceToHost()
-	return t.printmem(kind)
+	return t.printmem(comment, kind)
 }
 
 //Destroy will release the memory of the tensor
