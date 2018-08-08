@@ -11,6 +11,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
+	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	//	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	//"github.com/dereklstinson/GoCuNets/layers/softmax"
@@ -50,9 +51,6 @@ func main() {
 	stride := dims
 	dilation := dims
 
-	//input tensor
-	input, err := layers.BuildIO(frmt, dtype, dims(1, 1, 6, 6), memmanaged)
-	cherror(err)
 	inputvalues := []float32{-1, 0, 1, 2, 3, 4,
 		1, 2, 3, 4, 5, 6,
 		-3, -2, -1, 0, 1, 2,
@@ -60,16 +58,16 @@ func main() {
 		-2, -1, 0, 1, 2, 3,
 		2, 3, 4, 5, 6, 7,
 	}
+
 	inptr, err := gocudnn.MakeGoPointer(inputvalues)
 	cherror(err)
-	err = input.LoadTValues(inptr)
+	answervalues := []float32{0, 0, 1}
+	ansptr, err := gocudnn.MakeGoPointer(answervalues)
 	cherror(err)
-	//answervalues := []float32{0, 0, 1}
-	//ansptr, err := gocudnn.MakeGoPointer(answervalues)
-	//cherror(err)
-	//err = input.LoadDeltaTValues(ansptr)
-	//cherror(err)
 
+	//input tensors/network output answer
+	input, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 6, 6), dims(1, 3, 1, 1), inptr, ansptr, memmanaged)
+	cherror(err)
 	//Setting Up Network
 
 	//Convolution Layer
@@ -103,26 +101,50 @@ func main() {
 	//pooling layer
 	pooling1, poutput1, err := pooling.LayerSetup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(1, 1), memmanaged)
 	cherror(err)
+	classification, answer, err := softmax.BuildDefault(poutput1, memmanaged)
+	cherror(err)
+	err = answer.DeltaT().LoadMem(input.DeltaT().Memer())
+	cherror(err)
+
+	//Forward Prop
+
 	err = layer1.ForwardProp(handle, nil, input, output1)
 	cherror(err)
-	_, _, odims, err := output1.Properties()
+	//	_, _, odims, err := output1.Properties()
 	cherror(err)
-	output1slice := make([]float32, odims[0]*odims[1]*odims[2]*odims[3])
-	output1.T().Memer().FillSlice(output1slice)
-	fmt.Println("Layer1 Output: ", output1slice)
+	output1.T().PrintDeviceMem("Output1 Slice: ")
 	err = activation1.ForwardProp(handle, output1, aoutput1)
 	cherror(err)
-	aoutput1slice := make([]float32, odims[0]*odims[1]*odims[2]*odims[3])
-	err = aoutput1.T().Memer().FillSlice(aoutput1slice)
+	aoutput1.T().PrintDeviceMem("Activation Slice: ")
+	//aoutput1slice := make([]float32, odims[0]*odims[1]*odims[2]*odims[3])
+
+	//err = aoutput1.T().Memer().FillSlice(aoutput1slice)
 	cherror(err)
-	fmt.Println("Activation Output: ", aoutput1slice)
+	//fmt.Println("Activation Output: ", aoutput1slice)
 
 	err = pooling1.ForwardProp(handle, aoutput1, poutput1)
-	poutput1slice := make([]float32, 3)
-	err = poutput1.T().Memer().FillSlice(poutput1slice)
-	cherror(err)
-	fmt.Println("Pooling Slice: ", poutput1slice)
 
+	err = poutput1.T().PrintDeviceMem("Pooling Slice: ")
+	cherror(err)
+
+	err = classification.ForwardProp(handle, poutput1, answer)
+	cherror(err)
+	answer.T().PrintDeviceMem("Classifcation Slice: ")
+	cherror(err)
+
+	classification.BackProp(handle, poutput1, answer)
+	//	dpoutput1slice := make([]float32, 3)
+
+	cherror(err)
+	err = poutput1.DeltaT().PrintDeviceMem("dPooling Slice: ")
+	cherror(err)
+	err = pooling1.BackProp(handle, aoutput1, poutput1)
+	cherror(err)
+	err = aoutput1.DeltaT().PrintDeviceMem("dActivation Slice: ")
+	cherror(err)
+	err = activation1.BackProp(handle, output1, poutput1)
+	err = output1.DeltaT().PrintDeviceMem("Output1 Slice: ")
+	devices[0].Reset()
 }
 
 func cherror(input error) {
