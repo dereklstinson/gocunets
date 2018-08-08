@@ -277,6 +277,7 @@ func arraysize(dtype gocudnn.DataType, size gocudnn.SizeT) int {
 	}
 }
 
+//PrintUnifiedMem prints the unified Memory
 func (t *Volume) PrintUnifiedMem() error {
 	kind := gocudnn.MemcpyKindFlag{}.Default()
 	return t.printmem(kind)
@@ -353,7 +354,7 @@ func (t *Volume) printmem(kind gocudnn.MemcpyKind) error {
 	return nil
 }
 
-//PrintDeviceMem.  Kind of a shortcut function. I would like to build a more extensive function in the future where it would just know what to do without much user input.  It would use this function so it is not a waste.
+//PrintDeviceMem Kind of a shortcut function. I would like to build a more extensive function in the future where it would just know what to do without much user input.
 func (t *Volume) PrintDeviceMem() error {
 	kind := gocudnn.MemcpyKindFlag{}.DeviceToHost()
 	return t.printmem(kind)

@@ -106,7 +106,7 @@ func main() {
 	//Setup Layer Trainers
 	//Decay isn't available right now so................
 	decay1, decay2 := 0.0, 0.0
-	rate, momentum := .01, .9
+	rate, momentum := .01, .8
 	err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 	err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
@@ -266,7 +266,8 @@ func main() {
 				stream.Sync()
 				//	fmt.Println(netoutput[j])
 				//	fmt.Println(desiredoutput[j])
-
+				fmt.Println("Output:  ", netoutput[i])
+				fmt.Println("Desired: ", desiredoutput[i])
 				err = softmax.BackProp(handle, output4, answer)
 
 				/*
@@ -289,27 +290,29 @@ func main() {
 				cherror(err)
 				err = layer4.BackProp(handle, poutput3, output4)
 				cherror(err)
-				x := make([]float32, 10)
-				dx := make([]float32, 10)
-				y := make([]float32, 10)
-				dy := make([]float32, 10)
-				output4.T().Memer().FillSlice(y)
-				output4.DeltaT().Memer().FillSlice(dy)
-				poutput3.T().Memer().FillSlice(x)
-				poutput3.DeltaT().Memer().FillSlice(dx)
-				inputweightamount := 10 * 20 * 4
-				w := make([]float32, inputweightamount)
-				dw := make([]float32, inputweightamount)
-				err = layer4.DeltaWeights(dw)
-				cherror(err)
-				err = layer4.WeightsFillSlice(w)
-				cherror(err)
-				fmt.Println("x:", x)
-				fmt.Println("y: ", y)
-				fmt.Println("dx: ", dx)
-				fmt.Println("dy: ", dy)
-				fmt.Println("w: ", w)
-				fmt.Println("dw: ", dw)
+				/*
+					x := make([]float32, 10)
+					dx := make([]float32, 10)
+					y := make([]float32, 10)
+					dy := make([]float32, 10)
+					output4.T().Memer().FillSlice(y)
+					output4.DeltaT().Memer().FillSlice(dy)
+					poutput3.T().Memer().FillSlice(x)
+					poutput3.DeltaT().Memer().FillSlice(dx)
+					inputweightamount := 10 * 20 * 4
+					w := make([]float32, inputweightamount)
+					dw := make([]float32, inputweightamount)
+					err = layer4.DeltaWeights(dw)
+					cherror(err)
+					err = layer4.WeightsFillSlice(w)
+					cherror(err)
+					fmt.Println("x:", x)
+					fmt.Println("y: ", y)
+					fmt.Println("dx: ", dx)
+					fmt.Println("dy: ", dy)
+					fmt.Println("w: ", w)
+					fmt.Println("dw: ", dw)
+				*/
 				err = pooling3.BackProp(handle, aoutput3, poutput3)
 				cherror(err)
 				err = activation3.BackProp(handle, output3, aoutput3)

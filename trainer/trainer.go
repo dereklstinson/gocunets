@@ -5,7 +5,6 @@ package trainer
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -67,20 +66,22 @@ func (t *Momentum) UpdateWeights2(handle *gocudnn.Handle, weights *layers.IO, ba
 
 		return errorappender("updateweights2: ScaleValues", err)
 	}
-
-	a, b, c, _ := weights.Properties()
-	fmt.Println("Weight Properties:", a, b, c)
-	d, e, f, _ := t.gsum.Properties()
-	fmt.Println("Gsum Properties:", d, e, f)
-	fmt.Println("rate:", t.rate)
-	fmt.Println("momentum", t.momentum)
+	/*
+		a, b, c, _ := weights.Properties()
+		fmt.Println("Weight Properties:", a, b, c)
+		d, e, f, _ := t.gsum.Properties()
+		fmt.Println("Gsum Properties:", d, e, f)
+		fmt.Println("rate:", t.rate)
+		fmt.Println("momentum", t.momentum)
+	*/
+	//OpTensor   current=op(A*alpha, B*alpha2)+current*beta
 	err = t.gsum.OpAdd(handle, weights.DeltaT(), weights.DeltaT(), -t.rate, 0.0, t.momentum)
 	if err != nil {
 
 		return errorappender("updateweights2: OpAdd Momentum", err)
 	}
 
-	err = weights.T().OpAdd(handle, t.gsum, weights.T(), 1.0, 1.0, 0.0)
+	err = weights.T().OpAdd(handle, t.gsum, t.gsum, 1.0, 0.0, 1.0)
 	if err != nil {
 		return errorappender("updateweights2: OpAdd Weights", err)
 	}
@@ -95,10 +96,13 @@ func (t *Momentum) UpdateWeights(handle *gocudnn.Handle, weights *layers.IO, bat
 
 		return errorappender("updateweights: ScaleValues", err)
 	}
-	err = t.gsum.AddTo(handle, weights.DeltaT(), t.rate, t.momentum)
+
+	//gsum = weights.DeltaT()*(-t.rate)+(gsum*t.momentum)
+	err = t.gsum.AddTo(handle, weights.DeltaT(), -t.rate, t.momentum)
 	if err != nil {
 		return err
 	}
+	// weights.T()=weights.T()*1 +t.gsum*1
 	err = weights.T().AddTo(handle, t.gsum, 1.0, 1.0)
 
 	if err != nil {

@@ -61,7 +61,9 @@ func (t *Volume) ScaleValues(h *gocudnn.Handle, alpha float64) error {
 //AddTo formula is  (t *Tensor)= alpha*(A)+beta*(t *Tensor)
 //Dim max is 5. Number of dims need to be the same.  Dim size need to match or be equal to 1.
 //In the later case the same value from the A tensor for the dims will be used to blend into (t *Tensor).
-func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, alpha, beta float64) error {
+func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, Amultiplier, tmultiplier float64) error {
+	alpha := Amultiplier
+	beta := tmultiplier
 	dtype, _, _, err := t.tD.GetDescrptor()
 	if err != nil {
 		return err

@@ -37,13 +37,31 @@ func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
-//
+//LoadWValues will load a slice into cuda memory for the Weights.
+func (c *Layer) LoadWValues(slice interface{}) error {
+	ptr, err := gocudnn.MakeGoPointer(slice)
+	if err != nil {
+		return err
+	}
+	return c.w.LoadTValues(ptr)
+}
+
+//LoaddWValues will load a slice into cuda memory for the delta Weights.
+func (c *Layer) LoaddWValues(slice interface{}) error {
+	ptr, err := gocudnn.MakeGoPointer(slice)
+	if err != nil {
+		return err
+	}
+	return c.w.LoadDeltaTValues(ptr)
+}
+
+//UpdateWeights does the weight update
 func (c *Layer) UpdateWeights(handle *gocudnn.Handle, batch int) error {
-	err := c.train.UpdateWeights(handle, c.w, float64(batch))
+	err := c.train.UpdateWeights2(handle, c.w, float64(batch))
 	if err != nil {
 		return appenderror("UpdateWeights-Weights", err)
 	}
-	err = c.btrain.UpdateWeights(handle, c.bias, float64(batch))
+	err = c.btrain.UpdateWeights2(handle, c.bias, float64(batch))
 	if err != nil {
 		return appenderror("UpdateWeights-Bias", err)
 	}
@@ -212,7 +230,7 @@ func (c *Layer) WeightsFillSlice(input interface{}) error {
 	return c.w.T().Memer().FillSlice(input)
 
 }
-func (c *Layer) DeltaWeights(input interface{}) error {
+func (c *Layer) DeltaWeightsFillSlice(input interface{}) error {
 	return c.w.DeltaT().Memer().FillSlice(input)
 }
 
