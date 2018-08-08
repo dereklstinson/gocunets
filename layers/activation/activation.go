@@ -59,7 +59,7 @@ func (a *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 }
 
 //BackProp does the backward propigation of the activation layer
-func (a *Layer) BackProp(handle *gocudnn.Handle, y, x *layers.IO) error {
+func (a *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	return a.act.BwdProp(handle,
 		a.bwd.alpha,
 		y.T(),
