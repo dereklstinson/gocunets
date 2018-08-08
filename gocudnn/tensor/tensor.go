@@ -340,10 +340,12 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		array := make([]int8, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 		if err != nil {
+
 			return err
 		}
 		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
 		if err != nil {
+
 			return err
 		}
 		fmt.Println(comment, array)
