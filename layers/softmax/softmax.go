@@ -14,10 +14,19 @@ type Layer struct {
 }
 
 //BuildDefault builds a default layer (only option for now)
-func BuildDefault(input *layers.IO, managemem bool) (*Layer, *layers.IO, error) {
-
+func BuildDefault(input, answers *layers.IO, managemem bool) (*Layer, *layers.IO, error) {
+	if answers.IsAnswers() != true {
+		return nil, nil, errors.New("answers IO passed not an answers IO")
+	}
 	fmt, dtype, dims, err := input.Properties()
-	output, err := layers.BuildIO(fmt, dtype, dims, managemem)
+	output, err := layers.BuildIO(fmt, dtype, dims, managemem, false, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = output.PlaceDeltaT(answers.DeltaT())
+	if err != nil {
+		return nil, nil, err
+	}
 	sftmax := softmax.Build()
 	if err != nil {
 		return nil, nil, err
@@ -40,6 +49,8 @@ func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
 	//	return err
 }
+
+/*
 func (l *Layer) LoadAnswer(y *layers.IO, answers gocudnn.Memer, flag gocudnn.MemcpyKind) error {
 	dest := y.DeltaT().Memer().ByteSize()
 	src := answers.ByteSize()
@@ -49,3 +60,4 @@ func (l *Layer) LoadAnswer(y *layers.IO, answers gocudnn.Memer, flag gocudnn.Mem
 	return gocudnn.CudaMemCopy(y.DeltaT().Memer(), answers, dest, flag)
 
 }
+*/

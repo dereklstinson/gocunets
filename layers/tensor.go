@@ -14,11 +14,19 @@ import (
 
 //IO is an all purpose struct that contains an x tensor and a dx tensor used for training
 type IO struct {
-	x    *tensor.Volume
-	dx   *tensor.Volume
-	dims []int32
+	x       *tensor.Volume
+	dx      *tensor.Volume
+	input   bool
+	answers bool
+	dims    []int32
 }
 
+func (i *IO) IsAnswers() bool {
+	return i.answers
+}
+func (i *IO) IsInput() bool {
+	return i.input
+}
 func MakeJPG(folder, subfldr string, index int, img image.Image) error {
 	return tensor.MakeJPG(folder, subfldr, index, img)
 }
@@ -77,44 +85,106 @@ func addtoerror(addition string, current error) error {
 	errorstring := current.Error()
 	return errors.New(addition + ": " + errorstring)
 }
+
+//PlaceDeltaT will put a *tensor.Volume into the DeltaT place if and only if DeltaT is nil
+func (i *IO) PlaceDeltaT(dT *tensor.Volume) error {
+	if i.dx != nil {
+		return errors.New("DeltaT is not nil")
+	}
+	i.dx = dT
+	return nil
+}
+
+//PlaceT will put a *tensor.Volume into the T place if and only if T is nil
+func (i *IO) PlaceT(T *tensor.Volume) error {
+	if i.x != nil {
+		return errors.New("T is not nil")
+	}
+	i.x = T
+	return nil
+}
+
+/*
 func TrainingInputIO(fmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
 	inputdims, answerdims []int32,
 	image, answer *gocudnn.GoPointer,
 	managed bool,
-) (*IO, error) {
+) (*IO, *IO, error) {
 	x, err := tensor.Build(fmt, dtype, inputdims, managed)
 	if err != nil {
 		x.Destroy()
 		err = addtoerror("Building InputDims", err)
-		return nil, err
+		return nil, nil, err
 	}
 	dx, err := tensor.Build(fmt, dtype, answerdims, managed)
 	if err != nil {
 		err = addtoerror("Building answerdims", err)
 		x.Destroy()
 		dx.Destroy()
-		return nil, err
+		return nil, nil, err
 	}
 	err = x.LoadMem(image)
 	if err != nil {
 		err = addtoerror("Loading Images", err)
-		return nil, err
+		return nil, nil, err
 	}
 	err = dx.LoadMem(answer)
 	if err != nil {
 		err = addtoerror("Loading Answers", err)
-		return nil, err
+		return nil, nil, err
 	}
-	return &IO{
+	return nil, &IO{
 		x:  x,
 		dx: dx,
 	}, nil
 
 }
+*/
+func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	return buildIO(fmt, dtype, dims, managed, false, false)
+}
+
+func BuildInputIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	return buildIO(fmt, dtype, dims, managed, false, true)
+}
+func BuildAnswersIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	return buildIO(fmt, dtype, dims, managed, true, false)
+}
 
 //BuildIO builds an IO
-func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, answers, input bool) (*IO, error) {
+	if answers == true && input == true {
+		return nil, errors.New("IO can't be both an answers and input")
+	}
+	if answers == true {
+		dx, err := tensor.Build(fmt, dtype, dims, managed)
+		if err != nil {
+
+			dx.Destroy()
+			return nil, err
+		}
+		return &IO{
+
+			dx:      dx,
+			answers: true,
+		}, nil
+
+	}
+	if input == true {
+
+		x, err := tensor.Build(fmt, dtype, dims, managed)
+		if err != nil {
+			x.Destroy()
+			return nil, err
+		}
+
+		return &IO{
+			x:     x,
+			input: true,
+		}, nil
+
+	}
 	x, err := tensor.Build(fmt, dtype, dims, managed)
 	if err != nil {
 		x.Destroy()

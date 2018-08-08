@@ -159,7 +159,7 @@ func LayerSetup(
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(fmt, dtype, filterdims, managedmem)
+	w, err := layers.BuildIO(fmt, dtype, filterdims, managedmem, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 
 	//	}
 
-	return layers.BuildIO(frmt, dtype, dims, managedmem)
+	return layers.BuildIO(frmt, dtype, dims, managedmem, false, false)
 }
 func (c *Layer) WeightsFillSlice(input interface{}) error {
 	return c.w.T().Memer().FillSlice(input)
@@ -244,7 +244,7 @@ func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, manag
 	if err != nil {
 		return nil, err
 	}
-	output, err := layers.BuildIO(fmt, dtype, dims, managedmem)
+	output, err := layers.BuildIO(fmt, dtype, dims, managedmem, false, false)
 	if err != nil {
 		return nil, err
 	}

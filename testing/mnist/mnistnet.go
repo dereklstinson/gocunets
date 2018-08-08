@@ -50,13 +50,74 @@ func main() {
 	stride := dims
 	dilation := dims
 
-	//input tensor
-	input, err := layers.BuildIO(frmt, dtype, dims(1, 1, 28, 28), memmanaged)
+	/*
+	   Lets go ahead and start loading the training data
+
+	*/
+
+	batchsize := 50 // how many forward and backward runs before updating weights.
+
+	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
+	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
+	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
+	cherror(err)
+
+	//Normalizing Data
+	averagetest := dfuncs.FindAverage(testingdata)
+	averagetrain := dfuncs.FindAverage(trainingdata)
+	fmt.Println("Finding Average Value")
+	averagetotal := ((6.0 * averagetrain) + averagetest) / float32(7)
+
+	fmt.Println("Normalizing Data")
+	trainingdata = dfuncs.NormalizeData(trainingdata, averagetotal)
+	testingdata = dfuncs.NormalizeData(testingdata, averagetotal)
+	fmt.Println("Length of Training Data", len(trainingdata))
+	fmt.Println("Length of Testing Data", len(testingdata))
+
+	//Since Data is so small we can load it all into the GPU
+	var gputrainingdata []*layers.IO
+	var gputestingdata []*layers.IO
+
+	batchnum := 0 //Im lazy so as I am making the batched data I am going to count it
+
+	for i := 0; i < len(trainingdata); { //Counting i inside the j loop, because I don't want to figure out the math
+		batchslice := make([]float32, 0)
+		batchlabelslice := make([]float32, 0)
+
+		for j := 0; j < batchsize; j++ {
+			batchslice = append(batchslice, trainingdata[i].Data...)
+			batchlabelslice = append(batchlabelslice, trainingdata[i].Label...)
+			i++
+		}
+
+		data, err := gocudnn.MakeGoPointer(batchslice)
+		cherror(err)
+		label, err := gocudnn.MakeGoPointer(batchlabelslice)
+		cherror(err)
+		inpt, err := layers.BuildIO(frmt, dtype, dims(batchsize, 1, 28, 28), dims(batchsize, 10, 1, 1), data, label, memmanaged)
+		cherror(err)
+		gputrainingdata = append(gputrainingdata, inpt)
+		batchnum++
+	}
+	fmt.Println("Done Loading Training to GPU")
+	for i := 0; i < len(testingdata); i++ {
+		data, err := gocudnn.MakeGoPointer(testingdata[i].Data)
+		cherror(err)
+		label, err := gocudnn.MakeGoPointer(testingdata[i].Label)
+		cherror(err)
+		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, memmanaged)
+		cherror(err)
+		gputestingdata = append(gputestingdata, inpt)
+	}
+	fmt.Println("Done Loading Testing To GPU")
+
+	cherror(err)
+
 	//Setting Up Network
 
 	//Convolution Layer
-	layer1, output1, err := cnn.AIOLayerSetupDefault(handle, input, filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged)
+	layer1, output1, err := cnn.AIOLayerSetupDefault(handle, gputrainingdata[0], filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged)
 	cherror(err)
 	//Math Note: output= ((input-filter+2*padding)/stride) +1 -> (28-5+4/1)  +1 =28
 
@@ -101,12 +162,11 @@ func main() {
 	cherror(err)
 	//	actual, err := layers.BuildIO(fmt, dtype, []int32{1, 10, 1, 1}, true)
 	//TrainingFunc
-	batchsize := 20 // how many forward and backward runs before updating weights.
 
 	//Setup Layer Trainers
 	//Decay isn't available right now so................
 	decay1, decay2 := 0.0, 0.0
-	rate, momentum := .01, .8
+	rate, momentum := .02, .9
 	err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 	err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
@@ -116,230 +176,85 @@ func main() {
 	err = layer4.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 
-	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
-	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
-	cherror(err)
-	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
-	cherror(err)
-
-	/*
-		Double Checking to see if it would make images of number...It did
-		for i := 0; i < len(trainingdata); i++ {
-			err = trainingdata[i].MakeJPG("/home/derek/mnistimages/", strconv.Itoa(trainingdata[i].Number), i)
-			if err != nil {
-				panic(err)
-			}
-		}
-	*/
-	//Lets go ahead and normalize this data
-	fmt.Println("Makeing Labeled Data")
-	averagetest := dfuncs.FindAverage(testingdata)
-	averagetrain := dfuncs.FindAverage(trainingdata)
-	fmt.Println("Finding Average Value")
-	averagetotal := ((6.0 * averagetrain) + averagetest) / float32(7)
-	trainepoch := len(trainingdata)
-	fmt.Println("Normalizing Data")
-	trainingdata = dfuncs.NormalizeData(trainingdata, averagetotal)
-	testingdata = dfuncs.NormalizeData(testingdata, averagetotal)
-	fmt.Println("Length of Training Data", len(trainingdata))
-	fmt.Println("Length of Testing Data", len(testingdata))
-
-	//Since Data is so small we can load it all into the GPU
-	var gputrainingdata []*layers.IO
-	var gputestingdata []*layers.IO
-	for i := 0; i < len(trainingdata); i++ {
-		//fmt.Println(trainingdata[i].Data)
-		data, err := gocudnn.MakeGoPointer(trainingdata[i].Data)
-		cherror(err)
-		label, err := gocudnn.MakeGoPointer(trainingdata[i].Label)
-		cherror(err)
-		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, memmanaged)
-		cherror(err)
-		gputrainingdata = append(gputrainingdata, inpt)
-	}
-	for i := 0; i < len(testingdata); i++ {
-		data, err := gocudnn.MakeGoPointer(testingdata[i].Data)
-		cherror(err)
-		label, err := gocudnn.MakeGoPointer(testingdata[i].Label)
-		cherror(err)
-		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, memmanaged)
-		cherror(err)
-		gputestingdata = append(gputestingdata, inpt)
-	}
-	//workspace, err := gocudnn.Malloc(gocudnn.SizeT(0))
-	cherror(err)
 	epochs := 20
 	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
 
-		for j := 0; j < trainepoch; { //I add the j++ at the end of this
-			netoutput := make([][]float32, batchsize)
-			desiredoutput := make([][]float32, batchsize)
-			//erroroutput:=make([][]float32,batchsize)
-			for i := 0; i < batchsize; i++ {
-				netoutput[i] = make([]float32, 10)
-				desiredoutput[i] = make([]float32, 10)
-				//	erroroutput[i] = make([]float32, 10)
-				//Forward Section
-				//	debugarray := make([]float32, 28*28)
-				//	err = gputrainingdata[j].T().Memer().FillSlice(debugarray)
-				//	cherror(err)
-				//	var lab dfuncs.LabeledData
-				//	lab.Data = debugarray
-				//	lab.Label = trainingdata[j].Label
-				//	lab.Number = trainingdata[j].Number
-				//	err = lab.MakeJPG("/home/derek/mnistgpumemcopy/", strconv.Itoa(lab.Number), j)
-				//	cherror(err)
-				//Checking Output1 before the convolution
-				//	outpt1 := make([]float32, 20*28*28)
-				//	err = output1.T().Memer().FillSlice(outpt1)
-				//cherror(err)
-				//	fmt.Println(outpt1)
-				err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
-				cherror(err)
+		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
 
-				//	cherror(err)
-				//err = gputrainingdata[j].T().Memer().FillSlice(inputslicefromgpumem)
-				//	cherror(err)
-				//fmt.Println(inputslicefromgpumem)
-				//Checking Output1 after the convolution
-				//	err = output1.T().Memer().FillSlice(outpt1)
-				//	cherror(err)
-				//	fmt.Println(outpt1)
-				//	for {
+			netoutput := make([]float32, 10*batchsize)
+			desiredoutput := make([]float32, 10*batchsize)
 
-				//}
-				//wghts := make([]float32, 20*5*5)
-				//err = layer1.WeightsFillSlice(wghts)
+			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
+			cherror(err)
 
-				//cherror(err)
-				//fmt.Println(wghts)
-				/*
-					output1.T().Memer().FillSlice(outpt1)
-					fmt.Println(outpt1)
-				*/
-				/*
-					err = gputrainingdata[j].SaveImagesToFile("/home/derek/mnistfirstlayerinput")
-					cherror(err)
-					err = layer1.SaveImagesToFile("/home/derek/mnistfirstlayerweights")
-					cherror(err)
-					err = output1.SaveImagesToFile("/home/derek/mnistfirstlayeroutput")
-					cherror(err)
+			err = activation1.ForwardProp(handle, output1, aoutput1)
 
-				*/
-				//for {
+			cherror(err)
 
-				//}
-				err = activation1.ForwardProp(handle, output1, aoutput1)
+			cherror(err)
+			err = pooling1.ForwardProp(handle, aoutput1, poutput1)
+			cherror(err)
+			err = layer2.ForwardProp(handle, nil, poutput1, output2)
+			cherror(err)
+			err = activation2.ForwardProp(handle, output2, aoutput2)
+			cherror(err)
+			err = pooling2.ForwardProp(handle, aoutput2, poutput2)
+			cherror(err)
+			err = layer3.ForwardProp(handle, nil, poutput2, output3)
+			cherror(err)
+			err = activation3.ForwardProp(handle, output3, aoutput3)
+			cherror(err)
+			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
+			cherror(err)
+			err = layer4.ForwardProp(handle, poutput3, output4)
+			cherror(err)
+			err = softmax.ForwardProp(handle, output4, answer)
+			cherror(err)
+			err = stream.Sync()
+			cherror(err)
+			//Will Need an Actual answers func
+			err = answer.DeltaT().LoadMem(gputrainingdata[j].DeltaT().Memer())
+			cherror(err)
+			//Backward Section
+			err = answer.T().Memer().FillSlice(netoutput)
+			cherror(err)
+			err = answer.DeltaT().Memer().FillSlice(desiredoutput)
+			cherror(err)
 
-				cherror(err)
+			err = softmax.BackProp(handle, output4, answer)
 
-				cherror(err)
-				err = pooling1.ForwardProp(handle, aoutput1, poutput1)
-				cherror(err)
-				err = layer2.ForwardProp(handle, nil, poutput1, output2)
-				cherror(err)
-				err = activation2.ForwardProp(handle, output2, aoutput2)
-				cherror(err)
-				err = pooling2.ForwardProp(handle, aoutput2, poutput2)
-				cherror(err)
-				err = layer3.ForwardProp(handle, nil, poutput2, output3)
-				cherror(err)
-				err = activation3.ForwardProp(handle, output3, aoutput3)
-				cherror(err)
-				err = pooling3.ForwardProp(handle, aoutput3, poutput3)
-				cherror(err)
-				err = layer4.ForwardProp(handle, poutput3, output4)
-				cherror(err)
-				err = softmax.ForwardProp(handle, output4, answer)
-				cherror(err)
-				err = stream.Sync()
-				cherror(err)
-				//Will Need an Actual answers func
-				err = answer.DeltaT().LoadMem(gputrainingdata[j].DeltaT().Memer())
-				cherror(err)
-				//Backward Section
-				err = answer.T().Memer().FillSlice(netoutput[i])
-				cherror(err)
-				err = answer.DeltaT().Memer().FillSlice(desiredoutput[i])
-				cherror(err)
-				stream.Sync()
-				//	fmt.Println(netoutput[j])
-				//	fmt.Println(desiredoutput[j])
-				fmt.Println("Output:  ", netoutput[i])
-				fmt.Println("Desired: ", desiredoutput[i])
-				err = softmax.BackProp(handle, output4, answer)
+			cherror(err)
+			err = layer4.BackProp(handle, poutput3, output4)
+			cherror(err)
 
-				/*
-					x := make([]float32, 10)
-					dx := make([]float32, 10)
-					y := make([]float32, 10)
-					dy := make([]float32, 10)
-					output4.T().Memer().FillSlice(x)
-					output4.DeltaT().Memer().FillSlice(dx)
-					answer.T().Memer().FillSlice(y)
-					answer.DeltaT().Memer().FillSlice(dy)
-					fmt.Println("x:", x)
-					fmt.Println("y:", y)
-					fmt.Println("dx:", dx)
-					fmt.Println("dy:", dy)
-					for {
+			err = pooling3.BackProp(handle, aoutput3, poutput3)
+			cherror(err)
+			err = activation3.BackProp(handle, output3, aoutput3)
+			cherror(err)
+			err = layer3.BackProp(handle, nil, poutput2, output3)
+			cherror(err)
+			err = pooling2.BackProp(handle, aoutput2, poutput2)
+			cherror(err)
+			err = activation2.BackProp(handle, output2, aoutput2)
+			cherror(err)
+			err = layer2.BackProp(handle, nil, poutput1, output2)
+			cherror(err)
+			err = pooling1.BackProp(handle, aoutput1, poutput1)
+			cherror(err)
+			err = activation1.BackProp(handle, output1, aoutput1)
+			cherror(err)
+			err = layer1.BackProp(handle, nil, input, output1)
+			cherror(err)
 
-					}
-				*/
-				cherror(err)
-				err = layer4.BackProp(handle, poutput3, output4)
-				cherror(err)
-				/*
-					x := make([]float32, 10)
-					dx := make([]float32, 10)
-					y := make([]float32, 10)
-					dy := make([]float32, 10)
-					output4.T().Memer().FillSlice(y)
-					output4.DeltaT().Memer().FillSlice(dy)
-					poutput3.T().Memer().FillSlice(x)
-					poutput3.DeltaT().Memer().FillSlice(dx)
-					inputweightamount := 10 * 20 * 4
-					w := make([]float32, inputweightamount)
-					dw := make([]float32, inputweightamount)
-					err = layer4.DeltaWeights(dw)
-					cherror(err)
-					err = layer4.WeightsFillSlice(w)
-					cherror(err)
-					fmt.Println("x:", x)
-					fmt.Println("y: ", y)
-					fmt.Println("dx: ", dx)
-					fmt.Println("dy: ", dy)
-					fmt.Println("w: ", w)
-					fmt.Println("dw: ", dw)
-				*/
-				err = pooling3.BackProp(handle, aoutput3, poutput3)
-				cherror(err)
-				err = activation3.BackProp(handle, output3, aoutput3)
-				cherror(err)
-				err = layer3.BackProp(handle, nil, poutput2, output3)
-				cherror(err)
-				err = pooling2.BackProp(handle, aoutput2, poutput2)
-				cherror(err)
-				err = activation2.BackProp(handle, output2, aoutput2)
-				cherror(err)
-				err = layer2.BackProp(handle, nil, poutput1, output2)
-				cherror(err)
-				err = pooling1.BackProp(handle, aoutput1, poutput1)
-				cherror(err)
-				err = activation1.BackProp(handle, output1, aoutput1)
-				cherror(err)
-				err = layer1.BackProp(handle, nil, input, output1)
-				cherror(err)
+			cherror(err)
 
-				err = stream.Sync()
-				cherror(err)
-				j++
-			}
-			/*
-				percent, loss := batchoutputchecker(netoutput, desiredoutput, batchsize)
+			go func(netoutput []float32, desiredoutput []float32, k int, batchsize int) {
+				percent, loss := batchoutputchecker(netoutput, desiredoutput, batchsize, 10)
 				fmt.Println("Epoch Percent Correct: ", percent, "		Epoch Loss: ", loss, "                  Epoch Number: ", k)
-			*/
+
+			}(netoutput, desiredoutput, k, batchsize)
+
 			//fmt.Println(netoutput[j])
 			//fmt.Println(desiredoutput[j])
 			err = layer1.UpdateWeights(handle, batchsize)
@@ -369,26 +284,27 @@ func main() {
 	cherror(err)
 }
 
-func batchoutputchecker(actual, desired [][]float32, batchsize int) (float32, float32) {
+func batchoutputchecker(actual, desired []float32, batchsize, classificationsize int) (float32, float32) {
 	var batchloss float32
 	var percent float32
 	var position int
 	//	delta := float64(-math.Log(float64(output.SoftOutputs[i]))) * desiredoutput[i]
 	for i := 0; i < batchsize; i++ {
+
 		maxvalue := float32(0.0)
 		for j := 0; j < 10; j++ {
 
-			if maxvalue < actual[i][j] {
-				maxvalue = actual[i][j]
+			if maxvalue < actual[i*classificationsize+j] {
+				maxvalue = actual[i*classificationsize+j]
 				position = j
 			}
-			if desired[i][j] != 0 {
+			if desired[i+classificationsize+j] != 0 {
 
-				batchloss += float32(-math.Log(float64(actual[i][j])))
+				batchloss += float32(-math.Log(float64(actual[i+classificationsize+j])))
 			}
 
 		}
-		percent += desired[i][position]
+		percent += desired[i+classificationsize+position]
 
 	}
 	return percent / float32(batchsize), batchloss / float32(batchsize)
