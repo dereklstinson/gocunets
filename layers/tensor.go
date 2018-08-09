@@ -17,13 +17,10 @@ type IO struct {
 	x       *tensor.Volume
 	dx      *tensor.Volume
 	input   bool
-	answers bool
 	dims    []int32
+	managed bool
 }
 
-func (i *IO) IsAnswers() bool {
-	return i.answers
-}
 func (i *IO) IsInput() bool {
 	return i.input
 }
@@ -87,21 +84,16 @@ func addtoerror(addition string, current error) error {
 }
 
 //PlaceDeltaT will put a *tensor.Volume into the DeltaT place if and only if DeltaT is nil
-func (i *IO) PlaceDeltaT(dT *tensor.Volume) error {
-	if i.dx != nil {
-		return errors.New("DeltaT is not nil")
-	}
+func (i *IO) PlaceDeltaT(dT *tensor.Volume) {
+
 	i.dx = dT
-	return nil
+
 }
 
 //PlaceT will put a *tensor.Volume into the T place if and only if T is nil
-func (i *IO) PlaceT(T *tensor.Volume) error {
-	if i.x != nil {
-		return errors.New("T is not nil")
-	}
+func (i *IO) PlaceT(T *tensor.Volume) {
+
 	i.x = T
-	return nil
 }
 
 /*
@@ -141,36 +133,21 @@ func TrainingInputIO(fmt gocudnn.TensorFormat,
 
 }
 */
+
+//BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
 func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
-	return buildIO(fmt, dtype, dims, managed, false, false)
+
+	return buildIO(fmt, dtype, dims, managed, false)
 }
 
-func BuildInputIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
-	return buildIO(fmt, dtype, dims, managed, false, true)
+//BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
+//If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
+func BuildNetworkInputIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	return buildIO(fmt, dtype, dims, managed, true)
 }
-func BuildAnswersIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
-	return buildIO(fmt, dtype, dims, managed, true, false)
-}
 
-//BuildIO builds an IO
-func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, answers, input bool) (*IO, error) {
-	if answers == true && input == true {
-		return nil, errors.New("IO can't be both an answers and input")
-	}
-	if answers == true {
-		dx, err := tensor.Build(fmt, dtype, dims, managed)
-		if err != nil {
+func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
 
-			dx.Destroy()
-			return nil, err
-		}
-		return &IO{
-
-			dx:      dx,
-			answers: true,
-		}, nil
-
-	}
 	if input == true {
 
 		x, err := tensor.Build(fmt, dtype, dims, managed)
@@ -180,8 +157,11 @@ func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, man
 		}
 
 		return &IO{
-			x:     x,
-			input: true,
+
+			x:       x,
+			dx:      nil,
+			input:   true,
+			managed: managed,
 		}, nil
 
 	}
@@ -197,18 +177,23 @@ func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, man
 		return nil, err
 	}
 	return &IO{
-		x:  x,
-		dx: dx,
+		x:       x,
+		dx:      dx,
+		managed: managed,
 	}, nil
 }
 
-//LoadTValues loads a piece of memory that was made in golang and loads into a tensor volume in cuda.
-func (i *IO) LoadTValues(input *gocudnn.GoPointer) error {
+//LoadTValues loads a piece of memory that was made in golang and loads into an already created tensor volume in cuda.
+func (i *IO) LoadTValues(input gocudnn.Memer) error {
+
 	return i.x.LoadMem(input)
 }
 
-//LoadDeltaTValues loads a piece of memory that was made in golang and loads into a delta tensor volume in cuda.
-func (i *IO) LoadDeltaTValues(input *gocudnn.GoPointer) error {
+//LoadDeltaTValues loads a piece of memory that was made in golang and loads into a previously created delta tensor volume in cuda.
+func (i *IO) LoadDeltaTValues(input gocudnn.Memer) error {
+	if i.input == true {
+		return errors.New("Can't Load any values into DeltaT because it is exclusivly an Input")
+	}
 	return i.dx.LoadMem(input)
 }
 

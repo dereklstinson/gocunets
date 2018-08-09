@@ -159,7 +159,7 @@ func LayerSetup(
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(fmt, dtype, filterdims, managedmem, false, false)
+	w, err := layers.BuildIO(fmt, dtype, filterdims, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 
 	//	}
 
-	return layers.BuildIO(frmt, dtype, dims, managedmem, false, false)
+	return layers.BuildIO(frmt, dtype, dims, managedmem)
 }
 func (c *Layer) WeightsFillSlice(input interface{}) error {
 	return c.w.T().Memer().FillSlice(input)
@@ -244,7 +244,7 @@ func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, manag
 	if err != nil {
 		return nil, err
 	}
-	output, err := layers.BuildIO(fmt, dtype, dims, managedmem, false, false)
+	output, err := layers.BuildIO(fmt, dtype, dims, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -330,10 +330,14 @@ func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x *layers.IO, wpsa
 //BackProp does the backprop for the data and the filter
 func (c *Layer) BackProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
 	var err error
+	if x.IsInput() == true {
+		return c.backpropfilter(handle, wspace, x, y)
+	}
 	err = c.backpropdata(handle, wspace, x, y)
 	if err != nil {
 		return err
 	}
+
 	return c.backpropfilter(handle, wspace, x, y)
 }
 

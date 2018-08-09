@@ -67,12 +67,19 @@ func main() {
 	cherror(err)
 
 	//input tensors/network output answer
-	input, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 6, 6), dims(1, 3, 1, 1), inptr, ansptr, memmanaged)
+	input, err := layers.BuildNetworkInputIO(frmt, dtype, dims(1, 1, 6, 6), true)
+	err = input.LoadTValues(inptr)
+	cherror(err)
+	//input, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 6, 6), dims(1, 3, 1, 1), inptr, ansptr, memmanaged)
 	cherror(err)
 	//Setting Up Network
 
 	//Convolution Layer
 	layer1, output1, err := cnn.AIOLayerSetupDefault(handle, input, filter(3, 1, 5, 5), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged)
+	cherror(err)
+	answers, err := layers.BuildIO(frmt, dtype, dims(1, 3, 1, 1), memmanaged)
+	cherror(err)
+	err = answers.LoadDeltaTValues(ansptr)
 	cherror(err)
 	layer1weights := []float32{1, 0, 1, 0, 1,
 		0, 1, 0, 1, 0,
@@ -102,11 +109,11 @@ func main() {
 	//pooling layer
 	pooling1, poutput1, err := pooling.LayerSetup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(1, 1), memmanaged)
 	cherror(err)
-	classification, answer, err := softmax.BuildDefault(poutput1, memmanaged)
+	classification, err := softmax.BuildDefault(poutput1, answers)
 	cherror(err)
-	err = answer.DeltaT().LoadMem(input.DeltaT().Memer())
+	/*err = answers.DeltaT().LoadMem(input.DeltaT().Memer())
 	cherror(err)
-
+	*/
 	//Forward Prop
 
 	err = layer1.ForwardProp(handle, nil, input, output1)
@@ -128,12 +135,12 @@ func main() {
 	err = poutput1.T().PrintDeviceMem("Pooling Slice: ")
 	cherror(err)
 
-	err = classification.ForwardProp(handle, poutput1, answer)
+	err = classification.ForwardProp(handle, poutput1, answers)
 	cherror(err)
-	answer.T().PrintDeviceMem("Classifcation Slice: ")
+	answers.T().PrintDeviceMem("Classifcation Slice: ")
 	cherror(err)
 
-	classification.BackProp(handle, poutput1, answer)
+	classification.BackProp(handle, poutput1, answers)
 	//	dpoutput1slice := make([]float32, 3)
 
 	cherror(err)
@@ -143,8 +150,12 @@ func main() {
 	cherror(err)
 	err = aoutput1.DeltaT().PrintDeviceMem("dActivation Slice: ")
 	cherror(err)
-	err = activation1.BackProp(handle, output1, poutput1)
+	err = activation1.BackProp(handle, output1, aoutput1)
+	cherror(err)
 	err = output1.DeltaT().PrintDeviceMem("Output1 Slice: ")
+	cherror(err)
+	err = layer1.BackProp(handle, nil, input, output1)
+	cherror(err)
 	devices[0].Reset()
 }
 

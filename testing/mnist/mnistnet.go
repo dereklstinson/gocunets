@@ -55,7 +55,7 @@ func main() {
 
 	*/
 
-	batchsize := 50 // how many forward and backward runs before updating weights.
+	batchsize := 20 // how many forward and backward runs before updating weights.
 
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
@@ -77,7 +77,9 @@ func main() {
 
 	//Since Data is so small we can load it all into the GPU
 	var gputrainingdata []*layers.IO
+	var gpuanswersdata []*layers.IO
 	var gputestingdata []*layers.IO
+	var gputestansdata []*layers.IO
 
 	batchnum := 0 //Im lazy so as I am making the batched data I am going to count it
 
@@ -95,21 +97,47 @@ func main() {
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		cherror(err)
-		inpt, err := layers.BuildIO(frmt, dtype, dims(batchsize, 1, 28, 28), dims(batchsize, 10, 1, 1), data, label, memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		cherror(err)
+		err = inpt.LoadTValues(data)
+		cherror(err)
+		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
+		cherror(err)
+		err = ansr.LoadDeltaTValues(label)
 		cherror(err)
 		gputrainingdata = append(gputrainingdata, inpt)
+		gpuanswersdata = append(gpuanswersdata, ansr)
 		batchnum++
 	}
 	fmt.Println("Done Loading Training to GPU")
-	for i := 0; i < len(testingdata); i++ {
-		data, err := gocudnn.MakeGoPointer(testingdata[i].Data)
+
+	testbatchnum := 0
+
+	for i := 0; i < len(testingdata); {
+		batchslice := make([]float32, 0)
+		batchlabelslice := make([]float32, 0)
+		for j := 0; j < batchsize; j++ {
+			batchslice = append(batchslice, testingdata[i].Data...)
+			batchlabelslice = append(batchlabelslice, testingdata[i].Label...)
+			i++
+		}
+		data, err := gocudnn.MakeGoPointer(batchslice)
 		cherror(err)
-		label, err := gocudnn.MakeGoPointer(testingdata[i].Label)
+		label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		cherror(err)
-		inpt, err := layers.TrainingInputIO(frmt, dtype, dims(1, 1, 28, 28), dims(1, 10, 1, 1), data, label, memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		cherror(err)
+		err = inpt.LoadTValues(data)
 		cherror(err)
 		gputestingdata = append(gputestingdata, inpt)
+		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
+		cherror(err)
+		err = ansr.LoadDeltaTValues(label)
+		cherror(err)
+		gputestansdata = append(gputestansdata, ansr)
+		testbatchnum++
 	}
+
 	fmt.Println("Done Loading Testing To GPU")
 
 	cherror(err)
@@ -158,7 +186,7 @@ func main() {
 	//Fully Connected Layer ////Modified Convolution Layer :-)
 	layer4, output4, err := fcnn.CreateFromInput(handle, int32(10), poutput3, memmanaged)
 	//Output Layer
-	softmax, answer, err := softmax.BuildDefault(output4, memmanaged)
+	softmax, err := softmax.BuildDefault(output4, gpuanswersdata[0])
 	cherror(err)
 	//	actual, err := layers.BuildIO(fmt, dtype, []int32{1, 10, 1, 1}, true)
 	//TrainingFunc
@@ -166,7 +194,7 @@ func main() {
 	//Setup Layer Trainers
 	//Decay isn't available right now so................
 	decay1, decay2 := 0.0, 0.0
-	rate, momentum := .02, .9
+	rate, momentum := .01, .4
 	err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
 	cherror(err)
 	err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
@@ -181,9 +209,6 @@ func main() {
 	for k := 0; k < epochs; k++ {
 
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
-
-			netoutput := make([]float32, 10*batchsize)
-			desiredoutput := make([]float32, 10*batchsize)
 
 			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
@@ -209,20 +234,22 @@ func main() {
 			cherror(err)
 			err = layer4.ForwardProp(handle, poutput3, output4)
 			cherror(err)
-			err = softmax.ForwardProp(handle, output4, answer)
+			err = softmax.ForwardProp(handle, output4, gpuanswersdata[j])
 			cherror(err)
 			err = stream.Sync()
 			cherror(err)
 			//Will Need an Actual answers func
-			err = answer.DeltaT().LoadMem(gputrainingdata[j].DeltaT().Memer())
+
 			cherror(err)
 			//Backward Section
-			err = answer.T().Memer().FillSlice(netoutput)
-			cherror(err)
-			err = answer.DeltaT().Memer().FillSlice(desiredoutput)
-			cherror(err)
+			//	netoutput := make([]float32, 10*batchsize)
+			//	desiredoutput := make([]float32, 10*batchsize)
+			//	err = gpuanswersdata[j].T().Memer().FillSlice(netoutput)
+			//	cherror(err)
+			//	err = gpuanswersdata[j].DeltaT().Memer().FillSlice(desiredoutput)
+			//	cherror(err)
 
-			err = softmax.BackProp(handle, output4, answer)
+			err = softmax.BackProp(handle, output4, gpuanswersdata[j])
 
 			cherror(err)
 			err = layer4.BackProp(handle, poutput3, output4)
@@ -244,19 +271,19 @@ func main() {
 			cherror(err)
 			err = activation1.BackProp(handle, output1, aoutput1)
 			cherror(err)
-			err = layer1.BackProp(handle, nil, input, output1)
+			err = layer1.BackProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
 
 			cherror(err)
+			/*
+				go func(netoutput []float32, desiredoutput []float32, k int, batchsize int) {
+					percent, loss := batchoutputchecker(netoutput, desiredoutput, batchsize, 10)
+					fmt.Println("Epoch Percent Correct: ", percent, "		Epoch Loss: ", loss, "                  Epoch Number: ", k)
 
-			go func(netoutput []float32, desiredoutput []float32, k int, batchsize int) {
-				percent, loss := batchoutputchecker(netoutput, desiredoutput, batchsize, 10)
-				fmt.Println("Epoch Percent Correct: ", percent, "		Epoch Loss: ", loss, "                  Epoch Number: ", k)
-
-			}(netoutput, desiredoutput, k, batchsize)
-
-			//fmt.Println(netoutput[j])
-			//fmt.Println(desiredoutput[j])
+				}(netoutput, desiredoutput, k, batchsize)
+			*/
+			//fmt.Println(netoutput)
+			//fmt.Println(desiredoutput)
 			err = layer1.UpdateWeights(handle, batchsize)
 			cherror(err)
 			err = layer2.UpdateWeights(handle, batchsize)
@@ -267,23 +294,73 @@ func main() {
 			cherror(err)
 
 		}
+		netoutput := make([][]float32, testbatchnum)
+		desiredoutput := make([][]float32, testbatchnum)
+		for j := 0; j < testbatchnum; j++ {
+			err = layer1.ForwardProp(handle, nil, gputestingdata[j], output1)
+			cherror(err)
+
+			err = activation1.ForwardProp(handle, output1, aoutput1)
+
+			cherror(err)
+
+			cherror(err)
+			err = pooling1.ForwardProp(handle, aoutput1, poutput1)
+			cherror(err)
+			err = layer2.ForwardProp(handle, nil, poutput1, output2)
+			cherror(err)
+			err = activation2.ForwardProp(handle, output2, aoutput2)
+			cherror(err)
+			err = pooling2.ForwardProp(handle, aoutput2, poutput2)
+			cherror(err)
+			err = layer3.ForwardProp(handle, nil, poutput2, output3)
+			cherror(err)
+			err = activation3.ForwardProp(handle, output3, aoutput3)
+			cherror(err)
+			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
+			cherror(err)
+			err = layer4.ForwardProp(handle, poutput3, output4)
+			cherror(err)
+			err = softmax.ForwardProp(handle, output4, gputestansdata[j])
+			cherror(err)
+			err = stream.Sync()
+			cherror(err)
+			//Will Need an Actual answers func
+
+			cherror(err)
+			//Backward Section
+			netoutput[j] = make([]float32, 10*batchsize)
+			desiredoutput[j] = make([]float32, 10*batchsize)
+			err = gputestansdata[j].T().Memer().FillSlice(netoutput[j])
+			cherror(err)
+			err = gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j])
+			cherror(err)
+		}
+
+		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
+			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
+			fmt.Println("Epoch Percent Correct: ", percent, "		Epoch Loss: ", loss, "                  Epoch Number: ", k)
+
+		}(netoutput, desiredoutput, k, testbatchnum, batchsize)
 
 	}
 
-	/*
-		layer1, err := cnn.LayerSetup(fmt, dtype, dims(20, 1, 5, 5), CMode, dims(1, 1), dims(1, 1), dims(1, 1))
-		cherror(err)
-		inout1, err := layer1.MakeOutputTensor(input)
-		cherror(err)
-	*/
-
-	//	c1.OutputDim(input)
-	//	cnn.LayerSetup(cflgs.)
 	gocudnn.Cuda{}.UnLockHostThread()
 	err = devices[0].Reset()
 	cherror(err)
 }
 
+func epocoutputchecker(actual, desired [][]float32, batchtotal, batchsize, classificationsize int) (float32, float32) {
+	var batchloss float32
+	var percent float32
+	for i := 0; i < batchtotal; i++ {
+		perc, batch := batchoutputchecker(actual[i], desired[i], batchsize, classificationsize)
+		batchloss += batch
+		percent += perc
+	}
+	return percent / float32(batchtotal), batchloss / float32(batchtotal)
+
+}
 func batchoutputchecker(actual, desired []float32, batchsize, classificationsize int) (float32, float32) {
 	var batchloss float32
 	var percent float32
@@ -292,20 +369,26 @@ func batchoutputchecker(actual, desired []float32, batchsize, classificationsize
 	for i := 0; i < batchsize; i++ {
 
 		maxvalue := float32(0.0)
-		for j := 0; j < 10; j++ {
+		ipos := i * classificationsize
+		for j := 0; j < classificationsize; j++ {
+			ijpos := ipos + j
+			if maxvalue < actual[ijpos] {
 
-			if maxvalue < actual[i*classificationsize+j] {
-				maxvalue = actual[i*classificationsize+j]
-				position = j
+				maxvalue = actual[ijpos]
+				position = ijpos
+
 			}
-			if desired[i+classificationsize+j] != 0 {
+			if desired[ijpos] != 0 {
 
-				batchloss += float32(-math.Log(float64(actual[i+classificationsize+j])))
+				batchloss += float32(-math.Log(float64(actual[ijpos])))
 			}
 
 		}
-		percent += desired[i+classificationsize+position]
+		percent += desired[position]
 
+	}
+	if math.IsNaN(float64(batchloss)) == true {
+		panic("reach NAN")
 	}
 	return percent / float32(batchsize), batchloss / float32(batchsize)
 }

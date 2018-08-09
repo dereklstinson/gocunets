@@ -13,27 +13,38 @@ type Layer struct {
 	s *softmax.Ops
 }
 
-//BuildDefault builds a default layer (only option for now)
-func BuildDefault(input, answers *layers.IO, managemem bool) (*Layer, *layers.IO, error) {
-	if answers.IsAnswers() != true {
-		return nil, nil, errors.New("answers IO passed not an answers IO")
-	}
+//BuildDefault builds a default layer it takes an input and the output io and checks to make sure the format, dims, and datatype match up
+func BuildDefault(input *layers.IO, answers *layers.IO) (*Layer, error) {
 	fmt, dtype, dims, err := input.Properties()
-	output, err := layers.BuildIO(fmt, dtype, dims, managemem, false, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	err = output.PlaceDeltaT(answers.DeltaT())
+	fmt1, dtype1, dims1, err := answers.Properties()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+	if fmt1 != fmt {
+		return nil, errors.New("input and answers tensors formats don't match")
+	}
+	if dtype != dtype1 {
+		return nil, errors.New("input and answers tensor datatypes don't match")
+	}
+	if len(dims) != len(dims1) {
+		return nil, errors.New("input and answers tensor dim lengths don't match")
+	}
+	for i := 0; i < len(dims); i++ {
+		if dims[i] != dims1[i] {
+			return nil, errors.New("input and answers tensor dims don't match")
+		}
+	}
+
 	sftmax := softmax.Build()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	return &Layer{
 		s: sftmax,
-	}, output, nil
+	}, nil
 }
 
 //ForwardProp performs the forward propigation y is the output

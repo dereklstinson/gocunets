@@ -23,7 +23,7 @@ func Flags() gocudnn.ConvolutionFlags {
 	return gocudnn.ConvolutionFlags{}
 }
 
-//Set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
+//Build set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
 func Build(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(pad) == 2 {
