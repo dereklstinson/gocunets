@@ -17,6 +17,8 @@ type Ops struct {
 	dims    int
 	group   int
 }
+type Info struct {
+}
 
 //Flags returns the flags that are used for convolution
 func Flags() gocudnn.ConvolutionFlags {

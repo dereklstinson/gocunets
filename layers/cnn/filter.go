@@ -26,7 +26,8 @@ type Layer struct {
 	train      trainer.Momentum
 	btrain     trainer.Momentum
 }
-
+type Info struct {
+}
 type xtras struct {
 	alpha  float64
 	alpha2 float64
