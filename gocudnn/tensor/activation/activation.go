@@ -13,9 +13,21 @@ type Ops struct {
 	desc   *gocudnn.ActivationD
 }
 
+//Info contains the necissary information to build an activation Ops
+type Info struct {
+	Mode    gocudnn.ActivationMode `json:"Mode"`
+	NanProp gocudnn.PropagationNAN `json:"NanProp"`
+	Coef    float64                `json:"Coef"`
+}
+
 //Flags returns the flags that are needed to create an Activation struct
 func Flags() (gocudnn.ActivationModeFlag, gocudnn.PropagationNANFlag) {
 	return gocudnn.ActivationModeFlag{}, gocudnn.PropagationNANFlag{}
+}
+
+//BuildFromInfo takes an ActInfo (usually from a saved file) and will build the activation ops with it.
+func BuildFromInfo(input Info) (*Ops, error) {
+	return Build(input.Mode, input.NanProp, input.Coef)
 }
 
 //Build creates an activation struct given the properties passed in function
@@ -25,6 +37,14 @@ func Build(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64
 	return &Ops{
 		desc: x,
 	}, err
+}
+
+//Info returns the Info struct.  (Made for saving to a json file at a higher level)
+func (act *Ops) Info() (Info, error) {
+	var x Info
+	var err error
+	x.Mode, x.NanProp, x.Coef, err = act.Properties()
+	return x, err
 }
 
 //Properties returns the values that were used to Create the Activation struct

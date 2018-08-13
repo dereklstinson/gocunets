@@ -9,8 +9,46 @@ import (
 
 //Ops holds what the data that is need to perform the pooling operations
 type Ops struct {
-	desc *gocudnn.PoolingD
-	hlpr gocudnn.Pooling
+	desc     *gocudnn.PoolingD
+	hlpr     gocudnn.Pooling
+	inputdim int
+}
+
+//Info is contains all the necessarry information to build a pooling Ops.
+type Info struct {
+	Mode      gocudnn.PoolingMode    `json:"Mode"`
+	Nan       gocudnn.PropagationNAN `json:"NAN"`
+	InputDims int                    `json:"InputDims"`
+	Window    []int32                `json:"Window"`
+	Padding   []int32                `json:"Padding"`
+	Stride    []int32                `json:"Stride"`
+}
+
+//BuildFromInfo receives an Info struct and returns the Ops
+func BuildFromInfo(input Info) (*Ops, error) {
+	if input.InputDims > 4 {
+		pooldim := int32(len(input.Window))
+		desc, err := gocudnn.Pooling{}.CreatePoolingNdDescriptor(input.Mode, input.Nan, pooldim, input.Window, input.Padding, input.Stride)
+		if err != nil {
+			return nil, err
+		}
+		return &Ops{
+			desc:     desc,
+			inputdim: input.InputDims,
+		}, nil
+
+	}
+	if input.InputDims < 4 {
+		return nil, errors.New("Dims should be 4 or more")
+	}
+	desc, err := gocudnn.Pooling{}.NewPooling2dDescriptor(input.Mode, input.Nan, input.Window, input.Padding, input.Stride)
+	if err != nil {
+		return nil, err
+	}
+	return &Ops{
+		desc:     desc,
+		inputdim: input.InputDims,
+	}, nil
 }
 
 //Build builds the pooling ops
@@ -20,13 +58,14 @@ func Build(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *tensor.V
 		return nil, err
 	}
 	if len(dims) > 4 {
-		pooldim := int32(len(window))
+		pooldim := int32(len(window)) //This is probably wrong. I haven't tested it yet
 		desc, err := gocudnn.Pooling{}.CreatePoolingNdDescriptor(mode, nan, pooldim, window, padding, stride)
 		if err != nil {
 			return nil, err
 		}
 		return &Ops{
-			desc: desc,
+			desc:     desc,
+			inputdim: len(dims),
 		}, nil
 	}
 	if len(dims) < 4 {
@@ -37,8 +76,30 @@ func Build(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *tensor.V
 		return nil, err
 	}
 	return &Ops{
-		desc: desc,
+		desc:     desc,
+		inputdim: len(dims),
 	}, nil
+}
+
+//Properties returns the pooling properties
+func (p *Ops) Properties() (gocudnn.PoolingMode, gocudnn.PropagationNAN, []int32, []int32, []int32, error) {
+	return p.desc.GetPoolingDescriptor()
+
+}
+
+//Info returns the info struct usually used for saving the info to a jason format
+func (p *Ops) Info() (Info, error) {
+	mode, nan, window, pad, stride, err := p.desc.GetPoolingDescriptor()
+	inputdim := p.inputdim
+	return Info{
+		Mode:      mode,
+		Nan:       nan,
+		Window:    window,
+		Padding:   pad,
+		Stride:    stride,
+		InputDims: inputdim,
+	}, err
+
 }
 
 //OutputDims returns the dims the output wil have considering the input

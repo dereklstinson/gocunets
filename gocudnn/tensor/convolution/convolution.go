@@ -18,6 +18,46 @@ type Ops struct {
 	group   int
 }
 type Info struct {
+	CMode       gocudnn.ConvolutionMode `json:"ConvolutionMode"`
+	Dtype       gocudnn.DataType        `json:"DataType"`
+	Pad         []int32                 `json:"Pad"`
+	Stride      []int32                 `json:"Stride"`
+	Dilation    []int32                 `json:"Dilation"`
+	FwdAlgo     gocudnn.ConvFwdAlgo     `json:"FwdAlgo"`
+	BwdDataAlgo gocudnn.ConvBwdDataAlgo `json:"BwdDataAlgo"`
+	BwdFiltAlgo gocudnn.ConvBwdFiltAlgo `json:"BwdFiltAlgo"`
+	Group       int                     `json:"Group"`
+}
+
+//BuildFromInfo will take a ConvInfo type and build Ops type from it.
+func BuildFromInfo(input Info) (*Ops, error) {
+	helper := gocudnn.Convolution{}
+	if len(input.Pad) == 2 {
+		desc, err := helper.NewConvolution2dDescriptor(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
+		if err != nil {
+			return nil, err
+		}
+		return &Ops{
+			desc:    desc,
+			dims:    len(input.Pad),
+			fwdalgo: input.FwdAlgo,
+			bwddata: input.BwdDataAlgo,
+			bwdfilt: input.BwdFiltAlgo,
+			group:   input.Group,
+		}, nil
+	}
+	desc, err := helper.NewConvolutionNdDescriptor(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
+	if err != nil {
+		return nil, err
+	}
+	return &Ops{
+		desc:    desc,
+		dims:    len(input.Pad),
+		fwdalgo: input.FwdAlgo,
+		bwddata: input.BwdDataAlgo,
+		bwdfilt: input.BwdFiltAlgo,
+		group:   input.Group,
+	}, nil
 }
 
 //Flags returns the flags that are used for convolution
@@ -29,6 +69,7 @@ func Flags() gocudnn.ConvolutionFlags {
 func Build(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(pad) == 2 {
+
 		desc, err := helper.NewConvolution2dDescriptor(mode, data, pad, stride, dilation)
 		if err != nil {
 			return nil, err
@@ -50,6 +91,22 @@ func Build(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dil
 		bwdfilt: helper.Flgs.Bwd.FltrAlgo.Algo0(),
 	}, nil
 
+}
+
+//Info returns an info struct and error.  Info is usually used for saving the data to a json file.
+func (c *Ops) Info() (Info, error) {
+	mode, dtype, pad, stride, dilation, err := c.desc.GetDescriptor()
+	return Info{
+		CMode:       mode,
+		Dtype:       dtype,
+		Pad:         pad,
+		Stride:      stride,
+		Dilation:    dilation,
+		FwdAlgo:     c.fwdalgo,
+		BwdDataAlgo: c.bwddata,
+		BwdFiltAlgo: c.bwdfilt,
+		Group:       c.group,
+	}, err
 }
 
 //Group links the convolution with a group number
