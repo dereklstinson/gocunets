@@ -24,8 +24,8 @@ type Info struct {
 	Stride    []int32                `json:"Stride"`
 }
 
-//BuildFromInfo receives an Info struct and returns the Ops
-func BuildFromInfo(input Info) (*Ops, error) {
+//Build builds and returns an *Op from the info already stored in the Info type.
+func (input Info) Build() (*Ops, error) {
 	if input.InputDims > 4 {
 		pooldim := int32(len(input.Window))
 		desc, err := gocudnn.Pooling{}.CreatePoolingNdDescriptor(input.Mode, input.Nan, pooldim, input.Window, input.Padding, input.Stride)

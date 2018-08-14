@@ -29,8 +29,8 @@ type Info struct {
 	Group       int                     `json:"Group"`
 }
 
-//BuildFromInfo will take a ConvInfo type and build Ops type from it.
-func BuildFromInfo(input Info) (*Ops, error) {
+//Build builds a Ops and returns a pointer to it with the info stored in the info type
+func (input Info) Build() (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(input.Pad) == 2 {
 		desc, err := helper.NewConvolution2dDescriptor(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)

@@ -27,6 +27,16 @@ type Volume struct {
 	//scalar gocudnn.CScalar
 }
 
+//Info struct contains the info that is needed to build a volume
+type Info struct {
+	Format   gocudnn.TensorFormat   `json:"Format"`
+	DataType gocudnn.DataType       `json:"DataType"`
+	Nan      gocudnn.PropagationNAN `json:"Nan"`
+	Dims     []int32                `json:"Dims"`
+	Unified  bool                   `json:"Unified"`
+	Values   interface{}            `json:"Values"`
+}
+
 //SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN
 func (t *Volume) SetPropNan() {
 	t.propnan = t.thelp.Flgs.NaN.PropagateNan()
@@ -40,6 +50,158 @@ func (t *Volume) SetNotPropNan() {
 //Flags returns a struct that passes gocudnn flags through methods used in building the tensor
 func Flags() gocudnn.TensorFlags {
 	return gocudnn.TensorFlags{}
+}
+
+//Info returns an Info struct that is used for saving info. If an error is returned then the values of Info will be set to default golang's default
+func (t *Volume) Info() (Info, error) {
+	frmt, dtype, dims, err := t.Properties()
+
+	if err != nil {
+		return Info{}, err
+	}
+	dflgs := t.thelp.Flgs.Data
+	var values interface{}
+	size := arraysizefromdims(dims)
+
+	//I don't like this switch type stuff.  I am probably going to make something in the gocudnn package to get rid of this. I just haven't thought of a really easy way to implement this.
+	switch dtype {
+	case dflgs.Double():
+		values = make([]float64, size)
+	case dflgs.Float():
+		values = make([]float32, size)
+	case dflgs.Int32():
+		values = make([]int32, size)
+	case dflgs.Int8():
+		values = make([]float64, size)
+
+	default:
+		return Info{}, errors.New("Unsupported Format : Most likely internal error. Contact Code Writer")
+	}
+	err = t.mem.FillSlice(values)
+	if err != nil {
+		return Info{}, err
+	}
+	return Info{
+		Format:   frmt,
+		DataType: dtype,
+		Dims:     dims,
+		Unified:  t.managed,
+		Values:   values,
+	}, nil
+}
+
+//Build is a method for Info that will retrun a volume type. If Weights is nil the memory will still be malloced on the cuda side.  So make sure to add values if needed.
+func (i Info) Build() (*Volume, error) {
+	var thelper gocudnn.Tensor
+	var fhelper gocudnn.Filter
+	if len(i.Dims) < 4 {
+		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
+	}
+	var newmemer *gocudnn.Malloced
+	var tens *gocudnn.TensorD
+	var filts *gocudnn.FilterD
+	var err error
+	if len(i.Dims) > 4 {
+		tens, err = thelper.NewTensorNdDescriptorEx(i.Format, i.DataType, i.Dims)
+		if err != nil {
+			return nil, err
+		}
+		filts, err = fhelper.NewFilterNdDescriptor(i.DataType, i.Format, i.Dims)
+		if err != nil {
+			tens.DestroyDescriptor()
+			return nil, err
+		}
+		size, err := tens.GetSizeInBytes()
+		if err != nil {
+			tens.DestroyDescriptor()
+			filts.DestroyDescriptor()
+			return nil, err
+		}
+		if i.Unified == true {
+			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+			}
+
+		} else {
+
+			newmemer, err = gocudnn.Malloc(size)
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+
+			}
+
+		}
+
+	} else {
+
+		tens, err = thelper.NewTensor4dDescriptor(i.DataType, i.Format, i.Dims)
+		if err != nil {
+			return nil, err
+		}
+		filts, err = fhelper.NewFilter4dDescriptor(i.DataType, i.Format, i.Dims)
+		if err != nil {
+			tens.DestroyDescriptor()
+			return nil, err
+		}
+		size, err := tens.GetSizeInBytes()
+		if err != nil {
+			tens.DestroyDescriptor()
+			filts.DestroyDescriptor()
+			return nil, err
+		}
+		if i.Unified == true {
+
+			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+
+			}
+
+		} else {
+			newmemer, err = gocudnn.Malloc(size)
+			if err != nil {
+
+				tens.DestroyDescriptor()
+				filts.DestroyDescriptor()
+				return nil, err
+
+			}
+
+		}
+
+	}
+
+	vol := &Volume{
+		tD:    tens,
+		fD:    filts,
+		mem:   newmemer,
+		fmt:   i.Format,
+		dtype: i.DataType,
+	}
+	if i.Values == nil {
+		return vol, nil
+	}
+	goptr, err := gocudnn.MakeGoPointer(i.Values)
+	if err != nil {
+		vol.Destroy()
+		return nil, err
+	}
+	err = vol.LoadMem(goptr)
+	if err != nil {
+		vol.Destroy()
+		return nil, err
+	}
+	return vol, nil
 }
 
 //Build creates a tensor and mallocs the memory for the tensor

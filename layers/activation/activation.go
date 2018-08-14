@@ -12,6 +12,15 @@ type Layer struct {
 	fwd xtras
 	bwd xtras
 }
+type Info struct {
+	Ops activation.Info `json:Ops`
+	Fwd Scalars         `json:"Fwd"`
+	Bwd Scalars         `json:"Bwd"`
+}
+type Scalars struct {
+	Alpha float64 `json:"A"`
+	Beta  float64 `json:"B"`
+}
 
 //LayerSetup sets up the activation Layer
 func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.PropagationNAN, coef float64, fwdalpha, fwdbeta, bwdalpha, bwdbeta float64, memmanaged bool) (*Layer, *layers.IO, error) {

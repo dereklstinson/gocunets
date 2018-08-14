@@ -21,6 +21,13 @@ type IO struct {
 	managed bool
 }
 
+//Info is a struct that contains all the information to build an IO struct
+type Info struct {
+	NetworkInput bool    `json:"NetworkInput"`
+	Dims         []int32 `json:"Dims"`
+	Unified      bool    `json:"Unified"`
+}
+
 func (i *IO) IsInput() bool {
 	return i.input
 }

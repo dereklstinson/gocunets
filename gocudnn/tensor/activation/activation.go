@@ -25,8 +25,8 @@ func Flags() (gocudnn.ActivationModeFlag, gocudnn.PropagationNANFlag) {
 	return gocudnn.ActivationModeFlag{}, gocudnn.PropagationNANFlag{}
 }
 
-//BuildFromInfo takes an ActInfo (usually from a saved file) and will build the activation ops with it.
-func BuildFromInfo(input Info) (*Ops, error) {
+//Build builds and returns *Op from the info inside of the info type
+func (input Info) Build() (*Ops, error) {
 	return Build(input.Mode, input.NanProp, input.Coef)
 }
 
