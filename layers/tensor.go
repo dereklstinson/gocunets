@@ -23,11 +23,30 @@ type IO struct {
 
 //Info is a struct that contains all the information to build an IO struct
 type Info struct {
-	NetworkInput bool    `json:"NetworkInput"`
-	Dims         []int32 `json:"Dims"`
-	Unified      bool    `json:"Unified"`
+	NetworkInput bool        `json:"NetworkInput"`
+	Dims         []int32     `json:"Dims"`
+	Unified      bool        `json:"Unified"`
+	X            tensor.Info `json:"X"`
+	Dx           tensor.Info `json:"dX"`
 }
 
+func (i *IO) Info() (Info, error) {
+	x, err := i.x.Info()
+	if err != nil {
+		return Info{}, err
+	}
+	dx, err := i.dx.Info()
+	if err != nil {
+		return Info{}, err
+	}
+	return Info{
+		NetworkInput: i.input,
+		Dims:         i.dims,
+		Unified:      i.managed,
+		X:            x,
+		Dx:           dx,
+	}, nil
+}
 func (i *IO) IsInput() bool {
 	return i.input
 }

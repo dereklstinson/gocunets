@@ -14,8 +14,8 @@ type Ops struct {
 	inputdim int
 }
 
-//Info is contains all the necessarry information to build a pooling Ops.
-type Info struct {
+//OpInfo is contains all the necessarry information to build a pooling Ops.
+type OpInfo struct {
 	Mode      gocudnn.PoolingMode    `json:"Mode"`
 	Nan       gocudnn.PropagationNAN `json:"NAN"`
 	InputDims int                    `json:"InputDims"`
@@ -24,8 +24,8 @@ type Info struct {
 	Stride    []int32                `json:"Stride"`
 }
 
-//Build builds and returns an *Op from the info already stored in the Info type.
-func (input Info) Build() (*Ops, error) {
+//Stage builds and returns an *Op from the info already stored in the Info type.
+func (input OpInfo) Stage() (*Ops, error) {
 	if input.InputDims > 4 {
 		pooldim := int32(len(input.Window))
 		desc, err := gocudnn.Pooling{}.CreatePoolingNdDescriptor(input.Mode, input.Nan, pooldim, input.Window, input.Padding, input.Stride)
@@ -51,8 +51,8 @@ func (input Info) Build() (*Ops, error) {
 	}, nil
 }
 
-//Build builds the pooling ops
-func Build(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *tensor.Volume, window, padding, stride []int32) (*Ops, error) {
+//StageOperation builds the pooling ops
+func StageOperation(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *tensor.Volume, window, padding, stride []int32) (*Ops, error) {
 	_, _, dims, err := input.Properties()
 	if err != nil {
 		return nil, err
@@ -88,10 +88,10 @@ func (p *Ops) Properties() (gocudnn.PoolingMode, gocudnn.PropagationNAN, []int32
 }
 
 //Info returns the info struct usually used for saving the info to a jason format
-func (p *Ops) Info() (Info, error) {
+func (p *Ops) Info() (OpInfo, error) {
 	mode, nan, window, pad, stride, err := p.desc.GetPoolingDescriptor()
 	inputdim := p.inputdim
-	return Info{
+	return OpInfo{
 		Mode:      mode,
 		Nan:       nan,
 		Window:    window,
@@ -113,29 +113,8 @@ func (p *Ops) FwdProp(handle *gocudnn.Handle, alpha, beta float64, x, y *tensor.
 	if err != nil {
 		return err
 	}
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	t := tensor.Flags()
-	switch dtype {
-	case t.Data.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Data.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Data.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Data.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.Data.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
-	}
+	a := gocudnn.CScalarByDataType(dtype, alpha)
+	b := gocudnn.CScalarByDataType(dtype, beta)
 
 	return p.hlpr.Funcs.PoolingForward(handle, p.desc, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 }
@@ -147,29 +126,8 @@ func (p *Ops) BwdProp(handle *gocudnn.Handle, alpha, beta float64, x, dx, y, dy 
 		return err
 	}
 
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	t := tensor.Flags()
-	switch dtype {
-	case t.Data.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Data.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Data.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Data.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.Data.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
-	}
+	a := gocudnn.CScalarByDataType(dtype, alpha)
+	b := gocudnn.CScalarByDataType(dtype, beta)
 
 	return p.hlpr.Funcs.PoolingBackward(handle, p.desc, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 

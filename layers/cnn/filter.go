@@ -2,8 +2,11 @@
 package cnn
 
 import (
+	"encoding/json"
 	"errors"
 	"image"
+	"os"
+	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -26,7 +29,9 @@ type Layer struct {
 	train      trainer.Momentum
 	btrain     trainer.Momentum
 }
-type Info struct {
+type TempSave struct {
+	Weights layers.Info `json:"Weights"`
+	Bias    layers.Info `json:"Bias"`
 }
 type xtras struct {
 	alpha  float64
@@ -37,6 +42,35 @@ type xtras struct {
 func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
+func (c *Layer) SaveJson(folder, name string) error {
+	var save TempSave
+	w, err := c.w.Info()
+	if err != nil {
+		return err
+	}
+	b, err := c.bias.Info()
+	if err != nil {
+		return err
+	}
+	save.Bias = b
+	save.Weights = w
+	marshed, err := json.Marshal(save)
+	if err != nil {
+		return err
+	}
+	dir := folder + "/" + name + "/"
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	newfile, err := os.Create(dir + strconv.Itoa(index) + ".jpg")
+	if err != nil {
+		return err
+	}
+	defer newfile.Close()
+
+	return nil
+}
 
 //LoadWValues will load a slice into cuda memory for the Weights.
 func (c *Layer) LoadWValues(slice interface{}) error {
@@ -45,6 +79,15 @@ func (c *Layer) LoadWValues(slice interface{}) error {
 		return err
 	}
 	return c.w.LoadTValues(ptr)
+}
+
+//LoadBiasValues will load a slice into cuda memory for the Weights.
+func (c *Layer) LoadBiasValues(slice interface{}) error {
+	ptr, err := gocudnn.MakeGoPointer(slice)
+	if err != nil {
+		return err
+	}
+	return c.bias.LoadTValues(ptr)
 }
 
 //LoaddWValues will load a slice into cuda memory for the delta Weights.
@@ -82,6 +125,43 @@ func (c *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momen
 		return err
 	}
 	return nil
+}
+func LayerSetupPredefinedWeightsDefault(
+	handle *gocudnn.Handle,
+	input *layers.IO,
+	filterdims []int32,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32,
+	managedmem bool,
+	weights interface{},
+	bias interface{},
+) (*Layer, *layers.IO, error) {
+
+	fmt, dtype, _, err := input.Properties()
+	if err != nil {
+		return nil, nil, err
+	}
+	layer, err := LayerSetup(fmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = layer.LoadWValues(weights)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = layer.LoadBiasValues(bias)
+	output, err := layer.MakeOutputTensor(handle, input, managedmem)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = layer.SetBestAlgosConsidering(handle, input, output, 0, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	return layer, output, nil
+
 }
 
 //AIOLayerSetupDefault builds a layer based on the input, and other values passed.
@@ -156,7 +236,7 @@ func LayerSetup(
 	dialation []int32,
 	managedmem bool,
 ) (*Layer, error) {
-	conv, err := convolution.Build(convmode, dtype, pad, stride, dialation)
+	conv, err := convolution.StageOperation(convmode, dtype, pad, stride, dialation)
 	if err != nil {
 		return nil, err
 	}

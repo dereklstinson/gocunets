@@ -40,7 +40,7 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 		return nil, nil, errors.New("input dims should be at least 4")
 	}
 
-	conv, err := convolution.Build(mode, dtype, []int32{0, 0}, []int32{1, 1}, []int32{1, 1})
+	conv, err := convolution.StageOperation(mode, dtype, []int32{0, 0}, []int32{1, 1}, []int32{1, 1})
 	if err != nil {
 		return nil, nil, err
 	}

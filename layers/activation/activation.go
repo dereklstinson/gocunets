@@ -8,24 +8,76 @@ import (
 
 //Layer is an activation layer
 type Layer struct {
-	act *activation.Ops
-	fwd xtras
-	bwd xtras
+	act        *activation.Ops
+	fwd        Scalars
+	bwd        Scalars
+	memmanaged bool
 }
+
+//Info is a struct that contains the info that is needed to build the activation layer
 type Info struct {
-	Ops activation.Info `json:Ops`
-	Fwd Scalars         `json:"Fwd"`
-	Bwd Scalars         `json:"Bwd"`
+	Ops              activation.OpInfo `json:"Ops"`
+	Fwd              Scalars           `json:"Fwd"`
+	Bwd              Scalars           `json:"Bwd"`
+	OutputMemManaged bool              `json:"OutputMemManaged"`
 }
+
+//Scalars are the scalars used in the activation operation
 type Scalars struct {
 	Alpha float64 `json:"A"`
 	Beta  float64 `json:"B"`
 }
 
+//Stage stages the layer it also needs input put layer to Build the output layer
+func (i Info) Stage(input *layers.IO) (*Layer, *layers.IO, error) {
+	fmt, dtype, dims, err := input.Properties()
+	if err != nil {
+		return nil, nil, err
+	}
+	op, err := i.Ops.Stage()
+	if err != nil {
+		return nil, nil, err
+	}
+	output, err := layers.BuildIO(fmt, dtype, dims, i.OutputMemManaged)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &Layer{
+		act:        op,
+		fwd:        i.Fwd,
+		bwd:        i.Bwd,
+		memmanaged: i.OutputMemManaged,
+	}, output, nil
+
+}
+
+//Info Returns layer info if error is not nil then values will be set to golang default
+func (a *Layer) Info() (Info, error) {
+	op, err := a.act.Info()
+	if err != nil {
+		return Info{}, err
+	}
+	return Info{
+		Ops: op,
+		Fwd: Scalars{
+			Alpha: a.fwd.Alpha,
+			Beta:  a.fwd.Beta,
+		},
+		Bwd: Scalars{
+			Alpha: a.bwd.Alpha,
+			Beta:  a.bwd.Beta,
+		},
+		OutputMemManaged: a.memmanaged,
+	}, nil
+}
+
 //LayerSetup sets up the activation Layer
 func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.PropagationNAN, coef float64, fwdalpha, fwdbeta, bwdalpha, bwdbeta float64, memmanaged bool) (*Layer, *layers.IO, error) {
 	fmt, dtype, dims, err := input.Properties()
-	act, err := activation.Build(mode, NanProp, coef)
+	if err != nil {
+		return nil, nil, err
+	}
+	act, err := activation.StageOperation(mode, NanProp, coef)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -35,46 +87,42 @@ func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.P
 	}
 	return &Layer{
 		act: act,
-		fwd: xtras{
-			alpha: fwdalpha,
-			beta:  fwdbeta,
+		fwd: Scalars{
+			Alpha: fwdalpha,
+			Beta:  fwdbeta,
 		},
-		bwd: xtras{
-			alpha: bwdalpha,
-			beta:  bwdbeta,
+		bwd: Scalars{
+			Alpha: bwdalpha,
+			Beta:  bwdbeta,
 		},
+		memmanaged: memmanaged,
 	}, output, nil
-}
-
-type xtras struct {
-	alpha float64
-	beta  float64
 }
 
 //UpDateFwdCScalars updates the alpha and beta scalars
 func (a *Layer) UpDateFwdCScalars(alpha, beta float64) {
-	a.fwd.alpha, a.fwd.beta = alpha, beta
+	a.fwd.Alpha, a.fwd.Beta = alpha, beta
 }
 
 //UpDateBwdCScalars update the alpha and beta scalars
 func (a *Layer) UpDateBwdCScalars(alpha, beta float64) {
-	a.bwd.alpha, a.bwd.beta = alpha, beta
+	a.bwd.Alpha, a.bwd.Beta = alpha, beta
 }
 
 //ForwardProp does the forward propigation of the activation layer
 func (a *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	//fmt.Println(a.fwd.alpha, a.fwd.beta)
-	return a.act.FwdProp(handle, a.fwd.alpha, x.T(), a.fwd.beta, y.T())
+	return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T())
 }
 
 //BackProp does the backward propigation of the activation layer
 func (a *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	return a.act.BwdProp(handle,
-		a.bwd.alpha,
+		a.bwd.Alpha,
 		y.T(),
 		y.DeltaT(),
 		x.T(),
-		a.bwd.beta,
+		a.bwd.Beta,
 		x.DeltaT())
 }
 

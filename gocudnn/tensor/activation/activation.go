@@ -13,8 +13,8 @@ type Ops struct {
 	desc   *gocudnn.ActivationD
 }
 
-//Info contains the necissary information to build an activation Ops
-type Info struct {
+//OpInfo contains the necissary information to build an activation Ops
+type OpInfo struct {
 	Mode    gocudnn.ActivationMode `json:"Mode"`
 	NanProp gocudnn.PropagationNAN `json:"NanProp"`
 	Coef    float64                `json:"Coef"`
@@ -25,13 +25,13 @@ func Flags() (gocudnn.ActivationModeFlag, gocudnn.PropagationNANFlag) {
 	return gocudnn.ActivationModeFlag{}, gocudnn.PropagationNANFlag{}
 }
 
-//Build builds and returns *Op from the info inside of the info type
-func (input Info) Build() (*Ops, error) {
-	return Build(input.Mode, input.NanProp, input.Coef)
+//Stage builds and returns *Op from the info inside of the info type
+func (input OpInfo) Stage() (*Ops, error) {
+	return StageOperation(input.Mode, input.NanProp, input.Coef)
 }
 
-//Build creates an activation struct given the properties passed in function
-func Build(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) (*Ops, error) {
+//StageOperation creates an activation struct given the properties passed in function
+func StageOperation(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) (*Ops, error) {
 	var hlp gocudnn.Activation
 	x, err := hlp.NewActivationDescriptor(mode, nan, coef)
 	return &Ops{
@@ -40,8 +40,8 @@ func Build(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64
 }
 
 //Info returns the Info struct.  (Made for saving to a json file at a higher level)
-func (act *Ops) Info() (Info, error) {
-	var x Info
+func (act *Ops) Info() (OpInfo, error) {
+	var x OpInfo
 	var err error
 	x.Mode, x.NanProp, x.Coef, err = act.Properties()
 	return x, err
@@ -72,29 +72,12 @@ func (act *Ops) FwdProp(
 	if dtypex != dtypey {
 		return errors.New("output type not matching input type")
 	}
-	t := gocudnn.Tensor{}.Flgs.Data
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	switch dtypex {
-	case t.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
+	a := gocudnn.CScalarByDataType(dtypex, alpha)
+	b := gocudnn.CScalarByDataType(dtypex, beta)
+	if a == nil || b == nil {
+		return errors.New("Unsupported Datatype for either alpha or beta")
 	}
+
 	return act.helper.Funcs.ActivationForward(handle, act.desc, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 }
 
@@ -127,29 +110,12 @@ func (act *Ops) BwdProp(
 	if dtypedx != dtypey || dtypedx != dtypedy || dtypedx != dtypex {
 		return errors.New("output type not matching input type")
 	}
-	t := gocudnn.Tensor{}.Flgs.Data
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	switch dtypedx {
-	case t.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
+	a := gocudnn.CScalarByDataType(dtypedx, alpha)
+	b := gocudnn.CScalarByDataType(dtypedx, beta)
+	if a == nil || b == nil {
+		return errors.New("Unsupported Datatype for either alpha or beta")
 	}
+
 	return act.helper.Funcs.ActivationBackward(handle, act.desc, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 }
 

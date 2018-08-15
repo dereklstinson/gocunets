@@ -18,7 +18,7 @@ type xtras struct {
 
 //LayerSetup setsup the pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
 func LayerSetup(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, *layers.IO, error) {
-	pD, err := pool.Build(mode, nan, input.T(), window, padding, stride)
+	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
 
 	if err != nil {
 		return nil, nil, err

@@ -17,7 +17,7 @@ type Ops struct {
 	dims    int
 	group   int
 }
-type Info struct {
+type OpInfo struct {
 	CMode       gocudnn.ConvolutionMode `json:"ConvolutionMode"`
 	Dtype       gocudnn.DataType        `json:"DataType"`
 	Pad         []int32                 `json:"Pad"`
@@ -29,8 +29,8 @@ type Info struct {
 	Group       int                     `json:"Group"`
 }
 
-//Build builds a Ops and returns a pointer to it with the info stored in the info type
-func (input Info) Build() (*Ops, error) {
+//Stage stages/sets up an Ops and returns a pointer to it with the info stored in the info type
+func (input OpInfo) Stage() (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(input.Pad) == 2 {
 		desc, err := helper.NewConvolution2dDescriptor(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
@@ -65,8 +65,8 @@ func Flags() gocudnn.ConvolutionFlags {
 	return gocudnn.ConvolutionFlags{}
 }
 
-//Build set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
-func Build(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
+//StageOperation set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
+func StageOperation(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(pad) == 2 {
 
@@ -94,9 +94,9 @@ func Build(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dil
 }
 
 //Info returns an info struct and error.  Info is usually used for saving the data to a json file.
-func (c *Ops) Info() (Info, error) {
+func (c *Ops) Info() (OpInfo, error) {
 	mode, dtype, pad, stride, dilation, err := c.desc.GetDescriptor()
-	return Info{
+	return OpInfo{
 		CMode:       mode,
 		Dtype:       dtype,
 		Pad:         pad,
@@ -266,34 +266,13 @@ func (c *Ops) BwdPropFilt(
 	wspace gocudnn.Memer,
 	beta float64,
 	dw *tensor.Volume) error {
-	t := tensor.Flags()
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
 
 	_, dtypew, _, err := dw.Properties()
 	if err != nil {
 		return err
 	}
-	switch dtypew {
-	case t.Data.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Data.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Data.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Data.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.Data.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
-	}
+	a := gocudnn.CScalarByDataType(dtypew, alpha)
+	b := gocudnn.CScalarByDataType(dtypew, beta)
 	return c.helper.Funcs.Bwd.ConvolutionBackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.desc, c.bwdfilt, wspace, b, dw.FD(), dw.Memer())
 }
 
@@ -306,35 +285,13 @@ func (c *Ops) FwdProp(
 	wspace gocudnn.Memer,
 	beta float64,
 	y *tensor.Volume) error {
-	t := tensor.Flags()
-
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
 
 	_, dtypew, _, err := w.Properties()
 	if err != nil {
 		return err
 	}
-	switch dtypew {
-	case t.Data.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Data.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Data.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Data.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.Data.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
-	}
+	a := gocudnn.CScalarByDataType(dtypew, alpha)
+	b := gocudnn.CScalarByDataType(dtypew, beta)
 	/*
 		fmt.Println("1: ", handle)
 		fmt.Println("2: ", a)
@@ -359,7 +316,7 @@ func (c *Ops) BwdBias(
 	dy *tensor.Volume,
 	beta float64,
 	dbias *tensor.Volume) error {
-	t := tensor.Flags()
+
 	_, dtypedy, _, err := dy.Properties()
 	if err != nil {
 		return err
@@ -371,28 +328,8 @@ func (c *Ops) BwdBias(
 	if dtypedbias != dtypedy {
 		return errors.New("bias and y not same")
 	}
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	switch dtypedy {
-	case t.Data.Double():
-		a = gocudnn.CDouble(alpha)
-		b = gocudnn.CDouble(beta)
-	case t.Data.Float():
-		a = gocudnn.CFloat(alpha)
-		b = gocudnn.CFloat(beta)
-	case t.Data.Int32():
-		a = gocudnn.CInt(alpha)
-		b = gocudnn.CInt(beta)
-	case t.Data.Int8():
-		a = gocudnn.CInt8(alpha)
-		b = gocudnn.CInt8(beta)
-	case t.Data.UInt8():
-		a = gocudnn.CUInt8(alpha)
-		b = gocudnn.CUInt8(beta)
-
-	default:
-		return errors.New("Not supported Format")
-	}
+	a := gocudnn.CScalarByDataType(dtypedy, alpha)
+	b := gocudnn.CScalarByDataType(dtypedy, beta)
 	return c.helper.Funcs.Bwd.ConvolutionBackwardBias(
 		handle,
 		a,
