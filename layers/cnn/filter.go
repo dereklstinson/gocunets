@@ -6,7 +6,6 @@ import (
 	"errors"
 	"image"
 	"os"
-	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -58,13 +57,18 @@ func (c *Layer) SaveJson(folder, name string) error {
 	if err != nil {
 		return err
 	}
-	dir := folder + "/" + name + "/"
-	err := os.MkdirAll(dir, os.ModePerm)
+	dir := folder + "/"
+	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	newfile, err := os.Create(dir + strconv.Itoa(index) + ".jpg")
+	newfile, err := os.Create(dir + name + ".json")
 	if err != nil {
+		return err
+	}
+	_, err = newfile.Write(marshed)
+	if err != nil {
+
 		return err
 	}
 	defer newfile.Close()
@@ -126,6 +130,7 @@ func (c *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momen
 	}
 	return nil
 }
+
 func LayerSetupPredefinedWeightsDefault(
 	handle *gocudnn.Handle,
 	input *layers.IO,
@@ -201,6 +206,11 @@ func AIOLayerSetupDefault(
 	}
 	return layer, output, nil
 
+}
+
+//FilterProps returns the filter properties of the Convolution Layer
+func (c *Layer) FilterProps() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+	return c.w.Properties()
 }
 
 //MakeRandomFromFanin does what it says it will make the weights random considering the fanin
