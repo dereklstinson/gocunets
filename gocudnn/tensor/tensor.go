@@ -205,7 +205,7 @@ func (i Info) Build() (*Volume, error) {
 }
 
 //Build creates a tensor and mallocs the memory for the tensor
-func Build(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
+func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
 	var thelper gocudnn.Tensor
 	var fhelper gocudnn.Filter
 	if len(dims) < 4 {
@@ -216,11 +216,11 @@ func Build(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, manag
 	var filts *gocudnn.FilterD
 	var err error
 	if len(dims) > 4 {
-		tens, err = thelper.NewTensorNdDescriptorEx(fmt, dtype, dims)
+		tens, err = thelper.NewTensorNdDescriptorEx(frmt, dtype, dims)
 		if err != nil {
 			return nil, err
 		}
-		filts, err = fhelper.NewFilterNdDescriptor(dtype, fmt, dims)
+		filts, err = fhelper.NewFilterNdDescriptor(dtype, frmt, dims)
 		if err != nil {
 			tens.DestroyDescriptor()
 			return nil, err
@@ -255,11 +255,11 @@ func Build(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, manag
 
 	} else {
 
-		tens, err = thelper.NewTensor4dDescriptor(dtype, fmt, dims)
+		tens, err = thelper.NewTensor4dDescriptor(dtype, frmt, dims)
 		if err != nil {
 			return nil, err
 		}
-		filts, err = fhelper.NewFilter4dDescriptor(dtype, fmt, dims)
+		filts, err = fhelper.NewFilter4dDescriptor(dtype, frmt, dims)
 		if err != nil {
 			tens.DestroyDescriptor()
 			return nil, err
@@ -299,7 +299,7 @@ func Build(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, manag
 		tD:    tens,
 		fD:    filts,
 		mem:   newmemer,
-		fmt:   fmt,
+		fmt:   frmt,
 		dtype: dtype,
 	}, nil
 

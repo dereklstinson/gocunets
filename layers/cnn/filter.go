@@ -144,11 +144,11 @@ func LayerSetupPredefinedWeightsDefault(
 	bias interface{},
 ) (*Layer, *layers.IO, error) {
 
-	fmt, dtype, _, err := input.Properties()
+	frmt, dtype, _, err := input.Properties()
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := LayerSetup(fmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -183,11 +183,11 @@ func AIOLayerSetupDefault(
 	managedmem bool,
 ) (*Layer, *layers.IO, error) {
 
-	fmt, dtype, _, err := input.Properties()
+	frmt, dtype, _, err := input.Properties()
 	if err != nil {
 		return nil, nil, err
 	}
-	layer, err := LayerSetup(fmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -196,8 +196,12 @@ func AIOLayerSetupDefault(
 		return nil, nil, err
 	}
 	err = layer.bias.T().SetValues(handle, 0.0)
+	if err != nil {
+		return nil, nil, err
+	}
 	output, err := layer.MakeOutputTensor(handle, input, managedmem)
 	if err != nil {
+
 		return nil, nil, err
 	}
 	_, err = layer.SetBestAlgosConsidering(handle, input, output, 0, false)
@@ -236,11 +240,10 @@ func (c *Layer) MakeRandomFromFanin(input *layers.IO) error {
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func LayerSetup(
-	fmt gocudnn.TensorFormat,
+	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
-	//data gocudnn.DataType,
 	pad,
 	stride,
 	dialation []int32,
@@ -250,7 +253,7 @@ func LayerSetup(
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(fmt, dtype, filterdims, managedmem)
+	w, err := layers.BuildIO(frmt, dtype, filterdims, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -260,10 +263,6 @@ func LayerSetup(
 		return nil, err
 	}
 	bias, err := buildbias(w, managedmem)
-	if err != nil {
-		return nil, err
-	}
-	_, datatype, _, err := w.Properties()
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +292,7 @@ func LayerSetup(
 			alpha2: alpha2,
 			beta:   beta2,
 		},
-		datatype: datatype,
+		datatype: dtype,
 	}, nil
 }
 func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
@@ -302,8 +301,6 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 		return nil, err
 	}
 
-	//This is a hack. It will only work with only one type of data arangement. This will need a switch for the different types.  {
-
 	outputmaps := dims[0]
 	for i := 0; i < len(dims); i++ {
 
@@ -311,9 +308,6 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 	}
 
 	dims[1] = outputmaps
-	//fmt.Println("Bias Dims:", dims)
-
-	//	}
 
 	return layers.BuildIO(frmt, dtype, dims, managedmem)
 }
@@ -331,11 +325,12 @@ func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, manag
 	if err != nil {
 		return nil, err
 	}
-	fmt, dtype, _, err := c.w.Properties()
+	frmt, dtype, _, err := c.w.Properties()
 	if err != nil {
 		return nil, err
 	}
-	output, err := layers.BuildIO(fmt, dtype, dims, managedmem)
+
+	output, err := layers.BuildIO(frmt, dtype, dims, managedmem)
 	if err != nil {
 		return nil, err
 	}

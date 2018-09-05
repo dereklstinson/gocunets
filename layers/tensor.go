@@ -161,22 +161,22 @@ func TrainingInputIO(fmt gocudnn.TensorFormat,
 */
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
-func BuildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+func BuildIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
 
-	return buildIO(fmt, dtype, dims, managed, false)
+	return buildIO(frmt, dtype, dims, managed, false)
 }
 
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
-func BuildNetworkInputIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
-	return buildIO(fmt, dtype, dims, managed, true)
+func BuildNetworkInputIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	return buildIO(frmt, dtype, dims, managed, true)
 }
 
-func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
+func buildIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
 
 	if input == true {
 
-		x, err := tensor.Build(fmt, dtype, dims, managed)
+		x, err := tensor.Build(frmt, dtype, dims, managed)
 		if err != nil {
 			x.Destroy()
 			return nil, err
@@ -191,12 +191,12 @@ func buildIO(fmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, man
 		}, nil
 
 	}
-	x, err := tensor.Build(fmt, dtype, dims, managed)
+	x, err := tensor.Build(frmt, dtype, dims, managed)
 	if err != nil {
 		x.Destroy()
 		return nil, err
 	}
-	dx, err := tensor.Build(fmt, dtype, dims, managed)
+	dx, err := tensor.Build(frmt, dtype, dims, managed)
 	if err != nil {
 		x.Destroy()
 		dx.Destroy()

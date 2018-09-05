@@ -176,9 +176,11 @@ func (c *Ops) OutputDim(input *tensor.Volume, filter *tensor.Volume) ([]int32, e
 		return nil, err
 	}
 	_, _, fdims, err := filter.Properties()
+
 	if err != nil {
 		return nil, err
 	}
+
 	if len(dims) != len(fdims) {
 		return nil, errors.New("length of dims not same")
 	}
