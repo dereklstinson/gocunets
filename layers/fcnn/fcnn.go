@@ -19,8 +19,8 @@ type Layer struct {
 	fwd     xtras
 	bwdd    xtras
 	bwdf    xtras
-	train   trainer.Momentum
-	btrain  trainer.Momentum
+	train   trainer.Trainer
+	btrain  trainer.Trainer
 }
 type xtras struct {
 	alpha1 float64
@@ -218,25 +218,31 @@ func destroy(l *Layer) error {
 	return nil
 }
 
-//SetupTrainer sets up the momentum trainer
-func (l *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momentum float64) error {
-	l.train = trainer.SetupMomentum(decay1, decay2, rate, momentum)
-	l.btrain = trainer.SetupMomentum(decay1, decay2, rate, momentum)
-	err := l.btrain.LoadGsum(handle, l.bias)
+//LoadTrainer sets up the momentum trainer
+func (l *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias trainer.Trainer) error {
+	var err error
+	l.train = trainerweights
+	err = trainer.CreateTrainingMem(ctx, l.train, l.neurons)
 	if err != nil {
 		return err
 	}
-	return l.train.LoadGsum(handle, l.neurons)
+	l.btrain = trainerbias
+	err = trainer.CreateTrainingMem(ctx, l.btrain, l.bias)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //UpdateWeights updates the weights
-func (l *Layer) UpdateWeights(handle *gocudnn.Handle, batch int) error {
-	err := l.train.UpdateWeights(handle, l.neurons, float64(batch))
+func (l *Layer) UpdateWeights(ctx gocudnn.Contexter) error {
+	err := l.btrain.UpdateWeights(ctx, l.bias)
 	if err != nil {
 		return err
 	}
-	return l.btrain.UpdateWeights(handle, l.bias, float64(batch))
+	return l.train.UpdateWeights(ctx, l.neurons)
 }
+
 func dimscheck(a, b []int32) error {
 	if len(a) != len(b) {
 		return errors.New("num of dims not same")

@@ -25,8 +25,8 @@ type Layer struct {
 	bwdd       xtras
 	bwdf       xtras
 	datatype   gocudnn.DataType
-	train      trainer.Momentum
-	btrain     trainer.Momentum
+	train      trainer.Trainer
+	btrain     trainer.Trainer
 }
 type TempSave struct {
 	Weights layers.Info `json:"Weights"`
@@ -104,31 +104,35 @@ func (c *Layer) LoaddWValues(slice interface{}) error {
 }
 
 //UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(handle *gocudnn.Handle, batch int) error {
-	err := c.train.UpdateWeights2(handle, c.w, float64(batch))
+func (c *Layer) UpdateWeights(ctx gocudnn.Contexter) error {
+	err := c.btrain.UpdateWeights(ctx, c.bias)
 	if err != nil {
-		return appenderror("UpdateWeights-Weights", err)
+		return err
 	}
-	err = c.btrain.UpdateWeights2(handle, c.bias, float64(batch))
+	return c.train.UpdateWeights(ctx, c.w)
+}
+
+//LoadTrainer sets up the momentum trainer
+func (c *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias trainer.Trainer) error {
+	var err error
+	c.train = trainerweights
+	err = trainer.CreateTrainingMem(ctx, c.train, c.w)
 	if err != nil {
-		return appenderror("UpdateWeights-Bias", err)
+		return err
+	}
+	c.btrain = trainerbias
+	err = trainer.CreateTrainingMem(ctx, c.btrain, c.w)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-//SetupTrainer sets up the momentum trainer
-func (c *Layer) SetupTrainer(handle *gocudnn.Handle, decay1, decay2, rate, momentum float64) error {
-	c.train = trainer.SetupMomentum(decay1, decay2, rate, momentum)
-	err := c.train.LoadGsum(handle, c.w)
-	if err != nil {
-		return err
-	}
-	c.btrain = trainer.SetupMomentum(decay1, decay2, rate, momentum)
-	err = c.btrain.LoadGsum(handle, c.bias)
-	if err != nil {
-		return err
-	}
-	return nil
+func (c *Layer) Bias() *layers.IO {
+	return c.bias
+}
+func (c *Layer) Weights() *layers.IO {
+	return c.w
 }
 
 func LayerSetupPredefinedWeightsDefault(
