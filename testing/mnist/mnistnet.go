@@ -195,11 +195,13 @@ func main() {
 	//TrainingFunc
 
 	//Setup Layer Trainers
-	//Decay isn't available right now so................
+
 	decay1, decay2 := float32(0.00001), float32(0.0001)
 
-	tctx, err := trainer.CreateAdamContext(0, devices[0], trainingkernellocation)
-
+	cherror(err)
+	tctx, err := trainer.CreateAdamHandle(devices[0], trainingkernellocation)
+	stream2, err := cuda.CreateBlockingStream()
+	tctx.SetStream(stream2)
 	cherror(err)
 	l1trainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
 	cherror(err)
@@ -243,7 +245,7 @@ func main() {
 	for k := 0; k < epochs; k++ {
 
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
-
+			fmt.Println("Epoch:", k, "Batch:", j)
 			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
 
@@ -307,7 +309,7 @@ func main() {
 			cherror(err)
 			err = layer1.BackProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
-
+			err = stream.Sync()
 			cherror(err)
 			/*
 				go func(netoutput []float32, desiredoutput []float32, k int, batchsize int) {
@@ -325,6 +327,8 @@ func main() {
 			err = layer3.UpdateWeights(tctx)
 			cherror(err)
 			err = layer4.UpdateWeights(tctx)
+			cherror(err)
+			err = stream2.Sync()
 			cherror(err)
 
 		}

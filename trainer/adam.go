@@ -24,28 +24,24 @@ const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 
 func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
-	_, err := ctx.GetTContext()
+	_, err := ctx.GetTrainHandle()
 	if err != nil {
 		return err
 	}
 	_, dtype, dims, err := weights.Properties()
-	DeFault := gocudnn.MemcpyKindFlag{}.Default()
-	Global := gocudnn.ManagedMemFlag{}.Global()
 	if err != nil {
 		return err
 	}
+	DeFault := gocudnn.MemcpyKindFlag{}.Default()
+	Global := gocudnn.ManagedMemFlag{}.Global()
 
 	switch dtype {
+
 	case gocudnn.DataTypeFlag{}.Float():
-		//err = ctx.Push()
-		if err != nil {
-			return err
-		}
 
 		asize := dimsize(dims)
 		x := make([]float32, asize)
 		sizet, err := gocudnn.FindSizeT(x)
-
 		if err != nil {
 			return err
 		}
@@ -54,7 +50,6 @@ func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
 			return err
 		}
 		a.gsum, err = gocudnn.MallocManaged(sizet, Global)
-
 		if err != nil {
 			return err
 		}
@@ -78,15 +73,16 @@ func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
 		if err != nil {
 			return err
 		}
-	//_, err = gocudnn.Cuda{}.CtxPopCurrent()
+
 	default:
+
 		return errors.New("Only Float datatype supported at the moment")
 	}
-	return errors.New("Shouldn't have reached this spot")
-
+	return nil
 }
+
 func (a *Adam) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
-	tctx, err := ctx.GetTContext()
+	tctx, err := ctx.GetTrainHandle()
 	if err != nil {
 		return err
 	}
@@ -115,7 +111,7 @@ func dimsize(dims []int32) int32 {
 	return x
 }
 func SetupAdam(ctx gocudnn.Contexter, decay1, decay2 float32, batch int) (*Adam, error) {
-	tctx, err := ctx.GetTContext()
+	tctx, err := ctx.GetTrainHandle()
 	if err != nil {
 		return nil, err
 	}
@@ -177,9 +173,9 @@ func (a *Adam)Loss1()float32{
 
 */
 
-//CreateAdamContext creates a context for adam
-func CreateAdamContext(flags uint32, dev *gocudnn.Device, kerneldir string) (*gocudnn.TContext, error) {
+//CreateAdamHandle creates a handle for adam
+func CreateAdamHandle(dev *gocudnn.Device, kerneldir string) (*gocudnn.TrainHandle, error) {
 	var x gocudnn.Xtra
+	return x.MakeTrainingHandle(kerneldir, dev)
 
-	return x.MakeTrainingContext(flags, dev, kerneldir)
 }
