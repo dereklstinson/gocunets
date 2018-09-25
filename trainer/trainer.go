@@ -13,7 +13,7 @@ import (
 //Trainer will be used for updating weights.  Right now there is only one trainer and it is momentum.
 type Trainer interface {
 	UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error
-	L1L2Loss() (float32, float32)
+	L1L2Loss() (float32, float32, error)
 }
 
 func CreateTrainingMem(ctx gocudnn.Contexter, trainer Trainer, weights *layers.IO) error {
@@ -36,6 +36,6 @@ type eve struct {
 func (e *eve) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
 	return errors.New("update your own weights")
 }
-func (e *eve) L1L2Loss() (float32, float32) {
-	return 0, 0
+func (e *eve) L1L2Loss() (float32, float32, error) {
+	return 0, 0, nil
 }

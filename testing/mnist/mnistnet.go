@@ -6,6 +6,7 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCudnn"
 	//	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -18,6 +19,8 @@ import (
 )
 
 func main() {
+
+	trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
 	gocudnn.Cuda{}.LockHostThread()
 	//cudnn context
 	var cuda gocudnn.Cuda
@@ -29,7 +32,7 @@ func main() {
 	err = devices[0].Set()
 	cherror(err)
 	handle := gocudnn.NewHandle()
-	stream, err := gocudnn.CreateBlockingStream()
+	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	cherror(err)
 	err = handle.SetStream(stream)
 	cherror(err)
@@ -193,17 +196,48 @@ func main() {
 
 	//Setup Layer Trainers
 	//Decay isn't available right now so................
-	decay1, decay2 := 0.0, 0.0
-	rate, momentum := .01, .4
-	err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
+	decay1, decay2 := float32(0.00001), float32(0.0001)
+
+	tctx, err := trainer.CreateAdamContext(0, devices[0], trainingkernellocation)
+
 	cherror(err)
-	err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
+	l1trainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
 	cherror(err)
-	err = layer3.SetupTrainer(handle, decay1, decay2, rate, momentum)
+	l1btrainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
 	cherror(err)
-	err = layer4.SetupTrainer(handle, decay1, decay2, rate, momentum)
+	err = layer1.LoadTrainer(tctx, l1trainer, l1btrainer)
 	cherror(err)
 
+	l2trainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
+	cherror(err)
+	l2btrainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
+	cherror(err)
+	err = layer2.LoadTrainer(tctx, l2trainer, l2btrainer)
+	cherror(err)
+
+	l3trainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
+	cherror(err)
+	l3btrainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
+	cherror(err)
+	err = layer3.LoadTrainer(tctx, l3trainer, l3btrainer)
+	cherror(err)
+
+	l4trainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
+	cherror(err)
+	l4btrainer, err := trainer.SetupAdam(tctx, decay1, decay2, batchsize)
+	cherror(err)
+	err = layer4.LoadTrainer(tctx, l4trainer, l4btrainer)
+	cherror(err)
+	/*
+		err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
+		cherror(err)
+		err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
+		cherror(err)
+		err = layer3.SetupTrainer(handle, decay1, decay2, rate, momentum)
+		cherror(err)
+		err = layer4.SetupTrainer(handle, decay1, decay2, rate, momentum)
+		cherror(err)
+	*/
 	epochs := 20
 	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
@@ -284,13 +318,13 @@ func main() {
 			*/
 			//fmt.Println(netoutput)
 			//fmt.Println(desiredoutput)
-			err = layer1.UpdateWeights(handle, batchsize)
+			err = layer1.UpdateWeights(tctx)
 			cherror(err)
-			err = layer2.UpdateWeights(handle, batchsize)
+			err = layer2.UpdateWeights(tctx)
 			cherror(err)
-			err = layer3.UpdateWeights(handle, batchsize)
+			err = layer3.UpdateWeights(tctx)
 			cherror(err)
-			err = layer4.UpdateWeights(handle, batchsize)
+			err = layer4.UpdateWeights(tctx)
 			cherror(err)
 
 		}

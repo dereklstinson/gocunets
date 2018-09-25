@@ -21,9 +21,9 @@ type Momentum struct {
 }
 
 //L1L2Loss returns the loss that was previously recorded.
-func (t *Momentum) L1L2Loss() (float32, float32) {
+func (t *Momentum) L1L2Loss() (float32, float32, error) {
 
-	return float32(t.loss1), float32(t.loss2)
+	return float32(t.loss1), float32(t.loss2), nil
 }
 
 //SetupMomentum sets up the trainer for one and zero put the cscalar of 1 and 0 that matches the datatype there.

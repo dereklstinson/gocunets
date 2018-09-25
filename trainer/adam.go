@@ -92,8 +92,20 @@ func (a *Adam) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
 	}
 	return a.trainer.TrainValues(tctx, 32, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.gsum, a.xsum, a.params)
 }
-func (a *Adam) L1L2Loss() (float32, float32) {
-	return a.loss1, a.loss2
+func (a *Adam) L1L2Loss() (float32, float32, error) {
+	kind := gocudnn.MemcpyKindFlag{}.Default()
+	size := gocudnn.SizeT(4)
+	l1, err := gocudnn.MakeGoPointer(a.loss1)
+	if err != nil {
+		return 0, 0, err
+	}
+	l2, err := gocudnn.MakeGoPointer(a.loss2)
+	if err != nil {
+		return 0, 0, err
+	}
+	err = gocudnn.CudaMemCopy(l1, a.gpuloss1, size, kind)
+	err = gocudnn.CudaMemCopy(l2, a.gpuloss2, size, kind)
+	return a.loss1, a.loss2, nil
 }
 func dimsize(dims []int32) int32 {
 	x := int32(1)
