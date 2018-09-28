@@ -8,14 +8,15 @@ import (
 )
 
 type Adam struct {
-	loss1    float32
-	loss2    float32
-	gpuloss1 gocudnn.Memer
-	gpuloss2 gocudnn.Memer
-	gsum     gocudnn.Memer
-	xsum     gocudnn.Memer
-	trainer  *gocudnn.TrainerD
-	params   gocudnn.TrainingParams
+	loss1     float32
+	loss2     float32
+	gpuloss1  gocudnn.Memer
+	gpuloss2  gocudnn.Memer
+	gsum      gocudnn.Memer
+	xsum      gocudnn.Memer
+	trainer   *gocudnn.TrainerD
+	params    gocudnn.TrainingParams
+	regparams gocudnn.RegParams
 }
 
 const defaultadambeta1 = 0.9
@@ -82,11 +83,16 @@ func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
 }
 
 func (a *Adam) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
+	blocksize := uint32(32)
 	tctx, err := ctx.GetTrainHandle()
 	if err != nil {
 		return err
 	}
-	return a.trainer.TrainValues(tctx, 32, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.gsum, a.xsum, a.params)
+	err = a.trainer.L1L2Regularization(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+	if err != nil {
+		return err
+	}
+	return a.trainer.TrainValues(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
 }
 func (a *Adam) L1L2Loss() (float32, float32, error) {
 	kind := gocudnn.MemcpyKindFlag{}.Default()
@@ -121,22 +127,24 @@ func SetupAdam(ctx gocudnn.Contexter, decay1, decay2 float32, batch int) (*Adam,
 	if err != nil {
 		return nil, err
 	}
-	x := gocudnn.CreateParamsFloat32(decay1, decay2, float32(batch), defaultadameps, defaultadamrate, defaultadambeta1, defaultadambeta2)
+	reg := gocudnn.Xtra{}.CreateRegParamsFloat32(decay1, decay2, float32(batch))
+	x := gocudnn.Xtra{}.CreateParamsFloat32(defaultadameps, defaultadamrate, defaultadambeta1, defaultadambeta2)
 
 	return &Adam{
-		trainer: t,
-		params:  x,
+		trainer:   t,
+		params:    x,
+		regparams: reg,
 	}, nil
 }
 
 //SetDecay1 sets decay1
 func (a *Adam) SetDecay1(decay1 float32) {
-	a.params.SetDecay1(decay1)
+	a.regparams.SetDecay1(decay1)
 }
 
 //SetDecay2 sets decay 2
 func (a *Adam) SetDecay2(decay2 float32) {
-	a.params.SetDecay2(decay2)
+	a.regparams.SetDecay2(decay2)
 
 }
 
@@ -157,7 +165,7 @@ func (a *Adam) SetRate(rate float32) {
 
 }
 func (a *Adam) SetBatch(batch float32) {
-	a.params.SetBatch(batch)
+	a.regparams.SetBatch(batch)
 }
 
 //SetEps sets eps

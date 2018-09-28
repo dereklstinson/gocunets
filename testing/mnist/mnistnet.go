@@ -34,6 +34,8 @@ func main() {
 	handle := gocudnn.NewHandle()
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	cherror(err)
+	//cuctx, err := cuda.CtxCreate(4, devices[0])
+	cherror(err)
 	err = handle.SetStream(stream)
 	cherror(err)
 	var dtypeflags gocudnn.DataTypeFlag
@@ -196,7 +198,7 @@ func main() {
 
 	//Setup Layer Trainers
 
-	decay1, decay2 := float32(0.00001), float32(0.0001)
+	decay1, decay2 := float32(0.000001), float32(0.0001)
 
 	cherror(err)
 	tctx, err := trainer.CreateAdamHandle(devices[0], trainingkernellocation)
@@ -240,12 +242,12 @@ func main() {
 		err = layer4.SetupTrainer(handle, decay1, decay2, rate, momentum)
 		cherror(err)
 	*/
-	epochs := 20
+	epochs := 50
 	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
 
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
-			fmt.Println("Epoch:", k, "Batch:", j)
+			//		fmt.Println("Epoch:", k, "Batch:", j)
 			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
 
@@ -276,15 +278,15 @@ func main() {
 			cherror(err)
 			//Will Need an Actual answers func
 
-			cherror(err)
+			//	cherror(err)
 			//Backward Section
 			//	netoutput := make([]float32, 10*batchsize)
 			//	desiredoutput := make([]float32, 10*batchsize)
 			//	err = gpuanswersdata[j].T().Memer().FillSlice(netoutput)
 			//	cherror(err)
-			//	err = gpuanswersdata[j].DeltaT().Memer().FillSlice(desiredoutput)
+			//	//	err = gpuanswersdata[j].DeltaT().Memer().FillSlice(desiredoutput)
 			//	cherror(err)
-
+			//fmt.Println(netoutput)
 			err = softmax.BackProp(handle, output4, gpuanswersdata[j])
 
 			cherror(err)
@@ -320,6 +322,8 @@ func main() {
 			*/
 			//fmt.Println(netoutput)
 			//fmt.Println(desiredoutput)
+			//	err = cuctx.Push()
+			cherror(err)
 			err = layer1.UpdateWeights(tctx)
 			cherror(err)
 			err = layer2.UpdateWeights(tctx)
@@ -328,10 +332,12 @@ func main() {
 			cherror(err)
 			err = layer4.UpdateWeights(tctx)
 			cherror(err)
-			err = stream2.Sync()
+			//	err = stream2.Sync()
+			//	_, err := cuda.CtxPopCurrent()
 			cherror(err)
 
 		}
+
 		netoutput := make([][]float32, testbatchnum)
 		desiredoutput := make([][]float32, testbatchnum)
 		for j := 0; j < testbatchnum; j++ {

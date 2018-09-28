@@ -121,7 +121,7 @@ func (c *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias t
 		return err
 	}
 	c.btrain = trainerbias
-	err = trainer.CreateTrainingMem(ctx, c.btrain, c.w)
+	err = trainer.CreateTrainingMem(ctx, c.btrain, c.bias)
 	if err != nil {
 		return err
 	}
