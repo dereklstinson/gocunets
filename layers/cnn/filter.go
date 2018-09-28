@@ -13,6 +13,25 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+//Settings is used with a json to Build a layer from a json file
+type Settings struct {
+	TensorFormat gocudnn.TensorFormat `json:"TensorFormat"`
+
+	ForwardAlgo        gocudnn.ConvFwdAlgo     `json:"ForwardAlgo"`
+	BackwardDataAlgo   gocudnn.ConvBwdDataAlgo `json:"BackDataAlgo"`
+	BackwardFilterAlgo gocudnn.ConvBwdFiltAlgo `json:"BackFiltAlgo"`
+	WorkspaceSize      gocudnn.SizeT           `json:"Wspace"`
+	DataType           gocudnn.DataType        `json:"DataType"`
+	ConvolutionMode    gocudnn.ConvolutionMode `json:"ConvMode"`
+	FilterDims         []int32                 `json:"Dims"`
+	Stride             []int32                 `json:"Stride"`
+	Pad                []int32                 `json:"Pad"`
+	Dilation           []int32                 `json:"Dilation"`
+	MemManaged         bool                    `json:"MemManaged"`
+	PremadeWeights     bool                    `json:"PremadeWeights"`
+	WeightFile         string                  `json:"WeightFile"`
+}
+
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
@@ -41,6 +60,8 @@ type xtras struct {
 func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
+
+//SaveJson saves the weights to json
 func (c *Layer) SaveJson(folder, name string) error {
 	var save TempSave
 	w, err := c.w.Info()
@@ -306,6 +327,7 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 	}
 
 	outputmaps := dims[0]
+
 	for i := 0; i < len(dims); i++ {
 
 		dims[i] = int32(1)
