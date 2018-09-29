@@ -158,7 +158,7 @@ func main() {
 	activation1, aoutput1, err := activation.LayerSetup(output1, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
-	pooling1, poutput1, err := pooling.LayerSetup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
+	pooling1, poutput1, err := pooling.Setup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
 	cherror(err)
 	//MathNote: output= ((input-filter+2*padding)/stride) +1 -> 28-2/2 +1 = 14
 
@@ -171,7 +171,7 @@ func main() {
 	activation2, aoutput2, err := activation.LayerSetup(output2, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
-	pooling2, poutput2, err := pooling.LayerSetup(Pmode, NanProp, aoutput2, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
+	pooling2, poutput2, err := pooling.Setup(Pmode, NanProp, aoutput2, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
 	cherror(err)
 	//MathNote: output= ((input-filter+2*padding)/stride) +1 -> (14-2/2) +1 =7
 
@@ -184,7 +184,7 @@ func main() {
 	activation3, aoutput3, err := activation.LayerSetup(output3, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
-	pooling3, poutput3, err := pooling.LayerSetup(Pmode, NanProp, aoutput3, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
+	pooling3, poutput3, err := pooling.Setup(Pmode, NanProp, aoutput3, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
 	cherror(err)
 	//MathNote: output= ((input-filter+2*padding)/stride) +1 -> (4-2/2) +1 =2
 
