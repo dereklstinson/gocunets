@@ -12,6 +12,8 @@ type Ops struct {
 	epsilon float64
 	mode    gocudnn.BatchNormMode
 	bnsbmvd *gocudnn.TensorD
+	scale   *gocudnn.Malloced
+	bias    *gocudnn.Malloced
 	rrm     *gocudnn.Malloced
 	rrv     *gocudnn.Malloced
 	rsm     *gocudnn.Malloced
@@ -144,6 +146,27 @@ func Stage(handle *gocudnn.Handle, x *tensor.Volume, mode gocudnn.BatchNormMode,
 		rrm.Free()
 		return nil, err
 	}
+	bias, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rbnscd.Free()
+		rsm.Free()
+		rsv.Free()
+		rrv.Free()
+		rrm.Free()
+		rbnbd.Free()
+		return nil, err
+	}
+	scale, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rbnscd.Free()
+		rsm.Free()
+		rsv.Free()
+		rrv.Free()
+		rrm.Free()
+		rbnbd.Free()
+		bias.Free()
+		return nil, err
+	}
 
 	return &Ops{
 		bnsbmvd: bnd,
@@ -154,12 +177,14 @@ func Stage(handle *gocudnn.Handle, x *tensor.Volume, mode gocudnn.BatchNormMode,
 		rsv:     rsv,
 		rbnbd:   rbnbd,
 		rbnscd:  rbnscd,
+		scale:   scale,
+		bias:    bias,
 	}, nil
 
 }
 
 //ForwardTraining is used for the forward training
-func (o *Ops) ForwardTraining(handle *gocudnn.Handle, alpha, beta, averagingfactor, epsilon float64, x, y *tensor.Volume, scale, bias gocudnn.Memer) error {
+func (o *Ops) ForwardTraining(handle *gocudnn.Handle, alpha, beta, averagingfactor, epsilon float64, x, y *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -175,8 +200,8 @@ func (o *Ops) ForwardTraining(handle *gocudnn.Handle, alpha, beta, averagingfact
 		y.TD(),
 		y.Memer(),
 		o.bnsbmvd,
-		scale,
-		bias,
+		o.scale,
+		o.bias,
 		averagingfactor,
 		o.rrm,
 		o.rrv,
@@ -188,7 +213,7 @@ func (o *Ops) ForwardTraining(handle *gocudnn.Handle, alpha, beta, averagingfact
 }
 
 //BackwardProp is used for the forward training
-func (o *Ops) BackwardProp(handle *gocudnn.Handle, alphaparam, betaparam, alphadata, betadata, averagingfactor, epsilon float64, x, dx, dy *tensor.Volume, scale, bias gocudnn.Memer) error {
+func (o *Ops) BackwardProp(handle *gocudnn.Handle, alphaparam, betaparam, alphadata, betadata, epsilon float64, x, dx, dy *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -210,7 +235,7 @@ func (o *Ops) BackwardProp(handle *gocudnn.Handle, alphaparam, betaparam, alphad
 		dy.TD(),
 		dy.Memer(),
 		o.bnsbmvd,
-		scale,
+		o.scale,
 		o.rbnscd,
 		o.rbnbd,
 		epsilon,

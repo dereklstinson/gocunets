@@ -5,7 +5,9 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
+	"github.com/dereklstinson/GoCuNets/layers/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
+	"github.com/dereklstinson/GoCuNets/layers/dropout"
 	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
@@ -19,9 +21,16 @@ type Layer struct {
 	fcnn       *fcnn.Layer
 	softmax    *softmax.Layer
 	pool       *pooling.Layer
+	drop       *dropout.Layer
+	batchnorm  *batchnorm.Layer
 }
-
+type IO struct {
+	parents  []int
+	children []int
+	mem      layers.IO
+}
 type Module struct {
+	index  int64
 	layers []Layer
 	mem    []layers.IO
 }
@@ -100,10 +109,10 @@ func (l *Layer) UpdateWeights(handle *Handles) error {
 	}
 	return errors.New("Layer Not Set Up")
 }
-func MakeLayer(input interface{})Layer{
-switch x:=input.(type){
-	case cnn.
-}
+func MakeLayer(input interface{}) Layer {
+	switch x := input.(type) {
+
+	}
 }
 func (l *Layer) Setup() error {
 	if l.cnn != nil {

@@ -112,6 +112,7 @@ func (i Info) Build() (*Volume, error) {
 			return nil, err
 		}
 		size, err := tens.GetSizeInBytes()
+
 		if err != nil {
 			tens.DestroyDescriptor()
 			filts.DestroyDescriptor()
