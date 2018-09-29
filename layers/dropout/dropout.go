@@ -12,7 +12,7 @@ type Layer struct {
 }
 
 //LayerSetup sets up the layer
-func LayerSetup(handle *gocudnn.Handle, x *layers.IO, drpout float32, seed uint64, managed bool) (*Layer, error) {
+func Setup(handle *gocudnn.Handle, x *layers.IO, drpout float32, seed uint64, managed bool) (*Layer, error) {
 	op, err := dropout.Stage(handle, x.T(), drpout, seed, managed)
 	return &Layer{
 		op: op,

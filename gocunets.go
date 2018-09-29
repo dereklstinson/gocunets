@@ -98,17 +98,10 @@ func (l *Layer) UpdateWeights(handle *Handles) error {
 	if l.fcnn != nil {
 		return l.fcnn.UpdateWeights(handle.trainer)
 	}
-	if l.activation != nil {
-		return nil
-	}
-	if l.softmax != nil {
-		return nil
-	}
-	if l.pool != nil {
-		return nil
-	}
-	return errors.New("Layer Not Set Up")
+	return nil
 }
+
+/*
 func MakeLayer(input interface{}) Layer {
 	switch x := input.(type) {
 
@@ -119,16 +112,17 @@ func (l *Layer) Setup() error {
 		//return l.cnn.(handle.cudnn, wpace, x, y)
 	}
 	if l.fcnn != nil {
-		return l.fcnn.BackProp(handle.cudnn, x, y)
+		return l.fcnn.Setup(handle.cudnn, x, y)
 	}
 	if l.activation != nil {
-		return l.activation.BackProp(handle.cudnn, x, y)
+		return l.Setup.BackProp(handle.cudnn, x, y)
 	}
 	if l.softmax != nil {
-		return l.softmax.BackProp(handle.cudnn, x, y)
+		return l.Setup.BackProp(handle.cudnn, x, y)
 	}
 	if l.pool != nil {
-		return l.pool.BackProp(handle.cudnn, x, y)
+		return l.pool.Set(handle.cudnn, x, y)
 	}
 	return errors.New("Layer Not Set Up")
 }
+*/

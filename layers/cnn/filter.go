@@ -4,7 +4,6 @@ package cnn
 import (
 	"encoding/json"
 	"errors"
-	"image"
 	"os"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
@@ -12,25 +11,6 @@ import (
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
-
-//Settings is used with a json to Build a layer from a json file
-type Settings struct {
-	TensorFormat gocudnn.TensorFormat `json:"TensorFormat"`
-
-	ForwardAlgo        gocudnn.ConvFwdAlgo     `json:"ForwardAlgo"`
-	BackwardDataAlgo   gocudnn.ConvBwdDataAlgo `json:"BackDataAlgo"`
-	BackwardFilterAlgo gocudnn.ConvBwdFiltAlgo `json:"BackFiltAlgo"`
-	WorkspaceSize      gocudnn.SizeT           `json:"Wspace"`
-	DataType           gocudnn.DataType        `json:"DataType"`
-	ConvolutionMode    gocudnn.ConvolutionMode `json:"ConvMode"`
-	FilterDims         []int32                 `json:"Dims"`
-	Stride             []int32                 `json:"Stride"`
-	Pad                []int32                 `json:"Pad"`
-	Dilation           []int32                 `json:"Dilation"`
-	MemManaged         bool                    `json:"MemManaged"`
-	PremadeWeights     bool                    `json:"PremadeWeights"`
-	WeightFile         string                  `json:"WeightFile"`
-}
 
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
@@ -97,33 +77,6 @@ func (c *Layer) SaveJson(folder, name string) error {
 	return nil
 }
 
-//LoadWValues will load a slice into cuda memory for the Weights.
-func (c *Layer) LoadWValues(slice interface{}) error {
-	ptr, err := gocudnn.MakeGoPointer(slice)
-	if err != nil {
-		return err
-	}
-	return c.w.LoadTValues(ptr)
-}
-
-//LoadBiasValues will load a slice into cuda memory for the Weights.
-func (c *Layer) LoadBiasValues(slice interface{}) error {
-	ptr, err := gocudnn.MakeGoPointer(slice)
-	if err != nil {
-		return err
-	}
-	return c.bias.LoadTValues(ptr)
-}
-
-//LoaddWValues will load a slice into cuda memory for the delta Weights.
-func (c *Layer) LoaddWValues(slice interface{}) error {
-	ptr, err := gocudnn.MakeGoPointer(slice)
-	if err != nil {
-		return err
-	}
-	return c.w.LoadDeltaTValues(ptr)
-}
-
 //UpdateWeights does the weight update
 func (c *Layer) UpdateWeights(ctx gocudnn.Contexter) error {
 	err := c.btrain.UpdateWeights(ctx, c.bias)
@@ -149,13 +102,17 @@ func (c *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias t
 	return nil
 }
 
+//Bias returns the Bias
 func (c *Layer) Bias() *layers.IO {
 	return c.bias
 }
+
+//Weights returns the weights
 func (c *Layer) Weights() *layers.IO {
 	return c.w
 }
 
+//LayerSetupPredefinedWeightsDefault
 func LayerSetupPredefinedWeightsDefault(
 	handle *gocudnn.Handle,
 	input *layers.IO,
@@ -235,11 +192,6 @@ func AIOLayerSetupDefault(
 	}
 	return layer, output, nil
 
-}
-
-//FilterProps returns the filter properties of the Convolution Layer
-func (c *Layer) FilterProps() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
-	return c.w.Properties()
 }
 
 //MakeRandomFromFanin does what it says it will make the weights random considering the fanin
@@ -337,36 +289,6 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 
 	return layers.BuildIO(frmt, dtype, dims, managedmem)
 }
-func (c *Layer) WeightsFillSlice(input interface{}) error {
-	return c.w.T().Memer().FillSlice(input)
-
-}
-func (c *Layer) DeltaWeightsFillSlice(input interface{}) error {
-	return c.w.DeltaT().Memer().FillSlice(input)
-}
-
-//MakeOutputTensor makes the output tensor of the layer
-func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, managedmem bool) (*layers.IO, error) {
-	dims, err := c.conv.OutputDim(input.T(), c.w.T())
-	if err != nil {
-		return nil, err
-	}
-	frmt, dtype, _, err := c.w.Properties()
-	if err != nil {
-		return nil, err
-	}
-
-	output, err := layers.BuildIO(frmt, dtype, dims, managedmem)
-	if err != nil {
-		return nil, err
-	}
-	/*	err = output.T().SetValues(handle, 1.0)
-		if err != nil {
-			return nil, err
-		}
-	*/
-	return output, nil
-}
 
 //SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
 func (c *Layer) SetFwdScalars(alpha, alpha2, beta float64) {
@@ -381,15 +303,6 @@ func (c *Layer) SetBwdDataScalars(alpha, alpha2, beta float64) {
 //SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=1 and are initialized in the function FilterSetup
 func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta float64) {
 	c.bwdf.alpha, c.bwdf.alpha2, c.bwdf.beta = alpha, alpha2, beta
-}
-func (c *Layer) SaveImagesToFile(dir string) error {
-	return c.w.SaveImagesToFile(dir)
-}
-func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
-	return c.w.Images()
-}
-func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
-	return c.bias.Images()
 }
 
 //ForwardProp performs the ForwardProp
@@ -489,31 +402,3 @@ func (c *Layer) backpropfilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, 
 		c.bias.DeltaT())
 
 }
-
-//SetBestAlgosConsidering this method will set the best algos for the fwd, bwddata, and bwdfilter algos. and return the workspace size along with an error
-//if an error is found the function will not set any values,
-//Here are some simple rules to the function
-//if fastest is marked true. Then it will find the fastest algo no mater what worksize is.
-//if fastest is set to false. It will check if wspace is greater than zero then it will set the algos to the fastest algo considering the workspace size, and return the largest wspacesize in all the algos
-//else it will find and set the fastest algos with no workspace size and return 0
-func (c *Layer) SetBestAlgosConsidering(handle *gocudnn.Handle, x, y *layers.IO, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
-	return c.conv.SetBestAlgosConsidering(handle, x.T(), y.T(), c.w.T(), wspacelimit, fastest)
-}
-
-/*
-//Build builds the CNNlayer with the descriptors that are in it.  Returns how much memory is left to use
-func (c *Layer) Build() error {
-	var err error
-	c.dw, err = gocudnn.Malloc(c.size)
-	if err != nil {
-		return err
-	}
-	c.w, err = gocudnn.Malloc(c.size)
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
-
-*/
