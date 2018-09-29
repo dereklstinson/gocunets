@@ -1,10 +1,13 @@
 package batchnorm
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCudnn"
 )
 
+//Ops contains the operation of batchnorm.
 type Ops struct {
 	epsilon float64
 	mode    gocudnn.BatchNormMode
@@ -17,127 +20,131 @@ type Ops struct {
 	rbnbd   *gocudnn.Malloced
 }
 
-func Stage(x tensor.Volume, mode gocudnn.BatchNormMode, managed bool) (*Ops, error) {
+func buildfromdesc(handle *gocudnn.Handle, desc *gocudnn.TensorD, managed bool) (*gocudnn.Malloced, error) {
+	dtype, _, _, err := desc.GetDescrptor()
+	if err != nil {
+		return nil, err
+	}
+	sizet, err := desc.GetSizeInBytes()
+	if err != nil {
+		return nil, err
+	}
+	if managed == true {
+		gpumem, err := gocudnn.MallocManaged(sizet, gocudnn.ManagedMemFlag{}.Global())
+		if err != nil {
+			return nil, err
+		}
+		zero := gocudnn.CScalarByDataType(dtype, 0.0)
+		err = gocudnn.TensorFuncs{}.SetTensor(handle, desc, gpumem, zero)
+		if err != nil {
+			gpumem.Free()
+			return nil, err
+		}
+		return gpumem, err
+
+	}
+	gpumem, err := gocudnn.Malloc(sizet)
+	if err != nil {
+		return nil, err
+	}
+	zero := gocudnn.CScalarByDataType(dtype, 0.0)
+	err = gocudnn.TensorFuncs{}.SetTensor(handle, desc, gpumem, zero)
+	if err != nil {
+		gpumem.Free()
+		return nil, err
+	}
+	return gpumem, err
+
+}
+func errorstacker(original, newerr error) error {
+	x := newerr.Error()
+	y := original.Error()
+	return errors.New(x + "..." + y)
+}
+
+//Free Frees the mem
+func (o *Ops) Free() error {
+	var err error
+	var errstack error
+	err = o.rbnbd.Free()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	err = o.rbnscd.Free()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	err = o.rrm.Free()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	err = o.rrv.Free()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	err = o.rsm.Free()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	err = o.rsv.Free()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	err = o.bnsbmvd.DestroyDescriptor()
+	if err != nil {
+		errstack = errorstacker(errstack, err)
+	}
+	return errstack
+}
+
+//Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
+func Stage(handle *gocudnn.Handle, x *tensor.Volume, mode gocudnn.BatchNormMode, managed bool) (*Ops, error) {
 
 	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), mode)
 	if err != nil {
 		return nil, err
 	}
-	_, dtype, _, err := x.Properties()
-	zero := gocudnn.CScalarByDataType(dtype, 0.0)
-	zptr, err := gocudnn.MakeGoPointer(zero)
-	if managed == true {
 
-		rrm, err := gocudnn.MallocManaged(zptr.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		err = gocudnn.CudaMemCopy(rrm, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
-		if err != nil {
-			return nil, err
-		}
-		rrv, err := gocudnn.MallocManaged(zptr.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		err = gocudnn.CudaMemCopy(rrv, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
-		if err != nil {
-			return nil, err
-		}
-		rsm, err := gocudnn.MallocManaged(zptr.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		err = gocudnn.CudaMemCopy(rsm, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
-		if err != nil {
-			return nil, err
-		}
-		rsv, err := gocudnn.MallocManaged(zptr.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		err = gocudnn.CudaMemCopy(rsv, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
-		if err != nil {
-			return nil, err
-		}
-		rbnscd, err := gocudnn.MallocManaged(zptr.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		err = gocudnn.CudaMemCopy(rbnscd, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
-		if err != nil {
-			return nil, err
-		}
-		rbnbd, err := gocudnn.MallocManaged(zptr.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		err = gocudnn.CudaMemCopy(rbnbd, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
-		if err != nil {
-			return nil, err
-		}
-
-		return &Ops{
-			bnsbmvd: bnd,
-			mode:    mode,
-			rrm:     rrm,
-			rrv:     rrv,
-			rsm:     rsm,
-			rsv:     rsv,
-			rbnbd:   rbnbd,
-			rbnscd:  rbnscd,
-		}, nil
-
+	rrm, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		return nil, err
+	}
+	rrv, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rrm.Free()
+		return nil, err
+	}
+	rsm, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rrv.Free()
+		rrm.Free()
+		return nil, err
+	}
+	rsv, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rsm.Free()
+		rrv.Free()
+		rrm.Free()
+		return nil, err
+	}
+	rbnscd, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rsm.Free()
+		rsv.Free()
+		rrv.Free()
+		rrm.Free()
+		return nil, err
+	}
+	rbnbd, err := buildfromdesc(handle, bnd, managed)
+	if err != nil {
+		rbnscd.Free()
+		rsm.Free()
+		rsv.Free()
+		rrv.Free()
+		rrm.Free()
+		return nil, err
 	}
 
-	rrm, err := gocudnn.Malloc(zptr.ByteSize())
-	if err != nil {
-		return nil, err
-	}
-	err = gocudnn.CudaMemCopy(rrm, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.HostToDevice())
-	if err != nil {
-		return nil, err
-	}
-	rrv, err := gocudnn.Malloc(zptr.ByteSize())
-	if err != nil {
-		return nil, err
-	}
-	err = gocudnn.CudaMemCopy(rrv, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.HostToDevice())
-	if err != nil {
-		return nil, err
-	}
-	rsm, err := gocudnn.Malloc(zptr.ByteSize())
-	if err != nil {
-		return nil, err
-	}
-	err = gocudnn.CudaMemCopy(rsm, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.HostToDevice())
-	if err != nil {
-		return nil, err
-	}
-	rsv, err := gocudnn.Malloc(zptr.ByteSize())
-	if err != nil {
-		return nil, err
-	}
-	err = gocudnn.CudaMemCopy(rsv, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.HostToDevice())
-	if err != nil {
-		return nil, err
-	}
-	rbnscd, err := gocudnn.Malloc(zptr.ByteSize())
-	if err != nil {
-		return nil, err
-	}
-	err = gocudnn.CudaMemCopy(rbnscd, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.HostToDevice())
-	if err != nil {
-		return nil, err
-	}
-	rbnbd, err := gocudnn.Malloc(zptr.ByteSize())
-	if err != nil {
-		return nil, err
-	}
-	err = gocudnn.CudaMemCopy(rbnbd, zptr, zptr.ByteSize(), gocudnn.MemcpyKindFlag{}.HostToDevice())
-	if err != nil {
-		return nil, err
-	}
 	return &Ops{
 		bnsbmvd: bnd,
 		mode:    mode,
@@ -145,8 +152,8 @@ func Stage(x tensor.Volume, mode gocudnn.BatchNormMode, managed bool) (*Ops, err
 		rrv:     rrv,
 		rsm:     rsm,
 		rsv:     rsv,
-		rbnscd:  rbnscd,
 		rbnbd:   rbnbd,
+		rbnscd:  rbnscd,
 	}, nil
 
 }
@@ -180,7 +187,7 @@ func (o *Ops) ForwardTraining(handle *gocudnn.Handle, alpha, beta, averagingfact
 
 }
 
-//ForwardTraining is used for the forward training
+//BackwardProp is used for the forward training
 func (o *Ops) BackwardProp(handle *gocudnn.Handle, alphaparam, betaparam, alphadata, betadata, averagingfactor, epsilon float64, x, dx, dy *tensor.Volume, scale, bias gocudnn.Memer) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
