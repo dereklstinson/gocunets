@@ -30,7 +30,7 @@ func main() {
 	err = devices[0].Set()
 	cherror(err)
 	handle := gocudnn.NewHandle()
-	stream, err := gocudnn.CreateBlockingStream()
+	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	cherror(err)
 	err = handle.SetStream(stream)
 	cherror(err)
@@ -107,7 +107,7 @@ func main() {
 	activation1, aoutput1, err := activation.LayerSetup(output1, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
-	pooling1, poutput1, err := pooling.LayerSetup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(1, 1), memmanaged)
+	pooling1, poutput1, err := pooling.Setup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(1, 1), memmanaged)
 	cherror(err)
 	classification, err := softmax.BuildDefault(poutput1, answers)
 	cherror(err)
