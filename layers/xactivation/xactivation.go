@@ -1,7 +1,6 @@
 package xactivation
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/xactivation"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -42,10 +41,7 @@ func Setup(
 	if err != nil {
 		return nil, nil, err
 	}
-	var alphas *layers.IO
-	var gsum *gocudnn.Malloced
-	var xsum *gocudnn.Malloced
-	var tmodeflg gocudnn.TrainingModeFlag
+
 	var xactmodeflg gocudnn.XActivationModeFlag
 	output, err := layers.BuildIO(frmt, dtype, dims, managedmem)
 	if err != nil {
@@ -57,33 +53,33 @@ func Setup(
 		}, output, nil
 
 	}
-
+	var tmodeflg gocudnn.TrainingModeFlag
 	var trp gocudnn.TrainingParams
 
 	trp.SetBeta1(defaultadambeta1)
 	trp.SetBeta2(defaultadambeta2)
 	trp.SetEps(defaultadameps)
 	trp.SetRate(defaultadamrate)
-	alphas, err = layers.BuildIO(frmt, dtype, dims, managedmem)
+	dims[0] = 1
+	alphas, err := layers.BuildIO(frmt, dtype, dims, managedmem)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	alphas.T().SetRandom(.01, .001, float64(length))
-
+	alphas.T().SetRandom(.1, .05, float64(length))
+	//alphas.DeltaT().Memer().IsMalloced().Set(0)
 	if err != nil {
 		return nil, nil, err
 	}
 	if tmode == tmodeflg.Adam() || tmode == tmodeflg.AdaDelta() {
 
 		if managedmem == true {
-			var gsum *gocudnn.Malloced
-			var xsum *gocudnn.Malloced
-			xsum, err = gocudnn.MallocManaged(input.T().Memer().ByteSize(), gocudnn.ManagedMemFlag{}.Global())
+
+			xsum, err := gocudnn.MallocManaged(alphas.T().Memer().ByteSize(), gocudnn.ManagedMemFlag{}.Global())
 			if err != nil {
 				return nil, nil, err
 			}
-			gsum, err = gocudnn.MallocManaged(input.T().Memer().ByteSize(), gocudnn.ManagedMemFlag{}.Global())
+			gsum, err := gocudnn.MallocManaged(alphas.T().Memer().ByteSize(), gocudnn.ManagedMemFlag{}.Global())
 			if err != nil {
 				xsum.Free()
 				return nil, nil, err
@@ -101,12 +97,13 @@ func Setup(
 			}, output, nil
 
 		}
-		xsum, err = gocudnn.Malloc(input.T().Memer().ByteSize())
+
+		xsum, err := gocudnn.Malloc(alphas.T().Memer().ByteSize())
 		if err != nil {
 
 			return nil, nil, err
 		}
-		gsum, err = gocudnn.Malloc(input.T().Memer().ByteSize())
+		gsum, err := gocudnn.Malloc(alphas.T().Memer().ByteSize())
 		if err != nil {
 			xsum.Free()
 			return nil, nil, err
@@ -125,7 +122,8 @@ func Setup(
 	}
 
 	if managedmem == true {
-		gsum, err = gocudnn.MallocManaged(input.T().Memer().ByteSize(), gocudnn.ManagedMemFlag{}.Global())
+
+		gsum, err := gocudnn.MallocManaged(alphas.T().Memer().ByteSize(), gocudnn.ManagedMemFlag{}.Global())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -139,9 +137,9 @@ func Setup(
 			t:          trp,
 		}, output, nil
 	} else {
-		gsum, err = gocudnn.Malloc(input.T().Memer().ByteSize())
+
+		gsum, err := gocudnn.Malloc(alphas.T().Memer().ByteSize())
 		if err != nil {
-			xsum.Free()
 			return nil, nil, err
 		}
 		gsum.Set(0)
@@ -159,22 +157,20 @@ func Setup(
 
 //ForwardProp does the forward prop
 func (l *Layer) ForwardProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
-	var alpha *tensor.Volume
+
 	if l.alphas == nil {
-		alpha = nil
-	} else {
-		alpha = l.alphas.T()
+		return l.act.FwdProp(handle, uint32(l.batchsize), x.T(), y.T(), nil)
 	}
-	return l.act.FwdProp(handle, x.T(), y.T(), alpha)
+	return l.act.FwdProp(handle, uint32(l.batchsize), x.T(), y.T(), l.alphas.T())
 }
 
 //BackProp does the backprop operation
 func (l *Layer) BackProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 
 	if l.alphas == nil {
-		return l.act.BwdProp(handle, x.DeltaT(), y.DeltaT(), nil, nil)
+		return l.act.BwdProp(handle, uint32(l.batchsize), x.T(), x.DeltaT(), y.DeltaT(), nil, nil)
 	}
-	return l.act.BwdProp(handle, x.DeltaT(), y.DeltaT(), l.alphas.T(), l.alphas.DeltaT())
+	return l.act.BwdProp(handle, uint32(l.batchsize), x.T(), x.DeltaT(), y.DeltaT(), l.alphas.T(), l.alphas.DeltaT())
 
 }
 

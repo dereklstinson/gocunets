@@ -147,12 +147,13 @@ func main() {
 
 	cherror(err)
 	tctx, err := gocudnn.Xtra{}.MakeXHandle(trainingkernellocation, devices[0])
-	stream2, err := cuda.CreateBlockingStream()
-	tctx.SetStream(stream2)
+	//	stream2, err := cuda.CreateBlockingStream()
+	tctx.SetStream(stream)
 	cherror(err)
 	blocksize := uint32(32)
 	atmode := gocudnn.TrainingModeFlag{}.Adam()
-	Amode := gocudnn.XActivationModeFlag{}.Leaky()
+	//AMode := gocudnn.ActivationModeFlag{}.Relu()
+	Amode := gocudnn.XActivationModeFlag{}.Parametric()
 	coef := .01
 	//Setting Up Network
 
@@ -163,8 +164,8 @@ func main() {
 
 	//Activation Layer
 
-	//activation1, aoutput1, err := activation.LayerSetup(output1, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
-	activation1, aoutput1, err := xactivation.Setup(tctx, output1, blocksize, Amode, atmode, coef, true, batchsize)
+	//	activation1, aoutput1, err := activation.LayerSetup(output1, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
+	activation1, aoutput1, err := xactivation.Setup(tctx, output1, blocksize, Amode, atmode, coef, memmanaged, batchsize)
 	cherror(err)
 	//pooling layer
 	pooling1, poutput1, err := pooling.Setup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
@@ -177,7 +178,7 @@ func main() {
 	//MathNote: output= ((input-filter+2*padding)/stride) +1 -> (14-5+4/1) +1 =14
 
 	//Activation Layer
-	activation2, aoutput2, err := xactivation.Setup(tctx, output2, blocksize, Amode, atmode, coef, true, batchsize)
+	activation2, aoutput2, err := xactivation.Setup(tctx, output2, blocksize, Amode, atmode, coef, memmanaged, batchsize)
 	//activation2, aoutput2, err := activation.LayerSetup(output2, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
@@ -192,7 +193,7 @@ func main() {
 
 	//Activation Layer
 
-	activation3, aoutput3, err := xactivation.Setup(tctx, output3, blocksize, Amode, atmode, coef, true, batchsize)
+	activation3, aoutput3, err := xactivation.Setup(tctx, output3, blocksize, Amode, atmode, coef, memmanaged, batchsize)
 	//activation3, aoutput3, err := activation.LayerSetup(output3, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
@@ -259,45 +260,52 @@ func main() {
 
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
 			//		fmt.Println("Epoch:", k, "Batch:", j)
+			//	cuda.CtxSynchronize()
 			err = layer1.ForwardProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
-
+			//	stream.Sync()
+			//	cuda.CtxSynchronize()
 			err = activation1.ForwardProp(tctx, output1, aoutput1)
-
-			cherror(err)
-
+			//	stream2.Sync()
+			//	cuda.CtxSynchronize()
 			cherror(err)
 			err = pooling1.ForwardProp(handle, aoutput1, poutput1)
 			cherror(err)
 			err = layer2.ForwardProp(handle, nil, poutput1, output2)
 			cherror(err)
+			//	stream.Sync()
+			//	cuda.CtxSynchronize()
 			err = activation2.ForwardProp(tctx, output2, aoutput2)
 			cherror(err)
+			//	stream2.Sync()
+			//	cuda.CtxSynchronize()
 			err = pooling2.ForwardProp(handle, aoutput2, poutput2)
 			cherror(err)
 			err = layer3.ForwardProp(handle, nil, poutput2, output3)
 			cherror(err)
+			//		stream.Sync()
 			err = activation3.ForwardProp(tctx, output3, aoutput3)
 			cherror(err)
+			//	stream2.Sync()
 			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
 			cherror(err)
 			err = layer4.ForwardProp(handle, poutput3, output4)
 			cherror(err)
 			err = softmax.ForwardProp(handle, output4, gpuanswersdata[j])
 			cherror(err)
-			err = stream.Sync()
+			//	err = stream.Sync()
 			cherror(err)
 			//Will Need an Actual answers func
 
 			//	cherror(err)
 			//Backward Section
-			//	netoutput := make([]float32, 10*batchsize)
-			//	desiredoutput := make([]float32, 10*batchsize)
+			//netoutput := make([]float32, 10*batchsize)
+			//desiredoutput := make([]float32, 10*batchsize)
 			//	err = gpuanswersdata[j].T().Memer().FillSlice(netoutput)
 			//	cherror(err)
 			//	//	err = gpuanswersdata[j].DeltaT().Memer().FillSlice(desiredoutput)
 			//	cherror(err)
-			//fmt.Println(netoutput)
+			//	fmt.Println(netoutput)
 			err = softmax.BackProp(handle, output4, gpuanswersdata[j])
 
 			cherror(err)
@@ -306,25 +314,29 @@ func main() {
 
 			err = pooling3.BackProp(handle, aoutput3, poutput3)
 			cherror(err)
-
+			//	stream.Sync()
 			err = activation3.BackProp(tctx, output3, aoutput3)
 			cherror(err)
-
+			//	stream2.Sync()
 			err = layer3.BackProp(handle, nil, poutput2, output3)
 			cherror(err)
 			err = pooling2.BackProp(handle, aoutput2, poutput2)
 			cherror(err)
+			//	stream.Sync()
 			err = activation2.BackProp(tctx, output2, aoutput2)
 			cherror(err)
+			//	stream2.Sync()
 			err = layer2.BackProp(handle, nil, poutput1, output2)
 			cherror(err)
 			err = pooling1.BackProp(handle, aoutput1, poutput1)
 			cherror(err)
+			//	stream.Sync()
 			err = activation1.BackProp(tctx, output1, aoutput1)
+			//	stream2.Sync()
 			cherror(err)
 			err = layer1.BackProp(handle, nil, gputrainingdata[j], output1)
 			cherror(err)
-			err = stream.Sync()
+			//	err = stream.Sync()
 			cherror(err)
 			/*
 				go func(netoutput []float32, desiredoutput []float32, k int, batchsize int) {
@@ -335,25 +347,25 @@ func main() {
 			*/
 			//fmt.Println(netoutput)
 			//fmt.Println(desiredoutput)
-			//	err = cuctx.Push()
+
 			cherror(err)
 			err = layer1.UpdateWeights(tctx)
 			cherror(err)
-			//err = activation1.UpdateParams(tctx)
+			err = activation1.UpdateParams(tctx)
 			cherror(err)
 			err = layer2.UpdateWeights(tctx)
 			cherror(err)
-			//err = activation2.UpdateParams(tctx)
+			err = activation2.UpdateParams(tctx)
 			cherror(err)
 			err = layer3.UpdateWeights(tctx)
 			cherror(err)
-			//	err = activation3.UpdateParams(tctx)
+			err = activation3.UpdateParams(tctx)
 			cherror(err)
 			err = layer4.UpdateWeights(tctx)
 			cherror(err)
-			//	err = stream2.Sync()
-			//	_, err := cuda.CtxPopCurrent()
+
 			cherror(err)
+			stream.Sync()
 
 		}
 
@@ -372,14 +384,18 @@ func main() {
 			cherror(err)
 			err = layer2.ForwardProp(handle, nil, poutput1, output2)
 			cherror(err)
+
 			err = activation2.ForwardProp(tctx, output2, aoutput2)
 			cherror(err)
+
 			err = pooling2.ForwardProp(handle, aoutput2, poutput2)
 			cherror(err)
 			err = layer3.ForwardProp(handle, nil, poutput2, output3)
 			cherror(err)
+
 			err = activation3.ForwardProp(tctx, output3, aoutput3)
 			cherror(err)
+
 			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
 			cherror(err)
 			err = layer4.ForwardProp(handle, poutput3, output4)
@@ -388,9 +404,7 @@ func main() {
 			cherror(err)
 			err = stream.Sync()
 			cherror(err)
-			//Will Need an Actual answers func
 
-			cherror(err)
 			//Backward Section
 			netoutput[j] = make([]float32, 10*batchsize)
 			desiredoutput[j] = make([]float32, 10*batchsize)
@@ -398,8 +412,9 @@ func main() {
 			cherror(err)
 			err = gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j])
 			cherror(err)
+			//	stream.Sync()
 		}
-
+		stream.Sync()
 		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
 			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
 			fmt.Println("Epoch Percent Correct: ", percent, "		Epoch Loss: ", loss, "                  Epoch Number: ", k)
@@ -491,4 +506,12 @@ func cherror(input error) {
 		panic(input)
 
 	}
+}
+func getsize(dims []int32) int32 {
+	mult := int32(1)
+	for i := range dims {
+		mult *= dims[i]
+	}
+	return mult
+
 }

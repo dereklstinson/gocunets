@@ -31,6 +31,7 @@ func Stage(h *gocudnn.XHandle, blocksize uint32, amode gocudnn.XActivationMode, 
 //Alphas will only be in use if the activation descriptor is using it. otherwise it can be nil
 func (act *Ops) FwdProp(
 	handle *gocudnn.XHandle,
+	batch uint32,
 	x *tensor.Volume,
 	y *tensor.Volume,
 	alphas *tensor.Volume) error {
@@ -47,29 +48,29 @@ func (act *Ops) FwdProp(
 		return errors.New("output type not matching input type")
 	}
 
-	var alphaholder gocudnn.Memer
 	if alphas == nil {
-		alphaholder = nil
-	} else {
-		alphaholder = alphas.Memer()
+		return act.desc.ForwardProp(handle, act.blocksize, batch, x.TD(), x.Memer(), y.TD(), y.Memer(), nil)
 	}
+	return act.desc.ForwardProp(handle, act.blocksize, batch, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer())
 
-	return act.desc.ForwardProp(handle, act.blocksize, x.TD(), x.Memer(), y.TD(), y.Memer(), alphaholder)
 }
 
 //BwdProp is the backwards propigation alphas and dalphas can be nil if they are not supported by the descriptor and they both have to be nil or both on.
 func (act *Ops) BwdProp(
 	handle *gocudnn.XHandle,
+	batch uint32,
+	x *tensor.Volume,
 	dx *tensor.Volume,
 	dy *tensor.Volume,
 	alphas *tensor.Volume,
 	dalphas *tensor.Volume,
+
 ) error {
 
 	if alphas == nil || dalphas == nil {
-		return act.desc.BackProp(handle, act.blocksize, dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
+		return act.desc.BackProp(handle, act.blocksize, batch, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
 	}
-	return act.desc.BackProp(handle, act.blocksize, dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer())
+	return act.desc.BackProp(handle, act.blocksize, batch, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer())
 
 }
 
