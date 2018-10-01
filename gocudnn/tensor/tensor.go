@@ -126,6 +126,7 @@ func (i Info) Build() (*Volume, error) {
 				filts.DestroyDescriptor()
 				return nil, err
 			}
+			newmemer.Set(0)
 
 		} else {
 
@@ -137,6 +138,7 @@ func (i Info) Build() (*Volume, error) {
 				return nil, err
 
 			}
+			newmemer.Set(0)
 
 		}
 
@@ -167,7 +169,7 @@ func (i Info) Build() (*Volume, error) {
 				return nil, err
 
 			}
-
+			newmemer.Set(0)
 		} else {
 			newmemer, err = gocudnn.Malloc(size)
 			if err != nil {
@@ -177,6 +179,7 @@ func (i Info) Build() (*Volume, error) {
 				return nil, err
 
 			}
+			newmemer.Set(0)
 
 		}
 

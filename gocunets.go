@@ -36,14 +36,14 @@ type Module struct {
 }
 type Handles struct {
 	cudnn   *gocudnn.Handle
-	trainer *gocudnn.TrainHandle
+	trainer *gocudnn.XHandle
 }
 
 func CreateHandles(dev *gocudnn.Device, trainingfolder string) (*Handles, error) {
 
 	x := gocudnn.NewHandle()
 
-	y, err := gocudnn.Xtra{}.MakeTrainingHandle(trainingfolder, dev)
+	y, err := gocudnn.Xtra{}.MakeXHandle(trainingfolder, dev)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +90,8 @@ func (l *Layer) BackProp(handle Handles, wpace gocudnn.Memer, x, y *layers.IO) e
 	}
 	return errors.New("Layer Not Set Up")
 }
+
+//asdf
 
 func (l *Layer) UpdateWeights(handle *Handles) error {
 	if l.cnn != nil {

@@ -25,7 +25,7 @@ const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 
 func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
-	_, err := ctx.GetTrainHandle()
+	_, err := ctx.GetXHandle()
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
 
 func (a *Adam) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
 	blocksize := uint32(32)
-	tctx, err := ctx.GetTrainHandle()
+	tctx, err := ctx.GetXHandle()
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func dimsize(dims []int32) int32 {
 	return x
 }
 func SetupAdam(ctx gocudnn.Contexter, decay1, decay2 float32, batch int) (*Adam, error) {
-	tctx, err := ctx.GetTrainHandle()
+	tctx, err := ctx.GetXHandle()
 	if err != nil {
 		return nil, err
 	}
@@ -180,10 +180,11 @@ func (a *Adam)Loss1()float32{
 }
 
 */
-
+/*
 //CreateAdamHandle creates a handle for adam
-func CreateAdamHandle(dev *gocudnn.Device, kerneldir string) (*gocudnn.TrainHandle, error) {
+func CreateAdamHandle(dev *gocudnn.Device, kerneldir string) (*gocudnn.XHandle, error) {
 	var x gocudnn.Xtra
-	return x.MakeTrainingHandle(kerneldir, dev)
+	return x.MakeXHandle(kerneldir, dev)
 
 }
+*/
