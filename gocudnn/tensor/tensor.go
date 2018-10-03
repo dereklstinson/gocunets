@@ -14,6 +14,7 @@ import (
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
+	freed   bool
 	tD      *gocudnn.TensorD
 	fD      *gocudnn.FilterD
 	dtype   gocudnn.DataType
@@ -35,6 +36,31 @@ type Info struct {
 	Dims     []int32                `json:"Dims"`
 	Unified  bool                   `json:"Unified"`
 	Values   interface{}            `json:"Values"`
+}
+
+//DeleteMem will free the mem the tensor has for the gpu. if the mem is already freed it will return nil
+func (t *Volume) DeleteMem() error {
+	if t.freed != true {
+		return t.mem.Free()
+	}
+	return nil
+}
+
+//ReBuildMem will rebuild the gpu mem if ConncervedGPUmem was used. If mem wasn't freed then it will do nothing and return nil
+func (t *Volume) ReBuildMem() error {
+	if t.freed == true {
+		return nil
+	}
+	sizeT, err := t.tD.GetSizeInBytes()
+	if err != nil {
+		return err
+	}
+	if t.managed == true {
+		t.mem, err = gocudnn.MallocManaged(sizeT, gocudnn.ManagedMemFlag{}.Global())
+		return err
+	}
+	t.mem, err = gocudnn.Malloc(sizeT)
+	return err
 }
 
 //SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN

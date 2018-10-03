@@ -39,6 +39,16 @@ func StageOperation(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coe
 	}, err
 }
 
+//ReStage will destroy the desc in the Op and then make a new one to the settings given.
+func (act *Ops) ReStage(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) error {
+	err := act.desc.DestroyDescriptor()
+	if err != nil {
+		return err
+	}
+	act.desc, err = gocudnn.Activation{}.NewActivationDescriptor(mode, nan, coef)
+	return err
+}
+
 //Info returns the Info struct.  (Made for saving to a json file at a higher level)
 func (act *Ops) Info() (OpInfo, error) {
 	var x OpInfo

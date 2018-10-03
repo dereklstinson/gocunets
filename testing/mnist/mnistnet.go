@@ -8,6 +8,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCudnn"
+
 	//	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
@@ -179,7 +180,8 @@ func main() {
 
 	//Activation Layer
 	activation2, aoutput2, err := xactivation.Setup(tctx, output2, blocksize, Amode, atmode, coef, memmanaged, batchsize)
-	//activation2, aoutput2, err := activation.LayerSetup(output2, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
+	//	activation2, aoutput2, err := activation.LayerSetup(output2, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
+
 	cherror(err)
 	//pooling layer
 	pooling2, poutput2, err := pooling.Setup(Pmode, NanProp, aoutput2, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)

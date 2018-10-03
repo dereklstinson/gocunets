@@ -212,7 +212,6 @@ func (c *Ops) BwdPropFilt(
 	handle *gocudnn.Handle,
 	alpha float64,
 	x *tensor.Volume,
-
 	dy *tensor.Volume,
 	wspace gocudnn.Memer,
 	beta float64,

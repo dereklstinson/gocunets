@@ -122,44 +122,6 @@ func (i *IO) PlaceT(T *tensor.Volume) {
 	i.x = T
 }
 
-/*
-func TrainingInputIO(fmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
-	inputdims, answerdims []int32,
-	image, answer *gocudnn.GoPointer,
-	managed bool,
-) (*IO, *IO, error) {
-	x, err := tensor.Build(fmt, dtype, inputdims, managed)
-	if err != nil {
-		x.Destroy()
-		err = addtoerror("Building InputDims", err)
-		return nil, nil, err
-	}
-	dx, err := tensor.Build(fmt, dtype, answerdims, managed)
-	if err != nil {
-		err = addtoerror("Building answerdims", err)
-		x.Destroy()
-		dx.Destroy()
-		return nil, nil, err
-	}
-	err = x.LoadMem(image)
-	if err != nil {
-		err = addtoerror("Loading Images", err)
-		return nil, nil, err
-	}
-	err = dx.LoadMem(answer)
-	if err != nil {
-		err = addtoerror("Loading Answers", err)
-		return nil, nil, err
-	}
-	return nil, &IO{
-		x:  x,
-		dx: dx,
-	}, nil
-
-}
-*/
-
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
 func BuildIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
 
