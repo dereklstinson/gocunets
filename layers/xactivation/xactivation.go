@@ -1,7 +1,7 @@
 package xactivation
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/xactivation"
+	"github.com/dereklstinson/GoCuNets/gocudnn/xactivation"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -67,7 +67,7 @@ func Setup(
 	}
 
 	alphas.T().SetRandom(.1, .05, float64(length))
-	//alphas.DeltaT().Memer().IsMalloced().Set(0)
+
 	if err != nil {
 		return nil, nil, err
 	}

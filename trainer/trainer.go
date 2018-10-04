@@ -4,38 +4,26 @@
 package trainer
 
 import (
-	"errors"
-
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCudnn"
 )
 
-//Trainer will be used for updating weights.  Right now there is only one trainer and it is momentum.
+//Trainer will be used for updating weights.  Only momentum and adam are available right now
 type Trainer interface {
-	UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error
+	UpdateWeights(ctx gocudnn.Handler, weights *layers.IO) error
 	L1L2Loss() (float32, float32, error)
 }
 
-func CreateTrainingMem(ctx gocudnn.Contexter, trainer Trainer, weights *layers.IO) error {
+func CreateTrainingMem(handle gocudnn.Handler, trainer Trainer, weights *layers.IO) error {
+
 	switch x := trainer.(type) {
 	case *Adam:
-		return x.SetTrainingMem(ctx, weights)
-	case *eve:
-		return errors.New("There is no eve ")
+
+		return x.SetTrainingMem(handle, weights)
 	case *Momentum:
-		return x.SetTrainingMem(ctx, weights)
+
+		return x.SetTrainingMem(handle, weights)
 	}
 
 	return nil
-}
-
-//eve is a troll
-type eve struct {
-}
-
-func (e *eve) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
-	return errors.New("update your own weights")
-}
-func (e *eve) L1L2Loss() (float32, float32, error) {
-	return 0, 0, nil
 }

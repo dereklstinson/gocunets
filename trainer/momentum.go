@@ -41,13 +41,13 @@ func SetupMomentum(decay1, decay2, rate, momentum, batch float64) *Momentum {
 }
 
 //SetTrainingMem will load the gsum values
-func (t *Momentum) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
-
-	handle, err := ctx.GetCudnnHandle()
-	if err != nil {
-		return err
+func (t *Momentum) SetTrainingMem(handle gocudnn.Handler, weights *layers.IO) error {
+	han, ok := handle.(*gocudnn.Handle)
+	if !ok {
+		return errors.New("Not Correct Handle")
 	}
-	t.gsum, err = weights.T().ZeroClone(handle)
+	var err error
+	t.gsum, err = weights.T().ZeroClone(han)
 	return err
 }
 func errorappender(comment string, err error) error {
@@ -79,30 +79,32 @@ func (t *Momentum) UpdateWeights2(handle *gocudnn.Handle, weights *layers.IO, ba
 */
 
 //UpdateWeights for now is just the momentum operation.  I might have to make a new cuda library for gocudnn. I will have to check that out.
-func (t *Momentum) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
-	var err error
-	handle, err := ctx.GetCudnnHandle()
-	if err != nil {
-		return err
+func (t *Momentum) UpdateWeights(handle gocudnn.Handler, weights *layers.IO) error {
+	han, ok := handle.(*gocudnn.Handle)
+	if !ok {
+		return (errors.New("UpdateWeights: Not Correct Handle"))
 	}
-	err = weights.DeltaT().ScaleValues(handle, 1.0/t.batch)
+
+	var err error
+
+	err = weights.DeltaT().ScaleValues(han, 1.0/t.batch)
 	if err != nil {
 
 		return errorappender("updateweights: ScaleValues", err)
 	}
 
 	//gsum = weights.DeltaT()*(-t.rate)+(gsum*t.momentum)
-	err = t.gsum.AddTo(handle, weights.DeltaT(), -t.rate, t.momentum)
+	err = t.gsum.AddTo(han, weights.DeltaT(), -t.rate, t.momentum)
 	if err != nil {
 		return err
 	}
 	// weights.T()=weights.T()*1 +t.gsum*1
-	err = weights.T().AddTo(handle, t.gsum, 1.0, 1.0)
+	err = weights.T().AddTo(han, t.gsum, 1.0, 1.0)
 
 	if err != nil {
 		return err
 	}
 
-	return weights.DeltaT().SetValues(handle, 0.0)
+	return weights.DeltaT().SetValues(han, 0.0)
 
 }

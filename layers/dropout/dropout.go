@@ -1,7 +1,7 @@
 package dropout
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/dropout"
+	"github.com/dereklstinson/GoCuNets/gocudnn/dropout"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -9,6 +9,11 @@ import (
 //Layer holds the op for the dropout
 type Layer struct {
 	op *dropout.Ops
+}
+type Settings struct {
+	Dropout float32 `json:"dropout,omitempty"`
+	Seed    uint64  `json:"seed,omitempty"`
+	Managed bool    `json:"managed,omitempty"`
 }
 
 //LayerSetup sets up the layer

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
+	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCudnn"

@@ -1,7 +1,7 @@
 package activation
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/activation"
+	"github.com/dereklstinson/GoCuNets/gocudnn/activation"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )

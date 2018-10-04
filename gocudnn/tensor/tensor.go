@@ -71,7 +71,28 @@ func (t *Volume) SetPropNan() {
 //SetNotPropNan will set the nan propigation flag to NotPropigationNan (NotPropigationNan is default)
 func (t *Volume) SetNotPropNan() {
 	t.propnan = t.thelp.Flgs.NaN.NotPropagateNan()
+
 }
+
+/*
+//Flager contains structs that hold methods that return the flag types
+type Flager struct {
+	Data   gocudnn.DataTypeFlag
+	Math   gocudnn.MathTypeFlag
+	NaN    gocudnn.MathTypeFlag
+	Deter  gocudnn.DeterminismFlag
+	Format gocudnn.TensorFormatFlag
+}
+
+//Flags holds a struct of flags used to build tensors
+type Flags struct {
+	Data   gocudnn.DataType       `json:"data,omitempty"`
+	Math   gocudnn.MathType       `json:"math,omitempty"`
+	NaN    gocudnn.PropagationNAN `json:"na_n,omitempty"`
+	Deter  gocudnn.Determinism    `json:"deter,omitempty"`
+	Format gocudnn.TensorFormat   `json:"format,omitempty"`
+}
+*/
 
 //Flags returns a struct that passes gocudnn flags through methods used in building the tensor
 func Flags() gocudnn.TensorFlags {

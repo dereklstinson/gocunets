@@ -6,7 +6,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
+	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -78,24 +78,24 @@ func (c *Layer) SaveJson(folder, name string) error {
 }
 
 //UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(ctx gocudnn.Contexter) error {
-	err := c.btrain.UpdateWeights(ctx, c.bias)
+func (c *Layer) UpdateWeights(handle gocudnn.Handler) error {
+	err := c.btrain.UpdateWeights(handle, c.bias)
 	if err != nil {
 		return err
 	}
-	return c.train.UpdateWeights(ctx, c.w)
+	return c.train.UpdateWeights(handle, c.w)
 }
 
 //LoadTrainer sets up the momentum trainer
-func (c *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias trainer.Trainer) error {
+func (c *Layer) LoadTrainer(handle gocudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
 	var err error
 	c.train = trainerweights
-	err = trainer.CreateTrainingMem(ctx, c.train, c.w)
+	err = trainer.CreateTrainingMem(handle, c.train, c.w)
 	if err != nil {
 		return err
 	}
 	c.btrain = trainerbias
-	err = trainer.CreateTrainingMem(ctx, c.btrain, c.bias)
+	err = trainer.CreateTrainingMem(handle, c.btrain, c.bias)
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,7 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+//Adam is a struct that does the holds the params for adam optimization
 type Adam struct {
 	loss1     float32
 	loss2     float32
@@ -24,11 +25,13 @@ const defaultadambeta2 = 0.999
 const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 
-func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
-	_, err := ctx.GetXHandle()
-	if err != nil {
-		return err
-	}
+func (a *Adam) SetTrainingMem(han gocudnn.Handler, weights *layers.IO) error {
+
+	/*
+		if err != nil {
+			return err
+		}
+	*/
 	_, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return err
@@ -82,18 +85,23 @@ func (a *Adam) SetTrainingMem(ctx gocudnn.Contexter, weights *layers.IO) error {
 	return nil
 }
 
-func (a *Adam) UpdateWeights(ctx gocudnn.Contexter, weights *layers.IO) error {
+//UpdateWeights updates the weights
+func (a *Adam) UpdateWeights(handle gocudnn.Handler, weights *layers.IO) error {
 	blocksize := uint32(32)
-	tctx, err := ctx.GetXHandle()
-	if err != nil {
-		return err
+
+	tctx, ok := handle.(*gocudnn.XHandle)
+	if !ok {
+		return errors.New("UpdateWeights -Not Correct Handle")
 	}
-	err = a.trainer.L1L2Regularization(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+
+	err := a.trainer.L1L2Regularization(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
 	if err != nil {
 		return err
 	}
 	return a.trainer.TrainValues(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
 }
+
+//L1L2Loss returns the l1l2 loss of the memory that adam was training
 func (a *Adam) L1L2Loss() (float32, float32, error) {
 	kind := gocudnn.MemcpyKindFlag{}.Default()
 	size := gocudnn.SizeT(4)
@@ -116,11 +124,10 @@ func dimsize(dims []int32) int32 {
 	}
 	return x
 }
-func SetupAdam(ctx gocudnn.Contexter, decay1, decay2 float32, batch int) (*Adam, error) {
-	tctx, err := ctx.GetXHandle()
-	if err != nil {
-		return nil, err
-	}
+
+//SetupAdam sets up adam
+func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int) (*Adam, error) {
+
 	l1l2 := gocudnn.RegularizationFlag{}.L1L2()
 	adam := gocudnn.TrainingModeFlag{}.Adam()
 	t, err := gocudnn.Xtra{}.NewTrainingDescriptor(tctx, adam, gocudnn.DataTypeFlag{}.Float(), l1l2)
@@ -164,6 +171,8 @@ func (a *Adam) SetRate(rate float32) {
 	a.params.SetRate(rate)
 
 }
+
+//SetBatch sets batch
 func (a *Adam) SetBatch(batch float32) {
 	a.regparams.SetBatch(batch)
 }

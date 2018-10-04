@@ -1,7 +1,7 @@
 package cnn
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
+	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -25,6 +25,7 @@ type Settings struct {
 	MemManaged         bool                    `json:"MemManaged"`
 	PremadeWeights     bool                    `json:"PremadeWeights"`
 	WeightFile         string                  `json:"WeightFile"`
+	Trainer            gocudnn.TrainingMode    `json:"TrainingFlag"`
 }
 
 //SetupFromSettings is used to build a cnn layer from a json file

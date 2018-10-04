@@ -1,7 +1,7 @@
 package batchnorm
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/batchnorm"
+	"github.com/dereklstinson/GoCuNets/gocudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -19,6 +19,12 @@ type Layer struct {
 type abscalars struct {
 	a float64
 	b float64
+}
+
+//Settings contains all the paramters needed to build a batchnorm layer
+type Settings struct {
+	Mode    gocudnn.BatchNormMode `json:"mode,omitempty"`
+	Managed bool                  `json:"managed,omitempty"`
 }
 
 //LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.

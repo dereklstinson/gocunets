@@ -18,6 +18,12 @@ type OpInfo struct {
 	Mode gocudnn.SoftMaxMode      `json:"Mode"`
 }
 
+//Flager holds the structs that hold the methods to the flags
+type Flager struct {
+	Algo gocudnn.SoftMaxAlgorithmFlag
+	Mode gocudnn.SoftMaxModeFlag
+}
+
 //StageOperation stages the softmax operation
 func StageOperation(algo gocudnn.SoftMaxAlgorithm, mode gocudnn.SoftMaxMode) *Ops {
 	return &Ops{

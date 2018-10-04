@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor/convolution"
+	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/trainer"
 
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -22,6 +22,7 @@ type Layer struct {
 	train   trainer.Trainer
 	btrain  trainer.Trainer
 }
+
 type xtras struct {
 	alpha1 float64
 	alpha2 float64
@@ -219,7 +220,7 @@ func destroy(l *Layer) error {
 }
 
 //LoadTrainer sets up the momentum trainer
-func (l *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias trainer.Trainer) error {
+func (l *Layer) LoadTrainer(ctx gocudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
 	var err error
 	l.train = trainerweights
 	err = trainer.CreateTrainingMem(ctx, l.train, l.neurons)
@@ -235,7 +236,7 @@ func (l *Layer) LoadTrainer(ctx gocudnn.Contexter, trainerweights, trainerbias t
 }
 
 //UpdateWeights updates the weights
-func (l *Layer) UpdateWeights(ctx gocudnn.Contexter) error {
+func (l *Layer) UpdateWeights(ctx gocudnn.Handler) error {
 	err := l.btrain.UpdateWeights(ctx, l.bias)
 	if err != nil {
 		return err

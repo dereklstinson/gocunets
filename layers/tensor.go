@@ -21,6 +21,15 @@ type IO struct {
 	managed bool
 }
 
+//Settings contains the info that is needed to build an IO
+type Settings struct {
+	Dims     []int32                `json:"dims,omitempty"`
+	Managed  bool                   `json:"managed,omitempty"`
+	Format   gocudnn.TensorFormat   `json:"format,omitempty"`
+	DataType gocudnn.DataType       `json:"data_type,omitempty"`
+	NanProp  gocudnn.PropagationNAN `json:"nan_prop,omitempty"`
+}
+
 //Info is a struct that contains all the information to build an IO struct
 type Info struct {
 	NetworkInput bool        `json:"NetworkInput"`
