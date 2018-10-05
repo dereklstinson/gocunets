@@ -464,6 +464,7 @@ func destroy(t *Volume) error {
 	if err3 != nil {
 		flag = true
 	}
+
 	if flag == true {
 		return fmt.Errorf("error::TensorD: %sFilterD: %sMemory: %s", err1, err2, err3)
 	}

@@ -6,10 +6,7 @@ import (
 )
 
 type Module struct {
-	index    int64
-	children []int
-
-	x, y  []*layers.IO
+	index int64
 	layer []*layer
 	mem   []*layers.IO
 }
@@ -19,7 +16,6 @@ type inputs struct {
 }
 
 //ForwardProp does the forward prop for a prebuilt module
-//func (m *Module) ForwardLoad()
 func (m *Module) ForwardProp(handle Handles, stream *gocudnn.Stream, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 
 	err := m.layer[0].forwardprop(handle, wspace, x, m.mem[0])

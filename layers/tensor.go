@@ -39,6 +39,12 @@ type Info struct {
 	Dx           tensor.Info `json:"dX"`
 }
 
+//IsManaged returns if it is managed by cuda memory management system
+func (i *IO) IsManaged() bool {
+	return i.managed
+}
+
+//Info returns info
 func (i *IO) Info() (Info, error) {
 	x, err := i.x.Info()
 	if err != nil {
@@ -129,6 +135,25 @@ func (i *IO) PlaceDeltaT(dT *tensor.Volume) {
 func (i *IO) PlaceT(T *tensor.Volume) {
 
 	i.x = T
+}
+
+//ZeroClone Makes a zeroclone of the IO
+func (i *IO) ZeroClone(handle *gocudnn.Handle) (*IO, error) {
+	t, err := i.T().ZeroClone(handle)
+	if err != nil {
+		return nil, err
+	}
+	dt, err := i.T().ZeroClone(handle)
+	if err != nil {
+		t.Destroy()
+		return nil, err
+	}
+	return &IO{
+		x:       t,
+		dx:      dt,
+		dims:    i.dims,
+		managed: i.managed,
+	}, nil
 }
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor

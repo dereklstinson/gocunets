@@ -14,7 +14,6 @@ type Momentum struct {
 	decay2   float64
 	rate     float64
 	momentum float64
-	batch    float64
 	gsum     *tensor.Volume
 	loss1    float64
 	loss2    float64
@@ -36,7 +35,6 @@ func SetupMomentum(decay1, decay2, rate, momentum, batch float64) *Momentum {
 		decay1:   decay1,
 		decay2:   decay2,
 		rate:     rate,
-		batch:    batch,
 		momentum: momentum}
 }
 
@@ -79,7 +77,7 @@ func (t *Momentum) UpdateWeights2(handle *gocudnn.Handle, weights *layers.IO, ba
 */
 
 //UpdateWeights for now is just the momentum operation.  I might have to make a new cuda library for gocudnn. I will have to check that out.
-func (t *Momentum) UpdateWeights(handle gocudnn.Handler, weights *layers.IO) error {
+func (t *Momentum) UpdateWeights(handle gocudnn.Handler, weights *layers.IO, batch int) error {
 	han, ok := handle.(*gocudnn.Handle)
 	if !ok {
 		return (errors.New("UpdateWeights: Not Correct Handle"))
@@ -87,7 +85,7 @@ func (t *Momentum) UpdateWeights(handle gocudnn.Handler, weights *layers.IO) err
 
 	var err error
 
-	err = weights.DeltaT().ScaleValues(han, 1.0/t.batch)
+	err = weights.DeltaT().ScaleValues(han, 1.0/float64(batch))
 	if err != nil {
 
 		return errorappender("updateweights: ScaleValues", err)

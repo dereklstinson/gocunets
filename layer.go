@@ -16,6 +16,8 @@ import (
 )
 
 //layer contains a layer // ie activation or cnn or fcnn
+type LayerName string
+
 type layer struct {
 	xactivation *xactivation.Layer
 	activation  *activation.Layer
