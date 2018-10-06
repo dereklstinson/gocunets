@@ -10,7 +10,7 @@ import (
 
 //Trainer will be used for updating weights.  Only momentum and adam are available right now
 type Trainer interface {
-	UpdateWeights(ctx gocudnn.Handler, weights *layers.IO) error
+	UpdateWeights(ctx gocudnn.Handler, weights *layers.IO, batch int) error
 	L1L2Loss() (float32, float32, error)
 }
 
@@ -18,7 +18,6 @@ func CreateTrainingMem(handle gocudnn.Handler, trainer Trainer, weights *layers.
 
 	switch x := trainer.(type) {
 	case *Adam:
-
 		return x.SetTrainingMem(handle, weights)
 	case *Momentum:
 

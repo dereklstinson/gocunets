@@ -61,6 +61,19 @@ func BuildNormal(input *layers.IO, answers *layers.IO, mode gocudnn.SoftMaxMode,
 	}, nil
 
 }
+func BuildNoErrorChecking() *Layer {
+
+	sftmax := softmax.DefaultOperation()
+
+	return &Layer{
+		s:      sftmax,
+		alpha:  defaultalpha,
+		beta:   defaultbeta,
+		bbeta:  defaultbeta,
+		balpha: defaultbalpha,
+	}
+
+}
 
 //BuildDefault builds a default layer it takes an input and the output io and checks to make sure the format, dims, and datatype match up
 func BuildDefault(input *layers.IO, answers *layers.IO) (*Layer, error) {

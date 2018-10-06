@@ -154,7 +154,7 @@ func main() {
 	blocksize := uint32(32)
 	atmode := gocudnn.TrainingModeFlag{}.Adam()
 	//AMode := gocudnn.ActivationModeFlag{}.Relu()
-	Amode := gocudnn.XActivationModeFlag{}.Parametric()
+	Amode := gocudnn.XActivationModeFlag{}.Leaky()
 	coef := .01
 	//Setting Up Network
 
@@ -246,16 +246,7 @@ func main() {
 	cherror(err)
 	err = layer4.LoadTrainer(tctx, l4trainer, l4btrainer)
 	cherror(err)
-	/*
-		err = layer1.SetupTrainer(handle, decay1, decay2, rate, momentum)
-		cherror(err)
-		err = layer2.SetupTrainer(handle, decay1, decay2, rate, momentum)
-		cherror(err)
-		err = layer3.SetupTrainer(handle, decay1, decay2, rate, momentum)
-		cherror(err)
-		err = layer4.SetupTrainer(handle, decay1, decay2, rate, momentum)
-		cherror(err)
-	*/
+
 	epochs := 50
 	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
@@ -297,19 +288,8 @@ func main() {
 			cherror(err)
 			//	err = stream.Sync()
 			cherror(err)
-			//Will Need an Actual answers func
 
-			//	cherror(err)
-			//Backward Section
-			//netoutput := make([]float32, 10*batchsize)
-			//desiredoutput := make([]float32, 10*batchsize)
-			//	err = gpuanswersdata[j].T().Memer().FillSlice(netoutput)
-			//	cherror(err)
-			//	//	err = gpuanswersdata[j].DeltaT().Memer().FillSlice(desiredoutput)
-			//	cherror(err)
-			//	fmt.Println(netoutput)
 			err = softmax.BackProp(handle, output4, gpuanswersdata[j])
-
 			cherror(err)
 			err = layer4.BackProp(handle, poutput3, output4)
 			cherror(err)
@@ -353,16 +333,16 @@ func main() {
 			cherror(err)
 			err = layer1.UpdateWeights(tctx)
 			cherror(err)
-			err = activation1.UpdateParams(tctx)
-			cherror(err)
+			//	err = activation1.UpdateParams(tctx)
+			//	cherror(err)
 			err = layer2.UpdateWeights(tctx)
 			cherror(err)
-			err = activation2.UpdateParams(tctx)
-			cherror(err)
+			//	err = activation2.UpdateParams(tctx)
+			//	cherror(err)
 			err = layer3.UpdateWeights(tctx)
 			cherror(err)
-			err = activation3.UpdateParams(tctx)
-			cherror(err)
+			//	err = activation3.UpdateParams(tctx)
+			//cherror(err)
 			err = layer4.UpdateWeights(tctx)
 			cherror(err)
 

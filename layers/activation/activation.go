@@ -30,8 +30,59 @@ type Scalars struct {
 
 const defaultalpha = float64(1)
 const defaultbeta = float64(0)
-const defaultcoef = float64(10)
+const defaultcoef = float64(6)
 const defaultnanprop = gocudnn.PropagationNAN(0) //NotPropigateNAN
+
+//DefaultSetup takes default settings for coef (6) and NottPropNan
+func DefaultSetup(input *layers.IO, mode gocudnn.ActivationMode, memmanaged bool) (*Layer, *layers.IO, error) {
+	fmt, dtype, dims, err := input.Properties()
+	if err != nil {
+		return nil, nil, err
+	}
+	act, err := activation.StageOperation(mode, defaultnanprop, defaultcoef)
+	if err != nil {
+		return nil, nil, err
+	}
+	output, err := layers.BuildIO(fmt, dtype, dims, memmanaged)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &Layer{
+		act: act,
+		fwd: Scalars{
+			Alpha: defaultalpha,
+			Beta:  defaultbeta,
+		},
+		bwd: Scalars{
+			Alpha: defaultalpha,
+			Beta:  defaultbeta,
+		},
+		memmanaged: memmanaged,
+	}, output, nil
+}
+
+//SetupNoOut takes default settings for coef (6) and NottPropNan
+func SetupNoOut(input *layers.IO, mode gocudnn.ActivationMode, memmanaged bool) (*Layer, error) {
+
+	act, err := activation.StageOperation(mode, defaultnanprop, defaultcoef)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Layer{
+		act: act,
+		fwd: Scalars{
+			Alpha: defaultalpha,
+			Beta:  defaultbeta,
+		},
+		bwd: Scalars{
+			Alpha: defaultalpha,
+			Beta:  defaultbeta,
+		},
+		memmanaged: memmanaged,
+	}, nil
+}
+
 //Stage stages the layer it also needs input put layer to Build the output layer
 func (i Info) Stage(input *layers.IO) (*Layer, *layers.IO, error) {
 	fmt, dtype, dims, err := input.Properties()

@@ -16,7 +16,43 @@ type xtras struct {
 	beta  float64
 }
 
-//LayerSetup setsup the pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
+//MakeOutputLayer will make the outputlayer for you
+func (l *Layer) MakeOutputLayer(input *layers.IO) (*layers.IO, error) {
+	frmt, dtype, _, err := input.Properties()
+	if err != nil {
+		return nil, err
+	}
+	dims, err := l.pD.OutputDims(input.T())
+	if err != nil {
+		return nil, err
+	}
+	mngd := input.IsManaged()
+	return layers.BuildIO(frmt, dtype, dims, mngd)
+
+}
+
+//SetupNoOutput will setup the pooling layer but not provide an output
+func SetupNoOutput(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, error) {
+	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Layer{
+		pD: pD,
+		fwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+		bwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+	}, nil
+}
+
+//Setup setsup the pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
 func Setup(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, *layers.IO, error) {
 	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
 

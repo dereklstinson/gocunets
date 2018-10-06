@@ -78,12 +78,12 @@ func (c *Layer) SaveJson(folder, name string) error {
 }
 
 //UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(handle gocudnn.Handler) error {
-	err := c.btrain.UpdateWeights(handle, c.bias)
+func (c *Layer) UpdateWeights(handle gocudnn.Handler, batch int) error {
+	err := c.btrain.UpdateWeights(handle, c.bias, batch)
 	if err != nil {
 		return err
 	}
-	return c.train.UpdateWeights(handle, c.w)
+	return c.train.UpdateWeights(handle, c.w, batch)
 }
 
 //LoadTrainer sets up the momentum trainer
@@ -139,7 +139,7 @@ func LayerSetupPredefinedWeightsDefault(
 		return nil, nil, err
 	}
 	err = layer.LoadBiasValues(bias)
-	output, err := layer.MakeOutputTensor(handle, input, managedmem)
+	output, err := layer.MakeOutputTensor(handle, input)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -181,7 +181,7 @@ func AIOLayerSetupDefault(
 	if err != nil {
 		return nil, nil, err
 	}
-	output, err := layer.MakeOutputTensor(handle, input, managedmem)
+	output, err := layer.MakeOutputTensor(handle, input)
 	if err != nil {
 
 		return nil, nil, err
@@ -191,6 +191,40 @@ func AIOLayerSetupDefault(
 		return nil, nil, err
 	}
 	return layer, output, nil
+
+}
+func AIOLayerSetupDefaultNoOut(
+	handle *gocudnn.Handle,
+	input *layers.IO,
+	filterdims []int32,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32,
+	managedmem bool,
+) (*Layer, error) {
+
+	frmt, dtype, _, err := input.Properties()
+	if err != nil {
+		return nil, err
+	}
+	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.MakeRandomFromFanin(input)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.bias.T().SetValues(handle, 0.0)
+	if err != nil {
+		return nil, err
+	}
+	_, err = layer.SetBestAlgosConsidering(handle, input, input, 0, false)
+	if err != nil {
+		return nil, err
+	}
+	return layer, nil
 
 }
 

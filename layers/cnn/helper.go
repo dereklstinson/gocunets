@@ -11,7 +11,7 @@ func (c *Layer) OutputDims(input *layers.IO) ([]int32, error) {
 }
 
 //MakeOutputTensor makes the output tensor of the layer
-func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, managedmem bool) (*layers.IO, error) {
+func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO) (*layers.IO, error) {
 	dims, err := c.conv.OutputDim(input.T(), c.w.T())
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO, manag
 	if err != nil {
 		return nil, err
 	}
-
+	managedmem := c.w.IsManaged()
 	output, err := layers.BuildIO(frmt, dtype, dims, managedmem)
 	if err != nil {
 		return nil, err
