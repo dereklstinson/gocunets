@@ -166,7 +166,7 @@ func main() {
 	//Activation Layer
 
 	//	activation1, aoutput1, err := activation.LayerSetup(output1, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
-	activation1, aoutput1, err := xactivation.Setup(tctx, output1, blocksize, Amode, atmode, coef, memmanaged, batchsize)
+	activation1, aoutput1, err := xactivation.SetupStatic(tctx, output1, blocksize, Amode, atmode, coef, memmanaged)
 	cherror(err)
 	//pooling layer
 	pooling1, poutput1, err := pooling.Setup(Pmode, NanProp, aoutput1, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
@@ -179,9 +179,9 @@ func main() {
 	//MathNote: output= ((input-filter+2*padding)/stride) +1 -> (14-5+4/1) +1 =14
 
 	//Activation Layer
-	activation2, aoutput2, err := xactivation.Setup(tctx, output2, blocksize, Amode, atmode, coef, memmanaged, batchsize)
+	activation2, aoutput2, err := xactivation.SetupStatic(tctx, output2, blocksize, Amode, atmode, coef, memmanaged)
 	//	activation2, aoutput2, err := activation.LayerSetup(output2, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
-
+	//dfgsdf
 	cherror(err)
 	//pooling layer
 	pooling2, poutput2, err := pooling.Setup(Pmode, NanProp, aoutput2, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged)
@@ -195,7 +195,7 @@ func main() {
 
 	//Activation Layer
 
-	activation3, aoutput3, err := xactivation.Setup(tctx, output3, blocksize, Amode, atmode, coef, memmanaged, batchsize)
+	activation3, aoutput3, err := xactivation.SetupStatic(tctx, output3, blocksize, Amode, atmode, coef, memmanaged)
 	//activation3, aoutput3, err := activation.LayerSetup(output3, AMode, NanProp, 10.0, 1.0, 0.0, 1.0, 0.0, memmanaged)
 	cherror(err)
 	//pooling layer
@@ -258,7 +258,7 @@ func main() {
 			cherror(err)
 			//	stream.Sync()
 			//	cuda.CtxSynchronize()
-			err = activation1.ForwardProp(tctx, output1, aoutput1)
+			err = activation1.ForwardProp(tctx, output1, aoutput1, batchsize)
 			//	stream2.Sync()
 			//	cuda.CtxSynchronize()
 			cherror(err)
@@ -268,7 +268,7 @@ func main() {
 			cherror(err)
 			//	stream.Sync()
 			//	cuda.CtxSynchronize()
-			err = activation2.ForwardProp(tctx, output2, aoutput2)
+			err = activation2.ForwardProp(tctx, output1, aoutput1, batchsize)
 			cherror(err)
 			//	stream2.Sync()
 			//	cuda.CtxSynchronize()
@@ -277,7 +277,7 @@ func main() {
 			err = layer3.ForwardProp(handle, nil, poutput2, output3)
 			cherror(err)
 			//		stream.Sync()
-			err = activation3.ForwardProp(tctx, output3, aoutput3)
+			err = activation3.ForwardProp(tctx, output1, aoutput1, batchsize)
 			cherror(err)
 			//	stream2.Sync()
 			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
@@ -297,7 +297,7 @@ func main() {
 			err = pooling3.BackProp(handle, aoutput3, poutput3)
 			cherror(err)
 			//	stream.Sync()
-			err = activation3.BackProp(tctx, output3, aoutput3)
+			err = activation3.BackProp(tctx, output3, aoutput3, batchsize)
 			cherror(err)
 			//	stream2.Sync()
 			err = layer3.BackProp(handle, nil, poutput2, output3)
@@ -305,7 +305,7 @@ func main() {
 			err = pooling2.BackProp(handle, aoutput2, poutput2)
 			cherror(err)
 			//	stream.Sync()
-			err = activation2.BackProp(tctx, output2, aoutput2)
+			err = activation2.BackProp(tctx, output3, aoutput3, batchsize)
 			cherror(err)
 			//	stream2.Sync()
 			err = layer2.BackProp(handle, nil, poutput1, output2)
@@ -313,7 +313,7 @@ func main() {
 			err = pooling1.BackProp(handle, aoutput1, poutput1)
 			cherror(err)
 			//	stream.Sync()
-			err = activation1.BackProp(tctx, output1, aoutput1)
+			err = activation1.BackProp(tctx, output3, aoutput3, batchsize)
 			//	stream2.Sync()
 			cherror(err)
 			err = layer1.BackProp(handle, nil, gputrainingdata[j], output1)
@@ -331,19 +331,19 @@ func main() {
 			//fmt.Println(desiredoutput)
 
 			cherror(err)
-			err = layer1.UpdateWeights(tctx)
+			err = layer1.UpdateWeights(tctx, batchsize)
 			cherror(err)
 			//	err = activation1.UpdateParams(tctx)
 			//	cherror(err)
-			err = layer2.UpdateWeights(tctx)
+			err = layer2.UpdateWeights(tctx, batchsize)
 			cherror(err)
 			//	err = activation2.UpdateParams(tctx)
 			//	cherror(err)
-			err = layer3.UpdateWeights(tctx)
+			err = layer3.UpdateWeights(tctx, batchsize)
 			cherror(err)
 			//	err = activation3.UpdateParams(tctx)
 			//cherror(err)
-			err = layer4.UpdateWeights(tctx)
+			err = layer4.UpdateWeights(tctx, batchsize)
 			cherror(err)
 
 			cherror(err)
@@ -357,7 +357,7 @@ func main() {
 			err = layer1.ForwardProp(handle, nil, gputestingdata[j], output1)
 			cherror(err)
 
-			err = activation1.ForwardProp(tctx, output1, aoutput1)
+			err = activation1.ForwardProp(tctx, output1, aoutput1, batchsize)
 
 			cherror(err)
 
@@ -367,7 +367,7 @@ func main() {
 			err = layer2.ForwardProp(handle, nil, poutput1, output2)
 			cherror(err)
 
-			err = activation2.ForwardProp(tctx, output2, aoutput2)
+			err = activation2.ForwardProp(tctx, output2, aoutput2, batchsize)
 			cherror(err)
 
 			err = pooling2.ForwardProp(handle, aoutput2, poutput2)
@@ -375,7 +375,7 @@ func main() {
 			err = layer3.ForwardProp(handle, nil, poutput2, output3)
 			cherror(err)
 
-			err = activation3.ForwardProp(tctx, output3, aoutput3)
+			err = activation3.ForwardProp(tctx, output3, aoutput3, batchsize)
 			cherror(err)
 
 			err = pooling3.ForwardProp(handle, aoutput3, poutput3)
