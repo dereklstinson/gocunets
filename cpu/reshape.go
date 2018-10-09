@@ -12,40 +12,39 @@ func SegmentBatch1CHWtoNCHW4d(values []float32, dims []int32, h, w int32) ([]flo
 	}
 	n1 := intceiling(dims[2], h)
 	n2 := intceiling(dims[3], h)
-	oHT := dims[2]
+	oHH := dims[2]
 	oHW := dims[3]
 	n := n1 * n2
 	c := dims[1]
 	newdims := []int32{n, c, h, w}
-	totalvol := volume(dims)
+	//	totalvol := Volume(dims)
 	v := make([]float32, n*c*h*w)
+	striderh := int32(0)
 	for i := int32(0); i < n1; i++ {
-
+		striderw := int32(0)
 		for j := int32(0); j < n2; j++ {
-			vol := (i*n2 + j) * c * h * w
 			for k := int32(0); k < c; k++ {
-				chn := k * h * w
-				ochn := k * oHT * oHW
 				for l := int32(0); l < h; l++ {
-					oh := (i*h + l) * oHW
-					ht := l * w
+					oh := striderh + l
 					for m := int32(0); m < w; m++ {
-						ow := j*w + m
-						if ochn+oh+ow < totalvol {
-							v[vol+chn+ht+m] = values[ochn+oh+ow]
+						ow := striderw + m
+						if oh < oHH && ow < oHW {
+							v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = values[(k*oHW*oHH)+(oh*oHW)+(ow)]
+						} else {
+							v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = 0
 						}
-						v[vol+chn+ht+m] = 0
+
 					}
 				}
 			}
-
+			striderw += w
 		}
-
+		striderh += h
 	}
 	return v, newdims, nil
 }
 
-func volume(dims []int32) int32 {
+func Volume(dims []int32) int32 {
 	vol := int32(1)
 	for i := 0; i < len(dims); i++ {
 		vol *= dims[i]
