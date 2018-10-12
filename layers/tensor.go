@@ -7,6 +7,7 @@ import (
 	"image"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/cpu"
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -62,12 +63,18 @@ func (i *IO) Info() (Info, error) {
 		Dx:           dx,
 	}, nil
 }
+
+//IsInput returns if it is an input
 func (i *IO) IsInput() bool {
 	return i.input
 }
+
+//MakeJPG makes a jpg
 func MakeJPG(folder, subfldr string, index int, img image.Image) error {
 	return tensor.MakeJPG(folder, subfldr, index, img)
 }
+
+//SaveImagesToFile saves the images to file
 func (i *IO) SaveImagesToFile(dir string) error {
 	x, dx, err := i.Images()
 	if err != nil {
@@ -93,6 +100,8 @@ func saveimages(folder string, imgs [][]image.Image) error {
 	}
 	return nil
 }
+
+//Images returns the images
 func (i *IO) Images() ([][]image.Image, [][]image.Image, error) {
 	x, err := i.x.ToImages()
 	if err != nil {
@@ -126,14 +135,18 @@ func addtoerror(addition string, current error) error {
 
 //PlaceDeltaT will put a *tensor.Volume into the DeltaT place if and only if DeltaT is nil
 func (i *IO) PlaceDeltaT(dT *tensor.Volume) {
-
+	if i.dx != nil {
+		i.dx.Destroy()
+	}
 	i.dx = dT
 
 }
 
 //PlaceT will put a *tensor.Volume into the T place if and only if T is nil
 func (i *IO) PlaceT(T *tensor.Volume) {
-
+	if i.x != nil {
+		i.x.Destroy()
+	}
 	i.x = T
 }
 
@@ -211,6 +224,24 @@ func (i *IO) LoadTValues(input gocudnn.Memer) error {
 	return i.x.LoadMem(input)
 }
 
+//
+func (i *IO) GetLength() (int32, error) {
+	_, _, dims, err := i.Properties()
+	if err != nil {
+		return 0, err
+	}
+	mult := int32(1)
+	for i := 0; i < len(dims); i++ {
+		mult *= dims[i]
+	}
+	return mult, nil
+}
+
+//MemIsManaged will return return if the memory is handled by cuda unified memory
+func (i *IO) MemIsManaged() bool {
+	return i.managed
+}
+
 //LoadDeltaTValues loads a piece of memory that was made in golang and loads into a previously created delta tensor volume in cuda.
 func (i *IO) LoadDeltaTValues(input gocudnn.Memer) error {
 	if i.input == true {
@@ -234,6 +265,98 @@ func (i *IO) Destroy() error {
 		return fmt.Errorf("error:x: %s,dx: %s", err, err1)
 	}
 	return nil
+}
+
+//ShapetoBatchIOCopyCPU reshapes the makes a reshaped copy of the IO
+func (i *IO) ShapetoBatchIOCopyCPU(h, w int32) (*IO, error) {
+	frmt, dtype, dims, err := i.Properties()
+	if err != nil {
+		return nil, err
+	}
+	length, err := i.GetLength()
+	if err != nil {
+		return nil, err
+	}
+	slice := make([]float32, length)
+	i.T().Memer().FillSlice(slice)
+	var fmtflag gocudnn.TensorFormatFlag
+	if frmt == fmtflag.NCHW() {
+		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, h, w)
+		if err != nil {
+			return nil, err
+		}
+		newIO, err := BuildIO(frmt, dtype, rashapeddims, i.MemIsManaged())
+		if err != nil {
+			return nil, err
+		}
+		goptr, err := gocudnn.MakeGoPointer(reshapedslice)
+		if err != nil {
+			return nil, err
+		}
+		err = newIO.LoadTValues(goptr)
+		return newIO, err
+	}
+
+	reshapedslice, rashapeddims, err := cpu.ShapeToBatchNHWC4DForward(slice, dims, h, w)
+	if err != nil {
+		return nil, err
+	}
+	newIO, err := BuildIO(frmt, dtype, rashapeddims, i.MemIsManaged())
+	if err != nil {
+		return nil, err
+	}
+	goptr, err := gocudnn.MakeGoPointer(reshapedslice)
+	if err != nil {
+		return nil, err
+	}
+	err = newIO.LoadTValues(goptr)
+	return newIO, err
+}
+
+//ShapetoBatchIOCopyCPUWithSliceFloat32 reshapes the makes a reshaped copy of the IO
+func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(h, w int32) (*IO, []float32, error) {
+	frmt, dtype, dims, err := i.Properties()
+	if err != nil {
+		return nil, nil, err
+	}
+	length, err := i.GetLength()
+	if err != nil {
+		return nil, nil, err
+	}
+	slice := make([]float32, length)
+	i.T().Memer().FillSlice(slice)
+	var fmtflag gocudnn.TensorFormatFlag
+	if frmt == fmtflag.NCHW() {
+		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, h, w)
+		if err != nil {
+			return nil, nil, err
+		}
+		newIO, err := BuildIO(frmt, dtype, rashapeddims, i.MemIsManaged())
+		if err != nil {
+			return nil, nil, err
+		}
+		goptr, err := gocudnn.MakeGoPointer(reshapedslice)
+		if err != nil {
+			return nil, nil, err
+		}
+		err = newIO.LoadTValues(goptr)
+		return newIO, reshapedslice, err
+	}
+
+	reshapedslice, rashapeddims, err := cpu.ShapeToBatchNHWC4DForward(slice, dims, h, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	newIO, err := BuildIO(frmt, dtype, rashapeddims, i.MemIsManaged())
+	if err != nil {
+		return nil, nil, err
+	}
+	goptr, err := gocudnn.MakeGoPointer(reshapedslice)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = newIO.LoadTValues(goptr)
+	return newIO, reshapedslice, err
 }
 
 /*
