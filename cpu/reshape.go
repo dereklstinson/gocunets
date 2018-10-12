@@ -46,6 +46,7 @@ func ShapeToBatchNCHW4DForward(values []float32, dims []int32, h, w int32) ([]fl
 	return v, newdims, nil
 }
 
+//func BatchToShapeNCHW4D(batchedvalues []float32, batchgeddims []int32, h, w int32)([]float32, []int32, error)
 //ShapeToBatchNCHW4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
 func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []float32, batchgeddims []int32) error {
 	if len(dims) != 4 {
