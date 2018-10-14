@@ -5,7 +5,7 @@ import (
 )
 
 //Point interface is used to access the xy coordinate of a point
-type Point interface {
+type XYPoint interface {
 	XY() (float32, float32)
 }
 
@@ -18,7 +18,7 @@ type LabelAssesment struct {
 }
 
 //ShapeToBatchLabelAdjustForward is a way to seperate the labels by batch
-func ShapeToBatchLabelAdjustForward(dims []int32, h, w int32, pts []Point) []LabelAssesment {
+func ShapeToBatchLabelAdjustForward(dims []int32, h, w int32, pts []XYPoint) []LabelAssesment {
 	assess := make([]LabelAssesment, len(pts))
 	if len(dims) != 4 {
 		return nil
