@@ -4,6 +4,69 @@ import (
 	"errors"
 )
 
+type Point interface {
+	XY() (float32, float32)
+}
+type LabelAssesment struct {
+	locinarray         int     //Location In the []Point Array passed in ShapeToBatchLabelAdjustForward
+	batchlocation      int     //Location in the batch dim that this point is residing
+	x, y               float32 // new xy location in batch
+	numberofsharedwith int     //This is the total count of labels shared in the batch
+}
+
+//ShapeToBatchLabelAdjustForward is a way to seperate the labels by batch
+func ShapeToBatchLabelAdjustForward(dims []int32, h, w int32, pts []Point) []LabelAssesment {
+	assess := make([]LabelAssesment, len(pts))
+	if len(dims) != 4 {
+		return nil
+	}
+	if dims[0] != int32(1) {
+		return nil
+	}
+	n1 := intceiling(dims[2], h)
+	n2 := intceiling(dims[3], w)
+
+	oh := int32(0)
+	for i := int32(0); i < n1; i++ {
+		ow := int32(0)
+		for j := int32(0); j < n2; j++ {
+
+			miny := float32(oh)
+			minx := float32(ow)
+			oh += h
+			ow += w
+			maxy := float32(oh)
+			maxx := float32(ow)
+			batch := i*n2 + j
+			counter := 0
+			for k := 0; k < len(pts); k++ {
+				x, y := pts[k].XY()
+				if x > minx && x < maxx && y > miny && y < maxy {
+					counter++
+				}
+
+			}
+			if counter > 0 {
+				for k := 0; k < len(pts); k++ {
+					x, y := pts[k].XY()
+					if x > minx && x < maxx && y > miny && y < maxy {
+						assess[k].batchlocation = int(batch)
+						assess[k].x = x - minx
+						assess[k].y = y - miny
+						assess[k].locinarray = k
+						assess[k].numberofsharedwith = counter
+					}
+
+				}
+			}
+
+		}
+
+	}
+	return assess
+
+}
+
 //ShapeToBatchNCHW4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
 func ShapeToBatchNCHW4DForward(values []float32, dims []int32, h, w int32) ([]float32, []int32, error) {
 	if len(dims) != 4 {
