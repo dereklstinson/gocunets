@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
@@ -22,7 +23,7 @@ import (
 func main() {
 
 	trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
-	gocudnn.Cuda{}.LockHostThread()
+	//gocudnn.Cuda{}.LockHostThread()
 	//cudnn context
 	var cuda gocudnn.Cuda
 	//cuda.
@@ -248,25 +249,32 @@ func main() {
 	epochs := 50
 	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
-
+		var wg sync.WaitGroup
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
 			//		fmt.Println("Epoch:", k, "Batch:", j)
 			//	cuda.CtxSynchronize()
-			cherror(layer1.ForwardProp(handle, nil, gputrainingdata[j], output1))
-			cherror(activation1.ForwardProp(handle, output1, aoutput1))
-			//	cherror(activation1.ForwardProp(tctx, output1, aoutput1, batchsize))
-			cherror(pooling1.ForwardProp(handle, aoutput1, poutput1))
+			wg.Add(1)
+			go func(j int) {
+				cherror(layer1.ForwardProp(handle, nil, gputrainingdata[j], output1))
+				cherror(activation1.ForwardProp(handle, output1, aoutput1))
+				//	cherror(activation1.ForwardProp(tctx, output1, aoutput1, batchsize))
+				cherror(pooling1.ForwardProp(handle, aoutput1, poutput1))
 
-			cherror(layer2.ForwardProp(handle, nil, poutput1, output2))
-			cherror(activation2.ForwardProp(handle, output2, aoutput2))
-			//cherror(activation2.ForwardProp(tctx, output2, aoutput2, batchsize))
-			cherror(pooling2.ForwardProp(handle, aoutput2, poutput2))
-			cherror(layer3.ForwardProp(handle, nil, poutput2, output3))
-			cherror(activation3.ForwardProp(handle, output3, aoutput3))
-			//cherror(activation3.ForwardProp(tctx, output3, aoutput3, batchsize))
-			cherror(pooling3.ForwardProp(handle, aoutput3, poutput3))
-			cherror(layer4.ForwardProp(handle, poutput3, output4))
-			cherror(softmax.ForwardProp(handle, output4, gpuanswersdata[j]))
+				cherror(layer2.ForwardProp(handle, nil, poutput1, output2))
+				cherror(activation2.ForwardProp(handle, output2, aoutput2))
+				//cherror(activation2.ForwardProp(tctx, output2, aoutput2, batchsize))
+				cherror(pooling2.ForwardProp(handle, aoutput2, poutput2))
+				cherror(layer3.ForwardProp(handle, nil, poutput2, output3))
+				cherror(activation3.ForwardProp(handle, output3, aoutput3))
+				//cherror(activation3.ForwardProp(tctx, output3, aoutput3, batchsize))
+				cherror(pooling3.ForwardProp(handle, aoutput3, poutput3))
+				cherror(layer4.ForwardProp(handle, poutput3, output4))
+				cherror(softmax.ForwardProp(handle, output4, gpuanswersdata[j]))
+
+				wg.Done()
+
+			}(j)
+			wg.Wait()
 			//stream.Sync()
 			//checkoutput := make([]float32, 10*batchsize)
 			//gpuanswersdata[j].T().Memer().FillSlice(checkoutput)
