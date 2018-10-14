@@ -4,9 +4,12 @@ import (
 	"errors"
 )
 
+//Point interface is used to access the xy coordinate of a point
 type Point interface {
 	XY() (float32, float32)
 }
+
+//LabelAssesment is used to assess the points that have been moved because of a reshape
 type LabelAssesment struct {
 	locinarray         int     //Location In the []Point Array passed in ShapeToBatchLabelAdjustForward
 	batchlocation      int     //Location in the batch dim that this point is residing
@@ -109,7 +112,6 @@ func ShapeToBatchNCHW4DForward(values []float32, dims []int32, h, w int32) ([]fl
 	return v, newdims, nil
 }
 
-//func BatchToShapeNCHW4D(batchedvalues []float32, batchgeddims []int32, h, w int32)([]float32, []int32, error)
 //ShapeToBatchNCHW4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
 func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []float32, batchgeddims []int32) error {
 	if len(dims) != 4 {
@@ -195,6 +197,7 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, h, w int32) ([]f
 	return v, newdims, nil
 }
 */
+
 //ShapeToBatchNHWC4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
 func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]float32, []int32, error) {
 	if len(dims) != 4 {
@@ -278,6 +281,7 @@ func ShapeToBatchNHWC4DBackward(values []float32, dims []int32, batchedvalues []
 	return nil
 }
 
+//Volume finds the volume
 func Volume(dims []int32) int32 {
 	vol := int32(1)
 	for i := 0; i < len(dims); i++ {
