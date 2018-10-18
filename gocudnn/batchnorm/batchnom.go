@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Ops contains the operation of batchnorm.
@@ -23,6 +23,7 @@ type Ops struct {
 }
 
 func buildfromdesc(handle *gocudnn.Handle, desc *gocudnn.TensorD, managed bool) (*gocudnn.Malloced, error) {
+	var tfuncs gocudnn.Tensor
 	dtype, _, _, err := desc.GetDescrptor()
 	if err != nil {
 		return nil, err
@@ -37,7 +38,8 @@ func buildfromdesc(handle *gocudnn.Handle, desc *gocudnn.TensorD, managed bool) 
 			return nil, err
 		}
 		zero := gocudnn.CScalarByDataType(dtype, 0.0)
-		err = gocudnn.TensorFuncs{}.SetTensor(handle, desc, gpumem, zero)
+
+		err = tfuncs.SetTensor(handle, desc, gpumem, zero)
 		if err != nil {
 			gpumem.Free()
 			return nil, err
@@ -50,7 +52,7 @@ func buildfromdesc(handle *gocudnn.Handle, desc *gocudnn.TensorD, managed bool) 
 		return nil, err
 	}
 	zero := gocudnn.CScalarByDataType(dtype, 0.0)
-	err = gocudnn.TensorFuncs{}.SetTensor(handle, desc, gpumem, zero)
+	err = tfuncs.SetTensor(handle, desc, gpumem, zero)
 	if err != nil {
 		gpumem.Free()
 		return nil, err

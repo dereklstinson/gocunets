@@ -6,18 +6,16 @@ import (
 )
 
 //GetTransposeIO will return an IO that can be used with the transpose function of this layer.
-func (l *Layer) GetTransposeIO(handle *gocudnn.XHandle, x *layers.IO) (*layers.IO, error) {
-	y, err := l.op.GetTransposeVolume(handle, x.T())
+func (l *Layer) GetTransposeIO(handle *gocudnn.XHandle, x *layers.IO, input bool) (*layers.IO, error) {
+	yfrmt, ydtype, dims, _, managed, err := l.op.GetTransposeOutputProperties(handle, x.T())
 	if err != nil {
-		return nil, err
-	}
-	dy, err := l.op.GetTransposeVolume(handle, x.DeltaT())
-	if err != nil {
-		y.Destroy()
 		return nil, err
 	}
 
-	return layers.CreateIOfromVolumes(y, dy)
+	if input == false {
+		return layers.BuildIO(yfrmt, ydtype, dims, managed)
+	}
+	return layers.BuildNetworkInputIO(yfrmt, ydtype, dims, managed)
 }
 
 //TransposeForward does a transpose allong the channel dim. Will find transpose of x and put it in y

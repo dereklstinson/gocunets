@@ -38,6 +38,15 @@ type Info struct {
 	Values   interface{}            `json:"Values"`
 }
 
+func MakeInfo(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, unified bool) Info {
+	return Info{
+		Format:   frmt,
+		DataType: dtype,
+		Dims:     dims,
+		Unified:  unified,
+	}
+}
+
 //DeleteMem will free the mem the tensor has for the gpu. if the mem is already freed it will return nil
 func (t *Volume) DeleteMem() error {
 	if t.freed != true {
@@ -594,5 +603,10 @@ func (t *Volume) PrintDeviceMem(comment string) error {
 
 //Destroy will release the memory of the tensor
 func (t *Volume) Destroy() error {
-	return destroy(t)
+	err := destroy(t)
+	if err != nil {
+		return err
+	}
+	t = nil
+	return nil
 }

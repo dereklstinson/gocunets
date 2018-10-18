@@ -161,21 +161,21 @@ func addtoerror(addition string, current error) error {
 	return errors.New(addition + ": " + errorstring)
 }
 
-//PlaceDeltaT will put a *tensor.Volume into the DeltaT place if and only if DeltaT is nil
+//PlaceDeltaT will put a *tensor.Volume into the DeltaT and destroy the previous memory held in the spot
 func (i *IO) PlaceDeltaT(dT *tensor.Volume) {
 	if i.dx != nil {
 		i.dx.Destroy()
 	}
-	*i.dx = *dT
+	i.dx = dT
 
 }
 
-//PlaceT will put a *tensor.Volume into the T place if and only if T is nil
+//PlaceT will put a *tensor.Volume into the T  and destroy the previous memory held in the spot
 func (i *IO) PlaceT(T *tensor.Volume) {
 	if i.x != nil {
 		i.x.Destroy()
 	}
-	*i.x = *T
+	i.x = T
 }
 
 //ZeroClone Makes a zeroclone of the IO

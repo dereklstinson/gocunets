@@ -63,7 +63,7 @@ func (o *Ops) TransposeChannel(handle *gocudnn.XHandle, x *tensor.Volume) error 
 		return err
 	}
 
-	y, err := o.GetTransposeVolume(handle, x)
+	y, err := o.gettransposevol(handle, x)
 	if err != nil {
 		return err
 	}
@@ -86,8 +86,8 @@ func (o *Ops) TransposeChannel(handle *gocudnn.XHandle, x *tensor.Volume) error 
 	return errors.New("TransposeChannelXtoY - Passed Non supported tensor format")
 }
 
-//GetTransposeVolume will get the volume of a transpose operation handled through this op
-func (o *Ops) GetTransposeVolume(handle *gocudnn.XHandle, x *tensor.Volume) (*tensor.Volume, error) {
+//GetTransposeOutputProperties will get the volume of a transpose operation handled through this op
+func (o *Ops) GetTransposeOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume) (gocudnn.TensorFormat, gocudnn.DataType, []int32, []int32, bool, error) {
 	xmal, ok := x.Memer().(*gocudnn.Malloced)
 	if ok {
 		var managed bool
@@ -95,11 +95,30 @@ func (o *Ops) GetTransposeVolume(handle *gocudnn.XHandle, x *tensor.Volume) (*te
 		if flgloc.Unified() == xmal.Stored() {
 			managed = true
 		}
-		descout, _, err := o.trans.GetChannelTransposeOutputDescAndPerm4d(x.TD())
+		frmt, dtype, dims, perm, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
+
+		return frmt, dtype, dims, perm, managed, err
+
+	}
+
+	return 255, 255, nil, nil, false, errors.New("Unsupported Memory")
+}
+
+func (o *Ops) gettransposevol(handle *gocudnn.XHandle, x *tensor.Volume) (*tensor.Volume, error) {
+	xmal, ok := x.Memer().(*gocudnn.Malloced)
+	if ok {
+		var managed bool
+		var flgloc gocudnn.LocationFlag
+		if flgloc.Unified() == xmal.Stored() {
+			managed = true
+		}
+		frmt, dtype, dims, _, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
 		if err != nil {
 			return nil, err
 		}
-		return tensor.BuildFromTensorD(descout, managed)
+
+		return tensor.Build(frmt, dtype, dims, managed)
+
 	}
 
 	return nil, errors.New("Unsupported Memory")

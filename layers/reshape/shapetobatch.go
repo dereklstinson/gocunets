@@ -6,18 +6,16 @@ import (
 )
 
 //GetShapetoBatchIO will return the output IO for the S2B op.
-func (l *Layer) GetShapetoBatchIO(handle *gocudnn.XHandle, x *layers.IO, h, w int32) (*layers.IO, error) {
-	y, err := l.op.GetS2BOutputVolume(handle, x.T(), []int32{h, w})
+func (l *Layer) GetShapetoBatchIO(handle *gocudnn.XHandle, x *layers.IO, h, w int32, input bool) (*layers.IO, error) {
+	yfrmt, ydtype, dims, managed, err := l.op.GetS2BOutputProperties(handle, x.T(), []int32{h, w})
 	if err != nil {
 
 		return nil, err
 	}
-	dy, err := l.op.GetS2BOutputVolume(handle, x.DeltaT(), []int32{h, w})
-	if err != nil {
-		y.Destroy()
-		return nil, err
+	if input == false {
+		return layers.BuildIO(yfrmt, ydtype, dims, managed)
 	}
-	return layers.CreateIOfromVolumes(y, dy)
+	return layers.BuildNetworkInputIO(yfrmt, ydtype, dims, managed)
 }
 
 //SpaceToBatchForwardProp does the forwardpropagation
