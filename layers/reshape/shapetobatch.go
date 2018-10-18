@@ -6,7 +6,7 @@ import (
 )
 
 //GetShapetoBatchIO will return the output IO for the S2B op.
-func (l *Layer) GetShapetoBatchIO(handle *gocudnn.XHandle, x *layers.IO, h, w int32, input bool) (*layers.IO, error) {
+func (l *Layer) getshapetobatchio(handle *gocudnn.XHandle, x *layers.IO, h, w int32, input bool) (*layers.IO, error) {
 	yfrmt, ydtype, dims, managed, err := l.op.GetS2BOutputProperties(handle, x.T(), []int32{h, w})
 	if err != nil {
 
@@ -19,7 +19,7 @@ func (l *Layer) GetShapetoBatchIO(handle *gocudnn.XHandle, x *layers.IO, h, w in
 }
 
 //SpaceToBatchForwardProp does the forwardpropagation
-func (l *Layer) SpaceToBatchForwardProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) spacetobatchforwardprop(handle *gocudnn.XHandle, x, y *layers.IO) error {
 	err := l.op.S2BForward(handle, x.T(), y.T())
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (l *Layer) SpaceToBatchForwardProp(handle *gocudnn.XHandle, x, y *layers.IO
 }
 
 //SpaceToBatchBackward does the backward propagation
-func (l *Layer) SpaceToBatchBackward(handle *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) spacetobatchbackprop(handle *gocudnn.XHandle, x, y *layers.IO) error {
 	err := l.op.S2BBackward(handle, x.T(), y.T())
 	if err != nil {
 		return err

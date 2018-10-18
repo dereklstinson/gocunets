@@ -53,7 +53,7 @@ func LayerSetup(handle *gocudnn.Handle, x *layers.IO, mode gocudnn.BatchNormMode
 }
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
-func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y layers.IO) error {
+func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	l.af = (1.0 / (1.0 + float64(l.counter)))
 	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), y.T())
 	l.counter++
@@ -61,7 +61,7 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y layers.IO) error {
 }
 
 //BackProp does the back propagation in training the layer
-func (l *Layer) BackProp(handle *gocudnn.Handle, x, y layers.IO) error {
+func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 	return l.b.BackwardProp(handle, l.bwp.a, l.bwp.b, l.bwd.a, l.bwd.b, l.eps, x.T(), x.DeltaT(), y.DeltaT())
 }
 
