@@ -21,11 +21,10 @@ const defaultadambeta2 = 0.999
 const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 
-//Setup stages the layer it also needs input put layer to Build the output layer
+//SetupStatic stages the layer it also needs input put layer to Build the output layer
 func SetupStatic(
 	h *gocudnn.XHandle,
 	input *layers.IO,
-	blocksize uint32,
 	amode gocudnn.XActivationMode,
 	tmode gocudnn.TrainingMode,
 	coef float64,
@@ -35,7 +34,7 @@ func SetupStatic(
 	if err != nil {
 		return nil, nil, err
 	}
-	op, err := xactivation.Stage(h, blocksize, amode, tmode, dtype, coef)
+	op, err := xactivation.Stage(h, amode, tmode, dtype, coef)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -156,7 +155,7 @@ func findlengthfromdims(dims []int32) uint32 {
 	return uint32(mult)
 }
 
-//SetupNoOut does a setup with no output
+//SetupNoOutDynamic does a setup with no output
 func SetupNoOutDynamic(
 	h *gocudnn.XHandle,
 	input *layers.IO,
@@ -170,7 +169,7 @@ func SetupNoOutDynamic(
 	if err != nil {
 		return nil, err
 	}
-	op, err := xactivation.Stage(h, blocksize, amode, tmode, dtype, coef)
+	op, err := xactivation.Stage(h, amode, tmode, dtype, coef)
 	if err != nil {
 		return nil, err
 	}

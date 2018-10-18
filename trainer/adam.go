@@ -87,18 +87,17 @@ func (a *Adam) SetTrainingMem(han gocudnn.Handler, weights *layers.IO) error {
 
 //UpdateWeights updates the weights
 func (a *Adam) UpdateWeights(handle gocudnn.Handler, weights *layers.IO, batchsize int) error {
-	blocksize := uint32(32)
 
 	tctx, ok := handle.(*gocudnn.XHandle)
 	if !ok {
 		return errors.New("UpdateWeights -Not Correct Handle")
 	}
 	a.SetBatch(float32(batchsize))
-	err := a.trainer.L1L2Regularization(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+	err := a.trainer.L1L2Regularization(tctx, weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
 	if err != nil {
 		return err
 	}
-	return a.trainer.TrainValues(tctx, blocksize, weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+	return a.trainer.TrainValues(tctx, weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
 }
 
 //L1L2Loss returns the l1l2 loss of the memory that adam was training

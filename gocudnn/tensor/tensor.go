@@ -255,6 +255,22 @@ func (i Info) Build() (*Volume, error) {
 	return vol, nil
 }
 
+//BuildFromTensorD will take a TensorD and the volume
+func BuildFromTensorD(desc *gocudnn.TensorD, managed bool) (*Volume, error) {
+	dtype, dims, _, err := desc.GetDescrptor()
+	if err != nil {
+		return nil, err
+	}
+	frmt, err := desc.GetFormat()
+	if err != nil {
+		return nil, err
+	}
+
+	desc.DestroyDescriptor()
+
+	return Build(frmt, dtype, dims, managed)
+}
+
 //Build creates a tensor and mallocs the memory for the tensor
 func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
 	var thelper gocudnn.Tensor
@@ -435,11 +451,11 @@ func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.Funcs.SetTensor(handle, tens, newmem, gocudnn.CDouble(0))
+		err = t.thelp.SetTensor(handle, tens, newmem, gocudnn.CDouble(0))
 	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.Funcs.SetTensor(handle, tens, newmem, gocudnn.CFloat(0))
+		err = t.thelp.SetTensor(handle, tens, newmem, gocudnn.CFloat(0))
 	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.Funcs.SetTensor(handle, tens, newmem, gocudnn.CInt(0))
+		err = t.thelp.SetTensor(handle, tens, newmem, gocudnn.CInt(0))
 	default:
 		return nil, errors.New("Not supported Format to make zero")
 	}

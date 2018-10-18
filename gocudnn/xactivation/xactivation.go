@@ -9,12 +9,11 @@ import (
 
 //Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.
 type Ops struct {
-	desc      *gocudnn.XActivationD
-	blocksize uint32
+	desc *gocudnn.XActivationD
 }
 
 //Stage creates an activation struct given the properties passed in function
-func Stage(h *gocudnn.XHandle, blocksize uint32, amode gocudnn.XActivationMode, tmode gocudnn.TrainingMode, dtype gocudnn.DataType, coef float64) (*Ops, error) {
+func Stage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.TrainingMode, dtype gocudnn.DataType, coef float64) (*Ops, error) {
 	var xtra gocudnn.Xtra
 
 	desc, err := xtra.NewXActivationDescriptor(h, amode, tmode, dtype, coef)
@@ -22,8 +21,7 @@ func Stage(h *gocudnn.XHandle, blocksize uint32, amode gocudnn.XActivationMode, 
 		return nil, err
 	}
 	return &Ops{
-		desc:      desc,
-		blocksize: blocksize,
+		desc: desc,
 	}, err
 }
 
@@ -49,9 +47,9 @@ func (act *Ops) FwdProp(
 	}
 
 	if alphas == nil {
-		return act.desc.ForwardProp(handle, act.blocksize, batch, x.TD(), x.Memer(), y.TD(), y.Memer(), nil)
+		return act.desc.ForwardProp(handle, batch, x.TD(), x.Memer(), y.TD(), y.Memer(), nil)
 	}
-	return act.desc.ForwardProp(handle, act.blocksize, batch, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer())
+	return act.desc.ForwardProp(handle, batch, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer())
 
 }
 
@@ -68,9 +66,9 @@ func (act *Ops) BwdProp(
 ) error {
 
 	if alphas == nil || dalphas == nil {
-		return act.desc.BackProp(handle, act.blocksize, batch, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
+		return act.desc.BackProp(handle, batch, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
 	}
-	return act.desc.BackProp(handle, act.blocksize, batch, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer())
+	return act.desc.BackProp(handle, batch, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer())
 
 }
 
@@ -87,6 +85,6 @@ func (act *Ops) UpdateParams(
 	if alphas == nil || dalphas == nil || gsum == nil || xsum == nil {
 		return errors.New("One or more of the alphas dalphas gsum or xsum is nil")
 	}
-	return act.desc.UpdateAlphas(handle, act.blocksize, batch, alphas.TD(), alphas.Memer(), dalphas.Memer(), xsum, gsum, t)
+	return act.desc.UpdateAlphas(handle, batch, alphas.TD(), alphas.Memer(), dalphas.Memer(), xsum, gsum, t)
 
 }

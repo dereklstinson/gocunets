@@ -226,8 +226,13 @@ func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]fl
 					if oh < oHH && ow < oHW {
 
 						for k := z; k < c; k++ {
+							//oh can be thought of as l+(i*h)
+							//ow can be thought of as m+(j*w)
 							//		fmt.Println(i, j, l, m, oh, ow, k, values[(oh*oHW*c)+(ow*c)+k])
 							v[(i*n2*h*w*c)+(j*h*w*c)+(l*w*c)+(m*c)+k] = values[(oh*oHW*c)+(ow*c)+(k)]
+
+							//
+
 						}
 
 					}

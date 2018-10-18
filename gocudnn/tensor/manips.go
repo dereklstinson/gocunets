@@ -18,15 +18,15 @@ func (t *Volume) SetValues(handle *gocudnn.Handle, input float64) error {
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CDouble(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CDouble(input))
 	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CFloat(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CFloat(input))
 	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CInt(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CInt(input))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CInt8(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CInt8(input))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.Funcs.SetTensor(handle, t.tD, t.mem, gocudnn.CUInt8(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CUInt8(input))
 	default:
 		return errors.New("Not supported Format to make Set All Values")
 	}
@@ -44,15 +44,15 @@ func (t *Volume) ScaleValues(h *gocudnn.Handle, alpha float64) error {
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		return t.thelp.Funcs.ScaleTensor(h, t.tD, t.mem, gocudnn.CDouble(alpha))
+		return t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CDouble(alpha))
 	case t.thelp.Flgs.Data.Float():
-		return t.thelp.Funcs.ScaleTensor(h, t.tD, t.mem, gocudnn.CFloat(alpha))
+		return t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CFloat(alpha))
 	case t.thelp.Flgs.Data.Int32():
-		return t.thelp.Funcs.ScaleTensor(h, t.tD, t.mem, gocudnn.CInt(alpha))
+		return t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CInt(alpha))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.Funcs.ScaleTensor(h, t.tD, t.mem, gocudnn.CInt8(alpha))
+		err = t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CInt8(alpha))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.Funcs.ScaleTensor(h, t.tD, t.mem, gocudnn.CUInt8(alpha))
+		err = t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CUInt8(alpha))
 
 	}
 	return errors.New("Not supported Format to make zero")
@@ -98,7 +98,7 @@ func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, Amultiplier, tmultiplier fl
 		return errors.New("AddTo: Not supported Format to make zero")
 	}
 
-	return t.thelp.Funcs.AddTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
+	return t.thelp.AddTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
 }
 
 //LoadMem will Load the mem with
@@ -265,7 +265,7 @@ func (t *Tensor) Transform(h *gocudnn.Handle, A *Tensor, alpha, beta float64) er
 	default:
 		return errors.New("Not supported Format to make zero")
 	}
-	return t.thelp.Funcs.TransformTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
+	return t.thelp.TransformTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
 }
 */
 //func (t *Tensor) AddAll()
