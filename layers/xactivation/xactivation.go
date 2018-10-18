@@ -281,7 +281,7 @@ func SetupNoOutDynamic(
 }
 
 //ForwardProp does the forward prop
-func (l *Layer) ForwardProp(handle *gocudnn.XHandle, x, y *layers.IO, batchsize int) error {
+func (l *Layer) ForwardProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 
 	if l.alphas == nil {
 		return l.act.FwdProp(handle, x.T(), y.T(), nil)
@@ -290,7 +290,7 @@ func (l *Layer) ForwardProp(handle *gocudnn.XHandle, x, y *layers.IO, batchsize 
 }
 
 //BackProp does the backprop operation
-func (l *Layer) BackProp(handle *gocudnn.XHandle, x, y *layers.IO, batchsize int) error {
+func (l *Layer) BackProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 
 	if l.alphas == nil {
 		return l.act.BwdProp(handle, x.T(), x.DeltaT(), y.DeltaT(), nil, nil)
