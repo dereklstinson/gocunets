@@ -209,6 +209,28 @@ func BuildNetworkInputIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims
 	return buildIO(frmt, dtype, dims, managed, true)
 }
 
+//BuildNetworkOutputIOFromSlice will return IO with the slice put into the DeltaT() section of the IO
+func BuildNetworkOutputIOFromSlice(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, slice []float32) (*IO, error) {
+
+	chkr := int32(1)
+	for i := 0; i < len(dims); i++ {
+		chkr *= dims[i]
+	}
+	if chkr != int32(len(slice)) {
+		return nil, errors.New("Slice passed length don't match dim volume")
+	}
+	sptr, err := gocudnn.MakeGoPointer(slice)
+	if err != nil {
+		return nil, err
+	}
+	newio, err := BuildIO(frmt, dtype, dims, managed)
+	if err != nil {
+		return nil, err
+	}
+
+	err = newio.LoadDeltaTValues(sptr)
+	return newio, err
+}
 func buildIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
 
 	if input == true {
@@ -281,14 +303,23 @@ func (i *IO) LoadDeltaTValues(input gocudnn.Memer) error {
 //Destroy frees all the memory assaciated with the tensor inside of IO
 func (i *IO) Destroy() error {
 	var flag bool
-	err := i.dx.Destroy()
-	if err != nil {
-		flag = true
+	var (
+		err  error
+		err1 error
+	)
+	if i.dx != nil {
+		err = i.dx.Destroy()
+		if err != nil {
+			flag = true
+		}
 	}
-	err1 := i.x.Destroy()
-	if err1 != nil {
-		flag = true
+	if i.x != nil {
+		err1 = i.x.Destroy()
+		if err1 != nil {
+			flag = true
+		}
 	}
+
 	if flag == true {
 		return fmt.Errorf("error:x: %s,dx: %s", err, err1)
 	}

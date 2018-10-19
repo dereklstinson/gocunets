@@ -112,7 +112,7 @@ func (c *Layer) Weights() *layers.IO {
 	return c.w
 }
 
-//LayerSetupPredefinedWeightsDefault
+//LayerSetupPredefinedWeightsDefault sets up a default layer with the weights already been made
 func LayerSetupPredefinedWeightsDefault(
 	handle *gocudnn.Handle,
 	input *layers.IO,
@@ -193,6 +193,38 @@ func AIOLayerSetupDefault(
 	return layer, output, nil
 
 }
+
+//LayerSetupV2 handles setting up the layer without knowing the input
+func LayerSetupV2(handle *gocudnn.Handle,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	filterdims []int32,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32,
+	managedmem bool) (*Layer, error) {
+
+	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.MakeRandomFromFaninDims(filterdims)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.bias.T().SetValues(handle, 0.0)
+	if err != nil {
+		return nil, err
+	}
+	_, err = layer.SetBestAlgosConsideringDims4d(handle, filterdims, filterdims, 0, false)
+	if err != nil {
+		return nil, err
+	}
+	return layer, nil
+}
+
+//AIOLayerSetupDefaultNoOut takes the input and figures out all the configurations with the default being fastest but no workspace
 func AIOLayerSetupDefaultNoOut(
 	handle *gocudnn.Handle,
 	input *layers.IO,
@@ -226,6 +258,24 @@ func AIOLayerSetupDefaultNoOut(
 	}
 	return layer, nil
 
+}
+
+//MakeRandomFromFaninDims does what it says it will make the weights random considering the fanin
+func (c *Layer) MakeRandomFromFaninDims(dims []int32) error {
+
+	if len(dims) < 5 {
+		fanin := float64(dims[1] * dims[2] * dims[3])
+		err := c.w.T().SetRandom(0, 1.0, fanin)
+		if err != nil {
+			return err
+		}
+
+	}
+	if len(dims) > 4 {
+		return errors.New("Not Available yet")
+	}
+
+	return nil
 }
 
 //MakeRandomFromFanin does what it says it will make the weights random considering the fanin

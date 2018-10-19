@@ -159,7 +159,6 @@ func findlengthfromdims(dims []int32) uint32 {
 func SetupNoOutDynamic(
 	h *gocudnn.XHandle,
 	input *layers.IO,
-	blocksize uint32,
 	amode gocudnn.XActivationMode,
 	tmode gocudnn.TrainingMode,
 	coef float64,
