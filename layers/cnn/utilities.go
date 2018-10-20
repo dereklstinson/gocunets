@@ -47,10 +47,14 @@ func (c *Layer) LoaddWValues(slice interface{}) error {
 func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
 	return c.bias.Images()
 }
+
+//WeightsFillSlice will fill a slice with the weight values
 func (c *Layer) WeightsFillSlice(input interface{}) error {
 	return c.w.T().Memer().FillSlice(input)
 
 }
+
+//DeltaWeightsFillSlice will fill the weights with values
 func (c *Layer) DeltaWeightsFillSlice(input interface{}) error {
 	return c.w.DeltaT().Memer().FillSlice(input)
 }

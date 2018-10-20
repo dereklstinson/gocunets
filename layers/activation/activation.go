@@ -62,7 +62,7 @@ func DefaultSetup(input *layers.IO, mode gocudnn.ActivationMode, memmanaged bool
 }
 
 //SetupNoOut takes default settings for coef (6) and NottPropNan
-func SetupNoOut(input *layers.IO, mode gocudnn.ActivationMode, memmanaged bool) (*Layer, error) {
+func SetupNoOut(mode gocudnn.ActivationMode, memmanaged bool) (*Layer, error) {
 
 	act, err := activation.StageOperation(mode, defaultnanprop, defaultcoef)
 	if err != nil {

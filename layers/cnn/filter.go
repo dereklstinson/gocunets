@@ -26,7 +26,11 @@ type Layer struct {
 	datatype   gocudnn.DataType
 	train      trainer.Trainer
 	btrain     trainer.Trainer
+	inputdims  []int32
+	outputdims []int32
 }
+
+//TempSave is a temporary struct for saving.  It will most likely be changed
 type TempSave struct {
 	Weights layers.Info `json:"Weights"`
 	Bias    layers.Info `json:"Bias"`
@@ -41,8 +45,8 @@ func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
-//SaveJson saves the weights to json
-func (c *Layer) SaveJson(folder, name string) error {
+//SaveJSON saves the weights to json
+func (c *Layer) SaveJSON(folder, name string) error {
 	var save TempSave
 	w, err := c.w.Info()
 	if err != nil {
@@ -198,26 +202,32 @@ func AIOLayerSetupDefault(
 func LayerSetupV2(handle *gocudnn.Handle,
 	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
+	inputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
 	dilation []int32,
+	workspace int,
+	fastest bool,
 	managedmem bool) (*Layer, error) {
 
 	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(filterdims)
+	err = layer.MakeRandomFromFaninDims(inputdims)
 	if err != nil {
 		return nil, err
 	}
+	layer.inputdims = inputdims
 	err = layer.bias.T().SetValues(handle, 0.0)
 	if err != nil {
 		return nil, err
 	}
-	_, err = layer.SetBestAlgosConsideringDims4d(handle, filterdims, filterdims, 0, false)
+	outputdims := find4doutputdims(inputdims, filterdims, pad, stride, dilation, frmt)
+	layer.outputdims = outputdims
+	_, err = layer.SetBestAlgosConsideringDims4d(handle, filterdims, outputdims, workspace, fastest)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +246,7 @@ func AIOLayerSetupDefaultNoOut(
 	managedmem bool,
 ) (*Layer, error) {
 
-	frmt, dtype, _, err := input.Properties()
+	frmt, dtype, inputdims, err := input.Properties()
 	if err != nil {
 		return nil, err
 	}
@@ -244,15 +254,19 @@ func AIOLayerSetupDefaultNoOut(
 	if err != nil {
 		return nil, err
 	}
+	layer.inputdims = inputdims
+	_, _, outputdims, _ := layer.w.Properties()
+	layer.outputdims = outputdims
 	err = layer.MakeRandomFromFanin(input)
 	if err != nil {
 		return nil, err
 	}
+
 	err = layer.bias.T().SetValues(handle, 0.0)
 	if err != nil {
 		return nil, err
 	}
-	_, err = layer.SetBestAlgosConsidering(handle, input, input, 0, false)
+	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, 0, false)
 	if err != nil {
 		return nil, err
 	}
@@ -485,4 +499,45 @@ func (c *Layer) backpropfilter(handle *gocudnn.Handle, wspace gocudnn.Memer, x, 
 		c.bwdf.beta,
 		c.bias.DeltaT())
 
+}
+
+func find4doutputdims(x, w, padding, stride, dilation []int32, frmt gocudnn.TensorFormat) []int32 {
+	var flag gocudnn.TensorFormatFlag
+	if frmt == flag.NCHW() {
+		return find4doutputdims4dNCHW(x, w, padding, stride, dilation)
+	}
+	return find4doutputdims4dNHWC(x, w, padding, stride, dilation)
+}
+func find4doutputdims4dNCHW(x, w, padding, stride, dilation []int32) []int32 {
+	out := make([]int32, len(x))
+	out[0] = x[0]
+	out[1] = w[0]
+	out[2] = findoutputdim(x[2], w[2], stride[0], padding[0], dilation[0])
+	out[3] = findoutputdim(x[3], w[3], stride[1], padding[1], dilation[1])
+	return out
+}
+func find4doutputdims4dNHWC(x, w, padding, stride, dilation []int32) []int32 {
+	out := make([]int32, len(x))
+	out[0] = x[0]
+	out[1] = findoutputdim(x[1], w[1], stride[0], padding[0], dilation[0])
+	out[2] = findoutputdim(x[2], w[2], stride[1], padding[1], dilation[1])
+	out[3] = w[0]
+
+	return out
+}
+
+/* for NCHW filter is KCHW
+(
+ K represents the number of output feature maps,
+ C the number of input feature maps,
+ R the number of rows per filter,
+ S the number of columns per filter.)
+for NHWC filter is KRSC
+ K represents the number of output feature maps,
+ R the number of rows per filter,
+ S the number of columns per filter.
+ C the number of input feature maps)
+*/
+func findoutputdim(x, w, s, p, d int32) int32 {
+	return 1 + (x+2*p-(((w-1)*d)+1))/s
 }
