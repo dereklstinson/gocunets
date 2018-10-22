@@ -124,6 +124,16 @@ func dimsize(dims []int32) int32 {
 	return x
 }
 
+//SetupAdamWandB returns a trainer for both WandB
+func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int) (*Adam, *Adam, error) {
+	adam1, err := SetupAdam(tctx, decay1, decay2, batch)
+	if err != nil {
+		return nil, nil, err
+	}
+	adam2, err := SetupAdam(tctx, decay1, decay2, batch)
+	return adam1, adam2, err
+}
+
 //SetupAdam sets up adam
 func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int) (*Adam, error) {
 

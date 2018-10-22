@@ -115,6 +115,15 @@ func (i Info) Stage(input *layers.IO) (*Layer, *layers.IO, error) {
 
 }
 
+//MakeOutputIO returns the output io for the layer
+func (a *Layer) MakeOutputIO(input *layers.IO, managed bool) (*layers.IO, error) {
+	fmt, dtype, dims, err := input.Properties()
+	if err != nil {
+		return nil, err
+	}
+	return layers.BuildIO(fmt, dtype, dims, managed)
+}
+
 //Info Returns layer info if error is not nil then values will be set to golang default
 func (a *Layer) Info() (Info, error) {
 	op, err := a.act.Info()

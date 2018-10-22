@@ -20,6 +20,7 @@ type xtras struct {
 func (l *Layer) MakeOutputLayer(input *layers.IO) (*layers.IO, error) {
 	frmt, dtype, _, err := input.Properties()
 	if err != nil {
+
 		return nil, err
 	}
 	dims, err := l.pD.OutputDims(input.T())
@@ -34,6 +35,27 @@ func (l *Layer) MakeOutputLayer(input *layers.IO) (*layers.IO, error) {
 //SetupNoOutput will setup the pooling layer but not provide an output
 func SetupNoOutput(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, error) {
 	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Layer{
+		pD: pD,
+		fwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+		bwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+	}, nil
+}
+
+//SetupDims will setup the pooling layer but not provide an output
+func SetupDims(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, numbofinputdims int, window, padding, stride []int32, managedmem bool) (*Layer, error) {
+	pD, err := pool.StageOpDims(mode, nan, numbofinputdims, window, padding, stride)
 
 	if err != nil {
 		return nil, err

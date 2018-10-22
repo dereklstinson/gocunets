@@ -61,6 +61,8 @@ func BuildNormal(input *layers.IO, answers *layers.IO, mode gocudnn.SoftMaxMode,
 	}, nil
 
 }
+
+//BuildNoErrorChecking builds a layer wheile not checking for possible errors on input
 func BuildNoErrorChecking() *Layer {
 
 	sftmax := softmax.DefaultOperation()

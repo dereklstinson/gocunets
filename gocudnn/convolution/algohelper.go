@@ -59,12 +59,15 @@ func (c *Ops) SetBestAlgosConsideringDims4d(
 	}
 	defer w.DestroyDescriptor()
 	if fastest == true {
-		return c.setfastestdescriptors(handle, x, y, w)
+		a, err := c.setfastestdescriptors(handle, x, y, w)
+		return a, err
 	}
 	if wspacesize > 0 {
-		return c.setwspacelimitdescriptors(handle, x, y, w, wspacesize)
+		a, err := c.setwspacelimitdescriptors(handle, x, y, w, wspacesize)
+		return a, err
 	}
-	return gocudnn.SizeT(wspacesize), c.setnowspacedescriptors(handle, x, y, w)
+	err = c.setnowspacedescriptors(handle, x, y, w)
+	return 0, err
 }
 
 //this will set the fastest algos to to the struct and return the largest worksize for fwd, bwdd, bwdf. if an error is found nothing will be set.

@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
-
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -179,22 +178,13 @@ func (i *IO) PlaceT(T *tensor.Volume) {
 }
 
 //ZeroClone Makes a zeroclone of the IO
-func (i *IO) ZeroClone(handle *gocudnn.Handle) (*IO, error) {
-	t, err := i.T().ZeroClone(handle)
+func (i *IO) ZeroClone() (*IO, error) {
+	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
-	dt, err := i.T().ZeroClone(handle)
-	if err != nil {
-		t.Destroy()
-		return nil, err
-	}
-	return &IO{
-		x:       t,
-		dx:      dt,
-		dims:    i.dims,
-		managed: i.managed,
-	}, nil
+
+	return BuildIO(frmt, dtype, dims, i.IsManaged())
 }
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor

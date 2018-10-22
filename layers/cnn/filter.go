@@ -227,7 +227,7 @@ func LayerSetupV2(handle *gocudnn.Handle,
 	}
 	outputdims := find4doutputdims(inputdims, filterdims, pad, stride, dilation, frmt)
 	layer.outputdims = outputdims
-	_, err = layer.SetBestAlgosConsideringDims4d(handle, filterdims, outputdims, workspace, fastest)
+	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, filterdims, workspace, fastest)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,8 @@ func AIOLayerSetupDefaultNoOut(
 		return nil, err
 	}
 	layer.inputdims = inputdims
-	_, _, outputdims, _ := layer.w.Properties()
+	frmt, _, wdims, _ := layer.w.Properties()
+	outputdims := find4doutputdims(inputdims, wdims, pad, stride, dilation, frmt)
 	layer.outputdims = outputdims
 	err = layer.MakeRandomFromFanin(input)
 	if err != nil {
@@ -266,7 +267,7 @@ func AIOLayerSetupDefaultNoOut(
 	if err != nil {
 		return nil, err
 	}
-	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, 0, false)
+	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, wdims, 0, false)
 	if err != nil {
 		return nil, err
 	}

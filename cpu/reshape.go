@@ -154,50 +154,6 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []
 	return nil
 }
 
-/*
-//ShapeToBatchNCHW4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, h, w int32) ([]float32, []int32, error) {
-	if len(dims) != 4 {
-		return nil, nil, errors.New("The Length of dims should equal 4")
-	}
-	if dims[0] != int32(1) {
-		return nil, nil, errors.New("N value needs to be 1")
-	}
-	n1 := intceiling(h, dims[2])
-	n2 := intceiling(w, dims[3])
-	oHH := h
-	oHW := w
-
-	c := dims[1]
-	h = dims[2]
-	w = dims[3]
-	newdims := []int32{1, c, h, w}
-	v := make([]float32, 1*c*h*w)
-
-	striderh := int32(0)
-	for i := int32(0); i < n1; i++ {
-		striderw := int32(0)
-		for j := int32(0); j < n2; j++ {
-			for k := int32(0); k < c; k++ {
-				for l := int32(0); l < h; l++ {
-					oh := striderh + l
-					for m := int32(0); m < w; m++ {
-						ow := striderw + m
-						if oh < oHH && ow < oHW {
-							v[(k*oHW*oHH)+(oh*oHW)+(ow)] = values[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m]
-						}
-
-					}
-				}
-			}
-			striderw += w
-		}
-		striderh += h
-	}
-	return v, newdims, nil
-}
-*/
-
 //ShapeToBatchNHWC4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
 func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]float32, []int32, error) {
 	if len(dims) != 4 {

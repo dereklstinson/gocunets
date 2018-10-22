@@ -6,17 +6,16 @@ import (
 	"sync"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	"github.com/dereklstinson/GoCudnn"
-
-	//	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
+	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/GoCuNets/testing/mnist/mnistgpu"
+	"github.com/dereklstinson/GoCuNets/trainer"
+	"github.com/dereklstinson/GoCudnn" //	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	//	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -59,98 +58,19 @@ func main() {
 	   Lets go ahead and start loading the training data
 
 	*/
+	//asdfas
 
 	batchsize := 20 // how many forward and backward runs before updating weights.
 
-	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
-	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
-	cherror(err)
-	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
-	cherror(err)
-
-	//Normalizing Data
-	averagetest := dfuncs.FindAverage(testingdata)
-	averagetrain := dfuncs.FindAverage(trainingdata)
-	fmt.Println("Finding Average Value")
-	averagetotal := ((6.0 * averagetrain) + averagetest) / float32(7)
-
-	fmt.Println("Normalizing Data")
-	trainingdata = dfuncs.NormalizeData(trainingdata, averagetotal)
-	testingdata = dfuncs.NormalizeData(testingdata, averagetotal)
-	fmt.Println("Length of Training Data", len(trainingdata))
-	fmt.Println("Length of Testing Data", len(testingdata))
-
-	//Since Data is so small we can load it all into the GPU
-	var gputrainingdata []*layers.IO
-	var gpuanswersdata []*layers.IO
-	var gputestingdata []*layers.IO
-	var gputestansdata []*layers.IO
-
-	batchnum := 0 //Im lazy so as I am making the batched data I am going to count it
-
-	for i := 0; i < len(trainingdata); { //Counting i inside the j loop, because I don't want to figure out the math
-		batchslice := make([]float32, 0)
-		batchlabelslice := make([]float32, 0)
-
-		for j := 0; j < batchsize; j++ {
-			batchslice = append(batchslice, trainingdata[i].Data...)
-			batchlabelslice = append(batchlabelslice, trainingdata[i].Label...)
-			i++
-		}
-
-		data, err := gocudnn.MakeGoPointer(batchslice)
-		cherror(err)
-		label, err := gocudnn.MakeGoPointer(batchlabelslice)
-		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
-		cherror(err)
-		err = inpt.LoadTValues(data)
-		cherror(err)
-		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
-		cherror(err)
-		err = ansr.LoadDeltaTValues(label)
-		cherror(err)
-		gputrainingdata = append(gputrainingdata, inpt)
-		gpuanswersdata = append(gpuanswersdata, ansr)
-		batchnum++
-	}
-	fmt.Println("Done Loading Training to GPU")
-
-	testbatchnum := 0
-
-	for i := 0; i < len(testingdata); {
-		batchslice := make([]float32, 0)
-		batchlabelslice := make([]float32, 0)
-		for j := 0; j < batchsize; j++ {
-			batchslice = append(batchslice, testingdata[i].Data...)
-			batchlabelslice = append(batchlabelslice, testingdata[i].Label...)
-			i++
-		}
-		data, err := gocudnn.MakeGoPointer(batchslice)
-		cherror(err)
-		label, err := gocudnn.MakeGoPointer(batchlabelslice)
-		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
-		cherror(err)
-		err = inpt.LoadTValues(data)
-		cherror(err)
-		gputestingdata = append(gputestingdata, inpt)
-		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
-		cherror(err)
-		err = ansr.LoadDeltaTValues(label)
-		cherror(err)
-		gputestansdata = append(gputestansdata, ansr)
-		testbatchnum++
-	}
-
-	fmt.Println("Done Loading Testing To GPU")
-
+	gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata := mnistgpu.MNISTGpuLabels(batchsize, frmt, dtype, memmanaged)
+	batchnum := len(gputrainingdata)
+	testbatchnum := len(gputestingdata)
 	cherror(err)
 	tctx, err := gocudnn.Xtra{}.MakeXHandle(trainingkernellocation, devices[0])
 	//	stream2, err := cuda.CreateBlockingStream()
 	tctx.SetStream(stream)
 	cherror(err)
-	//	blocksize := uint32(32)
+	//	blocksize := uint32(32)l
 	//	atmode := gocudnn.TrainingModeFlag{}.Adam()
 	AMode := gocudnn.ActivationModeFlag{}.Relu()
 	//Amode := gocudnn.XActivationModeFlag{}.Leaky()

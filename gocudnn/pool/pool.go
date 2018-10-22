@@ -81,6 +81,34 @@ func StageOperation(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input 
 	}, nil
 }
 
+//StageOpDims stages the operation with the dims of input known knows
+func StageOpDims(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, numberofdims int, window, padding, stride []int32) (*Ops, error) {
+	var err error
+
+	if numberofdims > 4 {
+		pooldim := int32(len(window)) //This is probably wrong. I haven't tested it yet
+		desc, err := gocudnn.Pooling{}.CreatePoolingNdDescriptor(mode, nan, pooldim, window, padding, stride)
+		if err != nil {
+			return nil, err
+		}
+		return &Ops{
+			desc:     desc,
+			inputdim: numberofdims,
+		}, nil
+	}
+	if numberofdims < 4 {
+		return nil, errors.New("Dims should be 4 or more")
+	}
+	desc, err := gocudnn.Pooling{}.NewPooling2dDescriptor(mode, nan, window, padding, stride)
+	if err != nil {
+		return nil, err
+	}
+	return &Ops{
+		desc:     desc,
+		inputdim: numberofdims,
+	}, nil
+}
+
 //Properties returns the pooling properties
 func (p *Ops) Properties() (gocudnn.PoolingMode, gocudnn.PropagationNAN, []int32, []int32, []int32, error) {
 	return p.desc.GetPoolingDescriptor()

@@ -13,6 +13,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	"github.com/dereklstinson/GoCuNets/layers/xactivation"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -26,6 +27,29 @@ type layer struct {
 	drop        *dropout.Layer
 	batch       *batchnorm.Layer
 	reshape     *reshape.Layer
+}
+
+//asdfas
+func (l *layer) loadtrainer(handle *Handles, trainerweights, trainerbias trainer.Trainer) error {
+	if l.cnn != nil {
+		return l.cnn.LoadTrainer(handle.xhandle, trainerweights, trainerbias)
+	}
+	if l.fcnn != nil {
+		return l.fcnn.LoadTrainer(handle.xhandle, trainerweights, trainerbias)
+
+	}
+	return errors.New("inbedded error doesn't support trainers")
+}
+func (l *layer) needstrainer() bool {
+	if l.cnn != nil {
+
+		return true
+	}
+	if l.fcnn != nil {
+
+		return true
+	}
+	return false
 }
 
 func wraplayer(input interface{}) *layer {
@@ -87,19 +111,20 @@ func (l *layer) getoutput(handle *Handles, input *layers.IO) (*layers.IO, error)
 		return l.pool.MakeOutputLayer(input)
 	}
 	if l.drop != nil {
-		return input.ZeroClone(handle.cudnn)
+		return input.ZeroClone()
 	}
 	if l.activation != nil {
-		return input.ZeroClone(handle.cudnn)
+
+		return input.ZeroClone()
 	}
 	if l.batch != nil {
-		return input.ZeroClone(handle.cudnn)
+		return input.ZeroClone()
 	}
 	if l.xactivation != nil {
-		return input.ZeroClone(handle.cudnn)
+		return input.ZeroClone()
 	}
 	if l.softmax != nil {
-		return input.ZeroClone(handle.cudnn)
+		return input.ZeroClone()
 	}
 	if l.reshape != nil {
 		return l.reshape.MakeOutputTensor(handle.xhandle, input)

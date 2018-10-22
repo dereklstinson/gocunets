@@ -5,9 +5,8 @@ import (
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/trainer"
-
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -248,9 +247,9 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 		yfmt, ydtype, ydims, _ := y.Properties()
 		nfmt, ndtype, ndims, _ := l.neurons.Properties()
 
-			fmt.Println("x:", xfmt, xdtype, xdims)
-			fmt.Println("y:", yfmt, ydtype, ydims)
-			fmt.Println("n: ", nfmt, ndtype, ndims)
+		fmt.Println("x:", xfmt, xdtype, xdims)
+		fmt.Println("y:", yfmt, ydtype, ydims)
+		fmt.Println("n: ", nfmt, ndtype, ndims)
 	*/
 	err := l.conv.FwdProp(handle, l.fwd.alpha1, x.T(), l.neurons.T(), nil, l.fwd.beta, y.T())
 	if err != nil {
@@ -270,7 +269,13 @@ func (l *Layer) MakeOutputTensor(batch int) (*layers.IO, error) {
 	}
 	managed := l.neurons.IsManaged()
 	neurons := dims[0]
-	return layers.BuildIO(frmt, dtype, []int32{int32(batch), neurons, int32(1), int32(1)}, managed)
+	var frmtflg gocudnn.TensorFormatFlag
+	if frmt == frmtflg.NCHW() {
+		return layers.BuildIO(frmt, dtype, []int32{int32(batch), neurons, int32(1), int32(1)}, managed)
+	} else if frmt == frmtflg.NHWC() {
+		return layers.BuildIO(frmt, dtype, []int32{int32(batch), int32(1), int32(1), neurons}, managed)
+	}
+	return nil, errors.New("Not Supported Format")
 }
 
 func (l *Layer) DeltaWeights(input interface{}) error {
