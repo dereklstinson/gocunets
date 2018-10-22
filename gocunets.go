@@ -32,10 +32,13 @@ type Flag struct {
 
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
-	layer    []*layer
-	mem      []*layers.IO
-	err      chan error
-	position int
+	layer       []*layer
+	mem         []*layers.IO
+	err         chan error
+	position    int
+	hiomode     hiddenmode
+	hybridcount int
+	hybridsize  int
 }
 
 //Handles holds both handle and xhandle handle
@@ -108,6 +111,28 @@ func (m *Network) TrainersNeeded() int {
 		}
 	}
 	return counter
+}
+
+type hiddenmode int
+
+const dynamichiddenio = hiddenmode(0)
+const statichiddenio = hiddenmode(1)
+const hibridhiddenio = hiddenmode(2)
+
+//DynamicHidden changes the hidden IO between layers to be dynamic  // Bad performance pretty flexable
+func (m *Network) DynamicHidden() {
+	m.hiomode = hiddenmode(0)
+}
+
+//StaticHidden changes the IO between layers to be set in place //Good performance not as flexable
+func (m *Network) StaticHidden() {
+	m.hiomode = hiddenmode(1)
+}
+
+//HybridHidden does a static size for a certain count passed and will change the size maybe randomly.
+func (m *Network) HybridHidden(hybridsize int) {
+	m.hybridsize = hybridsize
+	m.hiomode = hiddenmode(2)
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
@@ -216,6 +241,7 @@ func (m *Network) AddLayerandOutput(layer interface{}, output *layers.IO) error 
 
 //ForwardProp does the forward prop for a prebuilt Network
 func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+
 	err := m.freehiddenlayers()
 	if err != nil {
 		return err
@@ -239,10 +265,8 @@ func (m *Network) BackProp(handle *Handles, wspace *gocudnn.Malloced, x, y *laye
 }
 
 func (m *Network) forwardprop(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.stream.Sync()
-	if err != nil {
-		return err
-	}
+	var err error
+
 	err = m.layer[0].forwardprop(handle, wspace, x, m.mem[0])
 	if err != nil {
 		return err
@@ -259,13 +283,14 @@ func (m *Network) forwardprop(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 	if err != nil {
 		return err
 	}
+	return nil
 
-	return handle.stream.Sync()
 }
 
 //BackProp does the backprop of a Network
 func (m *Network) backprop(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.stream.Sync()
+	var err error
+	//	err := handle.stream.Sync()
 	if err != nil {
 		return err
 	}
@@ -287,8 +312,8 @@ func (m *Network) backprop(handle *Handles, wspace *gocudnn.Malloced, x, y *laye
 	if err != nil {
 		return err
 	}
-
-	return handle.stream.Sync()
+	return nil
+	//	return handle.stream.Sync()
 }
 
 //UpdateWeights updates the weights of a Network

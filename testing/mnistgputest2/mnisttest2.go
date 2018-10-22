@@ -21,9 +21,7 @@ func main() {
 
 	trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
 	gocudnn.Cuda{}.LockHostThread()
-	//cudnn context
 	var cuda gocudnn.Cuda
-	//cuda.
 	devices, err := cuda.GetDeviceList()
 	cherror(err)
 	devicenum := len(devices)
@@ -56,7 +54,7 @@ func main() {
 	*/
 	//asdfas
 
-	batchsize := 40 // how many forward and backward runs before updating weights.
+	batchsize := 20 // how many forward and backward runs before updating weights.
 
 	gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata := mnistgpu.MNISTGpuLabels(batchsize, frmt, dtype, memmanaged)
 	batchnum := len(gputrainingdata)
@@ -119,7 +117,6 @@ func main() {
 			cherror(network.ForwardProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
 			cherror(network.BackProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
 			cherror(network.UpdateWeights(handle, batchsize))
-			stream.Sync()
 
 		}
 
@@ -137,7 +134,7 @@ func main() {
 			cherror(err)
 			stream.Sync()
 		}
-		stream.Sync()
+
 		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
 			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
 			fmt.Printf("Epoch Percent Correct: %-0.3f		 Epoch Loss: %-0.3f              Epoch Number: %d\n", percent, loss, k)
