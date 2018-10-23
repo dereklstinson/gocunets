@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -32,13 +33,16 @@ type Flag struct {
 
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
-	layer       []*layer
-	mem         []*layers.IO
-	err         chan error
-	position    int
-	hiomode     hiddenmode
-	hybridcount int
-	hybridsize  int
+	layer         []*layer
+	mem           []*layers.IO
+	err           chan error
+	position      int
+	hiomode       hiddenmode
+	resizecounter int
+	hybridsize    int
+	reshaper      *reshape.Layer
+	//	originalinput *layers.IO //original input that might have to be held onto so that errors can backprop back through it
+	resizeinput *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
 }
 
 //Handles holds both handle and xhandle handle
@@ -120,19 +124,34 @@ const statichiddenio = hiddenmode(1)
 const hibridhiddenio = hiddenmode(2)
 
 //DynamicHidden changes the hidden IO between layers to be dynamic  // Bad performance pretty flexable
-func (m *Network) DynamicHidden() {
+func (m *Network) DynamicHidden() error {
 	m.hiomode = hiddenmode(0)
+	return nil
 }
 
 //StaticHidden changes the IO between layers to be set in place //Good performance not as flexable
-func (m *Network) StaticHidden() {
+func (m *Network) StaticHidden(handle *Handles) error {
+	var flg reshape.ModeFlag
+	var err error
+	m.reshaper, err = reshape.Build(handle.xhandle, flg.Resize(), nil, false)
+	if err != nil {
+		return err
+	}
 	m.hiomode = hiddenmode(1)
+	return nil
 }
 
-//HybridHidden does a static size for a certain count passed and will change the size maybe randomly.
-func (m *Network) HybridHidden(hybridsize int) {
+//HybridHidden does a static size for a certain count passed and will change the size maybe randomly (probably going to be to the first image it comes accross).
+func (m *Network) HybridHidden(handle *Handles, hybridsize int) error {
+	var flg reshape.ModeFlag
+	var err error
+	m.reshaper, err = reshape.Build(handle.xhandle, flg.Resize(), nil, false)
+	if err != nil {
+		return err
+	}
 	m.hybridsize = hybridsize
 	m.hiomode = hiddenmode(2)
+	return nil
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
@@ -166,27 +185,8 @@ func (m *Network) AddLayer(layer interface{}, err error) {
 	return
 }
 
-//BuildHiddenSameSize will build a hidden network layer based on the input given used for my generator network
-func (m *Network) BuildHiddenSameSize(handle *Handles, input *layers.IO) error {
-	if len(m.mem) > 0 || m.mem != nil {
-		return errors.New("Mem Already Set")
-	}
-	for i := 0; i < len(m.layer)-1; i++ {
-		mem, err := input.ZeroClone()
-		if err != nil {
-			for j := 0; j < len(m.mem); j++ {
-				m.mem[j].Destroy()
-			}
-			return err
-		}
-		m.mem = append(m.mem, mem)
-
-	}
-	return nil
-}
-
-//BuildHiddenDynamicSize will build a hidden network layer based on the input given used for my generator network
-func (m *Network) BuildHiddenDynamicSize(handle *Handles, input *layers.IO) error {
+//buildhiddenios will build a hidden network layer based on the input given used for my generator network
+func (m *Network) buildhiddenios(handle *Handles, input *layers.IO) error {
 	if len(m.mem) > 0 || m.mem != nil {
 		return errors.New("Mem Already Set")
 	}
@@ -208,7 +208,7 @@ func (m *Network) BuildHiddenDynamicSize(handle *Handles, input *layers.IO) erro
 	}
 	return nil
 }
-func (m *Network) freehiddenlayers() error {
+func (m *Network) freehiddenios() error {
 	var flag bool
 	if m.mem == nil {
 		return nil
@@ -241,26 +241,148 @@ func (m *Network) AddLayerandOutput(layer interface{}, output *layers.IO) error 
 
 //ForwardProp does the forward prop for a prebuilt Network
 func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	switch m.hiomode {
+	case dynamichiddenio:
+		err := m.freehiddenios()
+		if err != nil {
+			return err
+		}
+		err = m.buildhiddenios(handle, x)
+		if err != nil {
+			return err
+		}
+		return m.forwardprop(handle, wspace, x, y)
+	case statichiddenio:
+		if m.resizecounter == 0 {
+			m.resizecounter++
+			err := m.freehiddenios()
+			if err != nil {
+				return err
+			}
+			err = m.buildhiddenios(handle, x)
+			if err != nil {
+				return err
+			}
 
-	err := m.freehiddenlayers()
-	if err != nil {
-		return err
-	}
-	err = m.BuildHiddenDynamicSize(handle, x)
-	if err != nil {
-		return err
-	}
-	return m.forwardprop(handle, wspace, x, y)
+			m.resizeinput, err = x.ZeroClone()
+			if err != nil {
+				m.resizeinput.Destroy()
+				return err
+			}
+			return m.forwardprop(handle, wspace, x, y)
+		}
+		_, _, dimsx, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		_, _, dimsre, err := m.resizeinput.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(dimsx, dimsre) == true {
+			return m.forwardprop(handle, wspace, x, y)
+		}
+		m.reshaper.ForwardProp(handle.xhandle, x, m.resizeinput)
+		return m.forwardprop(handle, wspace, m.resizeinput, y)
+	case hibridhiddenio:
+		m.resizecounter++
+		if m.resizecounter >= m.hybridsize {
+			m.resizecounter = 0
+			err := m.freehiddenios()
+			if err != nil {
+				return err
+			}
+			err = m.buildhiddenios(handle, x)
+			if err != nil {
+				return err
+			}
+			if m.resizeinput != nil {
+				err = m.resizeinput.Destroy()
+				if err != nil {
+					return err
+				}
+			}
+			m.resizeinput, err = x.ZeroClone()
+			if err != nil {
+				return err
+			}
+			return m.forwardprop(handle, wspace, x, y)
+		}
+		_, _, dimsx, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		_, _, dimsre, err := m.resizeinput.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(dimsx, dimsre) == true {
+			return m.forwardprop(handle, wspace, x, y)
+		}
+		m.reshaper.ForwardProp(handle.xhandle, x, m.resizeinput)
+		return m.forwardprop(handle, wspace, m.resizeinput, y)
 
+	}
+	return errors.New("ForwardProp-Unsupported Hidden Mode")
+
+}
+func comparedims(x, y []int32) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i := 0; i < len(x); i++ {
+		if x[i] != y[i] {
+			return false
+		}
+	}
+	return true
 }
 
 //BackProp does the backprop of the hidden layers
 func (m *Network) BackProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := m.backprop(handle, wspace, x, y)
-	if err != nil {
-		return err
+
+	switch m.hiomode {
+	case dynamichiddenio:
+		return m.backprop(handle, wspace, x, y)
+
+	case statichiddenio:
+		_, _, dimsx, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		_, _, dimsre, err := m.resizeinput.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(dimsx, dimsre) == true {
+			return m.backprop(handle, wspace, x, y)
+		}
+
+		err = m.backprop(handle, wspace, m.resizeinput, y)
+		if err != nil {
+			return err
+		}
+		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+	case hibridhiddenio:
+		_, _, dimsx, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		_, _, dimsre, err := m.resizeinput.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(dimsx, dimsre) == true {
+			return m.backprop(handle, wspace, x, y)
+		}
+
+		err = m.backprop(handle, wspace, m.resizeinput, y)
+		if err != nil {
+			return err
+		}
+		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
 	}
-	return nil
+	return errors.New("BackProp-Unsupported Hidden Mode")
 
 }
 
@@ -301,7 +423,7 @@ func (m *Network) backprop(handle *Handles, wspace *gocudnn.Malloced, x, y *laye
 		return err
 	}
 
-	for i := lnum - 2; i > 1; i-- {
+	for i := lnum - 2; i > 0; i-- {
 		err = m.layer[i].backprop(handle, wspace, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return err
@@ -318,6 +440,10 @@ func (m *Network) backprop(handle *Handles, wspace *gocudnn.Malloced, x, y *laye
 
 //UpdateWeights updates the weights of a Network
 func (m *Network) UpdateWeights(handle *Handles, batch int) error {
+	err := handle.stream.Sync()
+	if err != nil {
+		return err
+	}
 	for i := 0; i < len(m.layer); i++ {
 		err := m.layer[i].updateWeights(handle, batch)
 		if err != nil {

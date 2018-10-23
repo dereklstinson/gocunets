@@ -33,6 +33,8 @@ func (l *Layer) MakeOutputTensor(handle *gocudnn.XHandle, x *layers.IO) (*layers
 		return l.gettransposeIO(handle, x, l.networkinput)
 	case lmf.S2B():
 		return l.getshapetobatchio(handle, x, l.window[0], l.window[1], l.networkinput)
+	case lmf.Resize():
+		return nil, errors.New("No output descriptor needed ")
 	}
 	return nil, errors.New("Layer doesn't support mode passed")
 }
@@ -45,6 +47,8 @@ func (l *Layer) ForwardProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 		return l.transposeforwardprop(handle, x, y)
 	case lmf.S2B():
 		return l.spacetobatchforwardprop(handle, x, y)
+	case lmf.Resize():
+		return l.resizeforward(handle, x, y)
 	}
 	return errors.New("Layer doesn't support mode passed")
 }
@@ -57,6 +61,8 @@ func (l *Layer) BackProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 		return l.transposebackprop(handle, x, y)
 	case lmf.S2B():
 		return l.spacetobatchbackprop(handle, x, y)
+	case lmf.Resize():
+		return l.resizebackward(handle, x, y)
 	}
 	return errors.New("Layer doesn't support mode passed")
 }
@@ -76,4 +82,9 @@ func (l ModeFlag) Transpose() Mode {
 //S2B sets layer mode to space to batch
 func (l ModeFlag) S2B() Mode {
 	return Mode(2)
+}
+
+//S2B sets layer mode to space to batch
+func (l ModeFlag) Resize() Mode {
+	return Mode(3)
 }

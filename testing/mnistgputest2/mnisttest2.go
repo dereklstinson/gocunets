@@ -26,9 +26,14 @@ func main() {
 	cherror(err)
 	devicenum := len(devices)
 	fmt.Println("Number of Devices:", devicenum)
-	err = devices[0].Set()
+	device := devices[0]
+	if len(devices) == 2 {
+		device = devices[1]
+	}
+
+	err = device.Set()
 	cherror(err)
-	handle := gocunets.CreateHandle(devices[0], trainingkernellocation)
+	handle := gocunets.CreateHandle(device, trainingkernellocation)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	cherror(handle.SetStream(stream))
 
@@ -87,14 +92,17 @@ func main() {
 	network.AddLayer( //activation
 		activation.SetupNoOut(AMode, memmanaged),
 	)
+
 	network.AddLayer( //convolution
 		fcnn.CreateFromshapeNoOut(handle.Cudnn(), 10, in(batchsize, 20, 4, 4), memmanaged, dtype, frmt),
 	)
 	network.AddLayer( //softmaxoutput
 		softmax.BuildNoErrorChecking(), nil,
 	)
-
+	cherror(network.DynamicHidden())
+	//cherror(network.StaticHidden(handle))
 	numoftrainers := network.TrainersNeeded()
+	fmt.Println("Number of Trainers:", numoftrainers)
 	decay1, decay2 := float32(0.000001), float32(0.0001)
 	wtrainer := make([]trainer.Trainer, numoftrainers)
 	btrainer := make([]trainer.Trainer, numoftrainers)
@@ -132,7 +140,7 @@ func main() {
 			cherror(err)
 			err = gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j])
 			cherror(err)
-			stream.Sync()
+
 		}
 
 		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
@@ -144,8 +152,8 @@ func main() {
 	}
 
 	gocudnn.Cuda{}.UnLockHostThread()
-	err = devices[0].Reset()
-	cherror(err)
+	cherror(device.Reset())
+
 }
 func printoutput(numofans, batchsize int, input []float32) {
 	for i := 0; i < batchsize; i++ {

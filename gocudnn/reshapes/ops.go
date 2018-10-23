@@ -8,6 +8,7 @@ import (
 type Ops struct {
 	s2b        *gocudnn.XShapetoBatchD
 	trans      *gocudnn.XTransposeD
+	resize     *gocudnn.XResizeD
 	nCHWtonHWC []int32
 	nHWCtonCHW []int32
 }
@@ -22,9 +23,11 @@ func Stage(h *gocudnn.XHandle) (*Ops, error) {
 	if err != nil {
 		return nil, err
 	}
+	resize, err := gocudnn.Xtra{}.CreateResizeDesc(h, false)
 	return &Ops{
 		s2b:        s2b,
 		trans:      trans,
+		resize:     resize,
 		nCHWtonHWC: []int32{0, 2, 3, 1},
 		nHWCtonCHW: []int32{0, 3, 1, 2},
 	}, nil
