@@ -5,11 +5,6 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//OutputDims will be the dims of the output tensor that will have to be made
-func (c *Layer) OutputDims(input *layers.IO) ([]int32, error) {
-	return c.conv.OutputDim(input.T(), c.w.T())
-}
-
 //MakeOutputTensor makes the output tensor of the layer
 func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO) (*layers.IO, error) {
 	dims, err := c.conv.OutputDim(input.T(), c.w.T())

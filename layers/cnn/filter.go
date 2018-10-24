@@ -26,8 +26,9 @@ type Layer struct {
 	datatype   gocudnn.DataType
 	train      trainer.Trainer
 	btrain     trainer.Trainer
-	inputdims  []int32
-	outputdims []int32
+	pad        []int32
+	dilation   []int32
+	stride     []int32
 }
 
 //TempSave is a temporary struct for saving.  It will most likely be changed
@@ -116,10 +117,54 @@ func (c *Layer) Weights() *layers.IO {
 	return c.w
 }
 
-//LayerSetupPredefinedWeightsDefault sets up a default layer with the weights already been made
-func LayerSetupPredefinedWeightsDefault(
+//LoadLayerStatic sets up a default layer with the weights already been made
+func LoadLayerStatic(
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	handle *gocudnn.Handle,
-	input *layers.IO,
+	inputdims []int32,
+	filterdims []int32,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32,
+	managedmem bool,
+	fastest bool,
+	wspacesize int,
+	weights interface{},
+	bias interface{},
+) (*Layer, error) {
+
+	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.LoadWValues(weights)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.LoadBiasValues(bias)
+
+	if err != nil {
+		return nil, err
+	}
+	_, _, wdims, err := layer.w.Properties()
+	if err != nil {
+		return nil, err
+	}
+	outputdims := find4doutputdims(inputdims, wdims, pad, stride, dilation, frmt)
+	layer.wspacesize, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, wdims, wspacesize, fastest)
+	if err != nil {
+		return nil, err
+	}
+	return layer, nil
+}
+
+//LoadLayerDynamic sets up a default layer with the weights already been made
+func LoadLayerDynamic(
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	handle *gocudnn.Handle,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -128,78 +173,66 @@ func LayerSetupPredefinedWeightsDefault(
 	managedmem bool,
 	weights interface{},
 	bias interface{},
-) (*Layer, *layers.IO, error) {
+) (*Layer, error) {
 
-	frmt, dtype, _, err := input.Properties()
+	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
-		return nil, nil, err
-	}
-	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	err = layer.LoadWValues(weights)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	err = layer.LoadBiasValues(bias)
-	output, err := layer.MakeOutputTensor(handle, input)
-	if err != nil {
-		return nil, nil, err
-	}
-	_, err = layer.SetBestAlgosConsidering(handle, input, output, 0, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	return layer, output, nil
+	return layer, nil
 
 }
 
-//AIOLayerSetupDefault builds a layer based on the input, and other values passed.
-//It will choose the propigation algos with the consideration of not wanting any workspace.
-//It will also build and pass the outputlayer.
-func AIOLayerSetupDefault(
-	handle *gocudnn.Handle,
-	input *layers.IO,
+//OutputDims will return the dims for the output
+func (c *Layer) OutputDims(inputdims []int32) []int32 {
+	if len(inputdims) != 4 {
+		return nil
+	}
+	frmt, _, dims, err := c.w.Properties()
+	if err != nil {
+		return nil
+	}
+
+	return find4doutputdims(inputdims, dims, c.pad, c.stride, c.dilation, frmt)
+
+}
+
+//SetupDynamic sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
+func SetupDynamic(handle *gocudnn.Handle,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	guessinputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
 	dilation []int32,
-	managedmem bool,
-) (*Layer, *layers.IO, error) {
+	managedmem bool) (*Layer, error) {
+	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	err = layer.MakeRandomFromFaninDims(guessinputdims)
+	if err != nil {
+		return nil, err
+	}
 
-	frmt, dtype, _, err := input.Properties()
-	if err != nil {
-		return nil, nil, err
-	}
-	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
-	if err != nil {
-		return nil, nil, err
-	}
-	err = layer.MakeRandomFromFanin(input)
-	if err != nil {
-		return nil, nil, err
-	}
 	err = layer.bias.T().SetValues(handle, 0.0)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	output, err := layer.MakeOutputTensor(handle, input)
-	if err != nil {
 
-		return nil, nil, err
-	}
-	_, err = layer.SetBestAlgosConsidering(handle, input, output, 0, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	return layer, output, nil
-
+	layer.pad, layer.stride, layer.dilation = pad, stride, dilation
+	return layer, nil
 }
 
-//LayerSetupV2 handles setting up the layer without knowing the input
-func LayerSetupV2(handle *gocudnn.Handle,
+//SetUpStatic sets up the layer and decides on the layers fwd and bwd algos on first build. Good for static sized inputs.
+func SetUpStatic(handle *gocudnn.Handle,
 	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
 	inputdims []int32,
@@ -212,7 +245,7 @@ func LayerSetupV2(handle *gocudnn.Handle,
 	fastest bool,
 	managedmem bool) (*Layer, error) {
 
-	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -220,59 +253,19 @@ func LayerSetupV2(handle *gocudnn.Handle,
 	if err != nil {
 		return nil, err
 	}
-	layer.inputdims = inputdims
+
 	err = layer.bias.T().SetValues(handle, 0.0)
 	if err != nil {
 		return nil, err
 	}
 	outputdims := find4doutputdims(inputdims, filterdims, pad, stride, dilation, frmt)
-	layer.outputdims = outputdims
+
 	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, filterdims, workspace, fastest)
 	if err != nil {
 		return nil, err
 	}
+	layer.pad, layer.stride, layer.dilation = pad, stride, dilation
 	return layer, nil
-}
-
-//AIOLayerSetupDefaultNoOut takes the input and figures out all the configurations with the default being fastest but no workspace
-func AIOLayerSetupDefaultNoOut(
-	handle *gocudnn.Handle,
-	input *layers.IO,
-	filterdims []int32,
-	convmode gocudnn.ConvolutionMode,
-	pad,
-	stride,
-	dilation []int32,
-	managedmem bool,
-) (*Layer, error) {
-
-	frmt, dtype, inputdims, err := input.Properties()
-	if err != nil {
-		return nil, err
-	}
-	layer, err := LayerSetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
-	if err != nil {
-		return nil, err
-	}
-	layer.inputdims = inputdims
-	frmt, _, wdims, _ := layer.w.Properties()
-	outputdims := find4doutputdims(inputdims, wdims, pad, stride, dilation, frmt)
-	layer.outputdims = outputdims
-	err = layer.MakeRandomFromFanin(input)
-	if err != nil {
-		return nil, err
-	}
-
-	err = layer.bias.T().SetValues(handle, 0.0)
-	if err != nil {
-		return nil, err
-	}
-	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, wdims, 0, false)
-	if err != nil {
-		return nil, err
-	}
-	return layer, nil
-
 }
 
 //MakeRandomFromFaninDims does what it says it will make the weights random considering the fanin
@@ -315,7 +308,7 @@ func (c *Layer) MakeRandomFromFanin(input *layers.IO) error {
 }
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
-func LayerSetup(
+func layersetup(
 	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
 	filterdims []int32,
@@ -371,23 +364,6 @@ func LayerSetup(
 		datatype: dtype,
 	}, nil
 }
-func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
-	frmt, dtype, dims, err := weights.Properties()
-	if err != nil {
-		return nil, err
-	}
-
-	outputmaps := dims[0]
-
-	for i := 0; i < len(dims); i++ {
-
-		dims[i] = int32(1)
-	}
-
-	dims[1] = outputmaps
-
-	return layers.BuildIO(frmt, dtype, dims, managedmem)
-}
 
 //SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
 func (c *Layer) SetFwdScalars(alpha, alpha2, beta float64) {
@@ -406,7 +382,6 @@ func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta float64) {
 
 //ForwardProp performs the ForwardProp
 func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
-	//	fmt.Println("alpha: ", c.fwd.alpha, ",   beta: ", c.fwd.beta)
 	err := c.conv.FwdProp(handle, c.fwd.alpha,
 		x.T(),
 		c.w.T(),
@@ -417,39 +392,8 @@ func (c *Layer) ForwardProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *
 	if err != nil {
 		return err
 	}
-	/*
-		_, _, outputdims, _ := y.Properties()
-		fmt.Println("Output Dims: ", outputdims)
-		_, _, biasdims, _ := c.bias.Properties()
-		fmt.Println("Bias Dims: ", biasdims)
-	*/
 	return y.T().AddTo(handle, c.bias.T(), 1.0, 1.0)
-
 }
-
-/*
-//ForwardBiasActivation does the forward bias activation cudnn algorithm
-func (c *Layer) ForwardBiasActivation(handle *gocudnn.Handle, x *layers.IO, wpsace gocudnn.Memer, z *layers.IO, aD *gocudnn.ActivationD, y *layers.IO) error {
-	return c.cfuncs.Fwd.ConvolutionBiasActivationForward(
-		handle,
-		c.fwd.alpha,
-		x.Tensor().TD(),
-		x.Mem(),
-		c.w.DTensor().FD(),
-		c.w.DMem(),
-		c.cD,
-		c.fwdAlgo,
-		wpsace,
-		c.fwd.alpha2,
-		z.Tensor().TD(),
-		z.DMem(),
-		c.bias.DTensor().TD(),
-		c.bias.Mem(),
-		aD,
-		y.Tensor().TD(),
-		y.Mem())
-}
-*/
 
 //BackProp does the backprop for the data and the filter
 func (c *Layer) BackProp(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
@@ -541,4 +485,17 @@ for NHWC filter is KRSC
 */
 func findoutputdim(x, w, s, p, d int32) int32 {
 	return 1 + (x+2*p-(((w-1)*d)+1))/s
+}
+func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
+	frmt, dtype, dims, err := weights.Properties()
+	if err != nil {
+		return nil, err
+	}
+	outputmaps := dims[0]
+	for i := 0; i < len(dims); i++ {
+
+		dims[i] = int32(1)
+	}
+	dims[1] = outputmaps
+	return layers.BuildIO(frmt, dtype, dims, managedmem)
 }

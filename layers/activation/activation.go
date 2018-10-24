@@ -12,6 +12,7 @@ type Layer struct {
 	fwd        Scalars
 	bwd        Scalars
 	memmanaged bool
+	nanproped  gocudnn.PropagationNAN
 }
 
 //Info is a struct that contains the info that is needed to build the activation layer
@@ -33,42 +34,15 @@ const defaultbeta = float64(0)
 const defaultcoef = float64(6)
 const defaultnanprop = gocudnn.PropagationNAN(0) //NotPropigateNAN
 
-//DefaultSetup takes default settings for coef (6) and NottPropNan
-func DefaultSetup(input *layers.IO, mode gocudnn.ActivationMode, memmanaged bool) (*Layer, *layers.IO, error) {
-	fmt, dtype, dims, err := input.Properties()
-	if err != nil {
-		return nil, nil, err
-	}
-	act, err := activation.StageOperation(mode, defaultnanprop, defaultcoef)
-	if err != nil {
-		return nil, nil, err
-	}
-	output, err := layers.BuildIO(fmt, dtype, dims, memmanaged)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &Layer{
-		act: act,
-		fwd: Scalars{
-			Alpha: defaultalpha,
-			Beta:  defaultbeta,
-		},
-		bwd: Scalars{
-			Alpha: defaultalpha,
-			Beta:  defaultbeta,
-		},
-		memmanaged: memmanaged,
-	}, output, nil
-}
-
-//SetupNoOut takes default settings for coef (6) and NottPropNan
-func SetupNoOut(mode gocudnn.ActivationMode, memmanaged bool) (*Layer, error) {
-
+//Setup takes default settings for coef (6) and NottPropNan. alpha =1 ,beta =0
+//You can change the values by using the Layer methods.
+//The way that alpha and beta work is this Y=(alpha *ActivationOp)+(beta*Y).
+//It's best to keep the defaults of alpha and beta, but you can values in the methods that Layer holds
+func Setup(mode gocudnn.ActivationMode) (*Layer, error) {
 	act, err := activation.StageOperation(mode, defaultnanprop, defaultcoef)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Layer{
 		act: act,
 		fwd: Scalars{
@@ -79,49 +53,7 @@ func SetupNoOut(mode gocudnn.ActivationMode, memmanaged bool) (*Layer, error) {
 			Alpha: defaultalpha,
 			Beta:  defaultbeta,
 		},
-		memmanaged: memmanaged,
 	}, nil
-}
-
-//Stage stages the layer it also needs input put layer to Build the output layer
-func (i Info) Stage(input *layers.IO) (*Layer, *layers.IO, error) {
-	fmt, dtype, dims, err := input.Properties()
-	if err != nil {
-		return nil, nil, err
-	}
-	if i.Ops.Coef == 0 {
-		i.Ops.Coef = defaultcoef
-	}
-	op, err := i.Ops.Stage()
-	if err != nil {
-		return nil, nil, err
-	}
-	output, err := layers.BuildIO(fmt, dtype, dims, i.OutputMemManaged)
-	if err != nil {
-		return nil, nil, err
-	}
-	if i.Fwd.Alpha == 0 && i.Fwd.Beta == 0 {
-		i.Fwd.Alpha = defaultalpha
-	}
-	if i.Bwd.Alpha == 0 && i.Bwd.Beta == 0 {
-		i.Bwd.Alpha = defaultalpha
-	}
-	return &Layer{
-		act:        op,
-		fwd:        i.Fwd,
-		bwd:        i.Bwd,
-		memmanaged: i.OutputMemManaged,
-	}, output, nil
-
-}
-
-//MakeOutputIO returns the output io for the layer
-func (a *Layer) MakeOutputIO(input *layers.IO, managed bool) (*layers.IO, error) {
-	fmt, dtype, dims, err := input.Properties()
-	if err != nil {
-		return nil, err
-	}
-	return layers.BuildIO(fmt, dtype, dims, managed)
 }
 
 //Info Returns layer info if error is not nil then values will be set to golang default
@@ -144,41 +76,12 @@ func (a *Layer) Info() (Info, error) {
 	}, nil
 }
 
-//LayerSetup sets up the activation Layer
-func LayerSetup(input *layers.IO, mode gocudnn.ActivationMode, NanProp gocudnn.PropagationNAN, memmanaged bool) (*Layer, *layers.IO, error) {
-	fmt, dtype, dims, err := input.Properties()
-	if err != nil {
-		return nil, nil, err
-	}
-	act, err := activation.StageOperation(mode, NanProp, defaultcoef)
-	if err != nil {
-		return nil, nil, err
-	}
-	output, err := layers.BuildIO(fmt, dtype, dims, memmanaged)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &Layer{
-		act: act,
-		fwd: Scalars{
-			Alpha: defaultalpha,
-			Beta:  defaultbeta,
-		},
-		bwd: Scalars{
-			Alpha: defaultalpha,
-			Beta:  defaultbeta,
-		},
-		memmanaged: memmanaged,
-	}, output, nil
-}
-
-//UpdateCoef will update the coef
+//UpdateCoef will update the coef.  ALthough it will change the descriptor if the activation mode doesn't use the coef scalar then it won't do anything.
 func (a *Layer) UpdateCoef(coef float64) error {
 	amode, nanprop, _, err := a.act.Properties()
 	if err != nil {
 		return err
 	}
-
 	return a.act.ReStage(amode, nanprop, coef)
 }
 
@@ -192,14 +95,32 @@ func (a *Layer) UpdateMode(amode gocudnn.ActivationMode) error {
 	return a.act.ReStage(amode, nanprop, coef)
 }
 
-//UpdateNanProp will update the nanprop
-func (a *Layer) UpdateNanProp(nanprop gocudnn.PropagationNAN) error {
+//NotPropigateNAN sets up the layer to not propigate nan values
+func (a *Layer) NotPropigateNAN() error {
+	if a.nanproped == gocudnn.PropagationNAN(0) {
+		return nil
+	}
+	a.nanproped = gocudnn.PropagationNAN(0)
+	return a.updatenanprop()
+
+}
+
+//PropigateNAN sets up the layer to propigate nan values
+func (a *Layer) PropigateNAN() error {
+	if a.nanproped == gocudnn.PropagationNAN(1) {
+		return nil
+	}
+	a.nanproped = gocudnn.PropagationNAN(1)
+	return a.updatenanprop()
+
+}
+
+func (a *Layer) updatenanprop() error {
 	amode, _, coef, err := a.act.Properties()
 	if err != nil {
 		return err
 	}
-
-	return a.act.ReStage(amode, nanprop, coef)
+	return a.act.ReStage(amode, a.nanproped, coef)
 }
 
 //UpDateFwdCScalars updates the alpha and beta scalars

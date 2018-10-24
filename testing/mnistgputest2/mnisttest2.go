@@ -64,33 +64,33 @@ func main() {
 	gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata := mnistgpu.MNISTGpuLabels(batchsize, frmt, dtype, memmanaged)
 	batchnum := len(gputrainingdata)
 	testbatchnum := len(gputestingdata)
-	network := gocunets.CreateNetwork()
-	AMode := gocudnn.ActivationModeFlag{}.Relu()
 
+	AMode := gocudnn.ActivationModeFlag{}.Relu()
+	network := gocunets.CreateNetwork()
 	//Setting Up Network
 	network.AddLayer( //convolution
-		cnn.LayerSetupV2(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), 0, false, memmanaged),
+		cnn.-(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		activation.SetupNoOut(AMode, memmanaged),
+		activation.Setup(AMode),
 	)
 	network.AddLayer( //pooling
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
 	)
 	network.AddLayer( //convolution
-		cnn.LayerSetupV2(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 14, 14), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), 0, false, memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 14, 14), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		activation.SetupNoOut(AMode, memmanaged),
+		activation.Setup(AMode),
 	)
 	network.AddLayer( //pooling
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
 	)
 	network.AddLayer( //convolution
-		cnn.LayerSetupV2(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 7, 7), filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), 0, false, memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 7, 7), filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		activation.SetupNoOut(AMode, memmanaged),
+		activation.Setup(AMode),
 	)
 
 	network.AddLayer( //convolution
@@ -121,11 +121,11 @@ func main() {
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
 			//		fmt.Println("Epoch:", k, "Batch:", j)
 			//	cuda.CtxSynchronize()
-
+			cherror(stream.Sync())
 			cherror(network.ForwardProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
 			cherror(network.BackProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
 			cherror(network.UpdateWeights(handle, batchsize))
-
+			cherror(stream.Sync())
 		}
 
 		netoutput := make([][]float32, testbatchnum)
@@ -142,7 +142,7 @@ func main() {
 			cherror(err)
 
 		}
-
+		cherror(stream.Sync())
 		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
 			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
 			fmt.Printf("Epoch Percent Correct: %-0.3f		 Epoch Loss: %-0.3f              Epoch Number: %d\n", percent, loss, k)

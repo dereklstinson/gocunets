@@ -42,7 +42,8 @@ type Network struct {
 	hybridsize    int
 	reshaper      *reshape.Layer
 	//	originalinput *layers.IO //original input that might have to be held onto so that errors can backprop back through it
-	resizeinput *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
+	resizeinput  *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
+	previousdims []int32
 }
 
 //Handles holds both handle and xhandle handle
@@ -102,7 +103,8 @@ func CreateNetwork() *Network {
 	err := make(chan error, 10)
 	go networkerrors(err)
 	return &Network{
-		err: err,
+		err:          err,
+		previousdims: []int32{-1, -1, -1, -1}, //this initalizes the previous dims to be something that they would never be. and that is negative
 	}
 }
 
@@ -243,7 +245,15 @@ func (m *Network) AddLayerandOutput(layer interface{}, output *layers.IO) error 
 func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch m.hiomode {
 	case dynamichiddenio:
-		err := m.freehiddenios()
+		_, _, xdims, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(m.previousdims, xdims) == true {
+			return m.forwardprop(handle, wspace, x, y)
+		}
+		m.previousdims = xdims
+		err = m.freehiddenios()
 		if err != nil {
 			return err
 		}
