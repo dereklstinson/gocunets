@@ -6,6 +6,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	"github.com/dereklstinson/GoCuNets/layers/xactivation"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -48,5 +49,17 @@ func Descriminator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype go
 	network.AddLayer( //softmaxoutput
 		softmax.BuildNoErrorChecking(), nil,
 	)
+	var err error
+	numoftrainers := network.TrainersNeeded()
+	trainersbatch := make([]trainer.Trainer, numoftrainers)
+	trainerbias := make([]trainer.Trainer, numoftrainers)
+	for i := 0; i < numoftrainers; i++ {
+		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, batchsize)
+		if err != nil {
+			panic(err)
+		}
+
+	}
+	network.LoadTrainers(handle, trainersbatch, trainerbias)
 	return network
 }

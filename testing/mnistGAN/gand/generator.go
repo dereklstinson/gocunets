@@ -5,6 +5,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/xactivation"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -43,5 +44,17 @@ func Generator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudn
 	network.AddLayer( //activation
 		activation.Setup(aflg.Tanh()),
 	)
+	var err error
+	numoftrainers := network.TrainersNeeded()
+	trainersbatch := make([]trainer.Trainer, numoftrainers)
+	trainerbias := make([]trainer.Trainer, numoftrainers)
+	for i := 0; i < numoftrainers; i++ {
+		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, batchsize)
+		if err != nil {
+			panic(err)
+		}
+
+	}
+	network.LoadTrainers(handle, trainersbatch, trainerbias)
 	return network
 }

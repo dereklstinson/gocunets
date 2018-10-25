@@ -72,6 +72,7 @@ func main() {
 	cherror(err)
 	reallabels, err := makefakereallabels(false, true, nil, []int32{int32(batchsize), 2, 1, 1}, frmt, dtype)
 	cherror(err)
+
 	for i := 0; i < epocs; i++ {
 
 		for j := 0; j < batchnum; j++ {
