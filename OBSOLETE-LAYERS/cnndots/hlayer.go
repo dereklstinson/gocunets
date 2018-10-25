@@ -24,7 +24,7 @@ type HLayer3d struct {
 }
 
 func outputcalc(i, f, p, s int) int {
-	return (i - f + (2 * p)) / s
+	return ((i - f + (2 * p)) / s) + 1
 }
 
 //Forward is the feedforward function of the Convolution Layer

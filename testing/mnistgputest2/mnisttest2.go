@@ -61,7 +61,7 @@ func main() {
 
 	batchsize := 20 // how many forward and backward runs before updating weights.
 
-	gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata := mnistgpu.MNISTGpuLabels(batchsize, frmt, dtype, memmanaged)
+	gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata := mnistgpu.WithLabels(batchsize, frmt, dtype, memmanaged)
 	batchnum := len(gputrainingdata)
 	testbatchnum := len(gputestingdata)
 
@@ -69,7 +69,7 @@ func main() {
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
 	network.AddLayer( //convolution
-		cnn.-(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		activation.Setup(AMode),

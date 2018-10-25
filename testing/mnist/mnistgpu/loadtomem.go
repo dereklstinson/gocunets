@@ -8,8 +8,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//MNISTGpuLabels return trainingimages,traininglabels, testimages,testlabels
-func MNISTGpuLabels(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
+//WithLabels return trainingimages,traininglabels, testimages,testlabels
+func WithLabels(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
@@ -90,8 +90,12 @@ func MNISTGpuLabels(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.Data
 	return gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata
 }
 
-//MNISTGpuNoLabel return trainingimages,traininglabels, testimages,testlabels
-func MNISTGpuNoLabel(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO) {
+type Labelbatch struct {
+	labels [][]float32
+}
+
+//WithCPULabels return trainingimages,traininglabels, testimages,testlabels
+func WithCPULabels(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, memmanaged bool) ([]*layers.IO, []Labelbatch) {
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
@@ -113,21 +117,22 @@ func MNISTGpuNoLabel(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.Dat
 	//Since Data is so small we can load it all into the GPU
 	var gputrainingdata []*layers.IO
 	//var gpuanswersdata []*layers.IO
-	var gputestingdata []*layers.IO
+	//var gputestingdata []*layers.IO
 	//var gputestansdata []*layers.IO
 	//	var cputrainans [][]float32
 	//	var cputestans [][]float32
+	batchlabels := make([]Labelbatch, 0)
 	for i := 0; i < len(trainingdata); { //Counting i inside the j loop, because I don't want to figure out the math
 		batchslice := make([]float32, 0)
 		//	batchlabelslice := make([]float32, 0)
-
+		var singlebatch Labelbatch
 		for j := 0; j < batchsize; j++ {
 			batchslice = append(batchslice, trainingdata[i].Data...)
-
+			singlebatch.labels = append(singlebatch.labels, trainingdata[i].Label)
 			//	batchlabelslice = append(batchlabelslice, trainingdata[i].Label...)
 			i++
 		}
-
+		batchlabels = append(batchlabels, singlebatch)
 		data, err := gocudnn.MakeGoPointer(batchslice)
 		cherror(err)
 		//label, err := gocudnn.MakeGoPointer(batchlabelslice)
@@ -144,34 +149,34 @@ func MNISTGpuNoLabel(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.Dat
 		//	gpuanswersdata = append(gpuanswersdata, ansr)
 	}
 	fmt.Println("Done Loading Training to GPU")
+	/*
+		for i := 0; i < len(testingdata); {
+			batchslice := make([]float32, 0)
+			//	batchlabelslice := make([]float32, 0)
+			for j := 0; j < batchsize; j++ {
+				batchslice = append(batchslice, testingdata[i].Data...)
+				//	batchlabelslice = append(batchlabelslice, testingdata[i].Label...)
+				i++
+			}
+			data, err := gocudnn.MakeGoPointer(batchslice)
+			cherror(err)
+			//	label, err := gocudnn.MakeGoPointer(batchlabelslice)
+			cherror(err)
+			inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+			cherror(err)
+			err = inpt.LoadTValues(data)
+			cherror(err)
+			gputestingdata = append(gputestingdata, inpt)
+			//ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
+			//cherror(err)
+			//err = ansr.LoadDeltaTValues(label)
+			//	cherror(err)
+			//		gputestansdata = append(gputestansdata, ansr)
 
-	for i := 0; i < len(testingdata); {
-		batchslice := make([]float32, 0)
-		//	batchlabelslice := make([]float32, 0)
-		for j := 0; j < batchsize; j++ {
-			batchslice = append(batchslice, testingdata[i].Data...)
-			//	batchlabelslice = append(batchlabelslice, testingdata[i].Label...)
-			i++
 		}
-		data, err := gocudnn.MakeGoPointer(batchslice)
-		cherror(err)
-		//	label, err := gocudnn.MakeGoPointer(batchlabelslice)
-		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
-		cherror(err)
-		err = inpt.LoadTValues(data)
-		cherror(err)
-		gputestingdata = append(gputestingdata, inpt)
-		//ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
-		//cherror(err)
-		//err = ansr.LoadDeltaTValues(label)
-		//	cherror(err)
-		//		gputestansdata = append(gputestansdata, ansr)
-
-	}
-
+	*/
 	fmt.Println("Done Loading Testing To GPU")
-	return gputrainingdata, gputestingdata
+	return gputrainingdata, batchlabels
 }
 
 func cherror(err error) {

@@ -49,7 +49,7 @@ func main() {
 
 	batchsize := 20 // how many forward and backward runs before updating weights.
 
-	gputrainingdata, _ := mnistgpu.MNISTGpuNoLabel(batchsize, frmt, dtype, memmanaged)
+	gputrainingdata, _ := mnistgpu.WithCPULabels(batchsize, frmt, dtype, memmanaged)
 	batchnum := len(gputrainingdata)
 	//	testbatchnum := len(gputestingdata)
 	genrandomtensors := makerandomgaussiantensor(batchnum, []int32{int32(batchsize), 1, 28, 28})
@@ -59,7 +59,7 @@ func main() {
 		//genrandom[i]
 		uploaded, err := layers.BuildNetworkInputIO(frmt, dtype, genrandomtensors[i].dims, memmanaged)
 		cherror(err)
-		randcpuptr, err := gocudnn.MakeGoPointer(uploaded)
+		randcpuptr, err := gocudnn.MakeGoPointer(genrandomtensors[i].data)
 		cherror(err)
 		err = uploaded.LoadTValues(randcpuptr)
 		cherror(err)
@@ -68,30 +68,35 @@ func main() {
 	generator := gand.Generator(handle, frmt, dtype, CMode, memmanaged, batchsize)
 	descrimintor := gand.Descriminator(handle, frmt, dtype, CMode, memmanaged, batchsize)
 	epocs := 200
+	fakelabels, err := makefakereallabels(false, false, nil, []int32{int32(batchsize), 2, 1, 1}, frmt, dtype)
+	cherror(err)
+	reallabels, err := makefakereallabels(false, true, nil, []int32{int32(batchsize), 2, 1, 1}, frmt, dtype)
+	cherror(err)
 	for i := 0; i < epocs; i++ {
 
 		for j := 0; j < batchnum; j++ {
-			desctrain(handle, descrimintor, nil, nil, batchsize)
-			gentrain(handle, generator, descrimintor, nil, nil, batchsize)
+			desctrain(handle, descrimintor, gputrainingdata[j], fakelabels, batchsize)
+			gentrain(handle, generator, descrimintor, genrandomgpu[j], gputrainingdata[j], reallabels, batchsize)
 		}
 
 	}
 
 }
+
 func desctrain(handle *gocunets.Handles, descriminator *gocunets.Network, x, y *layers.IO, batch int) {
 
 	cherror(descriminator.ForwardProp(handle, nil, x, y))
 	cherror(descriminator.BackPropFilterData(handle, nil, x, y))
 	cherror(descriminator.UpdateWeights(handle, batch))
 }
-func gentrain(handle *gocunets.Handles, generator, descriminator *gocunets.Network, x, y *layers.IO, batch int) {
-	gy, err := x.ZeroClone()
+func gentrain(handle *gocunets.Handles, generator, descriminator *gocunets.Network, randomx, notrandomx, y *layers.IO, batch int) {
+	gy, err := randomx.ZeroClone()
 	cherror(err)
-	cherror(generator.ForwardProp(handle, nil, x, gy))
+	cherror(generator.ForwardProp(handle, nil, randomx, gy))
 
 	cherror(descriminator.ForwardProp(handle, nil, gy, y))
 	cherror(descriminator.BackPropData(handle, nil, gy, y))
-	cherror(generator.BackPropFilterData(handle, nil, x, gy))
+	cherror(generator.BackPropFilterData(handle, nil, notrandomx, gy))
 	cherror(gy.Destroy())
 	cherror(generator.UpdateWeights(handle, batch))
 
@@ -121,6 +126,43 @@ func makerandomgaussiantensor(amount int, dims []int32) []tensor {
 
 	return tens
 
+}
+func makefakereallabels(smooth, real bool, input *layers.IO, dims []int32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType) (*layers.IO, error) {
+	if input == nil {
+		if smooth == true {
+			labels := generatelabelsmoothingtensor(real, int(dims[0]))
+			layersio, err := layers.BuildIO(frmt, dtype, dims, true)
+			if err != nil {
+				return nil, err
+			}
+			ptr, err := gocudnn.MakeGoPointer(labels)
+			if err != nil {
+				return nil, err
+			}
+			err = layersio.LoadDeltaTValues(ptr)
+			return layersio, err
+		}
+		labels := generatelabeltensors(real, int(dims[0]))
+		layersio, err := layers.BuildIO(frmt, dtype, dims, true)
+		if err != nil {
+			return nil, err
+		}
+		ptr, err := gocudnn.MakeGoPointer(labels)
+		if err != nil {
+			return nil, err
+		}
+		err = layersio.LoadDeltaTValues(ptr)
+		return layersio, err
+	}
+
+	labels := generatelabelsmoothingtensor(real, int(dims[0]))
+
+	ptr, err := gocudnn.MakeGoPointer(labels)
+	if err != nil {
+		return nil, err
+	}
+	err = input.LoadDeltaTValues(ptr)
+	return input, err
 }
 
 func generatelabelsmoothingtensor(real bool, batches int) []float32 {
