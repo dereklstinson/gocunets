@@ -80,3 +80,31 @@ func (ray *HArray3d) copydata() []float32 {
 	}
 	return copy
 }
+func something(array, dims, dimsection, dimslide []int) {
+
+}
+func somethingadder(array []float32, dims, dimsection, dimslide []int, adder float32) float32 {
+	if len(dims) == 1 {
+
+		section := 1
+		for j := 0; j < len(dimsection)-1; j++ {
+			section += dimsection[j] * dimslide[j]
+		}
+		for i := 0; i < dims[0]; i++ {
+			adder += array[section+i]
+		}
+		return adder
+	}
+
+	adder = somethingadder()
+}
+func finddimslide(dims []int) []int {
+	dimslide := make([]int, len(dims))
+	mult := 1
+	for i := len(dims) - 1; i >= 0; i-- {
+		dimslide[i] = mult
+		mult *= dims[i]
+
+	}
+	return dimslide
+}

@@ -20,6 +20,22 @@ const defaultadambeta1 = 0.9
 const defaultadambeta2 = 0.999
 const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
+const defaulttrainmode = gocudnn.TrainingMode(4) //This is adam
+const defaultcoef = 6.0
+
+//SetupLeaky sets up the basic Leaky xactivation.
+func SetupLeaky(h *gocudnn.XHandle, dtype gocudnn.DataType) (*Layer, error) {
+	var xactmodeflg gocudnn.XActivationModeFlag
+	xactmodeflg.Leaky()
+	op, err := xactivation.Stage(h, xactmodeflg.Leaky(), defaulttrainmode, dtype, defaultcoef)
+	if err != nil {
+		return nil, err
+	}
+	return &Layer{
+		act: op,
+	}, nil
+
+}
 
 //SetupStatic stages the layer it also needs input put layer to Build the output layer
 func SetupStatic(
