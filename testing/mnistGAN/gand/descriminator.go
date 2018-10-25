@@ -9,7 +9,7 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-func Descriminator(handle gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, CMode gocudnn.ConvolutionMode, AMode gocudnn.ActivationMode, memmanaged bool, batchsize int) *gocunets.Network {
+func Descriminator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, CMode gocudnn.ConvolutionMode, AMode gocudnn.ActivationMode, memmanaged bool, batchsize int) *gocunets.Network {
 	in := dims
 	filter := dims
 	padding := dims

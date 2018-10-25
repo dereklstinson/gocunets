@@ -8,7 +8,7 @@ import (
 )
 
 //Generator returns a generator network
-func Generator(handle gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, CMode gocudnn.ConvolutionMode, AMode gocudnn.ActivationMode, memmanaged bool, batchsize int) *gocunets.Network {
+func Generator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, CMode gocudnn.ConvolutionMode, AMode gocudnn.ActivationMode, memmanaged bool, batchsize int) *gocunets.Network {
 	in := dims
 	filter := dims
 	padding := dims

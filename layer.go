@@ -178,12 +178,44 @@ func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.I
 }
 
 //BackProp does the backprop of a layer
-func (l *layer) backprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
+func (l *layer) backpropfilterdata(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
 	if l.cnn != nil {
-		return l.cnn.BackProp(handle.cudnn, wpace, x, y)
+		return l.cnn.BackPropFilterData(handle.cudnn, wpace, x, y)
 	}
 	if l.fcnn != nil {
-		return l.fcnn.BackProp(handle.cudnn, x, y)
+		return l.fcnn.BackPropFilterData(handle.cudnn, x, y)
+	}
+	if l.activation != nil {
+		return l.activation.BackProp(handle.cudnn, x, y)
+	}
+	if l.softmax != nil {
+		return l.softmax.BackProp(handle.cudnn, x, y)
+	}
+	if l.drop != nil {
+		return l.drop.BackProp(handle.cudnn, x, y)
+	}
+	if l.pool != nil {
+		return l.pool.BackProp(handle.cudnn, x, y)
+	}
+	if l.xactivation != nil {
+		return l.xactivation.BackProp(handle.xhandle, x, y)
+	}
+	if l.reshape != nil {
+		return l.reshape.BackProp(handle.xhandle, x, y)
+	}
+	if l.batch != nil {
+		return l.batch.BackProp(handle.cudnn, x, y)
+	}
+	return errors.New("Layer Not Set Up")
+}
+
+//BackProp does the backprop of a layer
+func (l *layer) backpropdata(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
+	if l.cnn != nil {
+		return l.cnn.BackPropData(handle.cudnn, wpace, x, y)
+	}
+	if l.fcnn != nil {
+		return l.fcnn.BackPropData(handle.cudnn, x, y)
 	}
 	if l.activation != nil {
 		return l.activation.BackProp(handle.cudnn, x, y)

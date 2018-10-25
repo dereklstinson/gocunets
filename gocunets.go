@@ -348,12 +348,12 @@ func comparedims(x, y []int32) bool {
 	return true
 }
 
-//BackProp does the backprop of the hidden layers
-func (m *Network) BackProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+//BackPropFilterData does the backprop of the hidden layers
+func (m *Network) BackPropFilterData(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 
 	switch m.hiomode {
 	case dynamichiddenio:
-		return m.backprop(handle, wspace, x, y)
+		return m.backpropfilterdata(handle, wspace, x, y)
 
 	case statichiddenio:
 		_, _, dimsx, err := x.Properties()
@@ -365,10 +365,10 @@ func (m *Network) BackProp(handle *Handles, wspace *gocudnn.Malloced, x, y *laye
 			return err
 		}
 		if comparedims(dimsx, dimsre) == true {
-			return m.backprop(handle, wspace, x, y)
+			return m.backpropfilterdata(handle, wspace, x, y)
 		}
 
-		err = m.backprop(handle, wspace, m.resizeinput, y)
+		err = m.backpropfilterdata(handle, wspace, m.resizeinput, y)
 		if err != nil {
 			return err
 		}
@@ -383,10 +383,58 @@ func (m *Network) BackProp(handle *Handles, wspace *gocudnn.Malloced, x, y *laye
 			return err
 		}
 		if comparedims(dimsx, dimsre) == true {
-			return m.backprop(handle, wspace, x, y)
+			return m.backpropfilterdata(handle, wspace, x, y)
 		}
 
-		err = m.backprop(handle, wspace, m.resizeinput, y)
+		err = m.backpropfilterdata(handle, wspace, m.resizeinput, y)
+		if err != nil {
+			return err
+		}
+		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+	}
+	return errors.New("BackProp-Unsupported Hidden Mode")
+
+}
+
+//BackPropData only does the data backprop
+func (m *Network) BackPropData(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+
+	switch m.hiomode {
+	case dynamichiddenio:
+		return m.backpropdata(handle, wspace, x, y)
+
+	case statichiddenio:
+		_, _, dimsx, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		_, _, dimsre, err := m.resizeinput.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(dimsx, dimsre) == true {
+			return m.backpropdata(handle, wspace, x, y)
+		}
+
+		err = m.backpropdata(handle, wspace, m.resizeinput, y)
+		if err != nil {
+			return err
+		}
+		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+	case hibridhiddenio:
+		_, _, dimsx, err := x.Properties()
+		if err != nil {
+			return err
+		}
+		_, _, dimsre, err := m.resizeinput.Properties()
+		if err != nil {
+			return err
+		}
+		if comparedims(dimsx, dimsre) == true {
+			return m.backpropdata(handle, wspace, x, y)
+		}
+
+		err = m.backpropdata(handle, wspace, m.resizeinput, y)
 		if err != nil {
 			return err
 		}
@@ -418,29 +466,56 @@ func (m *Network) forwardprop(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 	return nil
 
 }
-
-//BackProp does the backprop of a Network
-func (m *Network) backprop(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropdata(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	//	err := handle.stream.Sync()
 	if err != nil {
 		return err
 	}
 	lnum := len(m.layer)
-	err = m.layer[lnum-1].backprop(handle, wspace, m.mem[lnum-2], y)
+	err = m.layer[lnum-1].backpropdata(handle, wspace, m.mem[lnum-2], y)
 
 	if err != nil {
 		return err
 	}
 
 	for i := lnum - 2; i > 0; i-- {
-		err = m.layer[i].backprop(handle, wspace, m.mem[i-1], m.mem[i])
+		err = m.layer[i].backpropdata(handle, wspace, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	err = m.layer[0].backprop(handle, wspace, x, m.mem[0])
+	err = m.layer[0].backpropdata(handle, wspace, x, m.mem[0])
+	if err != nil {
+		return err
+	}
+	return nil
+	//	return handle.stream.Sync()
+}
+
+//BackProp does the backprop of a Network
+func (m *Network) backpropfilterdata(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	var err error
+	//	err := handle.stream.Sync()
+	if err != nil {
+		return err
+	}
+	lnum := len(m.layer)
+	err = m.layer[lnum-1].backpropfilterdata(handle, wspace, m.mem[lnum-2], y)
+
+	if err != nil {
+		return err
+	}
+
+	for i := lnum - 2; i > 0; i-- {
+		err = m.layer[i].backpropfilterdata(handle, wspace, m.mem[i-1], m.mem[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	err = m.layer[0].backpropfilterdata(handle, wspace, x, m.mem[0])
 	if err != nil {
 		return err
 	}
