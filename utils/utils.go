@@ -25,3 +25,30 @@ func gauassian() float64 {
 func RandWeightSet(mean, std, fanin float64) float64 {
 	return Gaussian(mean, std) * (math.Sqrt((2.0) / (fanin)))
 }
+
+//FindStridesInt32 returns the strides of the dims given for an array.
+//example if for an array of NCHW it will  return [C*H*W,H*W,W,1] those can be used for traversing a 4d array
+func FindStridesInt32(dims []int32) (strides []int32) {
+	mult := int32(1)
+	strides = make([]int32, len(dims))
+	for i := len(dims) - 1; i >= 0; i-- {
+		strides[i] = mult
+		mult *= dims[i]
+	}
+
+	return strides
+
+}
+
+//FinStridesInt returns the strides of the dims given for an array.
+//example if for an array of NCHW it will  return [C*H*W,H*W,W,1] those can be used for traversing a 4d array
+func FinStridesInt(dims []int) (strides []int) {
+	mult := 1
+	strides = make([]int, len(dims))
+	for i := len(dims) - 1; i >= 0; i-- {
+		strides[i] = mult
+		mult *= dims[i]
+	}
+
+	return strides
+}

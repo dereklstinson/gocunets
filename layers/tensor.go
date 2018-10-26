@@ -128,6 +128,69 @@ func CreateIOfromVolumes(x, dx *tensor.Volume) (*IO, error) {
 	}, nil
 }
 
+/*
+func (i *IO) YBannerGray(handle *gocudnn.XHandle) (image.Image, error) {
+	reshapes.
+	frmt, dtype, dims, err := i.T().Properties()
+
+	var fflg gocudnn.TensorFormatFlag
+	var dflg gocudnn.DataTypeFlag
+	var h int
+	var c int
+	var w int
+	var n int
+	n = int(dims[0])
+	slide := findslide(dims)
+	totalvol := findvol()dims
+	switch frmt {
+	case fflg.NCHW():
+		if dims[1] > 1 {
+			return nil, errors.New("Channels must by 1")
+		}
+		h = int(dims[2])
+		w = int(dims[3])
+		totalwidth:=w*imagesinlength
+		totalheight:=totalvol/totalwidth
+		var rect image.Rectangle
+		rect.Min.X = 0
+		rect.Min.Y = 0
+		rect.Max.X = totalwidth
+		rect.Max.Y = totalheight
+		img := image.NewRGBA(rect)
+
+
+
+	case fflg.NHWC():
+		if dims[3] > 1 {
+			return nil, errors.New("Channels must by 1")
+		}
+		h = int(dims[1])
+		w = int(dims[2])
+	default:
+		return nil, errors.New("Unsupported TensorFormat")
+	}
+
+}
+*/
+func findslide(dims []int32) []int {
+	multiplier := 1
+	slide := make([]int, len(dims))
+	for i := len(dims) - 1; i >= 0; i-- {
+		slide[i] = multiplier
+		multiplier *= int(dims[i])
+	}
+	return slide
+}
+func findvol(dims []int32) int {
+	multiplier := 1
+
+	for i := 0; i < len(dims); i++ {
+
+		multiplier *= int(dims[i])
+	}
+	return multiplier
+}
+
 //Images returns the images
 func (i *IO) Images() ([][]image.Image, [][]image.Image, error) {
 	x, err := i.x.ToImages()
