@@ -52,3 +52,27 @@ func FinStridesInt(dims []int) (strides []int) {
 
 	return strides
 }
+
+//FindVolumeInt32 returns the total volume in int32
+func FindVolumeInt32(dims []int32) int32 {
+	mult := int32(1)
+
+	for i := len(dims) - 1; i >= 0; i-- {
+
+		mult *= dims[i]
+	}
+
+	return mult
+}
+
+//FindVolumeInt returns the total volume in int
+func FindVolumeInt(dims []int) int {
+	mult := 1
+
+	for i := len(dims) - 1; i >= 0; i-- {
+
+		mult *= dims[i]
+	}
+
+	return mult
+}

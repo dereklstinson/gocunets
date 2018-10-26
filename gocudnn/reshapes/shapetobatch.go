@@ -6,7 +6,9 @@ import (
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
-func (0 *Ops)GetB2SOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, window []int32) (gocudnn.TensorFormat, gocudnn.DataType, []int32, bool, error) {
+
+//GetB2SOutputProperties returns the properties of the output
+func (o *Ops) GetB2SOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, window []int32) (gocudnn.TensorFormat, gocudnn.DataType, []int32, bool, error) {
 	if len(window) != 2 {
 		return 255, 255, nil, false, errors.New("window can only have 2 elements")
 	}
@@ -24,8 +26,9 @@ func (0 *Ops)GetB2SOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, w
 	}
 
 	return 255, 255, nil, false, errors.New("Unsupported Format of Memer for S2B")
-})
-//GetS2BOutputVolume returns a volume for the output
+}
+
+//GetS2BOutputProperties returns the properties of the output
 func (o *Ops) GetS2BOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, window []int32) (gocudnn.TensorFormat, gocudnn.DataType, []int32, bool, error) {
 	if len(window) != 2 {
 		return 255, 255, nil, false, errors.New("window can only have 2 elements")
