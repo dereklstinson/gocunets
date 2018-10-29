@@ -202,17 +202,17 @@ func (c *Ops) BwdPropData(
 			if err != nil {
 				return err
 			}
-			c.helper.Funcs.Bwd.ConvolutionBackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.desc, algo, wspace, b, dx.TD(), dx.Memer())
+			c.desc.BackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
 		}
 		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.NoWorkSpace(), 0)
 		if err != nil {
 			return err
 		}
-		c.helper.Funcs.Bwd.ConvolutionBackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.desc, algo, wspace, b, dx.TD(), dx.Memer())
+		c.desc.BackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
 
 	}
 
-	return c.helper.Funcs.Bwd.ConvolutionBackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.desc, c.bwddata, wspace, b, dx.TD(), dx.Memer())
+	return c.desc.BackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.bwddata, wspace, b, dx.TD(), dx.Memer())
 }
 
 //BwdPropFilt dw = alpha * BwdPropFilt(x,dy)+beta*dw
@@ -238,17 +238,17 @@ func (c *Ops) BwdPropFilt(
 			if err != nil {
 				return err
 			}
-			return c.helper.Funcs.Bwd.ConvolutionBackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.desc, algo, wspace, b, dw.FD(), dw.Memer())
+			return c.desc.BackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dw.FD(), dw.Memer())
 		}
 		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, x.TD(), dy.TD(), c.desc, dw.FD(), pflg.FltrPref.NoWorkSpace(), 0)
 		if err != nil {
 			return err
 		}
-		return c.helper.Funcs.Bwd.ConvolutionBackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.desc, algo, wspace, b, dw.FD(), dw.Memer())
+		return c.desc.BackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dw.FD(), dw.Memer())
 
 	}
 
-	return c.helper.Funcs.Bwd.ConvolutionBackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.desc, c.bwdfilt, wspace, b, dw.FD(), dw.Memer())
+	return c.desc.BackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.bwdfilt, wspace, b, dw.FD(), dw.Memer())
 }
 
 //FwdProp    y= alpha * Convolution(x,w)+ beta*y
@@ -288,15 +288,15 @@ func (c *Ops) FwdProp(
 			if err != nil {
 				return err
 			}
-			return c.helper.Funcs.Fwd.ConvolutionForward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.desc, algo, wspace, b, y.TD(), y.Memer())
+			return c.desc.Forward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
 		}
 		algo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, x.TD(), w.FD(), c.desc, y.TD(), pflg.Pref.NoWorkSpace(), 0)
 		if err != nil {
 			return err
 		}
-		return c.helper.Funcs.Fwd.ConvolutionForward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.desc, algo, wspace, b, y.TD(), y.Memer())
+		return c.desc.Forward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
 	}
-	return c.helper.Funcs.Fwd.ConvolutionForward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.desc, c.fwdalgo, wspace, b, y.TD(), y.Memer())
+	return c.desc.Forward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.fwdalgo, wspace, b, y.TD(), y.Memer())
 }
 
 //BwdBias does the backward bias calculation

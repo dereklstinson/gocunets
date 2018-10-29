@@ -8,7 +8,7 @@ type SemiSuper struct {
 }
 
 //Loss return the gLoss and dLoss for a softmax output.  Will have to pass a loss function that is wanted to use in order to use it
-func (s SemiSuper) Loss(dReal, dFake []float32, batchsize, classsize int, ganlossfunc func(areal, afake []float32) (gloss, dloss float32)) (gLoss, dLoss float32) {
+func (s SemiSuper) Loss(dReal, dFake []float32, batchsize, classsize int, ganlossfunc func(areal, afake []float32) (gloss, dloss float32)) (gLoss, dLoss, dClassLoss float32) {
 	batchsizeReal := len(dReal) / classsize
 	batchsizeFake := len(dFake) / classsize
 	RealProb := make([]float32, batchsizeReal)

@@ -50,3 +50,11 @@ func FindVolumeInt(dims []int) int {
 
 	return mult
 }
+
+//AbsoluteValue returns the absolutevalue in float32
+func AbsoluteValue(x float32) float32 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}

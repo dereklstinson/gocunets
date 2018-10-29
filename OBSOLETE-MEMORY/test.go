@@ -47,7 +47,7 @@ func Harray3dTestArray2() HArray3d {
 	return testarray
 }
 
-//Harray3dTestArray2 Used for testing purposes
+//Harray3dTestArray3 Used for testing purposes
 func Harray3dTestArray3() HArray3d {
 	var testarray = HArray3d{Data: []float32{
 		2.0, 3.0, 3.0,

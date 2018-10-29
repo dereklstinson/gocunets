@@ -6,7 +6,6 @@ package gomem
 //Data is stored in x major forray.  Everything is made public
 //to reduce function call overhead.  Manipulation functions will be available to
 //for the sake of ease, though.
-
 type HArray2d struct {
 	Data []float32
 	X, Y int
