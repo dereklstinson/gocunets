@@ -39,7 +39,7 @@ func DefaultOperation() *Ops {
 	//	output, err := layers.BuildIO(fmt, dtype, dims)
 
 	return &Ops{
-		algo: s.Flgs.Algo.Fast(),
+		algo: s.Flgs.Algo.Accurate(),
 		mode: s.Flgs.Mode.Channel(),
 	}
 }

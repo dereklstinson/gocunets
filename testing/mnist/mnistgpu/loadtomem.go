@@ -122,12 +122,16 @@ func WithCPULabels(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.DataT
 	//	var cputrainans [][]float32
 	//	var cputestans [][]float32
 	batchlabels := make([]Labelbatch, 0)
+	sizeofdata := 28 * 28
+
 	for i := 0; i < len(trainingdata); { //Counting i inside the j loop, because I don't want to figure out the math
-		batchslice := make([]float32, 0)
+		batchslice := make([]float32, sizeofdata*batchsize)
 		//	batchlabelslice := make([]float32, 0)
 		var singlebatch Labelbatch
 		for j := 0; j < batchsize; j++ {
-			batchslice = append(batchslice, trainingdata[i].Data...)
+			for k := 0; k < len(trainingdata[i].Data); k++ {
+				batchslice[j*sizeofdata+k] = trainingdata[i].Data[k]
+			}
 			singlebatch.labels = append(singlebatch.labels, trainingdata[i].Label)
 			//	batchlabelslice = append(batchlabelslice, trainingdata[i].Label...)
 			i++

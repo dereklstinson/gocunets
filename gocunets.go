@@ -1,5 +1,7 @@
 package gocunets
 
+//TODO:  Take SoftMax out of here.  It should in another section for calculating the errors of the network.
+
 import (
 	"errors"
 
@@ -42,8 +44,9 @@ type Network struct {
 	hybridsize    int
 	reshaper      *reshape.Layer
 	//	originalinput *layers.IO //original input that might have to be held onto so that errors can backprop back through it
-	resizeinput  *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
-	previousdims []int32
+	resizeinput   *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
+	previousdims  []int32
+	descriminator bool
 }
 
 //Handles holds both handle and xhandle handle
@@ -106,6 +109,17 @@ func CreateNetwork() *Network {
 		err:          err,
 		previousdims: []int32{-1, -1, -1, -1}, //this initalizes the previous dims to be something that they would never be. and that is negative
 	}
+}
+
+//SetDescriminatorFlag - Sets the network up as a descriminator network
+//This will require the network to have two outputs if using the softmax output
+func (m *Network) SetDescriminatorFlag() {
+	m.descriminator = true
+}
+
+//UnSetDescriminator This will turn the network descriminator flag off
+func (m *Network) UnSetDescriminator() {
+	m.descriminator = false
 }
 
 //TrainersNeeded returns the number of trainers that are needed.

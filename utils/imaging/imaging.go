@@ -11,6 +11,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/nfnt/resize"
 )
 
 //Imager takes tensors and to the best its ability turn it into an image.Image
@@ -24,6 +25,52 @@ func MakeImager(handle *gocudnn.XHandle) (*Imager, error) {
 	return &Imager{
 		shaper: shpr,
 	}, err
+}
+
+//ByBatches will return the images by batches if h xor w is zero then the ration will be kept. if both are zero then the ratio is not
+func (im *Imager) ByBatches(handle *gocudnn.XHandle, x *layers.IO, h, w uint) ([]image.Image, error) {
+	frmt, dtype, dims, err := x.Properties()
+	if err != nil {
+		return nil, err
+	}
+	var dflg gocudnn.DataTypeFlag
+	vol := utils.FindVolumeInt32(dims)
+	var z []float32
+	switch dtype {
+	case dflg.Double():
+		y := make([]float64, vol)
+		z = converttofloat32(y)
+	case dflg.Float():
+		y := make([]float32, vol)
+		z = converttofloat32(y)
+	case dflg.Int32():
+		y := make([]int32, vol)
+		z = converttofloat32(y)
+	case dflg.Int8():
+		y := make([]int8, vol)
+		z = converttofloat32(y)
+	case dflg.UInt8():
+		y := make([]uint8, vol)
+		z = converttofloat32(y)
+	}
+	if z == nil {
+		return nil, errors.New("Unsupported Datatype")
+	}
+	x.T().Memer().FillSlice(z)
+	images := make([]image.Image, 0)
+	batchvol := int(utils.FindVolumeInt32(dims[1:]))
+	batchdims := []int32{1, dims[1], dims[2], dims[3]}
+	for i := 0; i < int(dims[0]); i++ {
+		bz := z[i*batchvol : (i+1)*batchvol]
+		batchimage, err := makeimage(bz, batchdims, frmt)
+		if err != nil {
+			return nil, err
+		}
+		batchimage = resize.Resize(w, h, batchimage, resize.NearestNeighbor)
+		images = append(images, batchimage)
+	}
+
+	return images, nil
 }
 
 //TileBatches will take the batches and lay place them withing the HWC space like tiles.

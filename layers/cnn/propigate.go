@@ -36,6 +36,9 @@ func (c *Layer) BackPropFilterData(handle *gocudnn.Handle, wspace gocudnn.Memer,
 
 //BackPropData performs the BackPropData
 func (c *Layer) BackPropData(handle *gocudnn.Handle, wspace gocudnn.Memer, x, y *layers.IO) error {
+	if x.IsInput() == true {
+		return nil
+	}
 	return c.conv.BwdPropData(
 		handle,
 		c.bwdd.alpha,

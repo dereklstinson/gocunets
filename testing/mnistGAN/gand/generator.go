@@ -49,7 +49,11 @@ func Generator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudn
 	trainersbatch := make([]trainer.Trainer, numoftrainers)
 	trainerbias := make([]trainer.Trainer, numoftrainers)
 	for i := 0; i < numoftrainers; i++ {
-		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, batchsize)
+		//	a, b, err1 :=
+		//	a.SetRate(.001)
+		//	b.SetRate(.001)
+		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .00001, batchsize) //a, b, err1
+
 		if err != nil {
 			panic(err)
 		}

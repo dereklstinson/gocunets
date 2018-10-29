@@ -43,6 +43,18 @@ func (i *IO) IsManaged() bool {
 	return i.managed
 }
 
+//StoreDeltas will flip a flag to allow deltas to be stored on this IO.
+//Useful when training gans when you don't want the errors when training the descriminator to propigate through this.
+//You would want to switch it back when passing the errors for the generator.
+func (i *IO) StoreDeltas(x bool) {
+	i.input = x
+}
+
+//ClearDeltas allows the user to clear the deltas of the IO
+func (i *IO) ClearDeltas(handle *gocudnn.Handle) error {
+	return i.dx.SetValues(handle, 0.0)
+}
+
 //Info returns info
 func (i *IO) Info() (Info, error) {
 	x, err := i.x.Info()

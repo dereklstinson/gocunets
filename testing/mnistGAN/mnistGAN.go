@@ -3,25 +3,24 @@ package main
 import (
 	"fmt"
 	"image"
-	"math"
 	"math/rand"
-	"strconv"
 	"time"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/mnistgpu"
 	"github.com/dereklstinson/GoCuNets/testing/mnistGAN/gand"
+	"github.com/dereklstinson/GoCuNets/testing/mnistGAN/ganlabel"
 	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCuNets/utils/filing"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 func main() {
-	savelocationforimages := "/home/derek/GANMNIST/"
-	imagenames := "MNIST"
+	//	savelocationforimages := "/home/derek/Desktop/GANMNIST1/"
+	//	imagenames := "MNIST"
 	rand.Seed(time.Now().UnixNano())
 	trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
 	gocudnn.Cuda{}.LockHostThread()
@@ -46,15 +45,12 @@ func main() {
 	frmt := fmtflags.NCHW()
 	dtype := dtypeflags.Float()
 	CMode := convolution.Flags().Mode.CrossCorrelation() //.CrossCorrelation()
-	//	AMode := gocudnn.ActivationModeFlag{}.Relu()
 
-	//	NanProp := gocudnn.PropagationNANFlag{}.NotPropagateNan()
 	memmanaged := true
-	//	AMode := gocudnn.ActivationModeFlag{}.Relu()
 
 	batchsize := 20 // how many forward and backward runs before updating weights.
 
-	gputrainingdata, _ := mnistgpu.WithCPULabels(batchsize, frmt, dtype, memmanaged)
+	gputrainingdata, gputraininganswers, _, _ := mnistgpu.WithLabels11Gan(batchsize, frmt, dtype, memmanaged)
 	batchnum := len(gputrainingdata)
 	//	testbatchnum := len(gputestingdata)
 	genrandomtensors := makerandomgaussiantensor(batchnum, []int32{int32(batchsize), 1, 28, 28})
@@ -71,82 +67,134 @@ func main() {
 		genrandomgpu = append(genrandomgpu, uploaded)
 	}
 	generator := gand.Generator(handle, frmt, dtype, CMode, memmanaged, batchsize)
-	descrimintor := gand.Descriminator(handle, frmt, dtype, CMode, memmanaged, batchsize)
+	descrimintor := gand.DescriminatorClass11(handle, frmt, dtype, CMode, memmanaged, batchsize)
 	epocs := 200
-	fakelabels, err := makefakereallabels(false, false, nil, []int32{int32(batchsize), 2, 1, 1}, frmt, dtype)
-	cherror(err)
-	reallabels, err := makefakereallabels(false, true, nil, []int32{int32(batchsize), 2, 1, 1}, frmt, dtype)
-	cherror(err)
-	imager, err := imaging.MakeImager(handle.XHandle())
+	fakelabels, err := ganlabel.MakeFakeClass11Label([]int32{int32(batchsize), 11, 1, 1}, frmt, dtype, memmanaged)
 	cherror(err)
 
+	//imager, err := imaging.MakeImager(handle.XHandle())
+	cherror(err)
+	smClass := loss.MakeSoftMaxLossCalculator()
 	//	images := make([]image.Image, 0)
 	for i := 0; i < epocs; i++ {
-		realoutput := make([][]float32, batchnum)
-		fakeoutput := make([][]float32, batchnum)
-		realdesired := make([][]float32, batchnum)
-		fakedesired := make([][]float32, batchnum)
-		for j := 0; j < batchnum; j++ {
-			realoutput[j] = make([]float32, 2*batchsize)
-			fakeoutput[j] = make([]float32, 2*batchsize)
-			realdesired[j] = make([]float32, 2*batchsize)
-			fakedesired[j] = make([]float32, 2*batchsize)
 
-			desctrain(handle, descrimintor, gputrainingdata[j], reallabels, batchsize)
-			reallabels.T().Memer().FillSlice(realoutput[j])
-			reallabels.DeltaT().Memer().FillSlice(realdesired[j])
-			gentrain(handle, generator, descrimintor, genrandomgpu[0], gputrainingdata[0], fakelabels, batchsize)
-			fakelabels.T().Memer().FillSlice(fakeoutput[j])
-			fakelabels.DeltaT().Memer().FillSlice(fakedesired[j])
+		dpercentb := make([]float32, batchnum)
+		dlossb := make([]float32, batchnum)
+		gpercentb := make([]float32, batchnum)
+		glossb := make([]float32, batchnum)
+		for j := 0; j < batchnum; j++ {
+			realoutput := make([]float32, 11*batchsize)
+			fakeoutput := make([]float32, 11*batchsize)
+			realdesired := make([]float32, 11*batchsize)
+			fakedesired := make([]float32, 11*batchsize)
+
+			desctrain(handle, stream, descrimintor, gputrainingdata[j], gputraininganswers[j], batchsize)
 			stream.Sync()
+			gputraininganswers[j].T().Memer().FillSlice(realoutput)
+			gputraininganswers[j].DeltaT().Memer().FillSlice(realdesired)
+			gentrain(handle, stream, generator, descrimintor, genrandomgpu[j], fakelabels, batchsize)
+			stream.Sync()
+			fakelabels.T().Memer().FillSlice(fakeoutput)
+			fakelabels.DeltaT().Memer().FillSlice(fakedesired)
+			stream.Sync()
+			updateweights(handle, generator, descrimintor, batchsize)
+			dpercentb[j], dlossb[j] = smClass.BatchLoss(realoutput, realdesired, batchsize, 11)
+			gpercentb[j], glossb[j] = smClass.BatchLoss(fakeoutput, fakedesired, batchsize, 11)
 		}
-		epocloss(fakedesired, fakeoutput, realdesired, realoutput, batchsize, 2, i)
-		img, err := genoutputimage(handle, generator, gputrainingdata[0], imager)
+
+		stream.Sync()
+		//	imgs, err := imager.TileBatches(handle.XHandle(), genrandomgpu[0], 5, 4)
+
+		//	imgs, err := gettiledimage(handle, stream, generator, genrandomgpu[0], imager, 5, 4)
+		stream.Sync()
 		cherror(err)
-		filing.WriteImage(savelocationforimages, imagenames+strconv.Itoa(i), img)
+		//	cherror(filing.WriteImage(savelocationforimages, imagenames+strconv.Itoa(i), imgs))
+		//	for b := range imgs {
+		//	cherror(filing.WriteImage(savelocationforimages, imagenames+strconv.Itoa(i)+"-"+strconv.Itoa(b), imgs[b]))
+		//}
+		dpercente, dlosse := smClass.EpocLossFromBatchLosses(dpercentb, dlossb)
+		gpercente, glosse := smClass.EpocLossFromBatchLosses(gpercentb, glossb)
+		labelLossPrint("Training ", gpercente, glosse, dpercente, dlosse, i)
 	}
 
 }
+func makerandomgaussiantensor(numoftensors int, dims []int32) []tensor {
+	vol := utils.FindVolumeInt32(dims)
+	tensors := make([]tensor, numoftensors)
+	for j := range tensors {
+		ten := make([]float32, 0, vol)
+		for i := 0; i < int(dims[0]); i++ {
+			ten = append(ten, utils.RandomGaussianKernelsInChannels(int(dims[2]), int(dims[3]), int(dims[1]), false)...)
+		}
+		tensors[j].data = ten
+		tensors[j].dims = dims
 
-func genoutputimage(handle *gocunets.Handles, generator *gocunets.Network, randomx *layers.IO, imager *imaging.Imager) (image.Image, error) {
+	}
+	return tensors
+
+}
+func getbatchimages(handle *gocunets.Handles, generator *gocunets.Network, randomx *layers.IO, imager *imaging.Imager, h, w uint) ([]image.Image, error) {
 	gy, err := randomx.ZeroClone()
 	defer gy.Destroy()
 	cherror(err)
 	cherror(generator.ForwardProp(handle, nil, randomx, gy))
-	return imager.TileBatches(handle.XHandle(), gy, 5, 4)
+	return imager.ByBatches(handle.XHandle(), gy, h, w)
 }
-func desctrain(handle *gocunets.Handles, descriminator *gocunets.Network, x, y *layers.IO, batch int) {
+func gettiledimage(handle *gocunets.Handles, stream *gocudnn.Stream, generator *gocunets.Network, randomx *layers.IO, imager *imaging.Imager, h, w int) (image.Image, error) {
+	gy, err := randomx.ZeroClone()
+
+	cherror(err)
+	cherror(generator.ForwardProp(handle, nil, randomx, gy))
+	stream.Sync()
+	images, err := imager.TileBatches(handle.XHandle(), gy, h, w)
+	stream.Sync()
+	gy.Destroy()
+	return images, err
+}
+
+func desctrain(handle *gocunets.Handles, stream *gocudnn.Stream, descriminator *gocunets.Network, x, y *layers.IO, batch int) {
 
 	cherror(descriminator.ForwardProp(handle, nil, x, y))
+	stream.Sync()
 	cherror(descriminator.BackPropFilterData(handle, nil, x, y))
-	cherror(descriminator.UpdateWeights(handle, batch))
+	stream.Sync()
 }
-func gentrain(handle *gocunets.Handles, generator, descriminator *gocunets.Network, randomx, notrandomx, y *layers.IO, batch int) {
+func gentrain(handle *gocunets.Handles, stream *gocudnn.Stream, generator, descriminator *gocunets.Network, randomx, y *layers.IO, batch int) {
 	gy, err := randomx.ZeroClone()
 	cherror(err)
 	cherror(generator.ForwardProp(handle, nil, randomx, gy))
 
-	cherror(descriminator.ForwardProp(handle, nil, gy, y))
-	cherror(descriminator.BackPropData(handle, nil, gy, y))
-	cherror(generator.BackPropFilterData(handle, nil, notrandomx, gy))
-	cherror(gy.Destroy())
-	cherror(generator.UpdateWeights(handle, batch))
+	stream.Sync()
 
+	cherror(descriminator.ForwardProp(handle, nil, gy, y))
+	stream.Sync()
+	cherror(descriminator.BackPropFilterData(handle, nil, gy, y))
+	stream.Sync()
+	cherror(generator.BackPropFilterData(handle, nil, randomx, gy))
+	stream.Sync()
+
+	gy.Destroy()
 }
 
+func updateweights(handle *gocunets.Handles, generator, descriminator *gocunets.Network, batch int) {
+	cherror(generator.UpdateWeights(handle, batch))
+	cherror(descriminator.UpdateWeights(handle, batch))
+}
 func freeIO(input []*layers.IO) {
 	for i := range input {
 		input[i].Destroy()
 	}
 }
-func epocloss(dFake, aFake, dReal, aReal [][]float32, batchsize, classificationsize, epoc int) {
-	totals := make([]float32, 6)
-	for i := 0; i < len(dFake); i++ {
-		losses := lossgenerator(dFake[i], aFake[i], dReal[i], aReal[i], batchsize, classificationsize, epoc)
-		addto(totals, losses)
+
+func labelLossPrint(label string, gpercent, gloss, dpercent, dloss float32, epoc int) {
+	fmt.Printf(label+" Epoc: %d     Generator:    P: %-0.3f L: %-0.3f;    Descriminator:    P: %-0.3f L: %-0.3f\n", epoc, gpercent, gloss, dpercent, dloss)
+}
+func printfloat(label, frmt string, float []float32) {
+	fmt.Printf(label)
+	for i := range float {
+		fmt.Printf(frmt, float[i])
 	}
-	divideall(totals, float32(len(dFake)))
-	fmt.Printf("Combined: P: %-0.3f L: %-0.3f;  Generator: P: %-0.3f L: %-0.3f; Descriminator: P: %-0.3f L: %-0.3f\n", totals[0], totals[1], totals[2], totals[3], totals[4], totals[5])
+	fmt.Printf("\n")
 }
 func addto(a, b []float32) {
 	for i := 0; i < len(a); i++ {
@@ -157,132 +205,6 @@ func divideall(a []float32, b float32) {
 	for i := range a {
 		a[i] /= b
 	}
-}
-
-func lossgenerator(dFake, aFake, dReal, aReal []float32, batchsize, classificationsize, epoc int) []float32 {
-	fakepercent, fakeloss := softmaxbatch(aFake, dFake, batchsize, classificationsize)
-	realpercent, realloss := softmaxbatch(aReal, dReal, batchsize, classificationsize)
-	percent := (fakepercent + realpercent) / 2
-	loss := (fakeloss + realloss) / 2
-	return []float32{percent, loss, realpercent, realloss, fakepercent, fakeloss}
-	//	fmt.Printf("Epoch Percent Correct: %-0.3f		 Epoch Loss: %-0.3f              Epoch Number: %d\n", percent, loss, epoc)
-}
-func softmaxbatch(actual, desired []float32, batchsize, classificationsize int) (float32, float32) {
-	var batchloss float32
-	var percent float32
-	var position int
-
-	for i := 0; i < batchsize; i++ {
-
-		maxvalue := float32(0.0)
-		ipos := i * classificationsize
-		for j := 0; j < classificationsize; j++ {
-			ijpos := ipos + j
-			if maxvalue < actual[ijpos] {
-
-				maxvalue = actual[ijpos]
-				position = ijpos
-
-			}
-			if desired[ijpos] != 0 {
-
-				batchloss += float32(-math.Log(float64(actual[ijpos])))
-			}
-
-		}
-		percent += desired[position]
-
-	}
-	if math.IsNaN(float64(batchloss)) == true {
-		panic("reach NAN")
-	}
-	return percent / float32(batchsize), batchloss / float32(batchsize)
-}
-
-func makefakereallabels(smooth, real bool, input *layers.IO, dims []int32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType) (*layers.IO, error) {
-	if input == nil {
-		if smooth == true {
-			labels := generatelabelsmoothingtensor(real, int(dims[0]))
-			layersio, err := layers.BuildIO(frmt, dtype, dims, true)
-			if err != nil {
-				return nil, err
-			}
-			ptr, err := gocudnn.MakeGoPointer(labels)
-			if err != nil {
-				return nil, err
-			}
-			err = layersio.LoadDeltaTValues(ptr)
-			return layersio, err
-		}
-		labels := generatelabeltensors(real, int(dims[0]))
-		layersio, err := layers.BuildIO(frmt, dtype, dims, true)
-		if err != nil {
-			return nil, err
-		}
-		ptr, err := gocudnn.MakeGoPointer(labels)
-		if err != nil {
-			return nil, err
-		}
-		err = layersio.LoadDeltaTValues(ptr)
-		return layersio, err
-	}
-
-	labels := generatelabelsmoothingtensor(real, int(dims[0]))
-
-	ptr, err := gocudnn.MakeGoPointer(labels)
-	if err != nil {
-		return nil, err
-	}
-	err = input.LoadDeltaTValues(ptr)
-	return input, err
-}
-
-func generatelabelsmoothingtensor(real bool, batches int) []float32 {
-	const randomstartposition = float32(.7)
-	const randommultiplier = float32(.5)
-	holder := make([]float32, 0)
-
-	if real == true {
-
-		for i := 0; i < batches; i++ {
-			value := randomstartposition + rand.Float32()*randommultiplier
-
-			real := []float32{value, 0}
-			holder = append(holder, real...)
-		}
-	} else {
-		value := randomstartposition + rand.Float32()*randommultiplier
-		fake := []float32{0, value}
-		for i := 0; i < batches; i++ {
-			holder = append(holder, fake...)
-		}
-	}
-	gpuusable := make([]float32, len(holder))
-	for i := range gpuusable {
-		gpuusable[i] = holder[i]
-	}
-	return gpuusable
-}
-func generatelabeltensors(real bool, batches int) []float32 {
-	holder := make([]float32, 0)
-
-	if real == true {
-		real := []float32{1, 0}
-
-		for i := 0; i < batches; i++ {
-			holder = append(holder, real...)
-		}
-	} else {
-		fake := []float32{0, 1}
-		for i := 0; i < batches; i++ {
-			holder = append(holder, fake...)
-		}
-	}
-	gpuusable := make([]float32, len(holder))
-	for i := range gpuusable {
-		gpuusable[i] = holder[i]
-	}
-	return gpuusable
 }
 
 type tensor struct {
@@ -297,12 +219,6 @@ func cherror(input error) {
 
 	}
 }
-
-//Gaussian returns the gaussien at zero
-func gaussianstd3333() float32 {
-	return float32(utils.Gaussian(0, .3333))
-}
-
 func dims(args ...int) []int32 {
 
 	length := len(args)
@@ -312,23 +228,11 @@ func dims(args ...int) []int32 {
 	}
 	return x
 }
-
-//MakeRandomGaussianTensor makes a random gaussian tensor with the std of .33333
-func makerandomgaussiantensor(amount int, dims []int32) []tensor {
-	size := 1
-	for i := 0; i < len(dims); i++ {
-		size *= int(dims[i])
-
-	}
-	tens := make([]tensor, amount)
-	for i := range tens {
-		tens[i].data = make([]float32, size)
-		tens[i].dims = dims
-		for j := range tens[i].data {
-			tens[i].data[j] = gaussianstd3333()
+func printoutput(numofans, batchsize int, input []float32) {
+	for i := 0; i < batchsize; i++ {
+		for j := 0; j < numofans; j++ {
+			fmt.Printf("%-0.2f ", input[i*numofans+j])
 		}
+		fmt.Printf("\n ")
 	}
-
-	return tens
-
 }

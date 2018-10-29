@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand"
+	"time"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
@@ -18,7 +20,9 @@ import (
 )
 
 func main() {
-
+	rand.Seed(time.Now().UnixNano())
+	//	savelocationforimages := "/home/derek/Desktop/GANMNIST/"
+	//	imagenames := "MNIST"
 	trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
 	gocudnn.Cuda{}.LockHostThread()
 	var cuda gocudnn.Cuda
@@ -113,7 +117,7 @@ func main() {
 	}
 
 	network.LoadTrainers(handle, wtrainer, btrainer)
-
+	//imager, err := imaging.MakeImager(handle.XHandle())
 	epochs := 50
 	//	inputslicefromgpumem := make([]float32, 28*28)
 	for k := 0; k < epochs; k++ {
@@ -123,22 +127,29 @@ func main() {
 			//	cuda.CtxSynchronize()
 			cherror(stream.Sync())
 			cherror(network.ForwardProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
-			cherror(network.BackProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
+			cherror(network.BackPropFilterData(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
 			cherror(network.UpdateWeights(handle, batchsize))
 			cherror(stream.Sync())
+
 		}
 
 		netoutput := make([][]float32, testbatchnum)
 		desiredoutput := make([][]float32, testbatchnum)
 		for j := 0; j < testbatchnum; j++ {
+
 			cherror(network.ForwardProp(handle, nil, gputestingdata[j], gputestansdata[j]))
 			cherror(stream.Sync())
 
 			netoutput[j] = make([]float32, 10*batchsize)
+
 			desiredoutput[j] = make([]float32, 10*batchsize)
+
 			err = gputestansdata[j].T().Memer().FillSlice(netoutput[j])
+
 			cherror(err)
+
 			err = gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j])
+
 			cherror(err)
 
 		}
