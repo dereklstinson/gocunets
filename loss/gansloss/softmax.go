@@ -1,6 +1,7 @@
 package gansloss
 
 /*
+
 import "math"
 
 //Softmax Gan loss. Should be calculated (i think) with non activated outputs
