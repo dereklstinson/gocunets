@@ -279,24 +279,11 @@ func makeimage(data []float32, dims []int32, frmt gocudnn.TensorFormat) (image.I
 }
 
 func minvalue(data []float32) float32 {
-	var min float32
-	min = float32(99999999)
-	for i := 0; i < len(data); i++ {
-		if data[i] < min {
-			min = data[i]
-		}
-	}
-	return min
+	return utils.FindMin(data)
 }
 func maxvalue(data []float32) float32 {
-	var max float32
-	max = float32(-99999999)
-	for i := 0; i < len(data); i++ {
-		if data[i] > max {
-			max = data[i]
-		}
-	}
-	return max
+	return utils.FindMax(data)
+
 }
 func multiplydata(data []float32, value float32) {
 	for i := 0; i < len(data); i++ {
