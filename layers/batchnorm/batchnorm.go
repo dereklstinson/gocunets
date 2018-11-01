@@ -28,7 +28,7 @@ type Settings struct {
 }
 
 //LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.
-//I am 70 percent sure that fwd and bwd data are set correctly.  I am about 25% sure bwd param is set correctly.  I will change it when I get the change
+//I am 70 percent sure that fwd and bwd data are set correctly.  I am about 25% sure bwd param is set correctly.  I will change it if it needs it
 func LayerSetup(handle *gocudnn.Handle, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
 	b, err := batchnorm.Stage(handle, x.T(), mode, managed)
 	fw := abscalars{

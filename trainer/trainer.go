@@ -14,6 +14,7 @@ type Trainer interface {
 	L1L2Loss() (float32, float32, error)
 }
 
+//CreateTrainingMem creates trainingmem for the trainer
 func CreateTrainingMem(handle gocudnn.Handler, trainer Trainer, weights *layers.IO) error {
 
 	switch x := trainer.(type) {

@@ -25,6 +25,7 @@ const defaultadambeta2 = 0.999
 const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 
+//SetTrainingMem creates the training mem for the adam trainer
 func (a *Adam) SetTrainingMem(han gocudnn.Handler, weights *layers.IO) error {
 
 	/*
@@ -125,7 +126,7 @@ func dimsize(dims []int32) int32 {
 }
 
 //SetupAdamWandB returns a trainer for both WandB
-func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int) (*Adam, *Adam, error) {
+func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Adam, *Adam, error) {
 	adam1, err := SetupAdam(tctx, decay1, decay2, batch)
 	if err != nil {
 		return nil, nil, err
@@ -135,7 +136,7 @@ func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int) (*
 }
 
 //SetupAdam sets up adam
-func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int) (*Adam, error) {
+func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Adam, error) {
 
 	l1l2 := gocudnn.RegularizationFlag{}.L1L2()
 	adam := gocudnn.TrainingModeFlag{}.Adam()

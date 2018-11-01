@@ -67,10 +67,10 @@ func (h *Handles) XHandle() *gocudnn.XHandle {
 }
 
 //CreateHandle creates a multi use handle that uses both gocudnn handle and xhandle
-func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
+func CreateHandle(dev *gocudnn.Device) *Handles {
 
 	x := gocudnn.NewHandle()
-	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
+	y, err := gocudnn.Xtra{}.MakeXHandleV2(dev)
 	if err != nil {
 		panic(err)
 	}
@@ -80,6 +80,19 @@ func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
 	}
 }
 
+/*func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
+
+	x := gocudnn.NewHandle()
+	y, err := gocudnn.Xtra{}.MakeXHandleV2(xtrakernsfolder, dev)
+	if err != nil {
+		panic(err)
+	}
+	return &Handles{
+		cudnn:   x,
+		xhandle: y,
+	}
+}
+*/
 //SetStream sets the stream for the handles
 func (h *Handles) SetStream(stream *gocudnn.Stream) error {
 	err := h.cudnn.SetStream(stream)

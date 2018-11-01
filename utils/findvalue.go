@@ -33,6 +33,7 @@ func FindAvg(data []float32) float32 {
 	return avg / float32(len(data))
 }
 
+//FindTotal will return the summation of all the elements in data
 func FindTotal(data []float32) float32 {
 	ttl := float32(0)
 	for i := range data {
