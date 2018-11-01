@@ -31,3 +31,12 @@ func (o *Ops) GetWorkSpaceSize(handle *gocudnn.Handle, x, y *tensor.Volume) (goc
 func (o *Ops) GetIndiciesSize(handle *gocudnn.Handle, x, y *tensor.Volume) (gocudnn.SizeT, error) {
 	return o.desc.IndiciesSize(handle, x.TD(), y.TD())
 }
+
+//Destroy destroys the op and turns the op to nil
+func (o *Ops) Destroy() error {
+	err := o.desc.Destroy()
+	if err == nil {
+		o = nil
+	}
+	return err
+}
