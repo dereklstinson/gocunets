@@ -5,20 +5,19 @@ import (
 	"math/rand"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/loss"
+	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/dereklstinson/GoCuNets/utils/filing"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
-
-	"github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCudnn"
-
-	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
-	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
 )
 
 func main() {
-	//const romanimagelocation= "/home/derek/go/src/github.com/dereklstinson/testing/mnist/roman/"
+
 	const romanimagelocation = "../mnist/roman/"
 	const filedirectory = "../mnist/files/"
 	const mnistfilelabel = "train-labels.idx1-ubyte"
@@ -44,7 +43,7 @@ func main() {
 
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
-	handles := gocunets.CreateHandle(devs[0])
+	handles := gocunets.CreateHandle(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
 	handles.SetStream(stream)
@@ -57,27 +56,47 @@ func main() {
 	imager, err := imaging.MakeImager(handles.XHandle())
 	utils.CheckError(err)
 	epocs := 100
+	MSE, err := loss.CreateMSECalculatorGPU(fflag.NCHW(), dataflag.Float(), 4, true)
+	utils.CheckError(err)
+	msebackprop, err := romanoutput.ZeroClone()
+	utils.CheckError(err)
 	for i := 0; i < epocs; i++ {
+		lossarray := make([]float32, len(arabicnums))
 		for j := range arabicnums {
+
 			utils.CheckError(toroman.ForwardProp(handles, nil, arabicnums[j], romanoutput))
 			stream.Sync()
-			utils.CheckError(toroman.BackPropFilterData(handles, nil, arabicnums[j], romanoutput))
+			MSE.ErrorGPU(handles.Cudnn(), romanoutput, msebackprop)
+			stream.Sync()
+			lossarray[i], err = MSE.LossGPU(handles.Cudnn(), msebackprop)
+			utils.CheckError(err)
+			stream.Sync()
+			utils.CheckError(toroman.BackPropFilterData(handles, nil, arabicnums[j], msebackprop))
 			stream.Sync()
 			utils.CheckError(toroman.UpdateWeights(handles, 10))
 			stream.Sync()
 		}
+
 		shuffle(arabicnums)
 		outputimage, err := imager.TileBatches(handles.XHandle(), romanoutput, 2, 5)
 		utils.CheckError(err)
 		stream.Sync()
 
 		utils.CheckError(filing.WriteImage(imagesave, "RomanEpoc"+strconv.Itoa(i), outputimage))
+		var adder float32
+		for j := range lossarray {
+			adder += lossarray[j]
+		}
+		adder /= float32(len(lossarray))
+		fmt.Println("Loss is :", adder)
+
 	}
+
 }
 
 func putintogpumem(romans []float32, dimsroman []int32, arabic [][]float32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dimsarabic []int32, memmanaged bool) (output *layers.IO, runs []*layers.IO) {
 	var err error
-	runs = make([]*layers.IO, 0)
+	runs = make([]*layers.IO, len(arabic))
 	for i := range arabic {
 		runs[i], err = layers.BuildNetworkInputIO(frmt, dtype, dimsarabic, memmanaged)
 		utils.CheckError(err)

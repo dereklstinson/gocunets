@@ -264,6 +264,11 @@ func (i Info) Build() (*Volume, error) {
 	return vol, nil
 }
 
+//Unified returns if the memory is under the unified memory system
+func (t *Volume) Unified() bool {
+	return t.managed
+}
+
 //BuildFromTensorD will take a TensorD and the volume
 func BuildFromTensorD(desc *gocudnn.TensorD, managed bool) (*Volume, error) {
 	dtype, dims, _, err := desc.GetDescrptor()

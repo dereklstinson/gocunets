@@ -22,19 +22,19 @@ func Encoder(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(128, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(128, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(128, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),

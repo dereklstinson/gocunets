@@ -13,10 +13,10 @@ type Ops struct {
 }
 
 //Stage creates an activation struct given the properties passed in function
-func Stage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.TrainingMode, dtype gocudnn.DataType, coef float64) (*Ops, error) {
+func Stage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.TrainingMode, dtype gocudnn.DataType, invcoef float64) (*Ops, error) {
 	var xtra gocudnn.Xtra
 
-	desc, err := xtra.NewXActivationDescriptor(h, amode, tmode, dtype, coef)
+	desc, err := xtra.NewXActivationDescriptor(h, amode, tmode, dtype, invcoef)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 //Imager takes tensors and to the best its ability turn it into an image.Image
 type Imager struct {
 	shaper *reshapes.Ops
+	cache  *tensor.Volume
 }
 
 //MakeImager makes an imager
@@ -73,6 +74,86 @@ func (im *Imager) ByBatches(handle *gocudnn.XHandle, x *layers.IO, h, w uint) ([
 	return images, nil
 }
 
+//TileBatchesXdX will take the batches and lay place them withing the HWC space like tiles.It will do both of the x and dx tensors in the layer.IO
+//Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
+func (im *Imager) TileBatchesXdX(handle *gocudnn.XHandle, x *layers.IO, h, w int) (image.Image, image.Image, error) {
+
+	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)})
+	if err != nil {
+		return nil, nil, err
+	}
+	if im.cache == nil {
+		im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		cfrmt, cdtype, cdims, err := im.cache.Properties()
+		if err != nil {
+			return nil, nil, err
+		}
+		if frmt != cfrmt || dtype != cdtype || utils.CompareInt32(dims, cdims) == false {
+			err = im.cache.Destroy()
+			if err != nil {
+				return nil, nil, err
+			}
+			im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	err = im.shaper.S2BBackward(handle, im.cache, x.T())
+	if err != nil {
+		return nil, nil, err
+	}
+	var dflg gocudnn.DataTypeFlag
+	vol := utils.FindVolumeInt32(dims)
+	var z []float32
+	switch dtype {
+	case dflg.Double():
+		y := make([]float64, vol)
+		z = converttofloat32(y)
+	case dflg.Float():
+		y := make([]float32, vol)
+		z = converttofloat32(y)
+	case dflg.Int32():
+		y := make([]int32, vol)
+		z = converttofloat32(y)
+	case dflg.Int8():
+		y := make([]int8, vol)
+		z = converttofloat32(y)
+	case dflg.UInt8():
+		y := make([]uint8, vol)
+		z = converttofloat32(y)
+	}
+	if z == nil {
+		return nil, nil, errors.New("Unsupported Datatype")
+	}
+	err = im.cache.Memer().FillSlice(z)
+	if err != nil {
+		return nil, nil, err
+	}
+	img, err := makeimage(z, dims, frmt)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = im.shaper.S2BBackward(handle, im.cache, x.DeltaT())
+	if err != nil {
+		return nil, nil, err
+	}
+	err = im.cache.Memer().FillSlice(z)
+	if err != nil {
+		return nil, nil, err
+	}
+	img2, err := makeimage(z, dims, frmt)
+	if err != nil {
+		return nil, nil, err
+	}
+	return img, img2, nil
+
+}
+
 //TileBatches will take the batches and lay place them withing the HWC space like tiles.
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
 func (im *Imager) TileBatches(handle *gocudnn.XHandle, x *layers.IO, h, w int) (image.Image, error) {
@@ -81,13 +162,29 @@ func (im *Imager) TileBatches(handle *gocudnn.XHandle, x *layers.IO, h, w int) (
 	if err != nil {
 		return nil, err
 	}
-
-	output, err := tensor.Build(frmt, dtype, dims, managed)
-	if err != nil {
-		return nil, err
+	if im.cache == nil {
+		im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cfrmt, cdtype, cdims, err := im.cache.Properties()
+		if err != nil {
+			return nil, err
+		}
+		if frmt != cfrmt || dtype != cdtype || utils.CompareInt32(dims, cdims) == false {
+			err = im.cache.Destroy()
+			if err != nil {
+				return nil, err
+			}
+			im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-	defer output.Destroy()
-	err = im.shaper.S2BBackward(handle, output, x.T())
+
+	err = im.shaper.S2BBackward(handle, im.cache, x.T())
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +211,7 @@ func (im *Imager) TileBatches(handle *gocudnn.XHandle, x *layers.IO, h, w int) (
 	if z == nil {
 		return nil, errors.New("Unsupported Datatype")
 	}
-	output.Memer().FillSlice(z)
+	im.cache.Memer().FillSlice(z)
 	return makeimage(z, dims, frmt)
 
 }
@@ -276,6 +373,11 @@ func makeimage(data []float32, dims []int32, frmt gocudnn.TensorFormat) (image.I
 
 	}
 
+}
+
+//Destroy destroys the cache in the imager
+func (im *Imager) Destroy() error {
+	return im.cache.Destroy()
 }
 
 func minvalue(data []float32) float32 {

@@ -4,6 +4,7 @@ package gocunets
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
@@ -66,8 +67,9 @@ func (h *Handles) XHandle() *gocudnn.XHandle {
 	return h.xhandle
 }
 
-//CreateHandle creates a multi use handle that uses both gocudnn handle and xhandle
-func CreateHandle(dev *gocudnn.Device) *Handles {
+/*
+//CreateHandleV2 creates a multi use handle that uses both gocudnn handle and xhandle
+func CreateHandleV2(dev *gocudnn.Device) *Handles {
 
 	x := gocudnn.NewHandle()
 	y, err := gocudnn.Xtra{}.MakeXHandleV2(dev)
@@ -79,11 +81,11 @@ func CreateHandle(dev *gocudnn.Device) *Handles {
 		xhandle: y,
 	}
 }
-
-/*func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
+*/
+func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
 
 	x := gocudnn.NewHandle()
-	y, err := gocudnn.Xtra{}.MakeXHandleV2(xtrakernsfolder, dev)
+	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +94,7 @@ func CreateHandle(dev *gocudnn.Device) *Handles {
 		xhandle: y,
 	}
 }
-*/
+
 //SetStream sets the stream for the handles
 func (h *Handles) SetStream(stream *gocudnn.Stream) error {
 	err := h.cudnn.SetStream(stream)
@@ -229,7 +231,7 @@ func (m *Network) buildhiddenios(handle *Handles, input *layers.IO) error {
 				m.mem[j].Destroy()
 			}
 
-			return err
+			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
 		previous = mem
 		m.mem = append(m.mem, mem)
@@ -286,7 +288,7 @@ func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 		}
 		err = m.buildhiddenios(handle, x)
 		if err != nil {
-			return err
+			return wraperror("dynamichiddenio", err)
 		}
 		return m.forwardprop(handle, wspace, x, y)
 	case statichiddenio:
@@ -294,7 +296,7 @@ func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 			m.resizecounter++
 			err := m.freehiddenios()
 			if err != nil {
-				return err
+				return wraperror("free in statichiddenio", err)
 			}
 			err = m.buildhiddenios(handle, x)
 			if err != nil {
@@ -470,25 +472,27 @@ func (m *Network) BackPropData(handle *Handles, wspace *gocudnn.Malloced, x, y *
 	return errors.New("BackProp-Unsupported Hidden Mode")
 
 }
-
+func wraperror(comment string, err error) error {
+	return errors.New(comment + "-" + err.Error())
+}
 func (m *Network) forwardprop(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 
 	err = m.layer[0].forwardprop(handle, wspace, x, m.mem[0])
 	if err != nil {
-		return err
+		return wraperror("forward index:"+strconv.Itoa(0), err)
 	}
 	lnum := len(m.layer)
 	for i := 1; i < lnum-1; i++ {
 		err = m.layer[i].forwardprop(handle, wspace, m.mem[i-1], m.mem[i])
 		if err != nil {
-			return err
+			return wraperror("forward index:"+strconv.Itoa(i), err)
 		}
 	}
 
 	err = m.layer[lnum-1].forwardprop(handle, wspace, m.mem[lnum-2], y)
 	if err != nil {
-		return err
+		return wraperror("forward index:"+strconv.Itoa(lnum-1), err)
 	}
 	return nil
 

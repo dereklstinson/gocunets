@@ -146,6 +146,7 @@ func (l *layer) updateWeights(handle *Handles, batch int) error {
 
 //ForwardProp does the forward prop for a layer
 func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
+	var err error
 	if l.cnn != nil {
 		return l.cnn.ForwardProp(handle.cudnn, wpace, x, y)
 	}
@@ -165,10 +166,16 @@ func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.I
 		return l.pool.ForwardProp(handle.cudnn, x, y)
 	}
 	if l.xactivation != nil {
-		return l.xactivation.ForwardProp(handle.xhandle, x, y)
+		handle.stream.Sync()
+		err = l.xactivation.ForwardProp(handle.xhandle, x, y)
+		handle.stream.Sync()
+		return err
 	}
 	if l.reshape != nil {
-		return l.reshape.ForwardProp(handle.xhandle, x, y)
+		handle.stream.Sync()
+		err = l.reshape.ForwardProp(handle.xhandle, x, y)
+		handle.stream.Sync()
+		return err
 	}
 	if l.batch != nil {
 		l.batch.ForwardProp(handle.cudnn, x, y)

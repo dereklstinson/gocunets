@@ -58,3 +58,38 @@ func AbsoluteValue(x float32) float32 {
 	}
 	return x
 }
+
+//CompareInt32 compairs int32 arrays if x!=y then false else true
+func CompareInt32(x, y []int32) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i := range x {
+		if x[i] != y[i] {
+			return false
+		}
+	}
+	return true
+}
+
+//CompareInt compairs int32 arrays if x!=y then false else true
+func CompareInt(x, y []int) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i := range x {
+		if x[i] != y[i] {
+			return false
+		}
+	}
+	return true
+}
+
+//CopyDimsInt32 returns a copy of the dims.
+func CopyDimsInt32(x []int32) (y []int32) {
+	y = make([]int32, len(x))
+	for i := range x {
+		y[i] = x[i]
+	}
+	return y
+}

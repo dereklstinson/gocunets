@@ -8,11 +8,11 @@ import (
 
 	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
+	"github.com/dereklstinson/GoCuNets/layers/xactivation"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/mnistgpu"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCudnn" //	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
@@ -69,14 +69,14 @@ func main() {
 	batchnum := len(gputrainingdata)
 	testbatchnum := len(gputestingdata)
 
-	AMode := gocudnn.ActivationModeFlag{}.Relu()
+	//AMode := gocudnn.ActivationModeFlag{}.Relu()
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		activation.Setup(AMode),
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //pooling
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
@@ -85,7 +85,7 @@ func main() {
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 14, 14), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		activation.Setup(AMode),
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //pooling
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
@@ -94,7 +94,7 @@ func main() {
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 7, 7), filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		activation.Setup(AMode),
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
 	)
 
 	network.AddLayer( //convolution
@@ -111,7 +111,7 @@ func main() {
 	wtrainer := make([]trainer.Trainer, numoftrainers)
 	btrainer := make([]trainer.Trainer, numoftrainers)
 	for i := 0; i < numoftrainers; i++ {
-		wtrainer[i], btrainer[i], err = trainer.SetupAdamWandB(handle.XHandle(), decay1, decay2, batchsize)
+		wtrainer[i], btrainer[i], err = trainer.SetupAdamWandB(handle.XHandle(), decay1, decay2, int32(batchsize))
 		cherror(err)
 
 	}
