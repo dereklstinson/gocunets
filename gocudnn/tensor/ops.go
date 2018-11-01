@@ -40,32 +40,10 @@ func (t *Volume) OpAdd(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	var c gocudnn.CScalar
-	switch dtypet {
-	case t.thelp.Flgs.Data.Double():
-		a = gocudnn.CDouble(alpha1)
-		b = gocudnn.CDouble(alpha2)
-		c = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
-		a = gocudnn.CFloat(alpha1)
-		b = gocudnn.CFloat(alpha2)
-		c = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
-		a = gocudnn.CInt(alpha1)
-		b = gocudnn.CInt(alpha2)
-		c = gocudnn.CInt(beta)
-	case t.thelp.Flgs.Data.Int8():
-		a = gocudnn.CInt8(alpha1)
-		b = gocudnn.CInt8(alpha2)
-		c = gocudnn.CInt8(beta)
-	case t.thelp.Flgs.Data.UInt8():
-		a = gocudnn.CUInt8(alpha1)
-		b = gocudnn.CUInt8(alpha2)
-		c = gocudnn.CUInt8(beta)
-
-	default:
+	a := gocudnn.CScalarByDataType(dtypet, alpha1)
+	b := gocudnn.CScalarByDataType(dtypet, alpha2)
+	c := gocudnn.CScalarByDataType(dtypet, beta)
+	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet, t.propnan)
@@ -100,32 +78,11 @@ func (t *Volume) OpMult(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta fl
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	var c gocudnn.CScalar
-	switch dtypet {
-	case t.thelp.Flgs.Data.Double():
-		a = gocudnn.CDouble(alpha1)
-		b = gocudnn.CDouble(alpha2)
-		c = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
-		a = gocudnn.CFloat(alpha1)
-		b = gocudnn.CFloat(alpha2)
-		c = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
-		a = gocudnn.CInt(alpha1)
-		b = gocudnn.CInt(alpha2)
-		c = gocudnn.CInt(beta)
-	case t.thelp.Flgs.Data.Int8():
-		a = gocudnn.CInt8(alpha1)
-		b = gocudnn.CInt8(alpha2)
-		c = gocudnn.CInt8(beta)
-	case t.thelp.Flgs.Data.UInt8():
-		a = gocudnn.CUInt8(alpha1)
-		b = gocudnn.CUInt8(alpha2)
-		c = gocudnn.CUInt8(beta)
 
-	default:
+	a := gocudnn.CScalarByDataType(dtypet, alpha1)
+	b := gocudnn.CScalarByDataType(dtypet, alpha2)
+	c := gocudnn.CScalarByDataType(dtypet, beta)
+	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet, t.propnan)
@@ -152,32 +109,9 @@ func (t *Volume) OpNot(h *gocudnn.Handle, A *Volume, alpha1, beta float64) error
 	if dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	var a gocudnn.CScalar
-	//var b gocudnn.CScalar
-	var c gocudnn.CScalar
-	switch dtypet {
-	case t.thelp.Flgs.Data.Double():
-		a = gocudnn.CDouble(alpha1)
-		//	b = gocudnn.CDouble(alpha2)
-		c = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
-		a = gocudnn.CFloat(alpha1)
-		//	b = gocudnn.CFloat(alpha2)
-		c = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
-		a = gocudnn.CInt(alpha1)
-		//	b = gocudnn.CInt(alpha2)
-		c = gocudnn.CInt(beta)
-	case t.thelp.Flgs.Data.Int8():
-		a = gocudnn.CInt8(alpha1)
-		//	b = gocudnn.CInt8(alpha2)
-		c = gocudnn.CInt8(beta)
-	case t.thelp.Flgs.Data.UInt8():
-		a = gocudnn.CUInt8(alpha1)
-		//	b = gocudnn.CUInt8(alpha2)
-		c = gocudnn.CUInt8(beta)
-
-	default:
+	a := gocudnn.CScalarByDataType(dtypet, alpha1)
+	c := gocudnn.CScalarByDataType(dtypet, beta)
+	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet, t.propnan)
@@ -207,32 +141,10 @@ func (t *Volume) OpMax(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	var c gocudnn.CScalar
-	switch dtypet {
-	case t.thelp.Flgs.Data.Double():
-		a = gocudnn.CDouble(alpha1)
-		b = gocudnn.CDouble(alpha2)
-		c = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
-		a = gocudnn.CFloat(alpha1)
-		b = gocudnn.CFloat(alpha2)
-		c = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
-		a = gocudnn.CInt(alpha1)
-		b = gocudnn.CInt(alpha2)
-		c = gocudnn.CInt(beta)
-	case t.thelp.Flgs.Data.Int8():
-		a = gocudnn.CInt8(alpha1)
-		b = gocudnn.CInt8(alpha2)
-		c = gocudnn.CInt8(beta)
-	case t.thelp.Flgs.Data.UInt8():
-		a = gocudnn.CUInt8(alpha1)
-		b = gocudnn.CUInt8(alpha2)
-		c = gocudnn.CUInt8(beta)
-
-	default:
+	a := gocudnn.CScalarByDataType(dtypet, alpha1)
+	b := gocudnn.CScalarByDataType(dtypet, alpha2)
+	c := gocudnn.CScalarByDataType(dtypet, beta)
+	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Max(), dtypet, t.propnan)
@@ -262,32 +174,10 @@ func (t *Volume) OpMin(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	var a gocudnn.CScalar
-	var b gocudnn.CScalar
-	var c gocudnn.CScalar
-	switch dtypet {
-	case t.thelp.Flgs.Data.Double():
-		a = gocudnn.CDouble(alpha1)
-		b = gocudnn.CDouble(alpha2)
-		c = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
-		a = gocudnn.CFloat(alpha1)
-		b = gocudnn.CFloat(alpha2)
-		c = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
-		a = gocudnn.CInt(alpha1)
-		b = gocudnn.CInt(alpha2)
-		c = gocudnn.CInt(beta)
-	case t.thelp.Flgs.Data.Int8():
-		a = gocudnn.CInt8(alpha1)
-		b = gocudnn.CInt8(alpha2)
-		c = gocudnn.CInt8(beta)
-	case t.thelp.Flgs.Data.UInt8():
-		a = gocudnn.CUInt8(alpha1)
-		b = gocudnn.CUInt8(alpha2)
-		c = gocudnn.CUInt8(beta)
-
-	default:
+	a := gocudnn.CScalarByDataType(dtypet, alpha1)
+	b := gocudnn.CScalarByDataType(dtypet, alpha2)
+	c := gocudnn.CScalarByDataType(dtypet, beta)
+	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Min(), dtypet, t.propnan)
@@ -300,12 +190,7 @@ func (t *Volume) OpMin(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 }
 
 //OpSqrt does squareroot Operation C = op ( alpha1[0] * A ) + beta[0] * C,
-func (t *Volume) OpSqrt(h *gocudnn.Handle,
-	A *Volume,
-	// B *Tensor,
-	alpha1,
-	//alpha2,
-	beta float64) error {
+func (t *Volume) OpSqrt(h *gocudnn.Handle, A *Volume, alpha1, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -315,41 +200,13 @@ func (t *Volume) OpSqrt(h *gocudnn.Handle,
 	if err != nil {
 		return err
 	}
-	/*
-		_, dtypeB, _, err := B.Properties()
-		if err != nil {
-			return err
-		}
-	*/
 	if dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	var a gocudnn.CScalar
-	///=	var b gocudnn.CScalar
-	var c gocudnn.CScalar
-	switch dtypet {
-	case t.thelp.Flgs.Data.Double():
-		a = gocudnn.CDouble(alpha1)
-		//		b = gocudnn.CDouble(alpha2)
-		c = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
-		a = gocudnn.CFloat(alpha1)
-		//		b = gocudnn.CFloat(alpha2)
-		c = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
-		a = gocudnn.CInt(alpha1)
-		//	b = gocudnn.CInt(alpha2)
-		c = gocudnn.CInt(beta)
-	case t.thelp.Flgs.Data.Int8():
-		a = gocudnn.CInt8(alpha1)
-		//	b = gocudnn.CInt8(alpha2)
-		c = gocudnn.CInt8(beta)
-	case t.thelp.Flgs.Data.UInt8():
-		a = gocudnn.CUInt8(alpha1)
-		//		b = gocudnn.CUInt8(alpha2)
-		c = gocudnn.CUInt8(beta)
+	a := gocudnn.CScalarByDataType(dtypet, alpha1)
 
-	default:
+	c := gocudnn.CScalarByDataType(dtypet, beta)
+	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
 	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Sqrt(), dtypet, t.propnan)
