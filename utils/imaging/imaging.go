@@ -8,10 +8,10 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/reshapes"
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
+	"github.com/dereklstinson/GoCuNets/layers" //	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/nfnt/resize"
 )
 
 //Imager takes tensors and to the best its ability turn it into an image.Image

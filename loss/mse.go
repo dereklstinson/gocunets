@@ -22,7 +22,7 @@ type MSE struct {
 func (m MSE) LossCPU(generated, target []float32) float32 {
 	sumation := float32(0)
 	for i := range target {
-		x := generated[i] - target[i]
+		x := target[i] - generated[i]
 		sumation += (x * x)
 	}
 	sumation /= 2
@@ -41,8 +41,8 @@ func (m *MSE) ErrorCPU(generated, target []float32) []float32 {
 //ErrorGPU this one is kind of tricky because I usually put the answers in the dx part of layers.
 //So for this the input will be x and the output y will be back propigated to the network.
 func (m *MSE) ErrorGPU(h *gocudnn.Handle, x, y *layers.IO) error {
-	y.T().LoadMem(x.T().Memer())                            //Puts the values of output of x int y
-	return y.DeltaT().OpAdd(h, x.T(), x.DeltaT(), 1, -1, 0) //Takes the error of   x.T() (output) - x.DeltaT() (target) and puts into y.DeltaT()
+	y.T().LoadMem(x.T().Memer())                            //Puts the values of output of x into yxc
+	return y.DeltaT().OpAdd(h, x.T(), x.DeltaT(), 1, -1, 0) //Takes the error of  -x.T() (output) + x.DeltaT() (target) and puts into y.DeltaT()
 }
 
 //LossGPU takes the already calculated error placed into y copies ruduces it and returns the loss of output
@@ -72,6 +72,7 @@ func (m *MSE) LossGPU(h *gocudnn.Handle, y *layers.IO) (float32, error) {
 	if err != nil {
 		return 0, err
 	}
+	m.gpulossholder[0] /= 2.0
 	m.previousinputdims = utils.CopyDimsInt32(dims)
 	return m.gpulossholder[0], nil
 }
@@ -188,7 +189,7 @@ func CreateMSECalculatorGPU(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, n
 	if err != nil {
 		return nil, err
 	}
-	op, err := reduce.Stage(oflg.Norm2(), dtype, nflg.PropagateNan(), iflg.NoIndices(), itflg.Type32Bit())
+	op, err := reduce.Stage(oflg.Add(), dtype, nflg.PropagateNan(), iflg.NoIndices(), itflg.Type32Bit())
 	if err != nil {
 		return nil, err
 	}

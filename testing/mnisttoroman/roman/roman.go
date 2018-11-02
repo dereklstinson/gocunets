@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/nfnt/resize" //"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 )
 
 //Roman is some roman numerals 1 through 9 (I through IX) with the added character N.  N == 0
