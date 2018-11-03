@@ -21,6 +21,10 @@ import (
 
 func main() {
 
+	network()
+}
+func network() {
+
 	const romanimagelocation = "../mnist/roman/"
 	const filedirectory = "../mnist/files/"
 	const mnistfilelabel = "train-labels.idx1-ubyte"
@@ -108,8 +112,8 @@ func main() {
 
 	}
 	devs[0].Reset()
-}
 
+}
 func putintogpumem(romans []float32, dimsroman []int32, arabic [][]float32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dimsarabic []int32, memmanaged bool) (output *layers.IO, runs []*layers.IO) {
 	var err error
 	runs = make([]*layers.IO, len(arabic))
@@ -207,6 +211,13 @@ func encoder(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.
 		activation.Setup(aflg.Tanh()),
 	)
 	network.AddLayer( //convolution
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	) //28-15+14
+	network.AddLayer( //activation
+		//xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.Setup(aflg.Tanh()),
+	)
+	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(3, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
@@ -216,6 +227,13 @@ func encoder(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 3, 1, 1), filter(50, 3, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
+	network.AddLayer( //activation
+		//xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.Setup(aflg.Tanh()),
+	)
+	network.AddLayer( //convolution
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	) //28-15+14
 	network.AddLayer( //activation
 		//xactivation.SetupLeaky(handle.XHandle(), dtype),
 		activation.Setup(aflg.Tanh()),

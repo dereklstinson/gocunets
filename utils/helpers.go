@@ -18,17 +18,18 @@ func CheckError(err error) {
 
 //NumbertoString will add zeros to the left of numbers. So it will file in order
 func NumbertoString(x, outof int) string {
-	zeros := "0"
-	var flag bool
-	for i := 1; i < outof; i *= 10 {
-
-		if x%i == x {
-			if flag == true {
-				zeros = zeros + "0"
-			}
-			flag = true
+	var zeros string
+	var i int
+	for i = 1; i < outof; i *= 10 {
+	}
+	for ; i >= 10; i /= 10 {
+		if x < i {
+			zeros = zeros + "0"
 		}
 	}
 	return zeros + strconv.Itoa(x)
 
 }
+
+// x=0 -> 000
+//x =1 -
