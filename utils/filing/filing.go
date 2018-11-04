@@ -3,9 +3,29 @@ package filing
 import (
 	"image"
 	"image/jpeg"
+	"io"
 	"os"
 	"strings"
 )
+
+//Encoder is used to encode
+type Encoder interface {
+	Encode(w io.Writer) error
+}
+
+//WritetoHD will write the Encoder to the hard drive
+func WritetoHD(dir, fname string, e Encoder) error {
+	err1 := os.MkdirAll(dir, os.ModePerm)
+	if err1 != nil {
+		panic(err1)
+	}
+
+	newfile, err := os.Create(dir + fname)
+	if err != nil {
+		return err
+	}
+	return e.Encode(newfile)
+}
 
 //WriteImage will take an image.Image and encode it to a jpg
 func WriteImage(dir string, fname string, newimage image.Image) error {

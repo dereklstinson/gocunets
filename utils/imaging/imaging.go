@@ -5,6 +5,9 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"image/jpeg"
+	"image/png"
+	"io"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/reshapes"
 	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
@@ -18,6 +21,48 @@ import (
 type Imager struct {
 	shaper *reshapes.Ops
 	cache  *tensor.Volume
+}
+
+//ImageV2 is a wrapper for an img.Image.  It is made so that it can be used in the Encoder interface.
+type ImageV2 struct {
+	img image.Image
+	png bool
+}
+
+//UpgradeImagetoV2 upgrades an image.Image to an ImageV2 so it can be use the encoder interface
+func UpgradeImagetoV2(img image.Image) *ImageV2 {
+	return &ImageV2{
+		img: img,
+	}
+}
+
+//Bounds returns an image.Rectangle
+func (i *ImageV2) Bounds() image.Rectangle {
+	return i.img.Bounds()
+}
+
+//At returns the color.Color at x,y
+func (i *ImageV2) At(x int, y int) color.Color {
+	return i.img.At(x, y)
+}
+
+//ColorModel returns the colormodel for image
+func (i *ImageV2) ColorModel() color.Model {
+	return i.img.ColorModel()
+}
+
+//SetPNG will set the PNG flag.  if true then if will encode the image to png if false it will encode to jpg.
+//Default is jpg
+func (i *ImageV2) SetPNG(png bool) {
+	i.png = png
+}
+
+//Encode will encode the imagev2 to a jpeg unless you set it to png with SetPNG
+func (i *ImageV2) Encode(w io.Writer) error {
+	if i.png == true {
+		return png.Encode(w, i.img)
+	}
+	return jpeg.Encode(w, i.img, nil)
 }
 
 //MakeImager makes an imager

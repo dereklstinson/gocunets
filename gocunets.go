@@ -257,19 +257,6 @@ func (m *Network) freehiddenios() error {
 	return nil
 }
 
-/*
-//AddLayerandOutput appends an output and a layer to the slices of output and layer in the network.
-func (m *Network) AddLayerandOutput(layer interface{}, output *layers.IO) error {
-	l := wraplayer(layer)
-	if l == nil {
-		return errors.New("Not a supported layer")
-	}
-	m.layer = append(m.layer, l)
-	m.mem = append(m.mem, output)
-	return nil
-}
-*/
-
 //ForwardProp does the forward prop for a prebuilt Network
 func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch m.hiomode {
