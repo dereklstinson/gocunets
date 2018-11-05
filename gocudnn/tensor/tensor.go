@@ -1,7 +1,7 @@
 //Package tensor is used to make tensors by using gocudnn.  It is currently not supporting what I call the "EX" functions.
 //because the Tensor struct is also going to be carrying a filter descripter.  Also I call it "EX" functions loosly, because I think
 //there is a miss labeling of the function names in cudnn. Basicly it is the set tensor fuctions that don't include the format and include
-//the strides
+//the strides asdf
 package tensor
 
 //import "C"
@@ -376,7 +376,11 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 		}
 
 	}
-
+	err = newmemer.Set(0)
+	if err != nil {
+		newmemer.Free()
+		return nil, err
+	}
 	return &Volume{
 		tD:     tens,
 		fD:     filts,

@@ -135,11 +135,18 @@ func (l *layer) getoutput(handle *Handles, input *layers.IO) (*layers.IO, error)
 
 //UpdateWeights updates the weights of layer
 func (l *layer) updateWeights(handle *Handles, batch int) error {
+	var err error
 	if l.cnn != nil {
-		return l.cnn.UpdateWeights(handle.xhandle, batch)
+		handle.stream.Sync()
+		err = l.cnn.UpdateWeights(handle.xhandle, batch)
+		handle.stream.Sync()
+		return err
 	}
 	if l.fcnn != nil {
-		return l.fcnn.UpdateWeights(handle.xhandle, batch)
+		handle.stream.Sync()
+		err = l.fcnn.UpdateWeights(handle.xhandle, batch)
+		handle.stream.Sync()
+		return err
 	}
 	return nil
 }
@@ -147,6 +154,7 @@ func (l *layer) updateWeights(handle *Handles, batch int) error {
 //ForwardProp does the forward prop for a layer
 func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
 	var err error
+	handle.stream.Sync()
 	if l.cnn != nil {
 		return l.cnn.ForwardProp(handle.cudnn, wpace, x, y)
 	}
@@ -166,13 +174,13 @@ func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.I
 		return l.pool.ForwardProp(handle.cudnn, x, y)
 	}
 	if l.xactivation != nil {
-		handle.stream.Sync()
+
 		err = l.xactivation.ForwardProp(handle.xhandle, x, y)
 		handle.stream.Sync()
 		return err
 	}
 	if l.reshape != nil {
-		handle.stream.Sync()
+
 		err = l.reshape.ForwardProp(handle.xhandle, x, y)
 		handle.stream.Sync()
 		return err
@@ -186,6 +194,7 @@ func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.I
 
 //BackProp does the backprop of a layer
 func (l *layer) backpropfilterdata(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
+	handle.stream.Sync()
 	if l.cnn != nil {
 		return l.cnn.BackPropFilterData(handle.cudnn, wpace, x, y)
 	}
@@ -218,6 +227,7 @@ func (l *layer) backpropfilterdata(handle *Handles, wpace gocudnn.Memer, x, y *l
 
 //BackProp does the backprop of a layer
 func (l *layer) backpropdata(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
+	handle.stream.Sync()
 	if l.cnn != nil {
 		return l.cnn.BackPropData(handle.cudnn, wpace, x, y)
 	}

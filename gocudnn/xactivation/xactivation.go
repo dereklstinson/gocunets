@@ -29,10 +29,10 @@ func Stage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.Trai
 //Alphas will only be in use if the activation descriptor is using it. otherwise it can be nil
 func (act *Ops) FwdProp(
 	handle *gocudnn.XHandle,
-
 	x *tensor.Volume,
 	y *tensor.Volume,
-	alphas *tensor.Volume) error {
+	alphas *tensor.Volume,
+	betas *tensor.Volume) error {
 	_, dtypex, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -46,10 +46,10 @@ func (act *Ops) FwdProp(
 		return errors.New("output type not matching input type")
 	}
 
-	if alphas == nil {
-		return act.desc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), nil)
+	if alphas == nil && betas == nil {
+		return act.desc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil)
 	}
-	return act.desc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer())
+	return act.desc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), betas.Memer())
 
 }
 
@@ -61,13 +61,15 @@ func (act *Ops) BwdProp(
 	dy *tensor.Volume,
 	alphas *tensor.Volume,
 	dalphas *tensor.Volume,
+	betas *tensor.Volume,
+	dbetas *tensor.Volume,
 
 ) error {
 
 	if alphas == nil || dalphas == nil {
-		return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
+		return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil)
 	}
-	return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer())
+	return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer(), betas.Memer(), dbetas.Memer())
 
 }
 
@@ -77,13 +79,20 @@ func (act *Ops) UpdateParams(
 	batch int,
 	alphas *tensor.Volume,
 	dalphas *tensor.Volume,
-	gsum gocudnn.Memer,
-	xsum gocudnn.Memer,
+	betas *tensor.Volume,
+	dbetas *tensor.Volume,
+	gsuma *gocudnn.Malloced,
+	xsuma *gocudnn.Malloced,
+	gsumb *gocudnn.Malloced,
+	xsumb *gocudnn.Malloced,
+	l1 *gocudnn.Malloced,
+	l2 *gocudnn.Malloced,
 	t gocudnn.TrainingParams,
+	r gocudnn.RegParams,
 ) error {
-	if alphas == nil || dalphas == nil || gsum == nil || xsum == nil {
+	if betas == nil || dbetas == nil || gsumb == nil || alphas == nil || dalphas == nil || gsuma == nil {
 		return errors.New("One or more of the alphas dalphas gsum or xsum is nil")
 	}
-	return act.desc.UpdateAlphas(handle, batch, alphas.TD(), alphas.Memer(), dalphas.Memer(), xsum, gsum, t)
+	return act.desc.UpdateParas(handle, alphas.TD(), alphas.Memer(), dalphas.Memer(), betas.Memer(), dbetas.Memer(), xsuma, gsuma, xsumb, gsumb, l1, l2, t, r)
 
 }

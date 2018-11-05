@@ -548,6 +548,7 @@ func (m *Network) UpdateWeights(handle *Handles, batch int) error {
 		return err
 	}
 	for i := 0; i < len(m.layer); i++ {
+
 		err := m.layer[i].updateWeights(handle, batch)
 		if err != nil {
 			return err

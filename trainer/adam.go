@@ -98,6 +98,7 @@ func (a *Adam) UpdateWeights(handle gocudnn.Handler, weights *layers.IO, batchsi
 	if err != nil {
 		return err
 	}
+
 	return a.trainer.TrainValues(tctx, weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
 }
 
@@ -138,9 +139,8 @@ func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) 
 //SetupAdam sets up adam
 func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Adam, error) {
 
-	l1l2 := gocudnn.RegularizationFlag{}.L1L2()
 	adam := gocudnn.TrainingModeFlag{}.Adam()
-	t, err := gocudnn.Xtra{}.NewTrainingDescriptor(tctx, adam, gocudnn.DataTypeFlag{}.Float(), l1l2)
+	t, err := gocudnn.Xtra{}.NewTrainingDescriptor(tctx, adam, gocudnn.DataTypeFlag{}.Float())
 	if err != nil {
 		return nil, err
 	}

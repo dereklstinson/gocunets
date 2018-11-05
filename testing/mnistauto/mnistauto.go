@@ -77,7 +77,7 @@ func network() {
 
 	//set the number of epocs
 	epocs := 100
-	snapshotsize := 400
+	snapshotsize := 300
 	//Set the Loss Calculator. This is Mean Square Error
 	MSE, err := loss.CreateMSECalculatorGPU(handles.XHandle(), true)
 	utils.CheckError(err)
@@ -114,9 +114,12 @@ func network() {
 			//Update the weights
 			utils.CheckError(AutoEncoder.UpdateWeights(handles, 10))
 			stream.Sync()
-			imagerlayer.LoadTValues(fconout.T().Memer())
-			stream.Sync()
+
 			if j%snapshotsize == 0 {
+
+				utils.CheckError(AutoEncoder.ForwardProp(handles, nil, arabicnums[0], arabicoutput[0]))
+				imagerlayer.LoadTValues(arabicoutput[0].T().Memer())
+				stream.Sync()
 				outputimage, err := imager.TileBatches(handles.XHandle(), imagerlayer, 2, 5)
 				utils.CheckError(err)
 				images = append(images, outputimage)
@@ -145,20 +148,20 @@ func network() {
 		epocloss /= float32(len(arabicnums))
 		stream.Sync()
 		fmt.Println("At Epoc: ", i, "Loss is :", epocloss)
-		if epocloss <= 13 {
-			fmt.Println("HIT 13 Loss")
+		if epocloss <= 12 {
+			fmt.Println("HIT 12 Loss")
 			giffer.MakeGrayGif(totalrunimage)
 			fmt.Println("Writing GIF")
 			utils.CheckError(filing.WritetoHD(imagesave, "AutoGifsToLoss13", giffer))
 
 			//	utils.CheckError(filing.WriteImage(imagesave, "AutoEncoder"+number, outputimage))
 			fmt.Println("Done Writing GIF")
-			fmt.Println("Should Break Out of Loop")
-			break
+			devs[0].Reset()
+			return
 		}
 
 	}
-	fmt.Println("BrokeOut --- BYE")
+
 	devs[0].Reset()
 
 }
@@ -243,14 +246,14 @@ func encoder(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.
 	) //28-15+14
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-	//	activation.Setup(aflg.Tanh()),
+		//activation.Setup(aflg.Tanh()),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-15+14
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-	//	activation.Setup(aflg.Tanh()),
+		//activation.Setup(aflg.Tanh()),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(4, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
@@ -264,14 +267,14 @@ func encoder(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudnn.
 	)
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-	//	activation.Setup(aflg.Tanh()),
+		//activation.Setup(aflg.Tanh()),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-15+14
 	network.AddLayer( //activation
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-		//activation.Setup(aflg.Tanh()),
+	//	activation.Setup(aflg.Tanh()),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(784, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
