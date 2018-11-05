@@ -140,7 +140,7 @@ func sectionalprint(input [][][][]float32) {
 		for j := 0; j < len(input[i]); j++ {
 			for k := 0; k < len(input[i][j]); k++ {
 				for l := 0; l < len(input[i][j][k]); l++ {
-					fmt.Printf("%-4.0f ", input[i][j][k][l])
+					fmt.Printf("% -4.0f ", input[i][j][k][l])
 				}
 				fmt.Printf("\n")
 			}
@@ -155,7 +155,7 @@ func sectionalprinthwc(input [][][][]float32) {
 		for j := 0; j < len(input[i]); j++ {
 			for k := 0; k < len(input[i][j]); k++ {
 				for l := 0; l < len(input[i][j][k]); l++ {
-					fmt.Printf(" %-3.0f", input[i][j][k][l])
+					fmt.Printf(" % -3.0f ", input[i][j][k][l])
 				}
 				fmt.Printf(",")
 			}

@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/utils"
-
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -18,15 +17,15 @@ func (t *Volume) SetValues(handle *gocudnn.Handle, input float64) error {
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CDouble(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CDouble(input))
 	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CFloat(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CFloat(input))
 	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CInt(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CInt(input))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CInt8(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CInt8(input))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.SetTensor(handle, t.tD, t.mem, gocudnn.CUInt8(input))
+		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CUInt8(input))
 	default:
 		return errors.New("Not supported Format to make Set All Values")
 	}
@@ -44,15 +43,15 @@ func (t *Volume) ScaleValues(h *gocudnn.Handle, alpha float64) error {
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		return t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CDouble(alpha))
+		return t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CDouble(alpha))
 	case t.thelp.Flgs.Data.Float():
-		return t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CFloat(alpha))
+		return t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CFloat(alpha))
 	case t.thelp.Flgs.Data.Int32():
-		return t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CInt(alpha))
+		return t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CInt(alpha))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CInt8(alpha))
+		err = t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CInt8(alpha))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.ScaleTensor(h, t.tD, t.mem, gocudnn.CUInt8(alpha))
+		err = t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CUInt8(alpha))
 
 	}
 	return errors.New("Not supported Format to make zero")
@@ -98,27 +97,27 @@ func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, Amultiplier, tmultiplier fl
 		return errors.New("AddTo: Not supported Format to make zero")
 	}
 
-	return t.thelp.AddTensor(h, a, A.tD, A.mem, b, t.tD, t.mem)
+	return t.thelp.AddTensor(h, a, A.tD, A.memgpu, b, t.tD, t.memgpu)
 }
 
 //LoadMem will Load the mem with
 func (t *Volume) LoadMem(input gocudnn.Memer) error {
 
-	if t.mem.ByteSize() != input.ByteSize() {
-		destsize := strconv.Itoa(int(t.mem.ByteSize()))
+	if t.memgpu.ByteSize() != input.ByteSize() {
+		destsize := strconv.Itoa(int(t.memgpu.ByteSize()))
 		srcsize := strconv.Itoa(int(input.ByteSize()))
 		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + " " + srcsize)
 	}
-	kind, err := gocudnn.MemCpyDeterminer(input, t.mem)
+	kind, err := gocudnn.MemCpyDeterminer(input, t.memgpu)
 	if err != nil {
 		return prependerror("LoadMem", err)
 	}
 
 	if t.managed == true {
-		return gocudnn.CudaMemCopy(t.mem, input, input.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
+		return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
 
 	}
-	return gocudnn.CudaMemCopy(t.mem, input, input.ByteSize(), kind)
+	return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), kind)
 
 }
 func prependerror(info string, input error) error {
@@ -150,11 +149,11 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
 	case t.thelp.Flgs.Data.Float():
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
@@ -164,12 +163,12 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
 
-		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
 	case t.thelp.Flgs.Data.Int32():
 		if max > -1 && max < 1 {
 			return errors.New("SetRandom: Max needs to be changed because it will only be zero")
@@ -182,11 +181,11 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
 	case t.thelp.Flgs.Data.Int8():
 		if (max > -1 && max < 1) || max > 127 {
 			return errors.New("Unsupported Max Value for datatype")
@@ -199,11 +198,11 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
 	case t.thelp.Flgs.Data.UInt8():
 		if max < 1 || max > 255 {
 			return errors.New("Unsupported Max Value for datatype")
@@ -216,11 +215,11 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.mem)
+		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return gocudnn.CudaMemCopy(t.mem, ptr, size, memflag)
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")
 }

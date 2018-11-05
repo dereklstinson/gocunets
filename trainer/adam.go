@@ -11,10 +11,10 @@ import (
 type Adam struct {
 	loss1     float32
 	loss2     float32
-	gpuloss1  gocudnn.Memer
-	gpuloss2  gocudnn.Memer
-	gsum      gocudnn.Memer
-	xsum      gocudnn.Memer
+	gpuloss1  *gocudnn.Malloced
+	gpuloss2  *gocudnn.Malloced
+	gsum      *gocudnn.Malloced
+	xsum      *gocudnn.Malloced
 	trainer   *gocudnn.TrainerD
 	params    gocudnn.TrainingParams
 	regparams gocudnn.RegParams

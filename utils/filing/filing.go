@@ -21,6 +21,7 @@ func WritetoHD(dir, fname string, e Encoder) error {
 	}
 
 	newfile, err := os.Create(dir + fname)
+	defer newfile.Close()
 	if err != nil {
 		return err
 	}

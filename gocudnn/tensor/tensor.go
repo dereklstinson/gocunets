@@ -4,7 +4,7 @@
 //the strides
 package tensor
 
-import "C"
+//import "C"
 import (
 	"errors"
 	"fmt"
@@ -19,7 +19,7 @@ type Volume struct {
 	fD      *gocudnn.FilterD
 	dtype   gocudnn.DataType
 	propnan gocudnn.PropagationNAN
-	mem     gocudnn.Memer
+	memgpu  *gocudnn.Malloced
 	fmt     gocudnn.TensorFormat
 	thelp   gocudnn.Tensor
 	fhelp   gocudnn.Filter
@@ -38,6 +38,7 @@ type Info struct {
 	Values   interface{}            `json:"Values"`
 }
 
+//MakeInfo makes an info struct
 func MakeInfo(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, unified bool) Info {
 	return Info{
 		Format:   frmt,
@@ -50,7 +51,7 @@ func MakeInfo(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, u
 //DeleteMem will free the mem the tensor has for the gpu. if the mem is already freed it will return nil
 func (t *Volume) DeleteMem() error {
 	if t.freed != true {
-		return t.mem.Free()
+		return t.memgpu.Free()
 	}
 	return nil
 }
@@ -65,10 +66,10 @@ func (t *Volume) ReBuildMem() error {
 		return err
 	}
 	if t.managed == true {
-		t.mem, err = gocudnn.MallocManaged(sizeT, gocudnn.ManagedMemFlag{}.Global())
+		t.memgpu, err = gocudnn.MallocManaged(sizeT, gocudnn.ManagedMemFlag{}.Global())
 		return err
 	}
-	t.mem, err = gocudnn.Malloc(sizeT)
+	t.memgpu, err = gocudnn.Malloc(sizeT)
 	return err
 }
 
@@ -133,7 +134,7 @@ func (t *Volume) Info() (Info, error) {
 	default:
 		return Info{}, errors.New("Unsupported Format : Most likely internal error. Contact Code Writer")
 	}
-	err = t.mem.FillSlice(values)
+	err = t.memgpu.FillSlice(values)
 	if err != nil {
 		return Info{}, err
 	}
@@ -242,11 +243,11 @@ func (i Info) Build() (*Volume, error) {
 	}
 
 	vol := &Volume{
-		tD:    tens,
-		fD:    filts,
-		mem:   newmemer,
-		fmt:   i.Format,
-		dtype: i.DataType,
+		tD:     tens,
+		fD:     filts,
+		memgpu: newmemer,
+		fmt:    i.Format,
+		dtype:  i.DataType,
 	}
 	if i.Values == nil {
 		return vol, nil
@@ -377,11 +378,11 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 	}
 
 	return &Volume{
-		tD:    tens,
-		fD:    filts,
-		mem:   newmemer,
-		fmt:   frmt,
-		dtype: dtype,
+		tD:     tens,
+		fD:     filts,
+		memgpu: newmemer,
+		fmt:    frmt,
+		dtype:  dtype,
 	}, nil
 
 }
@@ -397,8 +398,8 @@ func (t *Volume) FD() *gocudnn.FilterD {
 }
 
 //Memer returns the Memer for Tensor
-func (t *Volume) Memer() gocudnn.Memer {
-	return t.mem
+func (t *Volume) Memer() *gocudnn.Malloced {
+	return t.memgpu
 }
 
 //Size returns the size in bytes in type gocudnn.SizeT
@@ -418,7 +419,7 @@ func (t *Volume) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, 
 //ZeroClone returns a zero clone of the the memory
 func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 
-	if t.tD == nil || t.fD == nil || t.mem == nil {
+	if t.tD == nil || t.fD == nil || t.memgpu == nil {
 		return nil, errors.New("Tensor is nil")
 	}
 	dtype, dims, strides, err := t.tD.GetDescrptor()
@@ -454,9 +455,9 @@ func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 	}
 	var newmem *gocudnn.Malloced
 	if t.managed == true {
-		newmem, err = gocudnn.MallocManaged(t.mem.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
+		newmem, err = gocudnn.MallocManaged(t.memgpu.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
 	} else {
-		newmem, err = gocudnn.Malloc(t.mem.ByteSize())
+		newmem, err = gocudnn.Malloc(t.memgpu.ByteSize())
 	}
 
 	if err != nil {
@@ -476,7 +477,7 @@ func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Volume{tD: tens, fD: filt, mem: newmem, fmt: t.fmt}, nil
+	return &Volume{tD: tens, fD: filt, memgpu: newmem, fmt: t.fmt}, nil
 }
 
 func destroy(t *Volume) error {
@@ -490,7 +491,7 @@ func destroy(t *Volume) error {
 	if err2 != nil {
 		flag = true
 	}
-	err3 := t.mem.Free()
+	err3 := t.memgpu.Free()
 	if err3 != nil {
 		flag = true
 	}
@@ -529,7 +530,7 @@ func (t *Volume) PrintUnifiedMem(comment string) error {
 
 func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 	var flg gocudnn.DataTypeFlag
-	sib := t.mem.ByteSize()
+	sib := t.memgpu.ByteSize()
 	as := arraysize(t.dtype, sib)
 
 	switch t.dtype {
@@ -539,7 +540,7 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
 		if err != nil {
 			return err
 		}
@@ -551,7 +552,7 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
 		if err != nil {
 			return err
 		}
@@ -563,7 +564,7 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
 		if err != nil {
 			return err
 		}
@@ -575,7 +576,7 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
 		if err != nil {
 			return err
 		}
@@ -587,7 +588,7 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.mem, sib, kind)
+		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
 		if err != nil {
 
 			return err

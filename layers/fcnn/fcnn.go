@@ -175,28 +175,7 @@ func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, ma
 		return nil, nil, err
 	}
 	return lyer, output, nil
-	/*
-		return &Layer{
-			neurons: weights,
-			bias:    bias,
-			conv:    conv,
-			fwd: xtras{
-				alpha1: 1.0,
-				alpha2: 1.0,
-				beta:   0.0,
-			},
-			bwdd: xtras{
-				alpha1: 1.0,
-				alpha2: 1.0,
-				beta:   0.0,
-			},
-			bwdf: xtras{
-				alpha1: 1.0,
-				alpha2: 1.0,
-				beta:   1.0,
-			},
-		}, output, nil
-	*/
+
 }
 
 //MakeRandomFromDims will take the dims and make the weights randomized

@@ -178,7 +178,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 	switch dtype {
 	case dt.Double():
 		slice := make([]float64, arraysizefromdims(dims))
-		err = t.mem.FillSlice(slice)
+		err = t.memgpu.FillSlice(slice)
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +189,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 	case dt.Float():
 		slice := make([]float32, arraysizefromdims(dims))
 		fmt.Println("ToImages:convert:Length of Slice", len(slice))
-		err = t.mem.FillSlice(slice)
+		err = t.memgpu.FillSlice(slice)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 
 	case dt.Int32():
 		slice := make([]int32, arraysizefromdims(dims))
-		err = t.mem.FillSlice(slice)
+		err = t.memgpu.FillSlice(slice)
 		if err != nil {
 			return nil, err
 		}
@@ -213,7 +213,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 		return nil, errors.New("Conversion for Int8 Not supported")
 	case dt.UInt8():
 		conv = make([]uint8, arraysizefromdims(dims))
-		err = t.mem.FillSlice(conv)
+		err = t.memgpu.FillSlice(conv)
 		if err != nil {
 			return nil, err
 		}

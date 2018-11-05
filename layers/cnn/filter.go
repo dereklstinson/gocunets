@@ -4,7 +4,7 @@ package cnn
 import (
 	"encoding/json"
 	"errors"
-	"os"
+	"io"
 
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -46,10 +46,10 @@ func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
-//SaveJSON saves the weights to json
-func (c *Layer) SaveJSON(folder, name string) error {
+//Encode saves the weights to json
+func (c *Layer) Encode(w io.Writer) error {
 	var save TempSave
-	w, err := c.w.Info()
+	weights, err := c.w.Info()
 	if err != nil {
 		return err
 	}
@@ -58,27 +58,16 @@ func (c *Layer) SaveJSON(folder, name string) error {
 		return err
 	}
 	save.Bias = b
-	save.Weights = w
+	save.Weights = weights
 	marshed, err := json.Marshal(save)
 	if err != nil {
 		return err
 	}
-	dir := folder + "/"
-	err = os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	newfile, err := os.Create(dir + name + ".json")
-	if err != nil {
-		return err
-	}
-	_, err = newfile.Write(marshed)
+	_, err = w.Write(marshed)
 	if err != nil {
 
 		return err
 	}
-	defer newfile.Close()
-
 	return nil
 }
 

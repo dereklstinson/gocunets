@@ -33,7 +33,7 @@ func buildfromdesc(handle *gocudnn.Handle, desc *gocudnn.TensorD, managed bool) 
 		return nil, err
 	}
 	if managed == true {
-		gpumem, err := gocudnn.MallocManaged(sizet, gocudnn.ManagedMemFlag{}.Global())
+		gpumem, err := gocudnn.UnifiedMangedGlobal(sizet)
 		if err != nil {
 			return nil, err
 		}

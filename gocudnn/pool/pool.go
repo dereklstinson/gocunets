@@ -144,7 +144,7 @@ func (p *Ops) FwdProp(handle *gocudnn.Handle, alpha, beta float64, x, y *tensor.
 	a := gocudnn.CScalarByDataType(dtype, alpha)
 	b := gocudnn.CScalarByDataType(dtype, beta)
 
-	return p.hlpr.Funcs.PoolingForward(handle, p.desc, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	return p.desc.PoolingForward(handle, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 }
 
 //BwdProp does the backward propagation operation
@@ -157,7 +157,7 @@ func (p *Ops) BwdProp(handle *gocudnn.Handle, alpha, beta float64, x, dx, y, dy 
 	a := gocudnn.CScalarByDataType(dtype, alpha)
 	b := gocudnn.CScalarByDataType(dtype, beta)
 
-	return p.hlpr.Funcs.PoolingBackward(handle, p.desc, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	return p.desc.PoolingBackward(handle, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 
 }
 

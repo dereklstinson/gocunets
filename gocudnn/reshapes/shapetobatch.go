@@ -13,8 +13,8 @@ func (o *Ops) GetB2SOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, 
 		return 255, 255, nil, false, errors.New("window can only have 2 elements")
 	}
 
-	xmal, ok := x.Memer().(*gocudnn.Malloced)
-	if ok {
+	xmal := x.Memer()
+	if xmal != nil {
 		var managed bool
 		var flgloc gocudnn.LocationFlag
 		if flgloc.Unified() == xmal.Stored() {
@@ -25,7 +25,7 @@ func (o *Ops) GetB2SOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, 
 		return frmt, dtype, dims, managed, err
 	}
 
-	return 255, 255, nil, false, errors.New("Unsupported Format of Memer for S2B")
+	return 255, 255, nil, false, errors.New("memory is nil")
 }
 
 //GetS2BOutputProperties returns the properties of the output
@@ -34,8 +34,8 @@ func (o *Ops) GetS2BOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, 
 		return 255, 255, nil, false, errors.New("window can only have 2 elements")
 	}
 
-	xmal, ok := x.Memer().(*gocudnn.Malloced)
-	if ok {
+	xmal := x.Memer()
+	if xmal != nil {
 		var managed bool
 		var flgloc gocudnn.LocationFlag
 		if flgloc.Unified() == xmal.Stored() {
@@ -44,9 +44,10 @@ func (o *Ops) GetS2BOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume, 
 		frmt, dtype, dims, err := o.s2b.GetShapetoBatchOutputProperties(x.TD(), window[0], window[1])
 
 		return frmt, dtype, dims, managed, err
+
 	}
 
-	return 255, 255, nil, false, errors.New("Unsupported Format of Memer for S2B")
+	return 255, 255, nil, false, errors.New("memory is nil")
 }
 
 //S2BForward does changes the height and width of the 4d tensor x and places it into the batch dim of y.

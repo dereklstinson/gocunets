@@ -88,8 +88,8 @@ func (o *Ops) TransposeChannel(handle *gocudnn.XHandle, x *tensor.Volume) error 
 
 //GetTransposeOutputProperties will get the volume of a transpose operation handled through this op
 func (o *Ops) GetTransposeOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume) (gocudnn.TensorFormat, gocudnn.DataType, []int32, []int32, bool, error) {
-	xmal, ok := x.Memer().(*gocudnn.Malloced)
-	if ok {
+	xmal := x.Memer()
+	if xmal != nil {
 		var managed bool
 		var flgloc gocudnn.LocationFlag
 		if flgloc.Unified() == xmal.Stored() {
@@ -101,12 +101,12 @@ func (o *Ops) GetTransposeOutputProperties(handle *gocudnn.XHandle, x *tensor.Vo
 
 	}
 
-	return 255, 255, nil, nil, false, errors.New("Unsupported Memory")
+	return 255, 255, nil, nil, false, errors.New("memory is nil")
 }
 
 func (o *Ops) gettransposevol(handle *gocudnn.XHandle, x *tensor.Volume) (*tensor.Volume, error) {
-	xmal, ok := x.Memer().(*gocudnn.Malloced)
-	if ok {
+	xmal := x.Memer()
+	if xmal != nil {
 		var managed bool
 		var flgloc gocudnn.LocationFlag
 		if flgloc.Unified() == xmal.Stored() {
@@ -121,5 +121,5 @@ func (o *Ops) gettransposevol(handle *gocudnn.XHandle, x *tensor.Volume) (*tenso
 
 	}
 
-	return nil, errors.New("Unsupported Memory")
+	return nil, errors.New("memory is nil")
 }
