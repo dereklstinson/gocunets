@@ -54,7 +54,7 @@ func DescriminatorClass11(handle *gocunets.Handles, frmt gocudnn.TensorFormat, d
 	trainersbatch := make([]trainer.Trainer, numoftrainers)
 	trainerbias := make([]trainer.Trainer, numoftrainers)
 	for i := 0; i < numoftrainers; i++ {
-		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, batchsize)
+		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, int32(batchsize))
 		if err != nil {
 			panic(err)
 		}
@@ -108,7 +108,7 @@ func Descriminator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype go
 	trainersbatch := make([]trainer.Trainer, numoftrainers)
 	trainerbias := make([]trainer.Trainer, numoftrainers)
 	for i := 0; i < numoftrainers; i++ {
-		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, batchsize)
+		trainersbatch[i], trainerbias[i], err = trainer.SetupAdamWandB(handle.XHandle(), .000001, .0001, int32(batchsize))
 		if err != nil {
 			panic(err)
 		}

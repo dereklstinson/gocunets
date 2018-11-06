@@ -27,6 +27,18 @@ func RandWeightSet(mean, std, fanin float64) float64 {
 	return Gaussian(mean, std) * (math.Sqrt((2.0) / (fanin)))
 }
 
+//RandomFloat32 returns a random float32
+func RandomFloat32(floor, ceiling float32) float32 {
+
+	return (rand.Float32() * (ceiling - floor)) + (floor)
+}
+
+//RandomFloat64 returns a random float64
+func RandomFloat64(floor, ceiling float64) float64 {
+
+	return (rand.Float64() * (ceiling - floor)) + (floor)
+}
+
 //NormalSortedGaussianVector sorts randomlygenerated vector of gaussian values that are then normalized
 func NormalSortedGaussianVector(length int) []float32 {
 	slice := make([]float32, length)

@@ -148,6 +148,10 @@ func (l *layer) updateWeights(handle *Handles, batch int) error {
 		handle.stream.Sync()
 		return err
 	}
+	if l.xactivation != nil {
+		handle.stream.Sync()
+		return l.xactivation.UpdateParams(handle.xhandle, batch)
+	}
 	return nil
 }
 

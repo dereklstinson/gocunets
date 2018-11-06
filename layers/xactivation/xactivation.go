@@ -13,6 +13,7 @@ import (
 type Layer struct {
 	act        *xactivation.Ops
 	amode      gocudnn.XActivationMode
+	updateable bool
 	memmanaged bool
 	alphas     *layers.IO
 	betas      *layers.IO
@@ -36,8 +37,8 @@ const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 const defaulttrainmode = gocudnn.TrainingMode(4) //This is adam
 const defaultcoef = 6
-const defaultdecay1 = float32(0)
-const defaultdecay2 = float32(.0001)
+const defaultdecay1 = float32(.00001)
+const defaultdecay2 = float32(.00001)
 
 //SetupLeaky sets up the basic Leaky xactivation.
 func SetupLeaky(h *gocudnn.XHandle, dtype gocudnn.DataType) (*Layer, error) {
@@ -49,14 +50,15 @@ func SetupLeaky(h *gocudnn.XHandle, dtype gocudnn.DataType) (*Layer, error) {
 		return nil, err
 	}
 	return &Layer{
-		act:   op,
-		amode: xactmodeflg.Leaky(),
+		act:        op,
+		amode:      xactmodeflg.Leaky(),
+		updateable: false,
 	}, nil
 
 }
 
 //SetupParaChan sets up a static parametric HWC takes up a ton of mem especially if adam and adagrad is the trainmode
-func SetupParaChan(h *gocudnn.XHandle, inputdims []int32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, trainmode gocudnn.TrainingMode, managedmem bool) (*Layer, error) {
+func SetupParaChan(h *gocudnn.XHandle, channels int32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, trainmode gocudnn.TrainingMode, managedmem bool) (*Layer, error) {
 	var tmflg gocudnn.TrainingModeFlag
 	var trp gocudnn.TrainingParams
 	var xactmodeflg gocudnn.XActivationModeFlag
@@ -66,14 +68,14 @@ func SetupParaChan(h *gocudnn.XHandle, inputdims []int32, frmt gocudnn.TensorFor
 	trp.SetEps(defaultadameps)
 	trp.SetRate(defaultadamrate)
 	var reg gocudnn.RegParams
-	reg.SetBatch(float32(inputdims[0]))
+	//reg.SetBatch(float32(0))
 	reg.SetDecay1(float32(defaultdecay1))
 	reg.SetDecay2(float32(defaultdecay2))
 	var dims []int32
 	if frmt == tflg.NHWC() {
-		dims = []int32{int32(1), int32(1), int32(1), inputdims[3]}
+		dims = []int32{int32(1), int32(1), int32(1), channels}
 	} else {
-		dims = []int32{int32(1), inputdims[1], int32(1), int32(1)}
+		dims = []int32{int32(1), channels, int32(1), int32(1)}
 	}
 	alphas, err := layers.BuildIO(frmt, dtype, dims, managedmem)
 	if err != nil {
@@ -83,11 +85,11 @@ func SetupParaChan(h *gocudnn.XHandle, inputdims []int32, frmt gocudnn.TensorFor
 	if err != nil {
 		return nil, err
 	}
-	err = alphas.T().SetRandom(.1, .01, float64(utils.FindVolumeInt32(dims)))
+	err = alphas.T().SetRandomNormal(.9, 1.1)
 	if err != nil {
 		return nil, err
 	}
-	err = betas.T().SetRandom(1, .05, float64(utils.FindVolumeInt32(dims)))
+	err = betas.T().SetRandomNormal(0.005, 0.02)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +118,8 @@ func SetupParaChan(h *gocudnn.XHandle, inputdims []int32, frmt gocudnn.TensorFor
 		betas:      betas,
 		d1:         defaultdecay1,
 		d2:         defaultdecay2,
+		r:          reg,
+		updateable: true,
 	}
 	if managedmem == true {
 		lyr.l1, err = gocudnn.UnifiedMangedGlobal(4)
@@ -138,8 +142,8 @@ func SetupParaChan(h *gocudnn.XHandle, inputdims []int32, frmt gocudnn.TensorFor
 	}
 	lyr.l1g = make([]float32, 1)
 	lyr.l2g = make([]float32, 1)
-	lyr.l1g[0] = defaultdecay1
-	lyr.l2g[0] = defaultdecay2
+	//lyr.l1g[0] = defaultdecay1
+	//lyr.l2g[0] = defaultdecay2
 	lyr.l1gptr, err = gocudnn.MakeGoPointer(lyr.l1g)
 	if err != nil {
 		return nil, err
@@ -207,6 +211,7 @@ func SetupParametricStaicHWC(h *gocudnn.XHandle, inputdims []int32, frmt gocudnn
 		betas:      betas,
 		d1:         defaultdecay1,
 		d2:         defaultdecay2,
+		updateable: true,
 	}
 	if managedmem == true {
 		lyr.l1, err = gocudnn.UnifiedMangedGlobal(4)
@@ -272,6 +277,7 @@ func (l *Layer) ForwardProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 
 //BackProp does the backprop operation
 func (l *Layer) BackProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
+	//_, _, dims, _ := x.Properties()
 	var aflg gocudnn.XActivationModeFlag
 	switch l.amode {
 	case aflg.Leaky():
@@ -288,6 +294,9 @@ func (l *Layer) BackProp(handle *gocudnn.XHandle, x, y *layers.IO) error {
 
 //UpdateParams updates the params as long as it is set up that way
 func (l *Layer) UpdateParams(handle *gocudnn.XHandle, batchsize int) error {
+	if l.updateable == false {
+		return nil
+	}
 	l.r.SetBatch(float32(batchsize))
 	var err error
 	if l.xsumab == nil {
@@ -308,7 +317,16 @@ func (l *Layer) UpdateParams(handle *gocudnn.XHandle, batchsize int) error {
 			l.t,
 			l.r)
 	} else {
-
+		/*
+			l.alphas.T().PrintDeviceMem("alphas: ")
+			l.alphas.DeltaT().PrintDeviceMem("dalpha: ")
+			l.betas.T().PrintDeviceMem("betas: ")
+			l.betas.DeltaT().PrintDeviceMem("dbeta: ")
+			l.gsumab.T().PrintDeviceMem("alpha gsum :")
+			l.gsumab.DeltaT().PrintDeviceMem("beta gsum :")
+			l.xsumab.T().PrintDeviceMem("alpha xsum :")
+			l.xsumab.DeltaT().PrintDeviceMem("beta xsum :")
+		*/
 		err = l.act.UpdateParams(
 			handle,
 			batchsize,
@@ -324,6 +342,19 @@ func (l *Layer) UpdateParams(handle *gocudnn.XHandle, batchsize int) error {
 			l.l2,
 			l.t,
 			l.r)
+		/*
+					l.alphas.T().PrintDeviceMem("alphas: ")
+					l.alphas.DeltaT().PrintDeviceMem("dalpha: ")
+					l.betas.T().PrintDeviceMem("betas: ")
+					l.betas.DeltaT().PrintDeviceMem("dbeta: ")
+					l.gsumab.T().PrintDeviceMem("alpha gsum :")
+					l.gsumab.DeltaT().PrintDeviceMem("beta gsum :")
+					l.xsumab.T().PrintDeviceMem("alpha xsum :")
+					l.xsumab.DeltaT().PrintDeviceMem("beta xsum :")
+			for {
+
+				}
+		*/
 
 	}
 	if err != nil {

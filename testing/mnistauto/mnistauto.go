@@ -12,6 +12,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/xactivation"
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/GoCuNets/testing/mnistauto/networks"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/dereklstinson/GoCuNets/utils/filing"
@@ -63,7 +64,7 @@ func network() {
 	fmt.Println("Number of Runs: ", len(batchesofinputbatches))
 
 	//Make Autoencoder network
-	AutoEncoder := encoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	AutoEncoder := networks.ParaChanAuto(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
 	//Set the AutoEncoderNetwork hidden layer algo
 	utils.CheckError(AutoEncoder.DynamicHidden())
 
