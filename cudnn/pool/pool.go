@@ -3,7 +3,8 @@ package pool
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -136,7 +137,7 @@ func (p *Ops) OutputDims(input *tensor.Volume) ([]int32, error) {
 }
 
 //FwdProp does the pooling fwd operation
-func (p *Ops) FwdProp(handle *gocudnn.Handle, alpha, beta float64, x, y *tensor.Volume) error {
+func (p *Ops) FwdProp(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -144,11 +145,11 @@ func (p *Ops) FwdProp(handle *gocudnn.Handle, alpha, beta float64, x, y *tensor.
 	a := gocudnn.CScalarByDataType(dtype, alpha)
 	b := gocudnn.CScalarByDataType(dtype, beta)
 
-	return p.desc.PoolingForward(handle, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	return p.desc.PoolingForward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 }
 
 //BwdProp does the backward propagation operation
-func (p *Ops) BwdProp(handle *gocudnn.Handle, alpha, beta float64, x, dx, y, dy *tensor.Volume) error {
+func (p *Ops) BwdProp(handle *cudnn.Handler, alpha, beta float64, x, dx, y, dy *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -157,7 +158,7 @@ func (p *Ops) BwdProp(handle *gocudnn.Handle, alpha, beta float64, x, dx, y, dy 
 	a := gocudnn.CScalarByDataType(dtype, alpha)
 	b := gocudnn.CScalarByDataType(dtype, beta)
 
-	return p.desc.PoolingBackward(handle, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	return p.desc.PoolingBackward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 
 }
 

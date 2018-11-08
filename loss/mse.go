@@ -1,7 +1,7 @@
 package loss
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/xloss"
+	"github.com/dereklstinson/GoCuNets/cudnn/xloss"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )

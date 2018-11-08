@@ -3,7 +3,8 @@ package convolution
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -145,8 +146,8 @@ func (c *Ops) SetMathType(math gocudnn.MathType) error {
 }
 
 //WorkSizeFwd returns the worksize for the forward algo
-func (c *Ops) WorkSizeFwd(handle *gocudnn.Handle, x, w, y tensor.Volume) (gocudnn.SizeT, error) {
-	return c.helper.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle, x.TD(), w.FD(), c.desc, y.TD(), c.fwdalgo)
+func (c *Ops) WorkSizeFwd(handle *cudnn.Handler, x, w, y tensor.Volume) (gocudnn.SizeT, error) {
+	return c.helper.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), c.desc, y.TD(), c.fwdalgo)
 }
 
 //SetFwdAlgo sets fwd algo
@@ -177,7 +178,7 @@ func (c *Ops) SetAlgos(fwd gocudnn.ConvFwdAlgo, bwdd gocudnn.ConvBwdDataAlgo, bw
 
 //BwdPropData dx = alpha * BwdPropData(w,dy)+beta*dx
 func (c *Ops) BwdPropData(
-	handle *gocudnn.Handle,
+	handle *cudnn.Handler,
 	alpha float64,
 	w *tensor.Volume,
 	dy *tensor.Volume,
@@ -198,26 +199,26 @@ func (c *Ops) BwdPropData(
 	if c.stagedalgo == false {
 		var pflg gocudnn.ConvolutionBwdFlags
 		if wspace != nil {
-			algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
+			algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
 			if err != nil {
 				return err
 			}
-			c.desc.BackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
+			c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
 		}
-		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle, w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.NoWorkSpace(), 0)
+		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.NoWorkSpace(), 0)
 		if err != nil {
 			return err
 		}
-		c.desc.BackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
+		c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
 
 	}
 
-	return c.desc.BackwardData(handle, a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.bwddata, wspace, b, dx.TD(), dx.Memer())
+	return c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.bwddata, wspace, b, dx.TD(), dx.Memer())
 }
 
 //BwdPropFilt dw = alpha * BwdPropFilt(x,dy)+beta*dw
 func (c *Ops) BwdPropFilt(
-	handle *gocudnn.Handle,
+	handle *cudnn.Handler,
 	alpha float64,
 	x *tensor.Volume,
 	dy *tensor.Volume,
@@ -234,26 +235,26 @@ func (c *Ops) BwdPropFilt(
 	if c.stagedalgo == false {
 		var pflg gocudnn.ConvolutionBwdFlags
 		if wspace != nil {
-			algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, x.TD(), dy.TD(), c.desc, dw.FD(), pflg.FltrPref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
+			algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), dy.TD(), c.desc, dw.FD(), pflg.FltrPref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
 			if err != nil {
 				return err
 			}
-			return c.desc.BackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dw.FD(), dw.Memer())
+			return c.desc.BackwardFilter(handle.Cudnn(), a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dw.FD(), dw.Memer())
 		}
-		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle, x.TD(), dy.TD(), c.desc, dw.FD(), pflg.FltrPref.NoWorkSpace(), 0)
+		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), dy.TD(), c.desc, dw.FD(), pflg.FltrPref.NoWorkSpace(), 0)
 		if err != nil {
 			return err
 		}
-		return c.desc.BackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dw.FD(), dw.Memer())
+		return c.desc.BackwardFilter(handle.Cudnn(), a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dw.FD(), dw.Memer())
 
 	}
 
-	return c.desc.BackwardFilter(handle, a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.bwdfilt, wspace, b, dw.FD(), dw.Memer())
+	return c.desc.BackwardFilter(handle.Cudnn(), a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.bwdfilt, wspace, b, dw.FD(), dw.Memer())
 }
 
 //FwdProp    y= alpha * Convolution(x,w)+ beta*y
 func (c *Ops) FwdProp(
-	handle *gocudnn.Handle,
+	handle *cudnn.Handler,
 	alpha float64,
 	x *tensor.Volume,
 	w *tensor.Volume,
@@ -284,24 +285,24 @@ func (c *Ops) FwdProp(
 	if c.stagedalgo == false {
 		var pflg gocudnn.ConvolutionFwdFlags
 		if wspace != nil {
-			algo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, x.TD(), w.FD(), c.desc, y.TD(), pflg.Pref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
+			algo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.desc, y.TD(), pflg.Pref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
 			if err != nil {
 				return err
 			}
-			return c.desc.Forward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
+			return c.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
 		}
-		algo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle, x.TD(), w.FD(), c.desc, y.TD(), pflg.Pref.NoWorkSpace(), 0)
+		algo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.desc, y.TD(), pflg.Pref.NoWorkSpace(), 0)
 		if err != nil {
 			return err
 		}
-		return c.desc.Forward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
+		return c.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
 	}
-	return c.desc.Forward(handle, a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.fwdalgo, wspace, b, y.TD(), y.Memer())
+	return c.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.fwdalgo, wspace, b, y.TD(), y.Memer())
 }
 
 //BwdBias does the backward bias calculation
 func (c *Ops) BwdBias(
-	handle *gocudnn.Handle,
+	handle *cudnn.Handler,
 	alpha float64,
 	dy *tensor.Volume,
 	beta float64,
@@ -321,7 +322,7 @@ func (c *Ops) BwdBias(
 	a := gocudnn.CScalarByDataType(dtypedy, alpha)
 	b := gocudnn.CScalarByDataType(dtypedy, beta)
 	return c.helper.Funcs.Bwd.ConvolutionBackwardBias(
-		handle,
+		handle.Cudnn(),
 		a,
 		dy.TD(),
 		dy.Memer(),

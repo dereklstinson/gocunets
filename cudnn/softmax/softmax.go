@@ -1,7 +1,7 @@
 package softmax
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCudnn"
 )
 

@@ -2,7 +2,7 @@ package pooling
 
 import gocudnn "github.com/dereklstinson/GoCudnn"
 import "github.com/dereklstinson/GoCuNets/layers"
-import "github.com/dereklstinson/GoCuNets/gocudnn/pool"
+import "github.com/dereklstinson/GoCuNets/cudnn/pool"
 
 //Layer holds everything it needs on the pooling side in order
 //to do the pooling operations.

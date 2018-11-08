@@ -3,7 +3,8 @@ package reduce
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -25,7 +26,7 @@ func Stage(op gocudnn.ReduceTensorOp, dtype gocudnn.DataType, nanprop gocudnn.Pr
 }
 
 //Reduce performs the reduce operation with input/output being y where y= alpha* Op(x) +beta*y
-func (o *Ops) Reduce(handle *gocudnn.Handle, indicies *gocudnn.Malloced, workspace *gocudnn.Malloced, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
+func (o *Ops) Reduce(handle *cudnn.Handler, indicies *gocudnn.Malloced, workspace *gocudnn.Malloced, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
 	_, dtypet, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -36,18 +37,18 @@ func (o *Ops) Reduce(handle *gocudnn.Handle, indicies *gocudnn.Malloced, workspa
 		return errors.New("Not supported Format")
 	}
 
-	return o.desc.ReduceTensorOp(handle, indicies, workspace, a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
+	return o.desc.ReduceTensorOp(handle.Cudnn(), indicies, workspace, a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
 
 }
 
 //GetWorkSpaceSize returns the workspace size for the two tensors
-func (o *Ops) GetWorkSpaceSize(handle *gocudnn.Handle, x, y *tensor.Volume) (gocudnn.SizeT, error) {
-	return o.desc.GetWorkSpaceSize(handle, x.TD(), y.TD())
+func (o *Ops) GetWorkSpaceSize(handle *cudnn.Handler, x, y *tensor.Volume) (gocudnn.SizeT, error) {
+	return o.desc.GetWorkSpaceSize(handle.Cudnn(), x.TD(), y.TD())
 }
 
 //GetIndiciesSize returns the size of indicies
-func (o *Ops) GetIndiciesSize(handle *gocudnn.Handle, x, y *tensor.Volume) (gocudnn.SizeT, error) {
-	return o.desc.IndiciesSize(handle, x.TD(), y.TD())
+func (o *Ops) GetIndiciesSize(handle *cudnn.Handler, x, y *tensor.Volume) (gocudnn.SizeT, error) {
+	return o.desc.IndiciesSize(handle.Cudnn(), x.TD(), y.TD())
 }
 
 //Destroy destroys the op and turns the op to nil

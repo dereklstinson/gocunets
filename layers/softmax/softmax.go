@@ -3,7 +3,7 @@ package softmax
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/softmax"
+	"github.com/dereklstinson/GoCuNets/cudnn/softmax"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCudnn"
 )

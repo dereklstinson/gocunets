@@ -22,48 +22,157 @@ func LeakyAuto(handle *gocunets.Handles,
 	padding := utils.Dims
 	stride := utils.Dims
 	dilation := utils.Dims
-
+	//var tmdf gocudnn.TrainingModeFlag
+	//tmode := tmdf.Adam()
 	var aflg gocudnn.ActivationModeFlag
 
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
-	network.AddLayer( //convolution
+
+	/*
+		Convoultion Layer E1
+	*/
+	const numofneurons = int32(256)
+	network.AddLayer(
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 784, 1, 1), filter(50, 784, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28-15+14
-	network.AddLayer( //activation
+	)
+	/*
+		Activation Layer E2
+	*/
+	network.AddLayer(
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-		//activation.Setup(aflg.Tanh()),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28-15+14
-	network.AddLayer( //activation
+	/*
+		Convoultion Layer E3
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(numofneurons, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer E4
+	*/
+	network.AddLayer(
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-		//activation.Setup(aflg.Tanh()),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(4, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+
+	/*
+		Convoultion Layer E5
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
-	network.AddLayer( //activation
-		//xactivation.SetupLeaky(handle.XHandle(), dtype),
-		activation.Setup(aflg.Sigmoid()),
-	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 4, 1, 1), filter(50, 4, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	)
-	network.AddLayer( //activation
+	/*
+		Activation Layer E6
+	*/
+	network.AddLayer(
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-		//activation.Setup(aflg.Tanh()),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28-15+14
-	network.AddLayer( //activation
+	/*
+		Convoultion Layer E7
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer E8
+	*/
+	network.AddLayer(
 		xactivation.SetupLeaky(handle.XHandle(), dtype),
-	//	activation.Setup(aflg.Tanh()),
 	)
+	/*
+		Convoultion Layer E9
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+
+	/*
+		Activation Layer E10
+	*/
+	network.AddLayer(
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
+	)
+	/*
+		Convoultion Layer E11
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(4, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer MIDDLE
+	*/
+	network.AddLayer(
+
+		activation.Setup(aflg.Tanh()),
+	)
+
+	/*
+		Convoultion Layer D1
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 4, 1, 1), filter(numofneurons, 4, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer D2
+	*/
+	network.AddLayer(
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
+	)
+	/*
+		Convoultion Layer D3
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer D4
+	*/
+	network.AddLayer(
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
+	)
+
+	/*
+		Convoultion Layer D5
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer D6
+	*/
+	network.AddLayer(
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
+	)
+
+	/*
+		Convoultion Layer D7
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer D8
+	*/
+	network.AddLayer(
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
+	)
+	/*
+		Convoultion Layer D9
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer D10
+	*/
+	network.AddLayer(
+		xactivation.SetupLeaky(handle.XHandle(), dtype),
+	)
+	/*
+		Convoultion Layer D11
+	*/
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(784, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(784, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		network.AddLayer( //activation
@@ -76,7 +185,7 @@ func LeakyAuto(handle *gocunets.Handles,
 	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
 	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
 	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .000001, .000001, batchsize)
+		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .00001, .00001, batchsize)
 		a.SetRate(.001) //This is here to change the rate if you so want to
 		b.SetRate(.001)
 

@@ -1,6 +1,7 @@
 package reshapes
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -14,7 +15,8 @@ type Ops struct {
 }
 
 //Stage stages the ops so that the operations can run
-func Stage(h *gocudnn.XHandle) (*Ops, error) {
+func Stage(handle *cudnn.Handler) (*Ops, error) {
+	h := handle.XHandle()
 	trans, err := gocudnn.Xtra{}.CreateTransposeDesc(h)
 	if err != nil {
 		return nil, err

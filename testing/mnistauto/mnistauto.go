@@ -60,7 +60,7 @@ func network() {
 	fmt.Println("Number of Runs: ", len(batchesofinputbatches))
 
 	//Make Autoencoder network
-	AutoEncoder := networks.ParaChanAuto(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	AutoEncoder := networks.LeakyAuto(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
 	//Set the AutoEncoderNetwork hidden layer algo
 	utils.CheckError(AutoEncoder.DynamicHidden())
 
@@ -73,7 +73,7 @@ func network() {
 	utils.CheckError(err)
 
 	//set the number of epocs
-	epocs := 300
+	epocs := 100
 	snapshotsize := 300
 	//Set the Loss Calculator. This is Mean Square Error
 	MSE, err := loss.CreateMSECalculatorGPU(handles.XHandle(), true)
@@ -130,23 +130,12 @@ func network() {
 			somenewimages[j] = resize.Resize(0, 280, images[j], resize.NearestNeighbor)
 		}
 		totalrunimage = append(totalrunimage, somenewimages...)
-		//	fmt.Println("MakingGif: Start")
 
-		//	fmt.Println("MakingGif: Done")
-		//	outputimage = resize.Resize(0, 280, outputimage, resize.NearestNeighbor)
-		//giffer.Append(outputimage)
-
-		//Load the values from the autoencoder into the imagerlayer so we can print those dang numbers
-
-		//Tile those numbers into a 2 by 5 output
-
-		//This makes the number into a file appropriate numbers to keep the order like 0001 and 0002
-		//number := utils.NumbertoString(i, epocs)
 		epocloss /= float32(len(arabicnums))
 		stream.Sync()
 		fmt.Println("At Epoc: ", i, "Loss is :", epocloss)
-		if epocloss <= 10 {
-			fmt.Println("HIT 12 Loss")
+		if epocloss <= 10.9 {
+			fmt.Println("HIT 10 Loss")
 			giffer.MakeGrayGif(totalrunimage)
 			fmt.Println("Writing GIF")
 			utils.CheckError(filing.WritetoHD(imagesave, "AutoGifsToLoss13", giffer))

@@ -1,7 +1,7 @@
 package cnn
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )

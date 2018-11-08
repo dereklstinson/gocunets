@@ -1,7 +1,7 @@
 package dropout
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/dropout"
+	"github.com/dereklstinson/GoCuNets/cudnn/dropout"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )

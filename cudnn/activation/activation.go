@@ -3,7 +3,8 @@ package activation
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCudnn"
 )
 
@@ -48,7 +49,7 @@ func (act *Ops) Properties() (gocudnn.ActivationMode, gocudnn.PropagationNAN, fl
 
 //FwdProp is the forward propigation function for the Activation struct
 func (act *Ops) FwdProp(
-	handle *gocudnn.Handle,
+	handle *cudnn.Handler,
 	alpha float64,
 	x *tensor.Volume,
 	beta float64,
@@ -71,12 +72,12 @@ func (act *Ops) FwdProp(
 		return errors.New("Unsupported Datatype for either alpha or beta")
 	}
 
-	return act.desc.Forward(handle, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 }
 
 //BwdProp is the backwards propigation of the activation struct
 func (act *Ops) BwdProp(
-	handle *gocudnn.Handle,
+	handle *cudnn.Handler,
 	alpha float64,
 	y *tensor.Volume,
 	dy *tensor.Volume,
@@ -109,7 +110,7 @@ func (act *Ops) BwdProp(
 		return errors.New("Unsupported Datatype for either alpha or beta")
 	}
 
-	return act.desc.Backward(handle, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 }
 
 //Destroy destroys the cuda allocated memory associated with Activation

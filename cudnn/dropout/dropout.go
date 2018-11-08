@@ -1,7 +1,8 @@
 package dropout
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCudnn"
 )
 
@@ -16,17 +17,17 @@ type Ops struct {
 }
 
 //BackProp does the back propagation for dropoutlayer
-func (op *Ops) BackProp(handle *gocudnn.Handle, dx, dy *tensor.Volume) error {
-	return gocudnn.DropOut{}.Funcs.DropoutBackward(handle, op.dropout, dy.TD(), dy.Memer(), dx.TD(), dx.Memer(), op.reserve)
+func (op *Ops) BackProp(handle *cudnn.Handler, dx, dy *tensor.Volume) error {
+	return gocudnn.DropOut{}.Funcs.DropoutBackward(handle.Cudnn(), op.dropout, dy.TD(), dy.Memer(), dx.TD(), dx.Memer(), op.reserve)
 }
 
 //ForwardProp does the feed forward
-func (op *Ops) ForwardProp(handle *gocudnn.Handle, x, y *tensor.Volume) error {
-	return gocudnn.DropOut{}.Funcs.DropoutForward(handle, op.dropout, x.TD(), x.Memer(), y.TD(), y.Memer(), op.reserve)
+func (op *Ops) ForwardProp(handle *cudnn.Handler, x, y *tensor.Volume) error {
+	return gocudnn.DropOut{}.Funcs.DropoutForward(handle.Cudnn(), op.dropout, x.TD(), x.Memer(), y.TD(), y.Memer(), op.reserve)
 }
 
 //Stage stages the op
-func Stage(handle *gocudnn.Handle, x *tensor.Volume, dropout float32, seed uint64, managed bool) (*Ops, error) {
+func Stage(handle *cudnn.Handler, x *tensor.Volume, dropout float32, seed uint64, managed bool) (*Ops, error) {
 	desc, err := gocudnn.DropOut{}.CreateDropoutDescriptor()
 	if err != nil {
 		return nil, err
@@ -35,7 +36,7 @@ func Stage(handle *gocudnn.Handle, x *tensor.Volume, dropout float32, seed uint6
 	if err != nil {
 		return nil, err
 	}
-	sss, err := gocudnn.DropOut{}.Funcs.DropoutGetStateSize(handle)
+	sss, err := gocudnn.DropOut{}.Funcs.DropoutGetStateSize(handle.Cudnn())
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func Stage(handle *gocudnn.Handle, x *tensor.Volume, dropout float32, seed uint6
 			reserve.Free()
 			return nil, err
 		}
-		err = desc.SetDropoutDescriptor(handle, dropout, state, sss, seed)
+		err = desc.SetDropoutDescriptor(handle.Cudnn(), dropout, state, sss, seed)
 		if err != nil {
 			state.Free()
 			reserve.Free()
@@ -74,7 +75,7 @@ func Stage(handle *gocudnn.Handle, x *tensor.Volume, dropout float32, seed uint6
 		reserve.Free()
 		return nil, err
 	}
-	err = desc.SetDropoutDescriptor(handle, dropout, state, sss, seed)
+	err = desc.SetDropoutDescriptor(handle.Cudnn(), dropout, state, sss, seed)
 	if err != nil {
 		state.Free()
 		reserve.Free()

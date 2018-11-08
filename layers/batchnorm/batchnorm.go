@@ -1,7 +1,7 @@
 package batchnorm
 
 import (
-	"github.com/dereklstinson/GoCuNets/gocudnn/batchnorm"
+	"github.com/dereklstinson/GoCuNets/cudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )

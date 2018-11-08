@@ -9,8 +9,8 @@ import (
 	"image/png"
 	"io"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/reshapes"
-	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/cudnn/reshapes"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers" //	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"

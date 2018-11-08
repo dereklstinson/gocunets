@@ -9,22 +9,24 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
-	freed   bool
-	tD      *gocudnn.TensorD
-	fD      *gocudnn.FilterD
-	dtype   gocudnn.DataType
-	propnan gocudnn.PropagationNAN
-	memgpu  *gocudnn.Malloced
-	fmt     gocudnn.TensorFormat
-	thelp   gocudnn.Tensor
-	fhelp   gocudnn.Filter
-	ophelp  gocudnn.OpTensor
-	managed bool
+	freed     bool
+	tD        *gocudnn.TensorD
+	tDstrided *gocudnn.TensorD
+	fD        *gocudnn.FilterD
+	dtype     gocudnn.DataType
+	propnan   gocudnn.PropagationNAN
+	memgpu    *gocudnn.Malloced
+	fmt       gocudnn.TensorFormat
+	thelp     gocudnn.Tensor
+	fhelp     gocudnn.Filter
+	ophelp    gocudnn.OpTensor
+	managed   bool
 	//scalar gocudnn.CScalar
 }
 
@@ -296,6 +298,7 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 	var newmemer *gocudnn.Malloced
 	var tens *gocudnn.TensorD
 	var filts *gocudnn.FilterD
+	var tensstrided *gocudnn.TensorD
 	var err error
 	if len(dims) > 4 {
 		tens, err = thelper.NewTensorNdDescriptorEx(frmt, dtype, dims)
@@ -303,6 +306,12 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 			return nil, err
 		}
 		filts, err = fhelper.NewFilterNdDescriptor(dtype, frmt, dims)
+		if err != nil {
+			tens.DestroyDescriptor()
+			return nil, err
+		}
+
+		tensstrided, err = thelper.NewTensorNdDescriptor(dtype, dims, utils.FindStridesInt32(dims))
 		if err != nil {
 			tens.DestroyDescriptor()
 			return nil, err
@@ -339,6 +348,11 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 
 		tens, err = thelper.NewTensor4dDescriptor(dtype, frmt, dims)
 		if err != nil {
+			return nil, err
+		}
+		tensstrided, err = thelper.NewTensor4dDescriptorEx(dtype, dims, utils.FindStridesInt32(dims))
+		if err != nil {
+			tens.DestroyDescriptor()
 			return nil, err
 		}
 		filts, err = fhelper.NewFilter4dDescriptor(dtype, frmt, dims)
@@ -382,13 +396,19 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 		return nil, err
 	}
 	return &Volume{
-		tD:     tens,
-		fD:     filts,
-		memgpu: newmemer,
-		fmt:    frmt,
-		dtype:  dtype,
+		tD:        tens,
+		tDstrided: tensstrided,
+		fD:        filts,
+		memgpu:    newmemer,
+		fmt:       frmt,
+		dtype:     dtype,
 	}, nil
 
+}
+
+//TDStrided is a function that returns the strided tensor descriptor.
+func (t *Volume) TDStrided() *gocudnn.TensorD {
+	return t.tDstrided
 }
 
 //TD returns the tensor descriptor for Tensor
@@ -499,9 +519,10 @@ func destroy(t *Volume) error {
 	if err3 != nil {
 		flag = true
 	}
+	err4 := t.tDstrided.DestroyDescriptor()
 
 	if flag == true {
-		return fmt.Errorf("error::TensorD: %sFilterD: %sMemory: %s", err1, err2, err3)
+		return fmt.Errorf("error::TensorD: %s, FilterD: %s, TensorDstrided: %s, Memory: %s", err1, err2, err4, err3)
 	}
 	return nil
 }

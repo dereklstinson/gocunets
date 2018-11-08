@@ -3,7 +3,7 @@ package xactivation
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/gocudnn/xactivation"
+	"github.com/dereklstinson/GoCuNets/cudnn/xactivation"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
