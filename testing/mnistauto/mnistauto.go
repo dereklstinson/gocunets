@@ -73,7 +73,7 @@ func network() {
 	utils.CheckError(err)
 
 	//set the number of epocs
-	epocs := 100
+	epocs := 300
 	snapshotsize := 300
 	//Set the Loss Calculator. This is Mean Square Error
 	MSE, err := loss.CreateMSECalculatorGPU(handles.XHandle(), true)
@@ -145,7 +145,7 @@ func network() {
 		epocloss /= float32(len(arabicnums))
 		stream.Sync()
 		fmt.Println("At Epoc: ", i, "Loss is :", epocloss)
-		if epocloss <= 12 {
+		if epocloss <= 10 {
 			fmt.Println("HIT 12 Loss")
 			giffer.MakeGrayGif(totalrunimage)
 			fmt.Println("Writing GIF")

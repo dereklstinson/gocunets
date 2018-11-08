@@ -25,7 +25,8 @@ func WritetoHD(dir, fname string, e Encoder) error {
 	if err != nil {
 		return err
 	}
-	return e.Encode(newfile)
+	err = e.Encode(newfile)
+	return err
 }
 
 //WriteImage will take an image.Image and encode it to a jpg
