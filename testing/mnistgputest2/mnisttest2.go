@@ -9,7 +9,6 @@ import (
 	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	"github.com/dereklstinson/GoCuNets/layers/xactivation"
@@ -98,7 +97,8 @@ func main() {
 	)
 
 	network.AddLayer( //convolution
-		fcnn.CreateFromshapeNoOut(handle.Cudnn(), 10, in(batchsize, 20, 4, 4), memmanaged, dtype, frmt),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 4, 4), filter(10, 20, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		//fcnn.CreateFromshapeNoOut(handle.Cudnn(), 10, in(batchsize, 20, 4, 4), memmanaged, dtype, frmt),
 	)
 	network.AddLayer( //softmaxoutput
 		softmax.BuildNoErrorChecking(), nil,

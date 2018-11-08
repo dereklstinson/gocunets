@@ -61,15 +61,21 @@ func (act *Ops) BwdProp(
 	dy *tensor.Volume,
 	alphas *tensor.Volume,
 	dalphas *tensor.Volume,
-	betas *tensor.Volume,
-	dbetas *tensor.Volume,
-
 ) error {
 
 	if alphas == nil || dalphas == nil {
-		return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil)
+		return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
 	}
-	return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), dalphas.Memer(), betas.Memer(), dbetas.Memer())
+	return act.desc.BackProp(handle,
+		x.TD(),
+		x.Memer(),
+		dx.TD(),
+		dx.Memer(),
+		dy.TD(),
+		dy.Memer(),
+		alphas.Memer(),
+		dalphas.Memer(),
+	)
 
 }
 
@@ -79,20 +85,16 @@ func (act *Ops) UpdateParams(
 	batch int,
 	alphas *tensor.Volume,
 	dalphas *tensor.Volume,
-	betas *tensor.Volume,
-	dbetas *tensor.Volume,
-	gsuma *gocudnn.Malloced,
-	xsuma *gocudnn.Malloced,
-	gsumb *gocudnn.Malloced,
-	xsumb *gocudnn.Malloced,
+	xsum *tensor.Volume,
+	gsum *tensor.Volume,
 	l1 *gocudnn.Malloced,
 	l2 *gocudnn.Malloced,
 	t gocudnn.TrainingParams,
 	r gocudnn.RegParams,
 ) error {
-	if betas == nil || dbetas == nil || gsumb == nil || alphas == nil || dalphas == nil || gsuma == nil {
-		return errors.New("One or more of the alphas dalphas gsum or xsum is nil")
+	if gsum == nil || alphas == nil || dalphas == nil {
+		return errors.New("Needed Param mem is nil")
 	}
-	return act.desc.UpdateParas(handle, alphas.TD(), alphas.Memer(), dalphas.Memer(), betas.Memer(), dbetas.Memer(), xsuma, gsuma, xsumb, gsumb, l1, l2, t, r)
+	return act.desc.UpdateParas(handle, alphas.TD(), alphas.Memer(), dalphas.Memer(), xsum.Memer(), gsum.Memer(), l1, l2, t, r)
 
 }

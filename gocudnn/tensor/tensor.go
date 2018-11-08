@@ -539,6 +539,7 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 
 	switch t.dtype {
 	case flg.Double():
+
 		array := make([]float64, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 		if err != nil {
@@ -548,8 +549,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\n{")
 		fmt.Println(comment, array)
+		fmt.Printf("\n}")
 	case flg.Float():
+
 		array := make([]float32, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 
@@ -560,8 +564,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\n{")
 		fmt.Println(comment, array)
+		fmt.Printf("\n}")
 	case flg.Int32():
+
 		array := make([]int32, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 
@@ -572,8 +579,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\n{")
 		fmt.Println(comment, array)
+		fmt.Printf("\n}")
 	case flg.UInt8():
+
 		array := make([]byte, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 
@@ -584,8 +594,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\n{")
 		fmt.Println(comment, array)
+		fmt.Printf("\n}")
 	case flg.Int8():
+
 		array := make([]int8, as)
 		ptr, err := gocudnn.MakeGoPointer(array)
 		if err != nil {
@@ -597,7 +610,9 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 
 			return err
 		}
+		fmt.Printf("\n{")
 		fmt.Println(comment, array)
+		fmt.Printf("\n}")
 	default:
 		return errors.New("Unsupoorted Format")
 	}

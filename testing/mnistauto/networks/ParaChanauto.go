@@ -28,47 +28,73 @@ func ParaChanAuto(handle *gocunets.Handles,
 
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 784, 1, 1), filter(50, 784, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28-15+14
-	network.AddLayer( //activation
-		//xactivation.SetupLeaky(handle.XHandle(), dtype),
-		xactivation.SetupParaChan(handle.XHandle(), 50, frmt, dtype, tmode, memmanaged),
-		//activation.Setup(aflg.Tanh()),
+
+	/*
+		Convoultion Layer
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 784, 1, 1), filter(100, 784, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28-15+14
-	network.AddLayer( //activation
-		//	xactivation.SetupLeaky(handle.XHandle(), dtype),
-		//activation.Setup(aflg.Tanh()),
-		xactivation.SetupParaChan(handle.XHandle(), 50, frmt, dtype, tmode, memmanaged),
+	/*
+		Activation Layer
+	*/
+	network.AddLayer(
+		xactivation.SetupAdvanceThreshRelu(handle.XHandle(), in(batchsize, 100, 1, 1), frmt, dtype, tmode, memmanaged),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(4, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	/*
+		Convoultion Layer
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 100, 1, 1), filter(100, 100, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
-	network.AddLayer( //activation
-		//xactivation.SetupLeaky(handle.XHandle(), dtype),
+	/*
+		Activation Layer
+	*/
+	network.AddLayer(
+		xactivation.SetupAdvanceThreshRelu(handle.XHandle(), in(batchsize, 100, 1, 1), frmt, dtype, tmode, memmanaged),
+	)
+	/*
+		Convoultion Layer
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 100, 1, 1), filter(4, 100, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	)
+	/*
+		Activation Layer
+	*/
+	network.AddLayer(
+
 		activation.Setup(aflg.Sigmoid()),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 4, 1, 1), filter(50, 4, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	/*
+		Convoultion Layer
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 4, 1, 1), filter(100, 4, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
-	network.AddLayer( //activation
-		//xactivation.SetupLeaky(handle.XHandle(), dtype),
-		//activation.Setup(aflg.Tanh()),
-		xactivation.SetupParaChan(handle.XHandle(), 50, frmt, dtype, tmode, memmanaged),
+	/*
+		Activation Layer
+	*/
+	network.AddLayer(
+		xactivation.SetupAdvanceThreshRelu(handle.XHandle(), in(batchsize, 100, 1, 1), frmt, dtype, tmode, memmanaged),
 	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(50, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28-15+14
-	network.AddLayer( //activation
-		//	xactivation.SetupLeaky(handle.XHandle(), dtype),
-		xactivation.SetupParaChan(handle.XHandle(), 50, frmt, dtype, tmode, memmanaged),
-	//	activation.Setup(aflg.Tanh()),
+	/*
+		Convoultion Layer
+	*/
+	network.AddLayer(
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 100, 1, 1), filter(100, 100, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
+	/*
+		Activation Layer
+	*/
+	network.AddLayer(
+		xactivation.SetupAdvanceThreshRelu(handle.XHandle(), in(batchsize, 100, 1, 1), frmt, dtype, tmode, memmanaged),
+	)
+	/*
+		Convoultion Layer
+	*/
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 50, 1, 1), filter(784, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 100, 1, 1), filter(784, 100, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		network.AddLayer( //activation
