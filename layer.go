@@ -3,6 +3,7 @@ package gocunets
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/batchnorm"
@@ -12,30 +13,28 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
-	"github.com/dereklstinson/GoCuNets/layers/xactivation"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 type layer struct {
-	xactivation *xactivation.Layer
-	activation  *activation.Layer
-	cnn         *cnn.Layer
-	fcnn        *fcnn.Layer
-	softmax     *softmax.Layer
-	pool        *pooling.Layer
-	drop        *dropout.Layer
-	batch       *batchnorm.Layer
-	reshape     *reshape.Layer
+	activation *activation.Layer
+	cnn        *cnn.Layer
+	fcnn       *fcnn.Layer
+	softmax    *softmax.Layer
+	pool       *pooling.Layer
+	drop       *dropout.Layer
+	batch      *batchnorm.Layer
+	reshape    *reshape.Layer
 }
 
 //asdfas
-func (l *layer) loadtrainer(handle *Handles, trainerweights, trainerbias trainer.Trainer) error {
+func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
 	if l.cnn != nil {
-		return l.cnn.LoadTrainer(handle.xhandle, trainerweights, trainerbias)
+		return l.cnn.LoadTrainer(handle, trainerweights, trainerbias)
 	}
 	if l.fcnn != nil {
-		return l.fcnn.LoadTrainer(handle.xhandle, trainerweights, trainerbias)
+		return l.fcnn.LoadTrainer(handle, trainerweights, trainerbias)
 
 	}
 	return errors.New("inbedded error doesn't support trainers")
@@ -54,10 +53,7 @@ func (l *layer) needstrainer() bool {
 
 func wraplayer(input interface{}) *layer {
 	switch l := input.(type) {
-	case *xactivation.Layer:
-		return &layer{
-			xactivation: l,
-		}
+
 	case *activation.Layer:
 		return &layer{
 			activation: l,
@@ -95,10 +91,10 @@ func wraplayer(input interface{}) *layer {
 		return nil
 	}
 }
-func (l *layer) getoutput(handle *Handles, input *layers.IO) (*layers.IO, error) {
+func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 
 	if l.cnn != nil {
-		return l.cnn.MakeOutputTensor(handle.cudnn, input)
+		return l.cnn.MakeOutputTensor(handle, input)
 	}
 	if l.fcnn != nil {
 		_, _, dims, err := input.Properties()
@@ -120,146 +116,150 @@ func (l *layer) getoutput(handle *Handles, input *layers.IO) (*layers.IO, error)
 	if l.batch != nil {
 		return input.ZeroClone()
 	}
-	if l.xactivation != nil {
-		return input.ZeroClone()
-	}
+
 	if l.softmax != nil {
 		return input.ZeroClone()
 	}
 	if l.reshape != nil {
-		return l.reshape.MakeOutputTensor(handle.xhandle, input)
+		return l.reshape.MakeOutputTensor(handle, input)
 	}
 
 	return nil, errors.New("Layer Needs Support")
 }
 
 //UpdateWeights updates the weights of layer
-func (l *layer) updateWeights(handle *Handles, batch int) error {
+func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
 	var err error
 	if l.cnn != nil {
-		handle.stream.Sync()
-		err = l.cnn.UpdateWeights(handle.xhandle, batch)
-		handle.stream.Sync()
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = l.cnn.UpdateWeights(handle, batch)
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
 		return err
 	}
 	if l.fcnn != nil {
-		handle.stream.Sync()
-		err = l.fcnn.UpdateWeights(handle.xhandle, batch)
-		handle.stream.Sync()
-		return err
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = l.fcnn.UpdateWeights(handle, batch)
+		if err != nil {
+			return err
+		}
+
+		return handle.Sync()
 	}
-	if l.xactivation != nil {
-		handle.stream.Sync()
-		err = l.xactivation.UpdateParams(handle.xhandle, batch)
-		handle.stream.Sync()
-		return err
-	}
+
 	return nil
 }
 
 //ForwardProp does the forward prop for a layer
-func (l *layer) forwardprop(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
+func (l *layer) forwardprop(handle *cudnn.Handler, wpace gocudnn.Memer, x, y *layers.IO) error {
 	var err error
-	handle.stream.Sync()
+
 	if l.cnn != nil {
-		return l.cnn.ForwardProp(handle.cudnn, wpace, x, y)
+		return l.cnn.ForwardProp(handle, wpace, x, y)
 	}
 	if l.fcnn != nil {
-		return l.fcnn.ForwardProp(handle.cudnn, x, y)
+		return l.fcnn.ForwardProp(handle, x, y)
 	}
 	if l.drop != nil {
-		return l.drop.ForwardProp(handle.cudnn, x, y)
+		return l.drop.ForwardProp(handle, x, y)
 	}
 	if l.activation != nil {
-		return l.activation.ForwardProp(handle.cudnn, x, y)
+		handle.Sync()
+		return l.activation.ForwardProp(handle, x, y)
 	}
 	if l.softmax != nil {
-		return l.softmax.ForwardProp(handle.cudnn, x, y)
+		return l.softmax.ForwardProp(handle, x, y)
 	}
 	if l.pool != nil {
-		return l.pool.ForwardProp(handle.cudnn, x, y)
+		return l.pool.ForwardProp(handle, x, y)
 	}
-	if l.xactivation != nil {
 
-		err = l.xactivation.ForwardProp(handle.xhandle, x, y)
-		handle.stream.Sync()
-		return err
-	}
 	if l.reshape != nil {
-
-		err = l.reshape.ForwardProp(handle.xhandle, x, y)
-		handle.stream.Sync()
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = l.reshape.ForwardProp(handle, x, y)
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
 		return err
 	}
 	if l.batch != nil {
-		l.batch.ForwardProp(handle.cudnn, x, y)
+		l.batch.ForwardProp(handle, x, y)
 	}
 
 	return errors.New("Layer Not Set Up")
 }
 
 //BackProp does the backprop of a layer
-func (l *layer) backpropfilterdata(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
-	handle.stream.Sync()
+func (l *layer) backpropfilterdata(handle *cudnn.Handler, wpace gocudnn.Memer, x, y *layers.IO) error {
+	err := handle.Sync()
+	if err != nil {
+		return err
+	}
 	if l.cnn != nil {
-		return l.cnn.BackPropFilterData(handle.cudnn, wpace, x, y)
+		return l.cnn.BackPropFilterData(handle, wpace, x, y)
 	}
 	if l.fcnn != nil {
-		return l.fcnn.BackPropFilterData(handle.cudnn, x, y)
+		return l.fcnn.BackPropFilterData(handle, x, y)
 	}
 	if l.activation != nil {
-		return l.activation.BackProp(handle.cudnn, x, y)
+		return l.activation.BackProp(handle, x, y)
 	}
 	if l.softmax != nil {
-		return l.softmax.BackProp(handle.cudnn, x, y)
+		return l.softmax.BackProp(handle, x, y)
 	}
 	if l.drop != nil {
-		return l.drop.BackProp(handle.cudnn, x, y)
+		return l.drop.BackProp(handle, x, y)
 	}
 	if l.pool != nil {
-		return l.pool.BackProp(handle.cudnn, x, y)
-	}
-	if l.xactivation != nil {
-		return l.xactivation.BackProp(handle.xhandle, x, y)
+		return l.pool.BackProp(handle, x, y)
 	}
 	if l.reshape != nil {
-		return l.reshape.BackProp(handle.xhandle, x, y)
+		return l.reshape.BackProp(handle, x, y)
 	}
 	if l.batch != nil {
-		return l.batch.BackProp(handle.cudnn, x, y)
+		return l.batch.BackProp(handle, x, y)
 	}
 	return errors.New("Layer Not Set Up")
 }
 
 //BackProp does the backprop of a layer
-func (l *layer) backpropdata(handle *Handles, wpace gocudnn.Memer, x, y *layers.IO) error {
-	handle.stream.Sync()
+func (l *layer) backpropdata(handle *cudnn.Handler, wpace gocudnn.Memer, x, y *layers.IO) error {
+	handle.Sync()
 	if l.cnn != nil {
-		return l.cnn.BackPropData(handle.cudnn, wpace, x, y)
+		return l.cnn.BackPropData(handle, wpace, x, y)
 	}
 	if l.fcnn != nil {
-		return l.fcnn.BackPropData(handle.cudnn, x, y)
+		return l.fcnn.BackPropData(handle, x, y)
 	}
 	if l.activation != nil {
-		return l.activation.BackProp(handle.cudnn, x, y)
+		return l.activation.BackProp(handle, x, y)
 	}
 	if l.softmax != nil {
-		return l.softmax.BackProp(handle.cudnn, x, y)
+		return l.softmax.BackProp(handle, x, y)
 	}
 	if l.drop != nil {
-		return l.drop.BackProp(handle.cudnn, x, y)
+		return l.drop.BackProp(handle, x, y)
 	}
 	if l.pool != nil {
-		return l.pool.BackProp(handle.cudnn, x, y)
-	}
-	if l.xactivation != nil {
-		return l.xactivation.BackProp(handle.xhandle, x, y)
+		return l.pool.BackProp(handle, x, y)
 	}
 	if l.reshape != nil {
-		return l.reshape.BackProp(handle.xhandle, x, y)
+		return l.reshape.BackProp(handle, x, y)
 	}
 	if l.batch != nil {
-		return l.batch.BackProp(handle.cudnn, x, y)
+		return l.batch.BackProp(handle, x, y)
 	}
 	return errors.New("Layer Not Set Up")
 }

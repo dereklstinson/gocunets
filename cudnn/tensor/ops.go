@@ -41,13 +41,13 @@ func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	a := gocudnn.CScalarByDataType(dtypet, alpha1)
-	b := gocudnn.CScalarByDataType(dtypet, alpha2)
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
+	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet, t.propnan)
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet.Cu(), t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err != nil {
 		return errorappend("NewOpTensorDescriptor: ", err)
@@ -80,13 +80,13 @@ func (t *Volume) OpMult(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta flo
 		return errors.New("Data Types don't match")
 	}
 
-	a := gocudnn.CScalarByDataType(dtypet, alpha1)
-	b := gocudnn.CScalarByDataType(dtypet, alpha2)
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
+	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet, t.propnan)
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err != nil {
 		return err
@@ -110,12 +110,12 @@ func (t *Volume) OpNot(h *cudnn.Handler, A *Volume, alpha1, beta float64) error 
 	if dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	a := gocudnn.CScalarByDataType(dtypet, alpha1)
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet, t.propnan)
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet.Cu(), t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err != nil {
 		return err
@@ -142,13 +142,13 @@ func (t *Volume) OpMax(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	a := gocudnn.CScalarByDataType(dtypet, alpha1)
-	b := gocudnn.CScalarByDataType(dtypet, alpha2)
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
+	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Max(), dtypet, t.propnan)
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Max(), dtypet.Cu(), t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err == nil {
 		return err
@@ -175,13 +175,13 @@ func (t *Volume) OpMin(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	a := gocudnn.CScalarByDataType(dtypet, alpha1)
-	b := gocudnn.CScalarByDataType(dtypet, alpha2)
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
+	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Min(), dtypet, t.propnan)
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Min(), dtypet.Cu(), t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err == nil {
 		return err
@@ -204,13 +204,13 @@ func (t *Volume) OpSqrt(h *cudnn.Handler, A *Volume, alpha1, beta float64) error
 	if dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
-	a := gocudnn.CScalarByDataType(dtypet, alpha1)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
 
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Sqrt(), dtypet, t.propnan)
+	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Sqrt(), dtypet.Cu(), t.propnan)
 	defer opdesc.DestroyDescriptor()
 	if err == nil {
 		return err

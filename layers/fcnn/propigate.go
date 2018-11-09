@@ -1,12 +1,12 @@
 package fcnn
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //ForwardProp does the forward propigation
-func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	/*
 		xfmt, xdtype, xdims, _ := x.Properties()
 		yfmt, ydtype, ydims, _ := y.Properties()
@@ -25,7 +25,7 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 }
 
 //BackPropFilterData does the backpropigation for both the data and filter
-func (l *Layer) BackPropFilterData(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) BackPropFilterData(handle *cudnn.Handler, x, y *layers.IO) error {
 	err := l.BackPropData(handle, x, y)
 	if err != nil {
 		return err
@@ -34,12 +34,12 @@ func (l *Layer) BackPropFilterData(handle *gocudnn.Handle, x, y *layers.IO) erro
 }
 
 //BackPropData does the backprop data operation
-func (l *Layer) BackPropData(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) BackPropData(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.conv.BwdPropData(handle, l.bwdd.alpha1, l.neurons.T(), y.DeltaT(), nil, l.bwdd.beta, x.DeltaT())
 }
 
 //BackPropFilter does the back prop filter operation
-func (l *Layer) BackPropFilter(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) BackPropFilter(handle *cudnn.Handler, x, y *layers.IO) error {
 	err := l.conv.BwdPropFilt(handle, l.bwdf.alpha1, x.T(), y.DeltaT(), nil, l.bwdf.beta, l.neurons.DeltaT())
 	if err != nil {
 		return err

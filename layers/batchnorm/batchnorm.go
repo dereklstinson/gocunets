@@ -1,6 +1,7 @@
 package batchnorm
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -29,7 +30,7 @@ type Settings struct {
 
 //LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.
 //I am 70 percent sure that fwd and bwd data are set correctly.  I am about 25% sure bwd param is set correctly.  I will change it if it needs it
-func LayerSetup(handle *gocudnn.Handle, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
+func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
 	b, err := batchnorm.Stage(handle, x.T(), mode, managed)
 	fw := abscalars{
 		a: 1.0,
@@ -53,7 +54,7 @@ func LayerSetup(handle *gocudnn.Handle, x *layers.IO, mode gocudnn.BatchNormMode
 }
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
-func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	l.af = (1.0 / (1.0 + float64(l.counter)))
 	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), y.T())
 	l.counter++
@@ -61,7 +62,7 @@ func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
 }
 
 //BackProp does the back propagation in training the layer
-func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.b.BackwardProp(handle, l.bwp.a, l.bwp.b, l.bwd.a, l.bwd.b, l.eps, x.T(), x.DeltaT(), y.DeltaT())
 }
 

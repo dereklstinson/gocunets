@@ -38,23 +38,23 @@ func (c *Ops) SetBestAlgosConsideringDims4d(
 	wd []int32,
 	wspacesize int,
 	fastest bool,
-	dtype gocudnn.DataType,
-	frmt gocudnn.TensorFormat,
+	dtype cudnn.DataType,
+	frmt cudnn.TensorFormat,
 ) (
 	gocudnn.SizeT,
 	error) {
 
-	x, err := gocudnn.Tensor{}.NewTensor4dDescriptor(dtype, frmt, xd)
+	x, err := gocudnn.Tensor{}.NewTensor4dDescriptor(dtype.Cu(), frmt.Cu(), xd)
 	if err != nil {
 		return 0, err
 	}
 	defer x.DestroyDescriptor()
-	y, err := gocudnn.Tensor{}.NewTensor4dDescriptor(dtype, frmt, yd)
+	y, err := gocudnn.Tensor{}.NewTensor4dDescriptor(dtype.Cu(), frmt.Cu(), yd)
 	if err != nil {
 		return 0, err
 	}
 	defer y.DestroyDescriptor()
-	w, err := gocudnn.Filter{}.NewFilter4dDescriptor(dtype, frmt, wd)
+	w, err := gocudnn.Filter{}.NewFilter4dDescriptor(dtype.Cu(), frmt.Cu(), wd)
 	if err != nil {
 		return 0, err
 	}

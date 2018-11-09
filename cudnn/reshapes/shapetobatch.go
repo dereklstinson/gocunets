@@ -9,7 +9,7 @@ import (
 )
 
 //GetB2SOutputProperties returns the properties of the output
-func (o *Ops) GetB2SOutputProperties(handle *cudnn.Handler, x *tensor.Volume, window []int32) (gocudnn.TensorFormat, gocudnn.DataType, []int32, bool, error) {
+func (o *Ops) GetB2SOutputProperties(handle *cudnn.Handler, x *tensor.Volume, window []int32) (cudnn.TensorFormat, cudnn.DataType, []int32, bool, error) {
 	if len(window) != 2 {
 		return 255, 255, nil, false, errors.New("window can only have 2 elements")
 	}
@@ -23,7 +23,7 @@ func (o *Ops) GetB2SOutputProperties(handle *cudnn.Handler, x *tensor.Volume, wi
 		}
 		frmt, dtype, dims, err := o.s2b.GetBatchtoShapeOutputProperties(x.TD(), window[0], window[1])
 
-		return frmt, dtype, dims, managed, err
+		return cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims, managed, err
 	}
 
 	return 255, 255, nil, false, errors.New("memory is nil")

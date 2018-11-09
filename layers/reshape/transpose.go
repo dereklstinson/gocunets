@@ -1,12 +1,12 @@
 package reshape
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCudnn"
 )
 
 //GetTransposeIO will return an IO that can be used with the transpose function of this layer.
-func (l *Layer) gettransposeIO(handle *gocudnn.XHandle, x *layers.IO, input bool) (*layers.IO, error) {
+func (l *Layer) gettransposeIO(handle *cudnn.Handler, x *layers.IO, input bool) (*layers.IO, error) {
 	yfrmt, ydtype, dims, _, managed, err := l.op.GetTransposeOutputProperties(handle, x.T())
 	if err != nil {
 		return nil, err
@@ -19,7 +19,7 @@ func (l *Layer) gettransposeIO(handle *gocudnn.XHandle, x *layers.IO, input bool
 }
 
 //TransposeForward does a transpose allong the channel dim. Will find transpose of x and put it in y
-func (l *Layer) transposeforwardprop(handle *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) transposeforwardprop(handle *cudnn.Handler, x, y *layers.IO) error {
 	err := l.op.TransposeChannelForward(handle, x.T(), y.T())
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (l *Layer) transposeforwardprop(handle *gocudnn.XHandle, x, y *layers.IO) e
 }
 
 //TransposeBackward does a transpose allong the channel dim. Will find transpose of y and put it into x
-func (l *Layer) transposebackprop(handle *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) transposebackprop(handle *cudnn.Handler, x, y *layers.IO) error {
 	err := l.op.TransposeChannelBackward(handle, x.T(), y.T())
 	if err != nil {
 		return err

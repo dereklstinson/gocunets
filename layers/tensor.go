@@ -4,9 +4,8 @@ package layers
 import (
 	"errors"
 	"fmt"
-	"image"
-	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -51,8 +50,9 @@ func (i *IO) StoreDeltas(x bool) {
 }
 
 //ClearDeltas allows the user to clear the deltas of the IO
-func (i *IO) ClearDeltas(handle *gocudnn.Handle) error {
-	return i.dx.SetValues(handle, 0.0)
+func (i *IO) ClearDeltas() error {
+	return i.dx.Memer().Set(0)
+
 }
 
 //Info returns info
@@ -77,38 +77,6 @@ func (i *IO) Info() (Info, error) {
 //IsInput returns if it is an input
 func (i *IO) IsInput() bool {
 	return i.input
-}
-
-//MakeJPG makes a jpg
-func MakeJPG(folder, subfldr string, index int, img image.Image) error {
-	return tensor.MakeJPG(folder, subfldr, index, img)
-}
-
-//SaveImagesToFile saves the images to file
-func (i *IO) SaveImagesToFile(dir string) error {
-	x, dx, err := i.Images()
-	if err != nil {
-		return err
-	}
-	dirx := dir + "/x"
-	err = saveimages(dirx, x)
-	if err != nil {
-		return err
-	}
-	dirdx := dir + "/dx"
-	return saveimages(dirdx, dx)
-
-}
-func saveimages(folder string, imgs [][]image.Image) error {
-	for i := 0; i < len(imgs); i++ {
-		for k := 0; k < len(imgs[i]); k++ {
-			err := MakeJPG(folder, "neuron"+strconv.Itoa(i)+"/Weight", k, imgs[i][k])
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 //CreateIOfromVolumes is a way to put a couple of volumes in there and have it fill the private properties of the IO.
@@ -159,21 +127,8 @@ func findvol(dims []int32) int {
 	return multiplier
 }
 
-//Images returns the images
-func (i *IO) Images() ([][]image.Image, [][]image.Image, error) {
-	x, err := i.x.ToImages()
-	if err != nil {
-		return nil, nil, err
-	}
-	dx, err := i.dx.ToImages()
-	if err != nil {
-		return nil, nil, err
-	}
-	return x, dx, nil
-}
-
 //Properties returns the tensorformat, datatype and a slice of dims that describe the tensor
-func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+func (i *IO) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
 	return i.x.Properties()
 }
 
@@ -219,19 +174,19 @@ func (i *IO) ZeroClone() (*IO, error) {
 }
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
-func BuildIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+func BuildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
 
 	return buildIO(frmt, dtype, dims, managed, false)
 }
 
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
-func BuildNetworkInputIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*IO, error) {
+func BuildNetworkInputIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
 	return buildIO(frmt, dtype, dims, managed, true)
 }
 
 //BuildNetworkOutputIOFromSlice will return IO with the slice put into the DeltaT() section of the IO
-func BuildNetworkOutputIOFromSlice(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, slice []float32) (*IO, error) {
+func BuildNetworkOutputIOFromSlice(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool, slice []float32) (*IO, error) {
 
 	chkr := int32(1)
 	for i := 0; i < len(dims); i++ {
@@ -252,7 +207,7 @@ func BuildNetworkOutputIOFromSlice(frmt gocudnn.TensorFormat, dtype gocudnn.Data
 	err = newio.LoadDeltaTValues(sptr)
 	return newio, err
 }
-func buildIO(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
+func buildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
 
 	if input == true {
 

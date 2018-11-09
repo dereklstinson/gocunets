@@ -1,5 +1,6 @@
 package tensor
 
+/*
 import (
 	"errors"
 	"fmt"
@@ -299,3 +300,4 @@ func (t *Volume) convert() ([][]image.Image, error) {
 
 	return imgs, nil
 }
+*/

@@ -67,8 +67,8 @@ func (s *Ops) ForwardProp(handle *cudnn.Handler, alpha float64, x *tensor.Volume
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
 	err = s.helper.Funcs.SoftMaxForward(handle.Cudnn(), s.algo, s.mode, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 	return err
@@ -80,8 +80,8 @@ func (s *Ops) BackProp(handle *cudnn.Handler, alpha float64, y, dy *tensor.Volum
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
 	err = s.helper.Funcs.SoftMaxBackward(handle.Cudnn(), s.algo, s.mode, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), b, dx.TD(), dx.Memer())
 	return err

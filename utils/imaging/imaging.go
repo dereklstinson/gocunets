@@ -9,11 +9,11 @@ import (
 	"image/png"
 	"io"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/reshapes"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers" //	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/nfnt/resize"
 )
 
@@ -66,7 +66,7 @@ func (i *ImageV2) Encode(w io.Writer) error {
 }
 
 //MakeImager makes an imager
-func MakeImager(handle *gocudnn.XHandle) (*Imager, error) {
+func MakeImager(handle *cudnn.Handler) (*Imager, error) {
 	shpr, err := reshapes.Stage(handle)
 	return &Imager{
 		shaper: shpr,
@@ -74,12 +74,12 @@ func MakeImager(handle *gocudnn.XHandle) (*Imager, error) {
 }
 
 //ByBatches will return the images by batches if h xor w is zero then the ration will be kept. if both are zero then the ratio is not
-func (im *Imager) ByBatches(handle *gocudnn.XHandle, x *layers.IO, h, w uint) ([]image.Image, error) {
+func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]image.Image, error) {
 	frmt, dtype, dims, err := x.Properties()
 	if err != nil {
 		return nil, err
 	}
-	var dflg gocudnn.DataTypeFlag
+	var dflg cudnn.DataTypeFlag
 	vol := utils.FindVolumeInt32(dims)
 	var z []float32
 	switch dtype {
@@ -121,7 +121,7 @@ func (im *Imager) ByBatches(handle *gocudnn.XHandle, x *layers.IO, h, w uint) ([
 
 //TileBatchesXdX will take the batches and lay place them withing the HWC space like tiles.It will do both of the x and dx tensors in the layer.IO
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatchesXdX(handle *gocudnn.XHandle, x *layers.IO, h, w int) (image.Image, image.Image, error) {
+func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w int) (image.Image, image.Image, error) {
 
 	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)})
 	if err != nil {
@@ -152,7 +152,7 @@ func (im *Imager) TileBatchesXdX(handle *gocudnn.XHandle, x *layers.IO, h, w int
 	if err != nil {
 		return nil, nil, err
 	}
-	var dflg gocudnn.DataTypeFlag
+	var dflg cudnn.DataTypeFlag
 	vol := utils.FindVolumeInt32(dims)
 	var z []float32
 	switch dtype {
@@ -201,7 +201,7 @@ func (im *Imager) TileBatchesXdX(handle *gocudnn.XHandle, x *layers.IO, h, w int
 
 //TileBatches will take the batches and lay place them withing the HWC space like tiles.
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatches(handle *gocudnn.XHandle, x *layers.IO, h, w int) (image.Image, error) {
+func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w int) (image.Image, error) {
 
 	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)})
 	if err != nil {
@@ -233,7 +233,7 @@ func (im *Imager) TileBatches(handle *gocudnn.XHandle, x *layers.IO, h, w int) (
 	if err != nil {
 		return nil, err
 	}
-	var dflg gocudnn.DataTypeFlag
+	var dflg cudnn.DataTypeFlag
 	vol := utils.FindVolumeInt32(dims)
 	var z []float32
 	switch dtype {
@@ -301,12 +301,12 @@ func converttofloat32(input interface{}) []float32 {
 	return nil
 }
 
-func makeimage(data []float32, dims []int32, frmt gocudnn.TensorFormat) (image.Image, error) {
+func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Image, error) {
 	unNormalize(data)
 	if len(data) != int(utils.FindVolumeInt32(dims)) {
 		return nil, errors.New("Volume Size doesn't Match intput size")
 	}
-	var fflag gocudnn.TensorFormatFlag
+	var fflag cudnn.TensorFormatFlag
 	var h int
 	var w int
 	var c int

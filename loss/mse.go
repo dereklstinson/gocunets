@@ -1,6 +1,7 @@
 package loss
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/xloss"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -27,8 +28,8 @@ func (m *MSE) ErrorCPU(generated, target []float32) []float32 {
 }
 
 //ErrorGPU does the error calculation y will have to contain y.T()=NetworkOutput  y.DeltaT() = target,  X returns the errors in  x.DeltaT()
-func (m *MSE) ErrorGPU(h *gocudnn.XHandle, x, y *layers.IO) error {
-	err := m.op.Error(h, x.DeltaT(), y.T(), y.DeltaT())
+func (m *MSE) ErrorGPU(h *cudnn.Handler, x, y *layers.IO) error {
+	err := m.op.Error(h.XHandle(), x.DeltaT(), y.T(), y.DeltaT())
 	m.loss = m.op.Loss()
 	return err
 }
@@ -39,10 +40,10 @@ func (m *MSE) Loss() float32 {
 }
 
 //CreateMSECalculatorGPU creates a mean squared error calculator for gpu memory
-func CreateMSECalculatorGPU(handle *gocudnn.XHandle, managed bool) (*MSE, error) {
+func CreateMSECalculatorGPU(handle *cudnn.Handler, managed bool) (*MSE, error) {
 
 	var modeflag gocudnn.XLossModeFlag
-	xloss, err := xloss.Stage(handle, modeflag.MSE(), managed)
+	xloss, err := xloss.Stage(handle.XHandle(), modeflag.MSE(), managed)
 	if err != nil {
 		return nil, err
 	}

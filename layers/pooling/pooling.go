@@ -1,8 +1,11 @@
 package pooling
 
-import gocudnn "github.com/dereklstinson/GoCudnn"
-import "github.com/dereklstinson/GoCuNets/layers"
-import "github.com/dereklstinson/GoCuNets/cudnn/pool"
+import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/pool"
+	"github.com/dereklstinson/GoCuNets/layers"
+	gocudnn "github.com/dereklstinson/GoCudnn"
+)
 
 //Layer holds everything it needs on the pooling side in order
 //to do the pooling operations.
@@ -124,12 +127,12 @@ func (l *Layer) SetBwdScalars(alpha, beta float64) {
 }
 
 //ForwardProp performs the pooling forward propigation
-func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.pD.FwdProp(handle, l.fwd.alpha, l.fwd.beta, x.T(), y.T())
 }
 
 //BackProp performs the pooling backward propigation
-func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.pD.BwdProp(handle, l.bwd.alpha, l.bwd.beta, x.T(), x.DeltaT(), y.T(), y.DeltaT())
 
 }

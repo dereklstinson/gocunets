@@ -4,12 +4,13 @@ import (
 	"errors"
 
 	"github.com/dereklstinson/GoCuNets/cpu"
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //ShapetoBatchIOBWDCPU takes the batched IO that was created from the fwd process and replaces the delta Tensor values
 func (i *IO) ShapetoBatchIOBWDCPU(batched *IO) error {
-	var fmtflag gocudnn.TensorFormatFlag
+	var fmtflag cudnn.TensorFormatFlag
 	frmt, _, dimsy, err := batched.Properties()
 
 	if err != nil {
@@ -78,7 +79,7 @@ func (i *IO) ShapetoBatchIOCopyFWDCPU(h, w int32) (*IO, error) {
 	}
 	slice := make([]float32, length)
 	i.T().Memer().FillSlice(slice)
-	var fmtflag gocudnn.TensorFormatFlag
+	var fmtflag cudnn.TensorFormatFlag
 	if frmt == fmtflag.NCHW() {
 		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, h, w)
 		if err != nil {
@@ -124,7 +125,7 @@ func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(h, w int32) (*IO, []float32, 
 	}
 	slice := make([]float32, length)
 	i.T().Memer().FillSlice(slice)
-	var fmtflag gocudnn.TensorFormatFlag
+	var fmtflag cudnn.TensorFormatFlag
 	if frmt == fmtflag.NCHW() {
 		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, h, w)
 		if err != nil {

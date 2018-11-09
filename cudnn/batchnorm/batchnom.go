@@ -192,8 +192,8 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler, alpha, beta, averagingfacto
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardTraining(handle.Cudnn(),
 		o.mode,
 		a,
@@ -221,10 +221,10 @@ func (o *Ops) BackwardProp(handle *cudnn.Handler, alphaparam, betaparam, alphada
 	if err != nil {
 		return err
 	}
-	ad := gocudnn.CScalarByDataType(dtype, alphadata)
-	bd := gocudnn.CScalarByDataType(dtype, betadata)
-	ap := gocudnn.CScalarByDataType(dtype, alphaparam)
-	bp := gocudnn.CScalarByDataType(dtype, betaparam)
+	ad := gocudnn.CScalarByDataType(dtype.Cu(), alphadata)
+	bd := gocudnn.CScalarByDataType(dtype.Cu(), betadata)
+	ap := gocudnn.CScalarByDataType(dtype.Cu(), alphaparam)
+	bp := gocudnn.CScalarByDataType(dtype.Cu(), betaparam)
 	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationBackward(handle.Cudnn(),
 		o.mode,
 		ad,

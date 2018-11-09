@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -23,7 +24,7 @@ type Layer struct {
 	fwd        xtras
 	bwdd       xtras
 	bwdf       xtras
-	datatype   gocudnn.DataType
+	datatype   cudnn.DataType
 	train      trainer.Trainer
 	btrain     trainer.Trainer
 	pad        []int32
@@ -72,7 +73,7 @@ func (c *Layer) Encode(w io.Writer) error {
 }
 
 //UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(handle gocudnn.Handler, batch int) error {
+func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	err := c.btrain.UpdateWeights(handle, c.bias, batch)
 	if err != nil {
 		return err
@@ -81,7 +82,7 @@ func (c *Layer) UpdateWeights(handle gocudnn.Handler, batch int) error {
 }
 
 //LoadTrainer sets up the momentum trainer
-func (c *Layer) LoadTrainer(handle gocudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
+func (c *Layer) LoadTrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
 	var err error
 	c.train = trainerweights
 	err = trainer.CreateTrainingMem(handle, c.train, c.w)
@@ -108,9 +109,9 @@ func (c *Layer) Weights() *layers.IO {
 
 //LoadLayerStatic sets up a default layer with the weights already been made
 func LoadLayerStatic(
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
-	handle *gocudnn.Handle,
+	frmt cudnn.TensorFormat,
+	dtype cudnn.DataType,
+	handle *cudnn.Handler,
 	inputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
@@ -151,8 +152,8 @@ func LoadLayerStatic(
 
 //LoadLayerDynamic sets up a default layer with the weights already been made
 func LoadLayerDynamic(
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
+	frmt cudnn.TensorFormat,
+	dtype cudnn.DataType,
 	handle *gocudnn.Handle,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
@@ -192,9 +193,9 @@ func (c *Layer) OutputDims(inputdims []int32) []int32 {
 }
 
 //SetupDynamic sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
-func SetupDynamic(handle *gocudnn.Handle,
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
+func SetupDynamic(handle *cudnn.Handler,
+	frmt cudnn.TensorFormat,
+	dtype cudnn.DataType,
 	guessinputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
@@ -221,9 +222,9 @@ func SetupDynamic(handle *gocudnn.Handle,
 }
 
 //SetUpStatic sets up the layer and decides on the layers fwd and bwd algos on first build. Good for static sized inputs.
-func SetUpStatic(handle *gocudnn.Handle,
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
+func SetUpStatic(handle *cudnn.Handler,
+	frmt cudnn.TensorFormat,
+	dtype cudnn.DataType,
 	inputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
@@ -298,8 +299,8 @@ func (c *Layer) MakeRandomFromFanin(input *layers.IO) error {
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetup(
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
+	frmt cudnn.TensorFormat,
+	dtype cudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -369,8 +370,8 @@ func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta float64) {
 	c.bwdf.alpha, c.bwdf.alpha2, c.bwdf.beta = alpha, alpha2, beta
 }
 
-func find4doutputdims(x, w, padding, stride, dilation []int32, frmt gocudnn.TensorFormat) []int32 {
-	var flag gocudnn.TensorFormatFlag
+func find4doutputdims(x, w, padding, stride, dilation []int32, frmt cudnn.TensorFormat) []int32 {
+	var flag cudnn.TensorFormatFlag
 	if frmt == flag.NCHW() {
 		return find4doutputdims4dNCHW(x, w, padding, stride, dilation)
 	}

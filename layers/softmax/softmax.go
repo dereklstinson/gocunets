@@ -3,6 +3,7 @@ package softmax
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/softmax"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCudnn"
@@ -121,14 +122,14 @@ const defaultbeta = 0.0
 const defaultbalpha = -1.0
 
 //ForwardProp performs the forward propigation y is the output
-func (l *Layer) ForwardProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.s.ForwardProp(handle, l.alpha, x.T(), l.beta, y.T())
 	//	err := s.Funcs.SoftMaxForward(handle, l.algo, l.mode, l.alpha, x.T().TD(), x.T().Memer(), l.beta, y.T().TD(), y.T().Memer())
 	//	return err
 }
 
 //BackProp performs the backward propigation // x is the output
-func (l *Layer) BackProp(handle *gocudnn.Handle, x, y *layers.IO) error {
+func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.s.BackProp(handle, l.balpha, y.T(), y.DeltaT(), l.bbeta, x.DeltaT())
 	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
 	//	return err

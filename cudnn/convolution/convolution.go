@@ -74,11 +74,11 @@ func Flags() gocudnn.ConvolutionFlags {
 }
 
 //StageOperation set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
-func StageOperation(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
+func StageOperation(mode gocudnn.ConvolutionMode, data cudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(pad) == 2 {
 
-		desc, err := helper.NewConvolution2dDescriptor(mode, data, pad, stride, dilation)
+		desc, err := helper.NewConvolution2dDescriptor(mode, data.Cu(), pad, stride, dilation)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func StageOperation(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, st
 			dims: len(pad),
 		}, nil
 	}
-	desc, err := helper.NewConvolutionNdDescriptor(mode, data, pad, stride, dilation)
+	desc, err := helper.NewConvolutionNdDescriptor(mode, data.Cu(), pad, stride, dilation)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +191,8 @@ func (c *Ops) BwdPropData(
 		return err
 	}
 
-	a := gocudnn.CScalarByDataType(dtypew, alpha)
-	b := gocudnn.CScalarByDataType(dtypew, beta)
+	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
 	if a == nil || b == nil {
 		return errors.New("Unsuported Datatype")
 	}
@@ -230,8 +230,8 @@ func (c *Ops) BwdPropFilt(
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtypew, alpha)
-	b := gocudnn.CScalarByDataType(dtypew, beta)
+	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
 	if c.stagedalgo == false {
 		var pflg gocudnn.ConvolutionBwdFlags
 		if wspace != nil {
@@ -266,8 +266,8 @@ func (c *Ops) FwdProp(
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtypew, alpha)
-	b := gocudnn.CScalarByDataType(dtypew, beta)
+	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
 	/*
 		fmt.Println("1: ", handle)
 		fmt.Println("2: ", a)
@@ -319,8 +319,8 @@ func (c *Ops) BwdBias(
 	if dtypedbias != dtypedy {
 		return errors.New("bias and y not same")
 	}
-	a := gocudnn.CScalarByDataType(dtypedy, alpha)
-	b := gocudnn.CScalarByDataType(dtypedy, beta)
+	a := gocudnn.CScalarByDataType(dtypedy.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtypedy.Cu(), beta)
 	return c.helper.Funcs.Bwd.ConvolutionBackwardBias(
 		handle.Cudnn(),
 		a,

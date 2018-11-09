@@ -1,11 +1,10 @@
 package cnn
 
 import (
-	"image"
-
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+/*
 //SaveImagesToFile saves images do file
 func (c *Layer) SaveImagesToFile(dir string) error {
 	return c.w.SaveImagesToFile(dir)
@@ -15,7 +14,7 @@ func (c *Layer) SaveImagesToFile(dir string) error {
 func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
 	return c.w.Images()
 }
-
+*/
 //LoadWValues will load a slice into cuda memory for the Weights.
 func (c *Layer) LoadWValues(slice interface{}) error {
 	ptr, err := gocudnn.MakeGoPointer(slice)
@@ -43,11 +42,12 @@ func (c *Layer) LoaddWValues(slice interface{}) error {
 	return c.w.LoadDeltaTValues(ptr)
 }
 
+/*
 //BiasImgs returns 2d array of images
 func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
 	return c.bias.Images()
 }
-
+*/
 //WeightsFillSlice will fill a slice with the weight values
 func (c *Layer) WeightsFillSlice(input interface{}) error {
 	return c.w.T().Memer().FillSlice(input)

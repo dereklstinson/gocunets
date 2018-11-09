@@ -5,7 +5,7 @@ import (
 	"image"
 	"math/rand"
 
-	gocunets "github.com/dereklstinson/GoCuNets"
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
@@ -27,15 +27,18 @@ func network() {
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
 	utils.CheckError(devs[0].Set())
-	handles := gocunets.CreateHandle(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
+
+	handle := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
+	//stream, err := gocudnn.Cuda{}.CreateBlockingStream()
+
+	//	utils.CheckError(handles.SetStream(stream))
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
-	utils.CheckError(handles.SetStream(stream))
-
+	utils.CheckError(handle.SetStream(stream))
 	//Flag managers
-	var dataflag gocudnn.DataTypeFlag
+	var dataflag cudnn.DataTypeFlag
 	var convflag gocudnn.ConvolutionFlags
-	var fflag gocudnn.TensorFormatFlag
+	var fflag cudnn.TensorFormatFlag
 
 	//Data Locations
 
@@ -60,7 +63,7 @@ func network() {
 	fmt.Println("Number of Runs: ", len(batchesofinputbatches))
 
 	//Make Autoencoder network
-	AutoEncoder := networks.LeakyAuto(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	AutoEncoder := networks.LeakyAuto(handle, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
 	//Set the AutoEncoderNetwork hidden layer algo
 	utils.CheckError(AutoEncoder.DynamicHidden())
 
@@ -68,7 +71,7 @@ func network() {
 	arabicoutput, arabicnums := putintogpumem(batchesofinputbatches, fflag.NCHW(), dataflag.Float(), []int32{10, 28 * 28, 1, 1}, true)
 
 	//Make an imager so we can visually see the progress
-	imager, err := imaging.MakeImager(handles.XHandle())
+	imager, err := imaging.MakeImager(handle)
 
 	utils.CheckError(err)
 
@@ -76,7 +79,7 @@ func network() {
 	epocs := 100
 	snapshotsize := 300
 	//Set the Loss Calculator. This is Mean Square Error
-	MSE, err := loss.CreateMSECalculatorGPU(handles.XHandle(), true)
+	MSE, err := loss.CreateMSECalculatorGPU(handle, true)
 	utils.CheckError(err)
 
 	//Need this memory as an inbetween for the Autoencoder and Loss Function so that it can return the errors to the autoencoder
@@ -93,31 +96,31 @@ func network() {
 		epocloss := float32(0)
 		for j := range arabicnums {
 			stream.Sync()
-			utils.CheckError(AutoEncoder.ForwardProp(handles, nil, arabicnums[j], arabicoutput[j]))
+			utils.CheckError(AutoEncoder.ForwardProp(handle, nil, arabicnums[j], arabicoutput[j]))
 			stream.Sync()
 			//Load the outputs from autoencoder into fconout
 			fconout.LoadTValues(arabicoutput[j].T().Memer())
 			stream.Sync()
 			//arabicout contains the the output of the autoencoder in its T() and target values in its DeltaT() fconout will get the errors from the loss function in its DeltaT()
-			MSE.ErrorGPU(handles.XHandle(), fconout, arabicoutput[j])
+			MSE.ErrorGPU(handle, fconout, arabicoutput[j])
 			stream.Sync()
 			//MSE.Loss() just returns the loss calculated in MSE.ErrorGPU.  MSE.ErrorGPU doesn't return return the loss it just stores it.
 			epocloss += MSE.Loss()
 			utils.CheckError(err)
 			stream.Sync()
 			//BackProp those errors put into fconout back through the auto encoder
-			utils.CheckError(AutoEncoder.BackPropFilterData(handles, nil, arabicnums[j], fconout))
+			utils.CheckError(AutoEncoder.BackPropFilterData(handle, nil, arabicnums[j], fconout))
 			stream.Sync()
 			//Update the weights
-			utils.CheckError(AutoEncoder.UpdateWeights(handles, 10))
+			utils.CheckError(AutoEncoder.UpdateWeights(handle, 10))
 			stream.Sync()
 
 			if j%snapshotsize == 0 {
 
-				utils.CheckError(AutoEncoder.ForwardProp(handles, nil, arabicnums[0], arabicoutput[0]))
+				utils.CheckError(AutoEncoder.ForwardProp(handle, nil, arabicnums[0], arabicoutput[0]))
 				imagerlayer.LoadTValues(arabicoutput[0].T().Memer())
 				stream.Sync()
-				outputimage, err := imager.TileBatches(handles.XHandle(), imagerlayer, 2, 5)
+				outputimage, err := imager.TileBatches(handle, imagerlayer, 2, 5)
 				utils.CheckError(err)
 				images = append(images, outputimage)
 				//	fmt.Println("Grabbing Image:", j)
@@ -151,7 +154,7 @@ func network() {
 	devs[0].Reset()
 
 }
-func putintogpumem(arabic [][]float32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dimsarabic []int32, memmanaged bool) (output, runs []*layers.IO) {
+func putintogpumem(arabic [][]float32, frmt cudnn.TensorFormat, dtype cudnn.DataType, dimsarabic []int32, memmanaged bool) (output, runs []*layers.IO) {
 	var err error
 	runs = make([]*layers.IO, len(arabic))
 	output = make([]*layers.IO, len(arabic))

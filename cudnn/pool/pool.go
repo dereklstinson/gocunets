@@ -142,8 +142,8 @@ func (p *Ops) FwdProp(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.V
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
 	return p.desc.PoolingForward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 }
@@ -155,8 +155,8 @@ func (p *Ops) BwdProp(handle *cudnn.Handler, alpha, beta float64, x, dx, y, dy *
 		return err
 	}
 
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
 	return p.desc.PoolingBackward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 

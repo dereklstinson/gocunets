@@ -3,13 +3,14 @@ package mnistgpu
 import (
 	"fmt"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //WithLabels11Gan return trainingimages,traininglabels, testimages,testlabels
-func WithLabels11Gan(batchsize int, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
+func WithLabels11Gan(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST11gan(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)

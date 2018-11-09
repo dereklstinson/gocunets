@@ -3,9 +3,9 @@ package reshape
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/reshapes"
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is the that type that handles reshape methods
@@ -23,15 +23,15 @@ const defaultbeta = float64(1.0)
 //Build builds the layer mode picks the mode window has to be passed if S2B it is a set size that you want each batch to be.
 //window will be ignored if mode was picked to transpose
 //All will be ignored of you pick transform
-func Build(handle *layers.Handler, mode Mode, window []int32, networkinput bool) (*Layer, error) {
+func Build(handle *cudnn.Handler, mode Mode, window []int32, networkinput bool) (*Layer, error) {
 	//var lmf ModeFlag
 
-	op, err := reshapes.Stage(handle.XHandle)
+	op, err := reshapes.Stage(handle)
 	return &Layer{op: op, mode: mode, window: window, networkinput: networkinput, defaultalpha: defaultalpha, defaultbeta: defaultbeta}, err
 }
 
 //MakeOutputTensor returns a layer.IO for the network
-func (l *Layer) MakeOutputTensor(handle *gocudnn.XHandle, x *layers.IO) (*layers.IO, error) {
+func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.IO, error) {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():
@@ -48,33 +48,36 @@ func (l *Layer) MakeOutputTensor(handle *gocudnn.XHandle, x *layers.IO) (*layers
 }
 
 //ForwardProp performs the forward prop x is the input and y is the input and output
-func (l *Layer) ForwardProp(handlex *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():
-		return l.transposeforwardprop(handlex, x, y)
+		return l.transposeforwardprop(handle, x, y)
 	case lmf.S2B():
-		return l.spacetobatchforwardprop(handlex, x, y)
+		return l.spacetobatchforwardprop(handle, x, y)
 	case lmf.Resize():
-		return l.resizeforward(handlex, x, y)
+		return l.resizeforward(handle, x, y)
 	case lmf.Transform():
-		return l.op.TransformForward(handle, l.defaultalpha, l.defaultbeta)
+		return l.transformtensforward(handle, x, y)
 	}
 
 	return errors.New("Layer doesn't support mode passed")
 }
 
 //BackProp performs the backprop prop x is the input and output and y is the input
-func (l *Layer) BackProp(handlex *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():
-		return l.transposebackprop(handlex, x, y)
+		return l.transposebackprop(handle, x, y)
 	case lmf.S2B():
-		return l.spacetobatchbackprop(handlex, x, y)
+		return l.spacetobatchbackprop(handle, x, y)
 	case lmf.Resize():
-		return l.resizebackward(handlex, x, y)
+		return l.resizebackward(handle, x, y)
+	case lmf.Transform():
+		return l.transformtensbackward(handle, x, y)
 	}
+
 	return errors.New("Layer doesn't support mode passed")
 }
 

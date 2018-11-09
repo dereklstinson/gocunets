@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is a fcnn layer for a network
@@ -28,7 +28,7 @@ type xtras struct {
 	beta   float64
 }
 
-func CreateFromshapeNoOut(handle *gocudnn.Handle, neurons int32, shape []int32, managedmem bool, dtype gocudnn.DataType, frmt gocudnn.TensorFormat) (*Layer, error) {
+func CreateFromshapeNoOut(handle *cudnn.Handler, neurons int32, shape []int32, managedmem bool, dtype cudnn.DataType, frmt cudnn.TensorFormat) (*Layer, error) {
 
 	mode := convolution.Flags().Mode.CrossCorrelation()
 
@@ -110,7 +110,7 @@ func CreateFromshapeNoOut(handle *gocudnn.Handle, neurons int32, shape []int32, 
 
 //CreateFromInput will take the input that is given to it and along with the handle and number of neurons wanted for the layer,
 // and returns a default settings layer with all the dims set to 1(except for the feature map outputs). It will also return the *layer.IO for the output of that layer
-func CreateFromInput(handle *gocudnn.Handle, neurons int32, input *layers.IO, managedmem bool) (*Layer, *layers.IO, error) {
+func CreateFromInput(handle *cudnn.Handler, neurons int32, input *layers.IO, managedmem bool) (*Layer, *layers.IO, error) {
 	mode := convolution.Flags().Mode.CrossCorrelation()
 	fmt, dtype, shape, err := input.Properties()
 	if err != nil {
@@ -230,7 +230,7 @@ func (l *Layer) MakeOutputTensor(batch int) (*layers.IO, error) {
 	}
 	managed := l.neurons.IsManaged()
 	neurons := dims[0]
-	var frmtflg gocudnn.TensorFormatFlag
+	var frmtflg cudnn.TensorFormatFlag
 	if frmt == frmtflg.NCHW() {
 		return layers.BuildIO(frmt, dtype, []int32{int32(batch), neurons, int32(1), int32(1)}, managed)
 	} else if frmt == frmtflg.NHWC() {
@@ -270,15 +270,15 @@ func destroy(l *Layer) error {
 }
 
 //LoadTrainer sets up the momentum trainer
-func (l *Layer) LoadTrainer(ctx gocudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
+func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
 	var err error
 	l.train = trainerweights
-	err = trainer.CreateTrainingMem(ctx, l.train, l.neurons)
+	err = trainer.CreateTrainingMem(handle, l.train, l.neurons)
 	if err != nil {
 		return err
 	}
 	l.btrain = trainerbias
-	err = trainer.CreateTrainingMem(ctx, l.btrain, l.bias)
+	err = trainer.CreateTrainingMem(handle, l.btrain, l.bias)
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func (l *Layer) LoadTrainer(ctx gocudnn.Handler, trainerweights, trainerbias tra
 }
 
 //UpdateWeights updates the weights
-func (l *Layer) UpdateWeights(ctx gocudnn.Handler, batch int) error {
+func (l *Layer) UpdateWeights(ctx *cudnn.Handler, batch int) error {
 	err := l.btrain.UpdateWeights(ctx, l.bias, batch)
 	if err != nil {
 		return err

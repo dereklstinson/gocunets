@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -161,10 +162,10 @@ func (m *Network) DynamicHidden() error {
 }
 
 //StaticHidden changes the IO between layers to be set in place //Good performance not as flexable
-func (m *Network) StaticHidden(handle *Handles) error {
+func (m *Network) StaticHidden(handle *cudnn.Handler) error {
 	var flg reshape.ModeFlag
 	var err error
-	m.reshaper, err = reshape.Build(handle.xhandle, flg.Resize(), nil, false)
+	m.reshaper, err = reshape.Build(handle, flg.Resize(), nil, false)
 	if err != nil {
 		return err
 	}
@@ -173,10 +174,10 @@ func (m *Network) StaticHidden(handle *Handles) error {
 }
 
 //HybridHidden does a static size for a certain count passed and will change the size maybe randomly (probably going to be to the first image it comes accross).
-func (m *Network) HybridHidden(handle *Handles, hybridsize int) error {
+func (m *Network) HybridHidden(handle *cudnn.Handler, hybridsize int) error {
 	var flg reshape.ModeFlag
 	var err error
-	m.reshaper, err = reshape.Build(handle.xhandle, flg.Resize(), nil, false)
+	m.reshaper, err = reshape.Build(handle, flg.Resize(), nil, false)
 	if err != nil {
 		return err
 	}
@@ -186,7 +187,7 @@ func (m *Network) HybridHidden(handle *Handles, hybridsize int) error {
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
-func (m *Network) LoadTrainers(handle *Handles, trainerweights, trainerbias []trainer.Trainer) {
+func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbias []trainer.Trainer) {
 	if len(trainerweights) != len(trainerbias) {
 		m.err <- errors.New("(*Network)LoadTrainers -- Sizes Don't Match with trainers and bias")
 	}
@@ -217,7 +218,7 @@ func (m *Network) AddLayer(layer interface{}, err error) {
 }
 
 //buildhiddenios will build a hidden network layer based on the input given used for my generator network
-func (m *Network) buildhiddenios(handle *Handles, input *layers.IO) error {
+func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error {
 	if len(m.mem) > 0 || m.mem != nil {
 		return errors.New("Mem Already Set")
 	}
@@ -258,7 +259,7 @@ func (m *Network) freehiddenios() error {
 }
 
 //ForwardProp does the forward prop for a prebuilt Network
-func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch m.hiomode {
 	case dynamichiddenio:
 		_, _, xdims, err := x.Properties()
@@ -308,7 +309,7 @@ func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 		if comparedims(dimsx, dimsre) == true {
 			return m.forwardprop(handle, wspace, x, y)
 		}
-		m.reshaper.ForwardProp(handle.xhandle, x, m.resizeinput)
+		m.reshaper.ForwardProp(handle, x, m.resizeinput)
 		return m.forwardprop(handle, wspace, m.resizeinput, y)
 	case hibridhiddenio:
 		m.resizecounter++
@@ -345,7 +346,7 @@ func (m *Network) ForwardProp(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 		if comparedims(dimsx, dimsre) == true {
 			return m.forwardprop(handle, wspace, x, y)
 		}
-		m.reshaper.ForwardProp(handle.xhandle, x, m.resizeinput)
+		m.reshaper.ForwardProp(handle, x, m.resizeinput)
 		return m.forwardprop(handle, wspace, m.resizeinput, y)
 
 	}
@@ -365,7 +366,7 @@ func comparedims(x, y []int32) bool {
 }
 
 //BackPropFilterData does the backprop of the hidden layers
-func (m *Network) BackPropFilterData(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 
 	switch m.hiomode {
 	case dynamichiddenio:
@@ -388,7 +389,7 @@ func (m *Network) BackPropFilterData(handle *Handles, wspace *gocudnn.Malloced, 
 		if err != nil {
 			return err
 		}
-		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+		return m.reshaper.BackProp(handle, x, m.resizeinput)
 	case hibridhiddenio:
 		_, _, dimsx, err := x.Properties()
 		if err != nil {
@@ -406,14 +407,14 @@ func (m *Network) BackPropFilterData(handle *Handles, wspace *gocudnn.Malloced, 
 		if err != nil {
 			return err
 		}
-		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+		return m.reshaper.BackProp(handle, x, m.resizeinput)
 	}
 	return errors.New("BackProp-Unsupported Hidden Mode")
 
 }
 
 //BackPropData only does the data backprop
-func (m *Network) BackPropData(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 
 	switch m.hiomode {
 	case dynamichiddenio:
@@ -436,7 +437,7 @@ func (m *Network) BackPropData(handle *Handles, wspace *gocudnn.Malloced, x, y *
 		if err != nil {
 			return err
 		}
-		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+		return m.reshaper.BackProp(handle, x, m.resizeinput)
 	case hibridhiddenio:
 		_, _, dimsx, err := x.Properties()
 		if err != nil {
@@ -454,7 +455,7 @@ func (m *Network) BackPropData(handle *Handles, wspace *gocudnn.Malloced, x, y *
 		if err != nil {
 			return err
 		}
-		return m.reshaper.BackProp(handle.xhandle, x, m.resizeinput)
+		return m.reshaper.BackProp(handle, x, m.resizeinput)
 	}
 	return errors.New("BackProp-Unsupported Hidden Mode")
 
@@ -462,7 +463,7 @@ func (m *Network) BackPropData(handle *Handles, wspace *gocudnn.Malloced, x, y *
 func wraperror(comment string, err error) error {
 	return errors.New(comment + "-" + err.Error())
 }
-func (m *Network) forwardprop(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 
 	err = m.layer[0].forwardprop(handle, wspace, x, m.mem[0])
@@ -484,7 +485,7 @@ func (m *Network) forwardprop(handle *Handles, wspace *gocudnn.Malloced, x, y *l
 	return nil
 
 }
-func (m *Network) backpropdata(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	//	err := handle.stream.Sync()
 	if err != nil {
@@ -513,7 +514,7 @@ func (m *Network) backpropdata(handle *Handles, wspace *gocudnn.Malloced, x, y *
 }
 
 //BackProp does the backprop of a Network
-func (m *Network) backpropfilterdata(handle *Handles, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	//	err := handle.stream.Sync()
 	if err != nil {
@@ -542,11 +543,9 @@ func (m *Network) backpropfilterdata(handle *Handles, wspace *gocudnn.Malloced, 
 }
 
 //UpdateWeights updates the weights of a Network
-func (m *Network) UpdateWeights(handle *Handles, batch int) error {
-	err := handle.stream.Sync()
-	if err != nil {
-		return err
-	}
+func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
+	handle.Sync()
+
 	for i := 0; i < len(m.layer); i++ {
 
 		err := m.layer[i].updateWeights(handle, batch)
@@ -554,5 +553,5 @@ func (m *Network) UpdateWeights(handle *Handles, batch int) error {
 			return err
 		}
 	}
-	return handle.stream.Sync()
+	return handle.Sync()
 }

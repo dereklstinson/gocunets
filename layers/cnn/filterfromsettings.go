@@ -1,5 +1,6 @@
 package cnn
 
+/*
 import (
 	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -75,3 +76,4 @@ func SetupFromSettings(s Settings) (*Layer, error) {
 	}, nil
 
 }
+*/

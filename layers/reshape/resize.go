@@ -1,12 +1,12 @@
 package reshape
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //SpaceToBatchForwardProp does the forwardpropagation
-func (l *Layer) resizeforward(handle *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) resizeforward(handle *cudnn.Handler, x, y *layers.IO) error {
 	err := l.op.ResizeForward(handle, x.T(), y.T())
 	if err != nil {
 		return err
@@ -15,7 +15,7 @@ func (l *Layer) resizeforward(handle *gocudnn.XHandle, x, y *layers.IO) error {
 }
 
 //SpaceToBatchBackward does the backward propagation
-func (l *Layer) resizebackward(handle *gocudnn.XHandle, x, y *layers.IO) error {
+func (l *Layer) resizebackward(handle *cudnn.Handler, x, y *layers.IO) error {
 	err := l.op.ResizeBackward(handle, x.T(), y.T())
 	if err != nil {
 		return err

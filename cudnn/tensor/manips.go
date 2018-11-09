@@ -140,7 +140,7 @@ func (t *Volume) SetRandomNormal(min, max float32) error {
 		return prependerror("SetRandomNormal", err)
 	}
 
-	switch dtype {
+	switch dtype.Cu() {
 
 	case t.thelp.Flgs.Data.Double():
 		randomizedvol := make([]float64, vol)
@@ -181,7 +181,7 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		return prependerror("SetRandom", err)
 	}
 
-	switch dtype {
+	switch dtype.Cu() {
 
 	case t.thelp.Flgs.Data.Double():
 		randomizedvol := make([]float64, vol)

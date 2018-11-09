@@ -4,18 +4,18 @@
 package trainer
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCudnn"
 )
 
 //Trainer will be used for updating weights.  Only momentum and adam are available right now
 type Trainer interface {
-	UpdateWeights(ctx gocudnn.Handler, weights *layers.IO, batch int) error
+	UpdateWeights(ctx *cudnn.Handler, weights *layers.IO, batch int) error
 	L1L2Loss() (float32, float32, error)
 }
 
 //CreateTrainingMem creates trainingmem for the trainer
-func CreateTrainingMem(handle gocudnn.Handler, trainer Trainer, weights *layers.IO) error {
+func CreateTrainingMem(handle *cudnn.Handler, trainer Trainer, weights *layers.IO) error {
 
 	switch x := trainer.(type) {
 	case *Adam:

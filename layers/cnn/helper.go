@@ -1,12 +1,13 @@
 package cnn
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //MakeOutputTensor makes the output tensor of the layer
-func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO) (*layers.IO, error) {
+func (c *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	dims, err := c.conv.OutputDim(input.T(), c.w.T())
 	if err != nil {
 		return nil, err
@@ -29,7 +30,7 @@ func (c *Layer) MakeOutputTensor(handle *gocudnn.Handle, input *layers.IO) (*lay
 //if fastest is marked true. Then it will find the fastest algo no mater what worksize is.
 //if fastest is set to false. It will check if wspace is greater than zero then it will set the algos to the fastest algo considering the workspace size, and return the largest wspacesize in all the algos
 //else it will find and set the fastest algos with no workspace size and return 0
-func (c *Layer) SetBestAlgosConsidering(handle *gocudnn.Handle, x, y *layers.IO, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
+func (c *Layer) SetBestAlgosConsidering(handle *cudnn.Handler, x, y *layers.IO, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
 	return c.conv.SetBestAlgosConsidering(handle, x.T(), y.T(), c.w.T(), wspacelimit, fastest)
 }
 
@@ -39,7 +40,7 @@ func (c *Layer) SetBestAlgosConsidering(handle *gocudnn.Handle, x, y *layers.IO,
 //if fastest is marked true. Then it will find the fastest algo no mater what worksize is.
 //if fastest is set to false. It will check if wspace is greater than zero then it will set the algos to the fastest algo considering the workspace size, and return the largest wspacesize in all the algos
 //else it will find and set the fastest algos with no workspace size and return 0
-func (c *Layer) SetBestAlgosConsideringDims4d(handle *gocudnn.Handle, x, y, w []int32, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
+func (c *Layer) SetBestAlgosConsideringDims4d(handle *cudnn.Handler, x, y, w []int32, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
 	frmt, data, _, err := c.w.Properties()
 	if err != nil {
 		return 0, err
@@ -48,6 +49,6 @@ func (c *Layer) SetBestAlgosConsideringDims4d(handle *gocudnn.Handle, x, y, w []
 }
 
 //FilterProps returns the filter properties of the Convolution Layer
-func (c *Layer) FilterProps() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+func (c *Layer) FilterProps() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
 	return c.w.Properties()
 }

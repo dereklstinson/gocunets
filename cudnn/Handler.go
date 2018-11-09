@@ -32,21 +32,17 @@ func (h *Handler) Sync() error {
 }
 
 //CreateHandler creates a the handlers
-func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string, stream *gocudnn.Stream) *Handler {
+func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
 
 	x := gocudnn.NewHandle()
 	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
 	if err != nil {
 		panic(err)
 	}
-	x.SetStream(stream)
-	if err != nil {
-		panic(err)
-	}
+
 	return &Handler{
-		cudnn:  x,
-		xtra:   y,
-		stream: stream,
+		cudnn: x,
+		xtra:  y,
 	}
 }
 

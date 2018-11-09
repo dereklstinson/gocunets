@@ -22,7 +22,7 @@ func (o *Ops) TransposeChannelForward(handle *cudnn.Handler, x, y *tensor.Volume
 	if ydims[0] != xdims[0] || !(ydims[3] == xdims[1] || ydims[1] == xdims[3]) {
 		return errors.New("Dims are not matching up N for both tensors need to be the same and channel dims need to be switched")
 	}
-	var fflg gocudnn.TensorFormatFlag
+	var fflg cudnn.TensorFormatFlag
 	switch xfrmt {
 	case fflg.NCHW():
 		return o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
@@ -46,7 +46,7 @@ func (o *Ops) TransposeChannelBackward(handle *cudnn.Handler, x, y *tensor.Volum
 	if ydims[0] != xdims[0] || !(ydims[3] == xdims[1] || ydims[1] == xdims[3]) {
 		return errors.New("Dims are not matching up N for both tensors need to be the same and channel dims need to be switched")
 	}
-	var fflg gocudnn.TensorFormatFlag
+	var fflg cudnn.TensorFormatFlag
 	switch xfrmt {
 	case fflg.NCHW():
 		return o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, y.TD(), y.Memer(), x.TD(), x.Memer())
@@ -69,7 +69,7 @@ func (o *Ops) TransposeChannel(handle *cudnn.Handler, x *tensor.Volume) error {
 		return err
 	}
 
-	var fflg gocudnn.TensorFormatFlag
+	var fflg cudnn.TensorFormatFlag
 	switch xfrmt {
 	case fflg.NCHW():
 		err = o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
@@ -88,7 +88,7 @@ func (o *Ops) TransposeChannel(handle *cudnn.Handler, x *tensor.Volume) error {
 }
 
 //GetTransposeOutputProperties will get the volume of a transpose operation handled through this op
-func (o *Ops) GetTransposeOutputProperties(handle *cudnn.Handler, x *tensor.Volume) (gocudnn.TensorFormat, gocudnn.DataType, []int32, []int32, bool, error) {
+func (o *Ops) GetTransposeOutputProperties(handle *cudnn.Handler, x *tensor.Volume) (cudnn.TensorFormat, cudnn.DataType, []int32, []int32, bool, error) {
 	xmal := x.Memer()
 	if xmal != nil {
 		var managed bool
@@ -98,7 +98,7 @@ func (o *Ops) GetTransposeOutputProperties(handle *cudnn.Handler, x *tensor.Volu
 		}
 		frmt, dtype, dims, perm, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
 
-		return frmt, dtype, dims, perm, managed, err
+		return cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims, perm, managed, err
 
 	}
 
@@ -118,7 +118,7 @@ func (o *Ops) gettransposevol(handle *cudnn.Handler, x *tensor.Volume) (*tensor.
 			return nil, err
 		}
 
-		return tensor.Build(frmt, dtype, dims, managed)
+		return tensor.Build(cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims, managed)
 
 	}
 

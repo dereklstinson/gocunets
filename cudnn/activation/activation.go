@@ -17,19 +17,19 @@ type Ops struct {
 	nan    cudnn.NanMode
 }
 
-const defaultparachantrainingmode = gocudnn.TrainingMode(4) //This is adam
-const defaultcoefforleaky = .01
-const defaultcoefforclipped = 6
+//const defaultparachantrainingmode = gocudnn.TrainingMode(4) //This is adam
+//const defaultcoefforleaky = .01
+//const defaultcoefforclipped = 6
 
 //Stage creates an activation struct given the properties passed in function
-func Stage(handle cudnn.Handler, mode Mode, tmode cudnn.TrainMode, nan cudnn.NanMode, coef float64) (*Ops, error) {
+func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*Ops, error) {
 	var dtype gocudnn.DataTypeFlag
 	var xtra gocudnn.Xtra
 	var mflg ModeFlag
 	var hlp gocudnn.Activation
 	switch mode {
 	case mflg.AdvancedThreshRandRelu():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), tmode.Cu(), dtype.Float(), coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
 		if err != nil {
 			return nil, err
 		}
@@ -38,7 +38,7 @@ func Stage(handle cudnn.Handler, mode Mode, tmode cudnn.TrainMode, nan cudnn.Nan
 			mode:  mode,
 		}, err
 	case mflg.Leaky():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), tmode.Cu(), dtype.Float(), coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +47,7 @@ func Stage(handle cudnn.Handler, mode Mode, tmode cudnn.TrainMode, nan cudnn.Nan
 			mode:  mode,
 		}, err
 	case mflg.PRelu():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), tmode.Cu(), dtype.Float(), coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
 		if err != nil {
 			return nil, err
 		}
@@ -91,31 +91,6 @@ func Stage(handle cudnn.Handler, mode Mode, tmode cudnn.TrainMode, nan cudnn.Nan
 	return nil, errors.New("Not supported activation")
 }
 
-/*
-switch Mode{
-case mflg.AdvancedThreshRandRelu():
-case mflg.ClippedRelu():
-case mflg.Elu():
-case mflg.Leaky():
-case mflg.PRelu():
-case mflg.Relu():
-case mflg.Sigmoid():
-case mflg.Tanh():
-
-}
-*/
-/*
-//ReStage will destroy the desc in the Op and then make a new one to the settings given.
-func (act *Ops) ReStage(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) error {
-	err := act.desc.DestroyDescriptor()
-	if err != nil {
-		return err
-	}
-	act.desc, err =.NewActivationDescriptor(mode, nan, coef)
-	return err
-}
-*/
-
 //Info returns the Info struct.  (Made for saving to a json file at a higher level)
 func (act *Ops) Info() (OpInfo, error) {
 
@@ -156,13 +131,33 @@ func (act *Ops) FwdProp(
 	if dtypex != dtypey {
 		return errors.New("output type not matching input type")
 	}
-	a := gocudnn.CScalarByDataType(dtypex, alpha)
-	b := gocudnn.CScalarByDataType(dtypex, beta)
+	a := gocudnn.CScalarByDataType(dtypex.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtypex.Cu(), beta)
 	if a == nil || b == nil {
 		return errors.New("Unsupported Datatype for either alpha or beta")
 	}
+	var mflg ModeFlag
+	switch act.mode {
+	case mflg.AdvancedThreshRandRelu():
+		return act.xdesc.ForwardProp(handle.XHandle(), a, b, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), betas.Memer())
+	case mflg.Leaky():
 
-	return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+		return act.xdesc.ForwardProp(handle.XHandle(), a, b, x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil)
+	case mflg.PRelu():
+		return act.xdesc.ForwardProp(handle.XHandle(), a, b, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), nil)
+	case mflg.ClippedRelu():
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	case mflg.Elu():
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	case mflg.Relu():
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	case mflg.Sigmoid():
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	case mflg.Tanh():
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+
+	}
+	return errors.New("unsupported Activation Mode")
 }
 
 //BwdProp is the backwards propigation of the activation struct
@@ -174,6 +169,8 @@ func (act *Ops) BwdProp(
 	x *tensor.Volume,
 	beta float64,
 	dx *tensor.Volume,
+	alphas *tensor.Volume,
+	betas *tensor.Volume,
 ) error {
 	_, dtypedx, _, err := dx.Properties()
 	if err != nil {
@@ -194,13 +191,33 @@ func (act *Ops) BwdProp(
 	if dtypedx != dtypey || dtypedx != dtypedy || dtypedx != dtypex {
 		return errors.New("output type not matching input type")
 	}
-	a := gocudnn.CScalarByDataType(dtypedx, alpha)
-	b := gocudnn.CScalarByDataType(dtypedx, beta)
+	a := gocudnn.CScalarByDataType(dtypedx.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtypedx.Cu(), beta)
 	if a == nil || b == nil {
 		return errors.New("Unsupported Datatype for either alpha or beta")
 	}
+	var mflg ModeFlag
+	switch act.mode {
+	case mflg.AdvancedThreshRandRelu():
+		return act.xdesc.BackProp(handle.XHandle(), a, b, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), betas.Memer())
+	case mflg.Leaky():
+		return act.xdesc.BackProp(handle.XHandle(), a, b, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
+	case mflg.PRelu():
+		return act.xdesc.BackProp(handle.XHandle(), a, b, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), betas.Memer())
+	case mflg.ClippedRelu():
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	case mflg.Elu():
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	case mflg.Relu():
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	case mflg.Sigmoid():
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	case mflg.Tanh():
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 
-	return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	}
+	return errors.New("unsupported Activation Mode")
+
 }
 
 //Destroy destroys the cuda allocated memory associated with Activation

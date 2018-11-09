@@ -7,11 +7,12 @@ import (
 	"time"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
-	"github.com/dereklstinson/GoCuNets/layers/xactivation"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/mnistgpu"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCudnn" //	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
@@ -36,20 +37,20 @@ func main() {
 
 	err = device.Set()
 	cherror(err)
-	handle := gocunets.CreateHandle(device, trainingkernellocation)
+	handle := cudnn.CreateHandler(device, trainingkernellocation)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	cherror(handle.SetStream(stream))
 
-	var dtypeflags gocudnn.DataTypeFlag
-	var fmtflags gocudnn.TensorFormatFlag
+	var dtypeflags cudnn.DataTypeFlag
+	var fmtflags cudnn.TensorFormatFlag
 	frmt := fmtflags.NCHW()
 	dtype := dtypeflags.Float()
 	CMode := convolution.Flags().Mode.CrossCorrelation() //.CrossCorrelation()
-	//	AMode := gocudnn.ActivationModeFlag{}.Relu()
+
 	Pmode := gocudnn.PoolingModeFlag{}.Max()
-	NanProp := gocudnn.PropagationNANFlag{}.NotPropagateNan()
+	NanProp := gocudnn.PropagationNANFlag{}.PropagateNan()
 	memmanaged := true
-	//	dims := gocudnn.Tensor.Shape
+
 	in := dims
 	filter := dims
 	padding := dims
@@ -72,32 +73,32 @@ func main() {
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.Leaky(handle),
 	)
 	network.AddLayer( //pooling
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
 	)
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 14, 14), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 20, 14, 14), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.Leaky(handle),
 	)
 	network.AddLayer( //pooling
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
 	)
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 7, 7), filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 20, 7, 7), filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.Leaky(handle),
 	)
 
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 4, 4), filter(10, 20, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 20, 4, 4), filter(10, 20, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 		//fcnn.CreateFromshapeNoOut(handle.Cudnn(), 10, in(batchsize, 20, 4, 4), memmanaged, dtype, frmt),
 	)
 	network.AddLayer( //softmaxoutput
@@ -127,7 +128,9 @@ func main() {
 			//	cuda.CtxSynchronize()
 			cherror(stream.Sync())
 			cherror(network.ForwardProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
+			cherror(stream.Sync())
 			cherror(network.BackPropFilterData(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
+			cherror(stream.Sync())
 			cherror(network.UpdateWeights(handle, batchsize))
 			cherror(stream.Sync())
 
@@ -144,17 +147,13 @@ func main() {
 
 			desiredoutput[j] = make([]float32, 10*batchsize)
 
-			err = gputestansdata[j].T().Memer().FillSlice(netoutput[j])
-
-			cherror(err)
-
-			err = gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j])
-
-			cherror(err)
-
+			cherror(gputestansdata[j].T().Memer().FillSlice(netoutput[j]))
+			cherror(stream.Sync())
+			cherror(gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j]))
+			cherror(stream.Sync())
 		}
 		cherror(stream.Sync())
-		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
+		func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
 			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
 			fmt.Printf("Epoch Percent Correct: %-0.3f		 Epoch Loss: %-0.3f              Epoch Number: %d\n", percent, loss, k)
 
@@ -174,20 +173,20 @@ func printoutput(numofans, batchsize int, input []float32) {
 		fmt.Printf("\n ")
 	}
 }
-func epocoutputchecker(actual, desired [][]float32, batchtotal, batchsize, classificationsize int) (float32, float32) {
-	var batchloss float32
-	var percent float32
+func epocoutputchecker(actual, desired [][]float32, batchtotal, batchsize, classificationsize int) (float64, float64) {
+	var batchloss float64
+	var percent float64
 	for i := 0; i < batchtotal; i++ {
 		perc, batch := batchoutputchecker(actual[i], desired[i], batchsize, classificationsize)
 		batchloss += batch
 		percent += perc
 	}
-	return percent / float32(batchtotal), batchloss / float32(batchtotal)
+	return percent / float64(batchtotal), batchloss / float64(batchtotal)
 
 }
-func batchoutputchecker(actual, desired []float32, batchsize, classificationsize int) (float32, float32) {
-	var batchloss float32
-	var percent float32
+func batchoutputchecker(actual, desired []float32, batchsize, classificationsize int) (float64, float64) {
+	var batchloss float64
+	var percent float64
 	var position int
 	//	delta := float64(-math.Log(float64(output.SoftOutputs[i]))) * desiredoutput[i]
 	for i := 0; i < batchsize; i++ {
@@ -203,18 +202,22 @@ func batchoutputchecker(actual, desired []float32, batchsize, classificationsize
 
 			}
 			if desired[ijpos] != 0 {
-
-				batchloss += float32(-math.Log(float64(actual[ijpos])))
+				value := (-math.Log(float64(actual[ijpos])))
+				if math.IsInf(float64(value), 0) == true {
+					fmt.Println("Output Value: ", value)
+				}
+				batchloss += value
 			}
 
 		}
-		percent += desired[position]
+		percent += float64(desired[position])
 
 	}
 	if math.IsNaN(float64(batchloss)) == true {
 		panic("reach NAN")
 	}
-	return percent / float32(batchsize), batchloss / float32(batchsize)
+
+	return percent / float64(batchsize), batchloss / float64(batchsize)
 }
 
 func dims(args ...int) []int32 {

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -22,10 +23,12 @@ type Volume struct {
 	dtype     gocudnn.DataType
 	propnan   gocudnn.PropagationNAN
 	memgpu    *gocudnn.Malloced
-	fmt       gocudnn.TensorFormat
+	frmt      gocudnn.TensorFormat
 	thelp     gocudnn.Tensor
 	fhelp     gocudnn.Filter
 	ophelp    gocudnn.OpTensor
+	dims      []int32
+	strides   []int32
 	managed   bool
 	//scalar gocudnn.CScalar
 }
@@ -86,26 +89,6 @@ func (t *Volume) SetNotPropNan() {
 
 }
 
-/*
-//Flager contains structs that hold methods that return the flag types
-type Flager struct {
-	Data   gocudnn.DataTypeFlag
-	Math   gocudnn.MathTypeFlag
-	NaN    gocudnn.MathTypeFlag
-	Deter  gocudnn.DeterminismFlag
-	Format gocudnn.TensorFormatFlag
-}
-
-//Flags holds a struct of flags used to build tensors
-type Flags struct {
-	Data   gocudnn.DataType       `json:"data,omitempty"`
-	Math   gocudnn.MathType       `json:"math,omitempty"`
-	NaN    gocudnn.PropagationNAN `json:"na_n,omitempty"`
-	Deter  gocudnn.Determinism    `json:"deter,omitempty"`
-	Format gocudnn.TensorFormat   `json:"format,omitempty"`
-}
-*/
-
 //Flags returns a struct that passes gocudnn flags through methods used in building the tensor
 func Flags() gocudnn.TensorFlags {
 	return gocudnn.TensorFlags{}
@@ -120,10 +103,10 @@ func (t *Volume) Info() (Info, error) {
 	}
 	dflgs := t.thelp.Flgs.Data
 	var values interface{}
-	size := arraysizefromdims(dims)
+	size := utils.FindVolumeInt32(dims)
 
 	//I don't like this switch type stuff.  I am probably going to make something in the gocudnn package to get rid of this. I just haven't thought of a really easy way to implement this.
-	switch dtype {
+	switch dtype.Cu() {
 	case dflgs.Double():
 		values = make([]float64, size)
 	case dflgs.Float():
@@ -141,8 +124,8 @@ func (t *Volume) Info() (Info, error) {
 		return Info{}, err
 	}
 	return Info{
-		Format:   frmt,
-		DataType: dtype,
+		Format:   frmt.Cu(),
+		DataType: dtype.Cu(),
 		Dims:     dims,
 		Unified:  t.managed,
 		Values:   values,
@@ -245,11 +228,13 @@ func (i Info) Build() (*Volume, error) {
 	}
 
 	vol := &Volume{
-		tD:     tens,
-		fD:     filts,
-		memgpu: newmemer,
-		fmt:    i.Format,
-		dtype:  i.DataType,
+		tD:      tens,
+		fD:      filts,
+		memgpu:  newmemer,
+		frmt:    i.Format,
+		dtype:   i.DataType,
+		dims:    i.Dims,
+		strides: utils.FindStridesInt32(i.Dims),
 	}
 	if i.Values == nil {
 		return vol, nil
@@ -285,11 +270,16 @@ func BuildFromTensorD(desc *gocudnn.TensorD, managed bool) (*Volume, error) {
 
 	desc.DestroyDescriptor()
 
-	return Build(frmt, dtype, dims, managed)
+	return build(frmt, dtype, dims, managed)
 }
 
 //Build creates a tensor and mallocs the memory for the tensor
-func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
+func Build(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*Volume, error) {
+	return build(frmt.Cu(), dtype.Cu(), dims, managed)
+}
+
+//Build creates a tensor and mallocs the memory for the tensor
+func build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
 	var thelper gocudnn.Tensor
 	var fhelper gocudnn.Filter
 	if len(dims) < 4 {
@@ -400,10 +390,22 @@ func Build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 		tDstrided: tensstrided,
 		fD:        filts,
 		memgpu:    newmemer,
-		fmt:       frmt,
+		frmt:      frmt,
 		dtype:     dtype,
+		dims:      dims,
+		strides:   utils.FindStridesInt32(dims),
 	}, nil
 
+}
+
+//DataType returns the datatype of the volume
+func (t *Volume) DataType() cudnn.DataType {
+	return cudnn.DataType(t.dtype)
+}
+
+//Format returns the format of the volume
+func (t *Volume) Format() cudnn.TensorFormat {
+	return cudnn.TensorFormat(t.frmt)
 }
 
 //TDStrided is a function that returns the strided tensor descriptor.
@@ -432,12 +434,11 @@ func (t *Volume) Size() (gocudnn.SizeT, error) {
 }
 
 //Properties returns the properties of the tensor
-func (t *Volume) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+func (t *Volume) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
 	a, b, _, err := t.tD.GetDescrptor()
-	if err != nil {
-		return t.fmt, a, b, err
-	}
-	return t.fmt, a, b, nil
+
+	return cudnn.TensorFormat(t.frmt), cudnn.DataType(a), b, err
+
 }
 
 //ZeroClone returns a zero clone of the the memory
@@ -461,18 +462,18 @@ func (t *Volume) ZeroClone() (*Volume, error) {
 		}
 	} else {
 		if len(dims) > 4 {
-			tens, err = t.thelp.NewTensorNdDescriptorEx(t.fmt, dtype, dims)
+			tens, err = t.thelp.NewTensorNdDescriptorEx(t.frmt, dtype, dims)
 		} else {
-			tens, err = t.thelp.NewTensor4dDescriptor(dtype, t.fmt, dims)
+			tens, err = t.thelp.NewTensor4dDescriptor(dtype, t.frmt, dims)
 		}
 	}
 	if err != nil {
 		return nil, err
 	}
 	if len(dims) > 4 {
-		filt, err = t.fhelp.NewFilterNdDescriptor(dtype, t.fmt, dims)
+		filt, err = t.fhelp.NewFilterNdDescriptor(dtype, t.frmt, dims)
 	} else {
-		filt, err = t.fhelp.NewFilter4dDescriptor(dtype, t.fmt, dims)
+		filt, err = t.fhelp.NewFilter4dDescriptor(dtype, t.frmt, dims)
 	}
 	if err != nil {
 		return nil, err
@@ -493,7 +494,7 @@ func (t *Volume) ZeroClone() (*Volume, error) {
 		return nil, err
 	}
 
-	return &Volume{tD: tens, fD: filt, memgpu: newmem, fmt: t.fmt}, nil
+	return &Volume{tD: tens, fD: filt, memgpu: newmem, frmt: t.frmt}, nil
 }
 
 func destroy(t *Volume) error {

@@ -18,7 +18,7 @@ type TensorFormatFlag struct {
 }
 
 //NCWH dictates the layout of the tensor into NCHW format
-func (t TensorFormatFlag) NCWH() TensorFormat {
+func (t TensorFormatFlag) NCHW() TensorFormat {
 	return TensorFormat(t.c.NCHW())
 }
 
