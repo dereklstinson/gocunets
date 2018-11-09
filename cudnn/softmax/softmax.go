@@ -1,6 +1,7 @@
 package softmax
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCudnn"
 )
@@ -61,7 +62,7 @@ func (s *Ops) Info() OpInfo {
 }
 
 //ForwardProp performs the forward propigation
-func (s *Ops) ForwardProp(handle *gocudnn.Handle, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
+func (s *Ops) ForwardProp(handle *cudnn.Handler, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -69,12 +70,12 @@ func (s *Ops) ForwardProp(handle *gocudnn.Handle, alpha float64, x *tensor.Volum
 	a := gocudnn.CScalarByDataType(dtype, alpha)
 	b := gocudnn.CScalarByDataType(dtype, beta)
 
-	err = s.helper.Funcs.SoftMaxForward(handle, s.algo, s.mode, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	err = s.helper.Funcs.SoftMaxForward(handle.Cudnn(), s.algo, s.mode, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 	return err
 }
 
 //BackProp performs the backward propigation
-func (s *Ops) BackProp(handle *gocudnn.Handle, alpha float64, y, dy *tensor.Volume, beta float64, dx *tensor.Volume) error {
+func (s *Ops) BackProp(handle *cudnn.Handler, alpha float64, y, dy *tensor.Volume, beta float64, dx *tensor.Volume) error {
 	_, dtype, _, err := dx.Properties()
 	if err != nil {
 		return err
@@ -82,6 +83,6 @@ func (s *Ops) BackProp(handle *gocudnn.Handle, alpha float64, y, dy *tensor.Volu
 	a := gocudnn.CScalarByDataType(dtype, alpha)
 	b := gocudnn.CScalarByDataType(dtype, beta)
 
-	err = s.helper.Funcs.SoftMaxBackward(handle, s.algo, s.mode, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), b, dx.TD(), dx.Memer())
+	err = s.helper.Funcs.SoftMaxBackward(handle.Cudnn(), s.algo, s.mode, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), b, dx.TD(), dx.Memer())
 	return err
 }

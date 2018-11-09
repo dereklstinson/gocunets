@@ -1,4 +1,4 @@
-package xactivation
+package activation
 
 import (
 	"errors"
@@ -7,13 +7,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.
-type Ops struct {
-	desc *gocudnn.XActivationD
-}
-
 //Stage creates an activation struct given the properties passed in function
-func Stage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.TrainingMode, dtype gocudnn.DataType, invcoef float64) (*Ops, error) {
+func xstage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.TrainingMode, dtype gocudnn.DataType, invcoef float64) (*Ops, error) {
 	var xtra gocudnn.Xtra
 
 	desc, err := xtra.NewXActivationDescriptor(h, amode, tmode, dtype, invcoef)
@@ -21,13 +16,13 @@ func Stage(h *gocudnn.XHandle, amode gocudnn.XActivationMode, tmode gocudnn.Trai
 		return nil, err
 	}
 	return &Ops{
-		desc: desc,
+		xdesc: desc,
 	}, err
 }
 
 //FwdProp is the forward propigation function for the Activation struct
 //Alphas will only be in use if the activation descriptor is using it. otherwise it can be nil
-func (act *Ops) FwdProp(
+func (act *Ops) xfwdprp(
 	handle *gocudnn.XHandle,
 	x *tensor.Volume,
 	y *tensor.Volume,
@@ -47,14 +42,13 @@ func (act *Ops) FwdProp(
 	}
 
 	if alphas == nil && betas == nil {
-		return act.desc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil)
+		return act.xdesc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil)
 	}
-	return act.desc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), betas.Memer())
+	return act.xdesc.ForwardProp(handle, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), betas.Memer())
 
 }
 
-//BwdProp is the backwards propigation alphas and dalphas can be nil if they are not supported by the descriptor and they both have to be nil or both on.
-func (act *Ops) BwdProp(
+func (act *Ops) xbwdprop(
 	handle *gocudnn.XHandle,
 	x *tensor.Volume,
 	dx *tensor.Volume,
@@ -64,9 +58,9 @@ func (act *Ops) BwdProp(
 ) error {
 
 	if alphas == nil || dalphas == nil {
-		return act.desc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
+		return act.xdesc.BackProp(handle, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
 	}
-	return act.desc.BackProp(handle,
+	return act.xdesc.BackProp(handle,
 		x.TD(),
 		x.Memer(),
 		dx.TD(),
@@ -95,6 +89,6 @@ func (act *Ops) UpdateParams(
 	if gsum == nil || alphas == nil || dalphas == nil {
 		return errors.New("Needed Param mem is nil")
 	}
-	return act.desc.UpdateParas(handle, alphas.TD(), alphas.Memer(), dalphas.Memer(), xsum.Memer(), gsum.Memer(), l1, l2, t, r)
+	return act.xdesc.UpdateParas(handle, alphas.TD(), alphas.Memer(), dalphas.Memer(), xsum.Memer(), gsum.Memer(), l1, l2, t, r)
 
 }

@@ -12,38 +12,126 @@ import (
 type Ops struct {
 	helper gocudnn.Activation
 	desc   *gocudnn.ActivationD
+	xdesc  *gocudnn.XActivationD
+	mode   Mode
+	nan    cudnn.NanMode
 }
 
-//StageOperation creates an activation struct given the properties passed in function
-func StageOperation(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) (*Ops, error) {
+const defaultparachantrainingmode = gocudnn.TrainingMode(4) //This is adam
+const defaultcoefforleaky = .01
+const defaultcoefforclipped = 6
+
+//Stage creates an activation struct given the properties passed in function
+func Stage(handle cudnn.Handler, mode Mode, tmode cudnn.TrainMode, nan cudnn.NanMode, coef float64) (*Ops, error) {
+	var dtype gocudnn.DataTypeFlag
+	var xtra gocudnn.Xtra
+	var mflg ModeFlag
 	var hlp gocudnn.Activation
-	x, err := hlp.NewActivationDescriptor(mode, nan, coef)
-	return &Ops{
-		desc: x,
-	}, err
+	switch mode {
+	case mflg.AdvancedThreshRandRelu():
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), tmode.Cu(), dtype.Float(), coef)
+		if err != nil {
+			return nil, err
+		}
+		return &Ops{
+			xdesc: desc,
+			mode:  mode,
+		}, err
+	case mflg.Leaky():
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), tmode.Cu(), dtype.Float(), coef)
+		if err != nil {
+			return nil, err
+		}
+		return &Ops{
+			xdesc: desc,
+			mode:  mode,
+		}, err
+	case mflg.PRelu():
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), tmode.Cu(), dtype.Float(), coef)
+		if err != nil {
+			return nil, err
+		}
+		return &Ops{
+			xdesc: desc,
+			mode:  mode,
+		}, err
+	case mflg.ClippedRelu():
+		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		return &Ops{
+			desc: x,
+			mode: mode,
+		}, err
+	case mflg.Elu():
+		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		return &Ops{
+			desc: x,
+			mode: mode,
+		}, err
+
+	case mflg.Relu():
+		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		return &Ops{
+			desc: x,
+			mode: mode,
+		}, err
+	case mflg.Sigmoid():
+		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		return &Ops{
+			desc: x,
+			mode: mode,
+		}, err
+	case mflg.Tanh():
+		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		return &Ops{
+			desc: x,
+			mode: mode,
+		}, err
+
+	}
+	return nil, errors.New("Not supported activation")
 }
 
+/*
+switch Mode{
+case mflg.AdvancedThreshRandRelu():
+case mflg.ClippedRelu():
+case mflg.Elu():
+case mflg.Leaky():
+case mflg.PRelu():
+case mflg.Relu():
+case mflg.Sigmoid():
+case mflg.Tanh():
+
+}
+*/
+/*
 //ReStage will destroy the desc in the Op and then make a new one to the settings given.
 func (act *Ops) ReStage(mode gocudnn.ActivationMode, nan gocudnn.PropagationNAN, coef float64) error {
 	err := act.desc.DestroyDescriptor()
 	if err != nil {
 		return err
 	}
-	act.desc, err = gocudnn.Activation{}.NewActivationDescriptor(mode, nan, coef)
+	act.desc, err =.NewActivationDescriptor(mode, nan, coef)
 	return err
 }
+*/
 
 //Info returns the Info struct.  (Made for saving to a json file at a higher level)
 func (act *Ops) Info() (OpInfo, error) {
-	var x OpInfo
-	var err error
-	x.Mode, x.NanProp, x.Coef, err = act.Properties()
-	return x, err
+
+	amode, propnan, coef, err := act.Properties()
+
+	return OpInfo{
+		Mode:    Mode(amode),
+		NanProp: cudnn.NanMode(propnan),
+		Coef:    coef,
+	}, err
 }
 
 //Properties returns the values that were used to Create the Activation struct
-func (act *Ops) Properties() (gocudnn.ActivationMode, gocudnn.PropagationNAN, float64, error) {
-	return act.desc.GetDescriptor()
+func (act *Ops) Properties() (Mode, cudnn.NanMode, float64, error) {
+	a, b, c, err := act.desc.GetDescriptor()
+	return Mode(a), cudnn.NanMode(b), c, err
 
 }
 
@@ -53,7 +141,9 @@ func (act *Ops) FwdProp(
 	alpha float64,
 	x *tensor.Volume,
 	beta float64,
-	y *tensor.Volume) error {
+	y *tensor.Volume,
+	alphas *tensor.Volume,
+	betas *tensor.Volume) error {
 	_, dtypex, _, err := x.Properties()
 	if err != nil {
 		return err

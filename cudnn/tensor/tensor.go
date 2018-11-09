@@ -441,7 +441,7 @@ func (t *Volume) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, 
 }
 
 //ZeroClone returns a zero clone of the the memory
-func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
+func (t *Volume) ZeroClone() (*Volume, error) {
 
 	if t.tD == nil || t.fD == nil || t.memgpu == nil {
 		return nil, errors.New("Tensor is nil")
@@ -486,21 +486,13 @@ func (t *Volume) ZeroClone(handle *gocudnn.Handle) (*Volume, error) {
 
 	if err != nil {
 		return nil, err
-	}
 
-	switch dtype {
-	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.SetTensor(handle, tens, newmem, gocudnn.CDouble(0))
-	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.SetTensor(handle, tens, newmem, gocudnn.CFloat(0))
-	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.SetTensor(handle, tens, newmem, gocudnn.CInt(0))
-	default:
-		return nil, errors.New("Not supported Format to make zero")
 	}
+	err = newmem.Set(0)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Volume{tD: tens, fD: filt, memgpu: newmem, fmt: t.fmt}, nil
 }
 

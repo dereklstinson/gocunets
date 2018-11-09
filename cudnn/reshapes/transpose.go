@@ -3,12 +3,13 @@ package reshapes
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //TransposeChannelForward will take a nchw and change it to a nhwc and vice-versa. Will find the transpose of x and put it in y
-func (o *Ops) TransposeChannelForward(handle *gocudnn.XHandle, x, y *tensor.Volume) error {
+func (o *Ops) TransposeChannelForward(handle *cudnn.Handler, x, y *tensor.Volume) error {
 	xfrmt, _, xdims, err := x.Properties()
 	if err != nil {
 		return err
@@ -24,15 +25,15 @@ func (o *Ops) TransposeChannelForward(handle *gocudnn.XHandle, x, y *tensor.Volu
 	var fflg gocudnn.TensorFormatFlag
 	switch xfrmt {
 	case fflg.NCHW():
-		return o.trans.Transpose(handle, o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
+		return o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
 	case fflg.NHWC():
-		return o.trans.Transpose(handle, o.nHWCtonCHW, x.TD(), x.Memer(), y.TD(), y.Memer())
+		return o.trans.Transpose(handle.XHandle(), o.nHWCtonCHW, x.TD(), x.Memer(), y.TD(), y.Memer())
 	}
 	return errors.New("TransposeChannelXtoY - Passed Non supported tensor format")
 }
 
 //TransposeChannelBackward will take a nchw and change it to a nhwc and vice-versa. Will find the transpose of y and put it in x
-func (o *Ops) TransposeChannelBackward(handle *gocudnn.XHandle, x, y *tensor.Volume) error {
+func (o *Ops) TransposeChannelBackward(handle *cudnn.Handler, x, y *tensor.Volume) error {
 	xfrmt, _, xdims, err := x.Properties()
 	if err != nil {
 		return err
@@ -48,16 +49,16 @@ func (o *Ops) TransposeChannelBackward(handle *gocudnn.XHandle, x, y *tensor.Vol
 	var fflg gocudnn.TensorFormatFlag
 	switch xfrmt {
 	case fflg.NCHW():
-		return o.trans.Transpose(handle, o.nCHWtonHWC, y.TD(), y.Memer(), x.TD(), x.Memer())
+		return o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, y.TD(), y.Memer(), x.TD(), x.Memer())
 	case fflg.NHWC():
-		return o.trans.Transpose(handle, o.nHWCtonCHW, y.TD(), y.Memer(), x.TD(), x.Memer())
+		return o.trans.Transpose(handle.XHandle(), o.nHWCtonCHW, y.TD(), y.Memer(), x.TD(), x.Memer())
 	}
 	return errors.New("TransposeChannelXtoY - Passed Non supported tensor format")
 }
 
 //TransposeChannel will take x and transpose it along the channel.
 //The function works by creating a new volume and replacing x with it and deleting the old x.
-func (o *Ops) TransposeChannel(handle *gocudnn.XHandle, x *tensor.Volume) error {
+func (o *Ops) TransposeChannel(handle *cudnn.Handler, x *tensor.Volume) error {
 	xfrmt, _, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -71,13 +72,13 @@ func (o *Ops) TransposeChannel(handle *gocudnn.XHandle, x *tensor.Volume) error 
 	var fflg gocudnn.TensorFormatFlag
 	switch xfrmt {
 	case fflg.NCHW():
-		err = o.trans.Transpose(handle, o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
+		err = o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
 		x.Destroy()
 		*x = *y
 		//y.Destroy()
 		return err
 	case fflg.NHWC():
-		err = o.trans.Transpose(handle, o.nHWCtonCHW, x.TD(), x.Memer(), y.TD(), y.Memer())
+		err = o.trans.Transpose(handle.XHandle(), o.nHWCtonCHW, x.TD(), x.Memer(), y.TD(), y.Memer())
 		x.Destroy()
 		*x = *y
 		//y.Destroy()
@@ -87,7 +88,7 @@ func (o *Ops) TransposeChannel(handle *gocudnn.XHandle, x *tensor.Volume) error 
 }
 
 //GetTransposeOutputProperties will get the volume of a transpose operation handled through this op
-func (o *Ops) GetTransposeOutputProperties(handle *gocudnn.XHandle, x *tensor.Volume) (gocudnn.TensorFormat, gocudnn.DataType, []int32, []int32, bool, error) {
+func (o *Ops) GetTransposeOutputProperties(handle *cudnn.Handler, x *tensor.Volume) (gocudnn.TensorFormat, gocudnn.DataType, []int32, []int32, bool, error) {
 	xmal := x.Memer()
 	if xmal != nil {
 		var managed bool
@@ -104,7 +105,7 @@ func (o *Ops) GetTransposeOutputProperties(handle *gocudnn.XHandle, x *tensor.Vo
 	return 255, 255, nil, nil, false, errors.New("memory is nil")
 }
 
-func (o *Ops) gettransposevol(handle *gocudnn.XHandle, x *tensor.Volume) (*tensor.Volume, error) {
+func (o *Ops) gettransposevol(handle *cudnn.Handler, x *tensor.Volume) (*tensor.Volume, error) {
 	xmal := x.Memer()
 	if xmal != nil {
 		var managed bool

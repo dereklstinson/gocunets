@@ -3,6 +3,7 @@ package tensor
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -23,7 +24,7 @@ If the input tensor B is the same tensor as the destination tensor C, then the i
 
 //OpAdd does addition Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
 //Or vol= op(alpha1 *A, alpha2 *B)+(beta *vol)
-func (t *Volume) OpAdd(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta float64) error {
+func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -54,14 +55,14 @@ func (t *Volume) OpAdd(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 	//fmt.Println(t.propnan, A.propnan, B.propnan)
 	//fmt.Println(fmtt, fmtA, fmtB)
 	//fmt.Println(t.mem.Ptr())
-	return t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
+	return t.ophelp.Funcs.OpTensor(h.Cudnn(), opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
 }
 func errorappend(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
 //OpMult does a multiplication Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
-func (t *Volume) OpMult(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta float64) error {
+func (t *Volume) OpMult(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -91,11 +92,11 @@ func (t *Volume) OpMult(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta fl
 		return err
 	}
 
-	return t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
+	return t.ophelp.Funcs.OpTensor(h.Cudnn(), opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
 }
 
 //OpNot does negation Operation performed on only the A  C = op ( alpha1[0] * A) + beta[0] * C,
-func (t *Volume) OpNot(h *gocudnn.Handle, A *Volume, alpha1, beta float64) error {
+func (t *Volume) OpNot(h *cudnn.Handler, A *Volume, alpha1, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -120,11 +121,11 @@ func (t *Volume) OpNot(h *gocudnn.Handle, A *Volume, alpha1, beta float64) error
 		return err
 	}
 
-	return t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.memgpu, nil, nil, nil, c, t.tD, t.memgpu)
+	return t.ophelp.Funcs.OpTensor(h.Cudnn(), opdesc, a, A.tD, A.memgpu, nil, nil, nil, c, t.tD, t.memgpu)
 }
 
 //OpMax does max comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
-func (t *Volume) OpMax(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta float64) error {
+func (t *Volume) OpMax(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -153,11 +154,11 @@ func (t *Volume) OpMax(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 		return err
 	}
 
-	return t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
+	return t.ophelp.Funcs.OpTensor(h.Cudnn(), opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
 }
 
 //OpMin does min comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
-func (t *Volume) OpMin(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta float64) error {
+func (t *Volume) OpMin(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -186,11 +187,11 @@ func (t *Volume) OpMin(h *gocudnn.Handle, A, B *Volume, alpha1, alpha2, beta flo
 		return err
 	}
 
-	return t.ophelp.Funcs.OpTensor(h, opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
+	return t.ophelp.Funcs.OpTensor(h.Cudnn(), opdesc, a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
 }
 
 //OpSqrt does squareroot Operation C = op ( alpha1[0] * A ) + beta[0] * C,
-func (t *Volume) OpSqrt(h *gocudnn.Handle, A *Volume, alpha1, beta float64) error {
+func (t *Volume) OpSqrt(h *cudnn.Handler, A *Volume, alpha1, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
 	if err != nil {
@@ -215,7 +216,7 @@ func (t *Volume) OpSqrt(h *gocudnn.Handle, A *Volume, alpha1, beta float64) erro
 		return err
 	}
 
-	return t.ophelp.Funcs.OpTensor(h,
+	return t.ophelp.Funcs.OpTensor(h.Cudnn(),
 		opdesc,
 		a,
 		A.tD,

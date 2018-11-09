@@ -4,12 +4,13 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //SetValues sets all the values in the tensor to whatever is passed. It does this by looking at the format that is held in the tensor descriptor and auto retypes it.
-func (t *Volume) SetValues(handle *gocudnn.Handle, input float64) error {
+func (t *Volume) SetValues(handle *cudnn.Handler, input float64) error {
 	dtype, _, _, err := t.tD.GetDescrptor()
 
 	if err != nil {
@@ -17,15 +18,15 @@ func (t *Volume) SetValues(handle *gocudnn.Handle, input float64) error {
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CDouble(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CDouble(input))
 	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CFloat(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CFloat(input))
 	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CInt(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt(input))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CInt8(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt8(input))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.SetTensor(handle, t.tD, t.memgpu, gocudnn.CUInt8(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CUInt8(input))
 	default:
 		return errors.New("Not supported Format to make Set All Values")
 	}
@@ -36,22 +37,22 @@ func (t *Volume) SetValues(handle *gocudnn.Handle, input float64) error {
 }
 
 //ScaleValues values will scale the values to the scalar passed
-func (t *Volume) ScaleValues(h *gocudnn.Handle, alpha float64) error {
+func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
 	dtype, _, _, err := t.tD.GetDescrptor()
 	if err != nil {
 		return err
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		return t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CDouble(alpha))
+		return t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CDouble(alpha))
 	case t.thelp.Flgs.Data.Float():
-		return t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CFloat(alpha))
+		return t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CFloat(alpha))
 	case t.thelp.Flgs.Data.Int32():
-		return t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CInt(alpha))
+		return t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt(alpha))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CInt8(alpha))
+		err = t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt8(alpha))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.ScaleTensor(h, t.tD, t.memgpu, gocudnn.CUInt8(alpha))
+		err = t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CUInt8(alpha))
 
 	}
 	return errors.New("Not supported Format to make zero")
@@ -60,7 +61,7 @@ func (t *Volume) ScaleValues(h *gocudnn.Handle, alpha float64) error {
 //AddTo formula is  (t *Tensor)= alpha*(A)+beta*(t *Tensor)
 //Dim max is 5. Number of dims need to be the same.  Dim size need to match or be equal to 1.
 //In the later case the same value from the A tensor for the dims will be used to blend into (t *Tensor).
-func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, Amultiplier, tmultiplier float64) error {
+func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplier float64) error {
 	alpha := Amultiplier
 	beta := tmultiplier
 	dtype, _, _, err := t.tD.GetDescrptor()
@@ -97,7 +98,7 @@ func (t *Volume) AddTo(h *gocudnn.Handle, A *Volume, Amultiplier, tmultiplier fl
 		return errors.New("AddTo: Not supported Format to make zero")
 	}
 
-	return t.thelp.AddTensor(h, a, A.tD, A.memgpu, b, t.tD, t.memgpu)
+	return t.thelp.AddTensor(handle.Cudnn(), a, A.tD, A.memgpu, b, t.tD, t.memgpu)
 }
 
 //LoadMem will Load the mem with
@@ -228,7 +229,7 @@ my guess in what this does is change the format like NCHW to NHWC of t,
 This is probably an EX function
 */
 /*
-func (t *Tensor) Transform(h *gocudnn.Handle, A *Tensor, alpha, beta float64) error {
+func (t *Tensor) Transform(handle *cudnn.Handler, A *Tensor, alpha, beta float64) error {
 	dtypeA, dims, _, err := A.tD.GetDescrptor()
 	if err != nil {
 		return err
