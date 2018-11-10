@@ -1,7 +1,9 @@
 package cnntranspose
 
 import (
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/reshapes"
+	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -13,9 +15,11 @@ There is a few ways to do this.
 3) Use resize and then do a resize back prop which back propigates the errors to the source pixel.
 */
 
+//Layer contains the ops need for ConvTranspose
 type Layer struct {
 	conv         *cnn.Layer
 	trans        *reshapes.Ops
+	hiddenmem    *layers.IO
 	mode         convtransposemode
 	originaldims []int32
 	outputdims   []int32
@@ -26,11 +30,11 @@ const (
 	convtransposetrans = convtransposemode(1)
 )
 
-//SetupTransform sets up a transform version of
-func SetupTransform(handle *gocudnn.Handle,
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
-	space []int32, //space is the spacing between the elements of the input dims per dim if you want no space then put 0. Use the same frmt dims.
+//Transform sets up a transform version of cnn transpose
+func Transform(handle *cudnn.Handler,
+	frmt cudnn.TensorFormat,
+	dtype cudnn.DataType,
+	upscaleddims []int32, //UpscaledDims will be the dims of the input before the convolution
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -41,9 +45,26 @@ func SetupTransform(handle *gocudnn.Handle,
 	if err != nil {
 		return nil, err
 	}
-
+	vol, err := layers.Build(frmt, dtype, upscaleddims, managedmem)
+	if err != nil {
+		return nil, err
+	}
+	reshaper, err := reshapes.Stage(handle)
+	if err != nil {
+		return nil, err
+	}
 	return &Layer{
-		conv: conv,
-		mode: convtransposetrans,
+		conv:      conv,
+		mode:      convtransposetrans,
+		trans:     reshaper,
+		hiddenmem: vol,
 	}, nil
+}
+func (l *Layer) transposeforward(handle *cudnn.Handler, wspace *cudnn.Malloced, x, y *layers.IO) error {
+	err := l.trans.TransformForward(handle, 1, 0, x.T(), l.hiddenmem)
+	if err != nil {
+		return err
+	}
+	l.conv.ForwardProp(handle, wspace)
+	return nil
 }
