@@ -40,7 +40,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer E2
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer E3
@@ -52,7 +52,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer E4
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 
 	/*
@@ -65,7 +65,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer E6
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer E7
@@ -77,7 +77,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer E8
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer E9
@@ -90,7 +90,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer E10
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer E11
@@ -116,7 +116,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer D2
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer D3
@@ -128,7 +128,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer D4
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 
 	/*
@@ -141,7 +141,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer D6
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 
 	/*
@@ -154,7 +154,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer D8
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer D9
@@ -166,7 +166,7 @@ func LeakyAuto(handle *cudnn.Handler,
 		Activation Layer D10
 	*/
 	network.AddLayer(
-		activation.Tanh(handle),
+		activation.Leaky(handle),
 	)
 	/*
 		Convoultion Layer D11
