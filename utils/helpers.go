@@ -1,6 +1,9 @@
 package utils
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+)
 
 //Dims is a QOL func that can be used to organize code by renmaing it and using it in funcs
 //all it does is just return an array of the arguements passed in it.
@@ -14,6 +17,15 @@ func CheckError(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+//ErrorWrapper Wraps the error
+func ErrorWrapper(Comment string, err error) error {
+	if err != nil {
+		passed := err.Error()
+		return errors.New(Comment + " : " + passed)
+	}
+	return nil
 }
 
 //NumbertoString will add zeros to the left of numbers. So it will file in order

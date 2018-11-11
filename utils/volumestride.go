@@ -14,9 +14,9 @@ func FindStridesInt32(dims []int32) (strides []int32) {
 
 }
 
-//FinStridesInt returns the strides of the dims given for an array.
+//FindStridesInt returns the strides of the dims given for an array.
 //example if for an array of NCHW it will  return [C*H*W,H*W,W,1] those can be used for traversing a 4d array
-func FinStridesInt(dims []int) (strides []int) {
+func FindStridesInt(dims []int) (strides []int) {
 	mult := 1
 	strides = make([]int, len(dims))
 	for i := len(dims) - 1; i >= 0; i-- {
@@ -37,6 +37,24 @@ func FindVolumeInt32(dims []int32) int32 {
 	}
 
 	return mult
+}
+
+//FindFittingStride only works if destdims[i]=n*srcdims[i] where n is an int
+//This will give strides to srcdims so that it could kind of fit into destdims.  Usually it is spaced with zeros
+func FindFittingStride(srcdims, destdims []int32) (newsrcstrides []int32) {
+	ratiodims := make([]int32, len(srcdims))
+	for i := range ratiodims {
+		ratiodims[i] = destdims[i] / srcdims[i]
+	}
+	newsrcstrides = make([]int32, len(srcdims))
+
+	slidemult := int32(1)
+	for i := len(ratiodims); i >= 0; i++ {
+		slidemult *= ratiodims[i]
+		newsrcstrides[i] = slidemult
+		slidemult *= srcdims[i]
+	}
+	return newsrcstrides
 }
 
 //FindVolumeInt returns the total volume in int

@@ -15,6 +15,7 @@ func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
 	return c.w.Images()
 }
 */
+
 //LoadWValues will load a slice into cuda memory for the Weights.
 func (c *Layer) LoadWValues(slice interface{}) error {
 	ptr, err := gocudnn.MakeGoPointer(slice)
@@ -48,6 +49,7 @@ func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
 	return c.bias.Images()
 }
 */
+
 //WeightsFillSlice will fill a slice with the weight values
 func (c *Layer) WeightsFillSlice(input interface{}) error {
 	return c.w.T().Memer().FillSlice(input)

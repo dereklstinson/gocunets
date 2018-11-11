@@ -49,9 +49,12 @@ type LossMode int
 type LossModeFlag struct {
 }
 
+//Huber is a loss mode
 func (l LossModeFlag) Huber() LossMode {
 	return LossMode(1)
 }
+
+//Binary is a loss mode
 func (l LossModeFlag) Binary() LossMode {
 	return LossMode(2)
 }

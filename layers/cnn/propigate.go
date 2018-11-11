@@ -7,7 +7,7 @@ import (
 )
 
 //ForwardProp performs the ForwardProp
-func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace gocudnn.Memer, x, y *layers.IO) error {
+func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	err := c.conv.FwdProp(handle, c.fwd.alpha,
 		x.T(),
 		c.w.T(),
@@ -22,7 +22,7 @@ func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace gocudnn.Memer, x, y *l
 }
 
 //BackPropFilterData does the backprop for the data and the filter
-func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspace gocudnn.Memer, x, y *layers.IO) error {
+func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	if x.IsInput() == true {
 		return c.BackPropFilter(handle, wspace, x, y)
@@ -36,7 +36,7 @@ func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspace gocudnn.Memer, 
 }
 
 //BackPropData performs the BackPropData
-func (c *Layer) BackPropData(handle *cudnn.Handler, wspace gocudnn.Memer, x, y *layers.IO) error {
+func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	if x.IsInput() == true {
 		return nil
 	}
@@ -53,7 +53,7 @@ func (c *Layer) BackPropData(handle *cudnn.Handler, wspace gocudnn.Memer, x, y *
 }
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
-func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace gocudnn.Memer, x, y *layers.IO) error {
+func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	err := c.conv.BwdPropFilt(
 		handle,
 		c.bwdf.alpha,

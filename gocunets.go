@@ -83,6 +83,8 @@ func CreateHandleV2(dev *gocudnn.Device) *Handles {
 	}
 }
 */
+/*
+//CreateHandle creates a handle
 func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
 
 	x := gocudnn.NewHandle()
@@ -109,6 +111,7 @@ func (h *Handles) SetStream(stream *gocudnn.Stream) error {
 	h.stream = stream
 	return nil
 }
+*/
 func networkerrors(err <-chan error) {
 	for i := range err {
 		if i != nil {

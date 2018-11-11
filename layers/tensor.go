@@ -167,7 +167,7 @@ func (i *IO) PlaceT(T *tensor.Volume) {
 func (i *IO) ZeroClone() (*IO, error) {
 	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	return BuildIO(frmt, dtype, dims, i.IsManaged())
@@ -213,7 +213,6 @@ func buildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, manage
 
 		x, err := tensor.Build(frmt, dtype, dims, managed)
 		if err != nil {
-			x.Destroy()
 			return nil, err
 		}
 
@@ -228,13 +227,12 @@ func buildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, manage
 	}
 	x, err := tensor.Build(frmt, dtype, dims, managed)
 	if err != nil {
-		x.Destroy()
+
 		return nil, err
 	}
 	dx, err := tensor.Build(frmt, dtype, dims, managed)
 	if err != nil {
-		x.Destroy()
-		dx.Destroy()
+
 		return nil, err
 	}
 	return &IO{
