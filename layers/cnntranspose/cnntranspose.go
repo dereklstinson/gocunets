@@ -22,15 +22,16 @@ There is a few ways to do this.
 
 //Layer contains the ops need for ConvTranspose
 type Layer struct {
-	conv        *cnn.Layer
-	trans       *reshapes.Ops
-	hiddenmem   *layers.IO
-	hiddenmem2  *layers.IO
-	mode        convtransposemode
-	resizeddims []int32
-	previouss2b []int32
-	s2bwindow   []int32
-	thelper     *reshapes.TransFormHelper
+	conv         *cnn.Layer
+	trans        *reshapes.Ops
+	hiddenmem    *layers.IO
+	hiddenmem2   *layers.IO
+	mode         convtransposemode
+	resizeddims  []int32
+	previouss2b  []int32
+	s2bwindow    []int32
+	thelper      *reshapes.TransFormHelper
+	s2bbatchmult int32
 }
 type convtransposemode int
 
@@ -141,5 +142,8 @@ func (l *Layer) LoadTrainer(handle *cudnn.Handler, wtrainer, btrainer trainer.Tr
 
 //UpdateWeights updates the weights in the layer
 func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
+	if l.mode == convtransposes2b {
+		//	return l.conv.UpdateWeights(handle, batch*int(l.s2bbatchmult))
+	}
 	return l.conv.UpdateWeights(handle, batch)
 }

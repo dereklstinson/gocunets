@@ -63,7 +63,7 @@ func network() {
 	fmt.Println("Number of Runs: ", len(batchesofinputbatches))
 
 	//Make Autoencoder network
-	AutoEncoder := dcnetworks.DcAutoResize(handle, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	AutoEncoder := dcnetworks.DCAutoS2B(handle, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
 	//Set the AutoEncoderNetwork hidden layer algo
 	utils.CheckError(AutoEncoder.DynamicHidden())
 
@@ -137,7 +137,7 @@ func network() {
 		epocloss /= float32(len(arabicnums))
 		stream.Sync()
 		fmt.Println("At Epoc: ", i, "Loss is :", epocloss)
-		if epocloss <= 11.5 {
+		if epocloss <= 10.5 || epocs == 10 {
 			fmt.Println("HIT 11.5 Loss")
 			giffer.MakeGrayGif(totalrunimage)
 			fmt.Println("Writing GIF")

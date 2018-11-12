@@ -13,8 +13,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//DcAutoResize using the resize method of convtrans
-func DcAutoResize(handle *cudnn.Handler,
+//DCAutoS2B using the S2B method of convtrans
+func DCAutoS2B(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
@@ -33,51 +33,51 @@ func DcAutoResize(handle *cudnn.Handler,
 	//Setting Up Network
 
 	/*
-		Convoultion Layer E1  1
+		Convoultion Layer E1  0
 	*/
 	const numofneurons = int32(30)
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-8+1 = 21
 	/*
-		Activation Layer E2    2
+		Activation Layer E2   1
 	*/
 	network.AddLayer(
 		activation.Leaky(handle),
 	)
 	/*
-		Convoultion Layer E3    3
+		Convoultion Layer E3    2
 	*/
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
-		Activation Layer E4    4
+		Activation Layer E4   3
 	*/
 	network.AddLayer(
 		activation.Leaky(handle),
 	)
 
 	/*
-		Convoultion Layer E5    5
+		Convoultion Layer E5    4
 	*/
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 14-8+1 =7
 	/*
-		Activation Layer E6    6
+		Activation Layer E6    5
 	*/
 	network.AddLayer(
 		activation.Leaky(handle),
 	)
 	/*
-		Convoultion Layer E7    7
+		Convoultion Layer E7    6
 	*/
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //7-7+1
 	/*
-		Activation Layer MIDDLE    8
+		Activation Layer MIDDLE   7
 	*/
 	network.AddLayer(
 
@@ -85,49 +85,49 @@ func DcAutoResize(handle *cudnn.Handler,
 	)
 
 	/*
-		Convoultion Layer D1       9
+		Convoultion Layer D1       8
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 4, 1, 1), filter(numofneurons, 4, 7, 7), CMode, padding(6, 6), stride(1, 1), dilation(1, 1), memmanaged),
-	) //1-5+(2*4) +1 = 5
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 4, 1, 1), filter(numofneurons, 4, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+	) //1-8+(2*7) +1 =8
 	/*
-		Activation Layer D2      10
-	*/
-	network.AddLayer(
-		activation.Leaky(handle),
-	)
-	/*
-		Convoultion Layer D3       11
-	*/
-	network.AddLayer(
-		cnntranspose.Transform(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), memmanaged),
-	)
-	/*
-		Activation Layer D4        13
+		Activation Layer D2      9
 	*/
 	network.AddLayer(
 		activation.Leaky(handle),
 	)
-
 	/*
-		Convoultion Layer D5       14
+		Convoultion Layer D3      10
 	*/
 	network.AddLayer(
-		cnntranspose.Transform(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(numofneurons, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28 -7 + 1 +3*2 = 28
+		cnntranspose.S2B(handle, frmt, dtype, in(2, 2), filter(numofneurons, numofneurons, 7, 7), CMode, padding(4, 4), stride(1, 1), dilation(1, 1), memmanaged),
+	) //2-5 +6+1=  4 .... 4*4 =16
 	/*
-		Activation Layer D6        15
+		Activation Layer D4        11
 	*/
 	network.AddLayer(
 		activation.Leaky(handle),
 	)
 
 	/*
-		Convoultion Layer D7         16
+		Convoultion Layer D5       12
+	*/
+	network.AddLayer(
+		cnntranspose.S2B(handle, frmt, dtype, in(4, 4), filter(numofneurons, numofneurons, 8, 8), CMode, padding(5, 5), stride(1, 1), dilation(1, 1), memmanaged),
+	) //4-6+8+1=7  ... 7 *4 =28
+	/*
+		Activation Layer D6        13
+	*/
+	network.AddLayer(
+		activation.Leaky(handle),
+	)
+
+	/*
+		Convoultion Layer D7         14
 	*/
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(1, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), memmanaged),
-	) //28 -7 + 1 +3*2 = 28
+	) //28 -5+ 1 +4 = 28
 
 	//var err error
 	numoftrainers := network.TrainersNeeded()

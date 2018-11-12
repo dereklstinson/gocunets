@@ -49,7 +49,7 @@ func FindFittingStride(srcdims, destdims []int32) (newsrcstrides []int32) {
 	newsrcstrides = make([]int32, len(srcdims))
 
 	slidemult := int32(1)
-	for i := len(ratiodims); i >= 0; i++ {
+	for i := len(ratiodims) - 1; i >= 0; i-- {
 		slidemult *= ratiodims[i]
 		newsrcstrides[i] = slidemult
 		slidemult *= srcdims[i]

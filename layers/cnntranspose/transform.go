@@ -37,9 +37,9 @@ func (l *Layer) tranformforward(handle *cudnn.Handler, wspace *gocudnn.Malloced,
 	}
 	err := l.trans.TransformForward(handle, 1, 0, x.T(), l.hiddenmem.T(), l.thelper)
 	if err != nil {
-		return err
+		return utils.ErrorWrapper("TransformForward :", err)
 	}
-	return l.conv.ForwardProp(handle, wspace, l.hiddenmem, y)
+	return utils.ErrorWrapper("ForwardProp: ", l.conv.ForwardProp(handle, wspace, l.hiddenmem, y))
 
 }
 func (l *Layer) makehelper(x, y *layers.IO) error {

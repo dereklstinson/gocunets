@@ -29,7 +29,11 @@ func (m *MSE) ErrorCPU(generated, target []float32) []float32 {
 
 //ErrorGPU does the error calculation y will have to contain y.T()=NetworkOutput  y.DeltaT() = target,  X returns the errors in  x.DeltaT()
 func (m *MSE) ErrorGPU(h *cudnn.Handler, x, y *layers.IO) error {
-	err := m.op.Error(h.XHandle(), x.DeltaT(), y.T(), y.DeltaT())
+	err := h.SyncContext()
+	if err != nil {
+		return err
+	}
+	err = m.op.Error(h.XHandle(), x.DeltaT(), y.T(), y.DeltaT())
 	m.loss = m.op.Loss()
 	return err
 }

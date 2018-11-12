@@ -229,6 +229,7 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	var previous *layers.IO
 	previous = input
 	for i := 0; i < len(m.layer)-1; i++ {
+		//	fmt.Println("GEtoutput from ", i)
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
 			for j := 0; j < len(m.mem); j++ {
@@ -547,14 +548,16 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Mall
 
 //UpdateWeights updates the weights of a Network
 func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
-	handle.Sync()
-
+	err := handle.SyncContext()
+	if err != nil {
+		return err
+	}
 	for i := 0; i < len(m.layer); i++ {
 
-		err := m.layer[i].updateWeights(handle, batch)
+		err = m.layer[i].updateWeights(handle, batch)
 		if err != nil {
 			return err
 		}
 	}
-	return handle.Sync()
+	return handle.SyncContext()
 }

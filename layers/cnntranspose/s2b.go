@@ -70,7 +70,7 @@ func (l *Layer) s2bforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y
 		}
 		l.previouss2b = dims
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (l *Layer) s2bforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (l *Layer) s2bforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (l *Layer) s2bforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y
 }
 
 func (l *Layer) s2bBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.Sync()
+	err := handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (l *Layer) s2bBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Mal
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (l *Layer) s2bBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Mal
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (l *Layer) s2bBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Mal
 
 }
 func (l *Layer) s2bBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.Sync()
+	err := handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (l *Layer) s2bBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced,
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (l *Layer) s2bBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced,
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	err = handle.SyncContext()
 	if err != nil {
 		return err
 	}
@@ -144,13 +144,16 @@ func (l *Layer) s2bBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced,
 }
 func (l *Layer) s2outputIO(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	frmt, dtype, dims, n1n2, managed, err := l.trans.GetS2BOutputPropertiesPLUS(handle, input.T(), l.s2bwindow)
+	l.s2bbatchmult = utils.FindVolumeInt32(n1n2)
 	if l.previouss2b == nil {
-
+		//	fmt.Println("s2b dims :", dims)
 		l.hiddenmem, err = layers.BuildIO(frmt, dtype, dims, managed)
 		if err != nil {
 			return nil, err
 		}
-		l.hiddenmem2, err = layers.BuildIO(frmt, dtype, l.conv.OutputDims(dims), managed)
+		s2bconvdims := l.conv.OutputDims(dims)
+		//fmt.Println("conv out dims :", s2bconvdims)
+		l.hiddenmem2, err = layers.BuildIO(frmt, dtype, s2bconvdims, managed)
 		if err != nil {
 			return nil, err
 		}
@@ -159,11 +162,13 @@ func (l *Layer) s2outputIO(handle *cudnn.Handler, input *layers.IO) (*layers.IO,
 		if err != nil {
 			return nil, err
 		}
-		frmt, dtype, dims, managed, err = l.trans.GetB2SOutputProperties(handle, l.hiddenmem2.T(), n1n2)
-		if err == nil {
+		//fmt.Println("N1N2 values", n1n2)
+		frmt1, _, dims1, _, err := l.trans.GetB2SOutputProperties(handle, l.hiddenmem2.T(), n1n2)
+		if err != nil {
 			return nil, err
 		}
-		return layers.BuildIO(frmt, dtype, dims, managed)
+		//fmt.Println("reshaped output dims b2s: ", dims1)
+		return layers.BuildIO(frmt1, dtype, dims1, managed)
 	}
 	return nil, errors.New("Layer already has hidden build")
 

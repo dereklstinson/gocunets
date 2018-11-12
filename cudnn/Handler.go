@@ -31,6 +31,11 @@ func (h *Handler) Sync() error {
 	return h.stream.Sync()
 }
 
+//SyncContext will sync the contexts
+func (h *Handler) SyncContext() error {
+	return gocudnn.Cuda{}.CtxSynchronize()
+}
+
 //CreateHandler creates a the handlers
 func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
 
