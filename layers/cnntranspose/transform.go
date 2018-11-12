@@ -17,8 +17,9 @@ func Transform(handle *cudnn.Handler,
 	pad,
 	stride,
 	dilation []int32,
+	inputlayer bool,
 	managedmem bool) (*Layer, error) {
-	return build(handle, frmt, dtype, upscaleddims, filterdims, convmode, pad, stride, dilation, convtransposetrans, managedmem)
+	return build(handle, frmt, dtype, upscaleddims, filterdims, convmode, pad, stride, dilation, convtransposetrans, inputlayer, managedmem)
 }
 
 func (l *Layer) tranformforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
@@ -63,5 +64,9 @@ func (l *Layer) transformBackPropData(handle *cudnn.Handler, wspace *gocudnn.Mal
 	}
 
 	return l.trans.TransformBackward(handle, 1, 0, x.DeltaT(), l.hiddenmem.DeltaT(), l.thelper)
+
+}
+func (l *Layer) transformBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	return l.conv.BackPropFilter(handle, wspace, l.hiddenmem, y)
 
 }

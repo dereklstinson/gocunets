@@ -32,6 +32,7 @@ type Layer struct {
 	s2bwindow    []int32
 	thelper      *reshapes.TransFormHelper
 	s2bbatchmult int32
+	inputlayer   bool
 }
 type convtransposemode int
 
@@ -77,17 +78,33 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 
 //BackPropFilterData does the back propigation filter and data of convolution transpose
 func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	switch l.mode {
+	if l.inputlayer == true {
+		switch l.mode {
+		case convtransposeresize:
+			return l.resizeBackPropFilter(handle, wspace, x, y)
+		case convtransposetrans:
+			return l.transformBackPropFilter(handle, wspace, x, y)
+		case convtransposes2b:
+			return l.s2bBackPropFilter(handle, wspace, x, y)
+		case convtransposereverse:
+			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
+		}
 
-	case convtransposeresize:
-		return l.resizeBackPropFilterData(handle, wspace, x, y)
-	case convtransposetrans:
-		return l.transformBackPropFilterData(handle, wspace, x, y)
-	case convtransposes2b:
-		return l.s2bBackPropFilterData(handle, wspace, x, y)
-	case convtransposereverse:
-		return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspace, x, y))
+	} else {
+
+		switch l.mode {
+		case convtransposeresize:
+			return l.resizeBackPropFilterData(handle, wspace, x, y)
+		case convtransposetrans:
+			return l.transformBackPropFilterData(handle, wspace, x, y)
+		case convtransposes2b:
+			return l.s2bBackPropFilterData(handle, wspace, x, y)
+		case convtransposereverse:
+			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspace, x, y))
+		}
+
 	}
+
 	return errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
 
@@ -102,6 +119,7 @@ func build(handle *cudnn.Handler,
 	stride,
 	dilation []int32,
 	mode convtransposemode,
+	inputlayer bool,
 	managedmem bool) (*Layer, error) {
 	conv, err := cnn.SetupDynamic(handle, frmt, dtype, filterdims, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
@@ -122,6 +140,7 @@ func build(handle *cudnn.Handler,
 		trans:       reshaper,
 		hiddenmem:   vol,
 		resizeddims: upscaleddims,
+		inputlayer:  inputlayer,
 	}, nil
 }
 

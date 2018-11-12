@@ -21,6 +21,7 @@ func S2B(handle *cudnn.Handler,
 	pad,
 	stride,
 	dilation []int32,
+	inputlayer bool,
 	managedmem bool) (*Layer, error) {
 	conv, err := cnn.SetupDynamic(handle, frmt, dtype, filterdims, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
@@ -32,10 +33,11 @@ func S2B(handle *cudnn.Handler,
 	}
 
 	return &Layer{
-		conv:      conv,
-		mode:      convtransposes2b,
-		trans:     reshaper,
-		s2bwindow: window,
+		conv:       conv,
+		mode:       convtransposes2b,
+		trans:      reshaper,
+		s2bwindow:  window,
+		inputlayer: inputlayer,
 	}, nil
 }
 
@@ -116,6 +118,22 @@ func (l *Layer) s2bBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Mal
 		return err
 	}
 	return l.trans.S2BBackward(handle, x.DeltaT(), l.hiddenmem.DeltaT())
+
+}
+func (l *Layer) s2bBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	err := handle.SyncContext()
+	if err != nil {
+		return err
+	}
+	err = l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
+	if err != nil {
+		return err
+	}
+	err = handle.SyncContext()
+	if err != nil {
+		return err
+	}
+	return l.conv.BackPropFilter(handle, wspace, l.hiddenmem, l.hiddenmem2)
 
 }
 func (l *Layer) s2bBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {

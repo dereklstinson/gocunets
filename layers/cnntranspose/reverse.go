@@ -17,6 +17,7 @@ func ReverseBuild(handle *cudnn.Handler,
 	pad, //largestgains with no pad
 	stride, //largestgains with more stride
 	dilation []int32, //largest gains with dilation
+	inputlayer bool,
 	managedmem bool) (*Layer, error) {
 	conv, err := cnn.SetupDynamicReverse(handle, frmt, dtype, inputdimsguess, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
@@ -27,8 +28,9 @@ func ReverseBuild(handle *cudnn.Handler,
 		return nil, err
 	}
 	return &Layer{
-		conv: conv,
-		mode: convtransposereverse,
+		conv:       conv,
+		mode:       convtransposereverse,
+		inputlayer: inputlayer,
 	}, nil
 }
 
@@ -40,6 +42,9 @@ func (l *Layer) reverseBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn
 }
 func (l *Layer) reverseBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseBackPropData(handle, wspace, x, y)
+}
+func (l *Layer) reverseBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	return l.conv.ReverseBackPropFilter(handle, wspace, x, y)
 }
 
 func (l *Layer) reverseOutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {

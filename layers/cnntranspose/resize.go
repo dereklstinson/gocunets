@@ -16,8 +16,9 @@ func Resize(handle *cudnn.Handler,
 	pad,
 	stride,
 	dilation []int32,
+	inputlayer bool,
 	managedmem bool) (*Layer, error) {
-	return build(handle, frmt, dtype, upscaleddims, filterdims, convmode, pad, stride, dilation, convtransposeresize, managedmem)
+	return build(handle, frmt, dtype, upscaleddims, filterdims, convmode, pad, stride, dilation, convtransposeresize, inputlayer, managedmem)
 }
 
 func (l *Layer) resizeforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
@@ -44,6 +45,10 @@ func (l *Layer) resizeBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 	}
 	err = x.DeltaT().SetValues(handle, 0)
 	return l.trans.ResizeBackward(handle, x.DeltaT(), l.hiddenmem.DeltaT())
+
+}
+func (l *Layer) resizeBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	return l.conv.BackPropFilter(handle, wspace, l.hiddenmem, y)
 
 }
 
