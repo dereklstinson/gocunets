@@ -33,6 +33,7 @@ func (l *Layer) resizeforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 
 }
 func (l *Layer) resizeBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+
 	err := l.conv.BackPropData(handle, wspace, l.hiddenmem, y)
 	if err != nil {
 		return err
@@ -41,6 +42,7 @@ func (l *Layer) resizeBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 	if err != nil {
 		return err
 	}
+	err = x.DeltaT().SetValues(handle, 0)
 	return l.trans.ResizeBackward(handle, x.DeltaT(), l.hiddenmem.DeltaT())
 
 }
@@ -54,6 +56,7 @@ func (l *Layer) resizeBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.
 	if err != nil {
 		return err
 	}
+	err = x.DeltaT().SetValues(handle, 0)
 	return l.trans.ResizeBackward(handle, x.DeltaT(), l.hiddenmem.DeltaT())
 
 }

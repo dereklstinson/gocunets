@@ -96,7 +96,7 @@ func makepixels(im image.Image) []float32 {
 		for k := 0; k < x; k++ {
 			r, g, b, _ := im.At(k, i).RGBA()
 			avg := (r + g + b) / 3
-			avg = (avg * 255) / 65535
+			avg = 255 - ((avg * 255) / 65535)
 			pixels[i*x+k] = float32(avg)
 		}
 

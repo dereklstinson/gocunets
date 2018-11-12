@@ -63,7 +63,7 @@ func network() {
 	fmt.Println("Number of Runs: ", len(batchesofinputbatches))
 
 	//Make Autoencoder network
-	AutoEncoder := dcnetworks.DCAutoS2B(handle, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	AutoEncoder := dcnetworks.DCAutoReverse(handle, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
 	//Set the AutoEncoderNetwork hidden layer algo
 	utils.CheckError(AutoEncoder.DynamicHidden())
 
@@ -88,6 +88,8 @@ func network() {
 	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Image
 	imagerlayer, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
 	utils.CheckError(err)
+	workspace, err := gocudnn.UnifiedMangedGlobal(gocudnn.SizeT(1000 * 1000 * 50))
+	utils.CheckError(err)
 	totalrunimage := make([]image.Image, 0)
 	for i := 0; i < epocs; i++ {
 		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif
@@ -96,7 +98,7 @@ func network() {
 		epocloss := float32(0)
 		for j := range arabicnums {
 			stream.Sync()
-			utils.CheckError(AutoEncoder.ForwardProp(handle, nil, arabicnums[j], arabicoutput[j]))
+			utils.CheckError(AutoEncoder.ForwardProp(handle, workspace, arabicnums[j], arabicoutput[j]))
 			stream.Sync()
 			//Load the outputs from autoencoder into fconout
 			fconout.LoadTValues(arabicoutput[j].T().Memer())
@@ -109,7 +111,7 @@ func network() {
 			utils.CheckError(err)
 			stream.Sync()
 			//BackProp those errors put into fconout back through the auto encoder
-			utils.CheckError(AutoEncoder.BackPropFilterData(handle, nil, arabicnums[j], fconout))
+			utils.CheckError(AutoEncoder.BackPropFilterData(handle, workspace, arabicnums[j], fconout))
 			stream.Sync()
 			//Update the weights
 			utils.CheckError(AutoEncoder.UpdateWeights(handle, 10))
@@ -117,7 +119,7 @@ func network() {
 
 			if j%snapshotsize == 0 {
 
-				utils.CheckError(AutoEncoder.ForwardProp(handle, nil, arabicnums[0], arabicoutput[0]))
+				utils.CheckError(AutoEncoder.ForwardProp(handle, workspace, arabicnums[0], arabicoutput[0]))
 				imagerlayer.LoadTValues(arabicoutput[0].T().Memer())
 				stream.Sync()
 				outputimage, err := imager.TileBatches(handle, imagerlayer, 2, 5)
@@ -137,7 +139,7 @@ func network() {
 		epocloss /= float32(len(arabicnums))
 		stream.Sync()
 		fmt.Println("At Epoc: ", i, "Loss is :", epocloss)
-		if epocloss <= 10.5 || epocs == 10 {
+		if epocloss <= 10.5 || i >= 10 {
 			fmt.Println("HIT 11.5 Loss")
 			giffer.MakeGrayGif(totalrunimage)
 			fmt.Println("Writing GIF")

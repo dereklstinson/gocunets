@@ -38,6 +38,11 @@ func SetupMomentum(decay1, decay2, rate, momentum, batch float64) *Momentum {
 		momentum: momentum}
 }
 
+//SetRate the Learning Rate of momentum
+func (t *Momentum) SetRate(rate float32) {
+	t.rate = float64(rate)
+}
+
 //SetTrainingMem will load the gsum values
 func (t *Momentum) SetTrainingMem(handle *cudnn.Handler, weights *layers.IO) error {
 

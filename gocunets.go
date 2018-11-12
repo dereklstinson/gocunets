@@ -532,6 +532,7 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Mall
 	}
 
 	for i := lnum - 2; i > 0; i-- {
+		//	fmt.Println("index", i)
 		err = m.layer[i].backpropfilterdata(handle, wspace, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return err

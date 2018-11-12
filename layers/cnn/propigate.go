@@ -3,6 +3,7 @@ package cnn
 import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -63,14 +64,17 @@ func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, 
 		c.bwdf.beta,
 		c.w.DeltaT())
 	if err != nil {
-		return err
+		return utils.ErrorWrapper("Filter", err)
 	}
 
-	return c.conv.BwdBias(
+	err = c.conv.BwdBias(
 		handle,
 		c.bwdf.alpha,
 		y.DeltaT(),
 		c.bwdf.beta,
 		c.bias.DeltaT())
-
+	if err != nil {
+		return utils.ErrorWrapper("Bias", err)
+	}
+	return nil
 }

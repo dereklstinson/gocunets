@@ -13,10 +13,10 @@ import (
 )
 
 /*
-There is a few ways to do this.
+There is a few ways to test..
 1) using transformtensor and increase the size of the tensor. If done correctly you can make it so that every other value has 0.
 2) Using batch to shape then shape to batch. This takes at least twice the mem
-3) Use resize and then do a resize back prop which back propigates the errors to the source pixel.
+3) Use resize and then do a resize back prop which back propigates the errors to the source pixel. -- might not work on NCHW
 
 */
 
@@ -36,9 +36,10 @@ type Layer struct {
 type convtransposemode int
 
 const (
-	convtransposetrans  = convtransposemode(1)
-	convtransposeresize = convtransposemode(2)
-	convtransposes2b    = convtransposemode(3)
+	convtransposetrans   = convtransposemode(1)
+	convtransposeresize  = convtransposemode(2)
+	convtransposes2b     = convtransposemode(3)
+	convtransposereverse = convtransposemode(4)
 )
 
 //ForwardProp does the forward propagation of convolution transpose
@@ -51,6 +52,8 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 		return utils.ErrorWrapper("cnntranspose transform forward", l.tranformforward(handle, wspace, x, y))
 	case convtransposes2b:
 		return utils.ErrorWrapper("cnntranspose s2b forward", l.s2bforward(handle, wspace, x, y))
+	case convtransposereverse:
+		return utils.ErrorWrapper("cnntranspose reverse forward", l.reverseForwardProp(handle, wspace, x, y))
 	}
 	return errors.New("ConvTranspose ForwardProp - Shouldn't have reached here")
 }
@@ -65,6 +68,9 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 		return l.transformBackPropData(handle, wspace, x, y)
 	case convtransposes2b:
 		return l.s2bBackPropData(handle, wspace, x, y)
+	case convtransposereverse:
+		return utils.ErrorWrapper("cnntranspose reverse backdata", l.reverseBackPropData(handle, wspace, x, y))
+
 	}
 	return errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
@@ -79,6 +85,8 @@ func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 		return l.transformBackPropFilterData(handle, wspace, x, y)
 	case convtransposes2b:
 		return l.s2bBackPropFilterData(handle, wspace, x, y)
+	case convtransposereverse:
+		return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspace, x, y))
 	}
 	return errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
@@ -127,6 +135,8 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 		return l.resizeandTransformoutputdims(handle)
 	case convtransposes2b:
 		return l.s2outputIO(handle, input)
+	case convtransposereverse:
+		return l.reverseOutput(handle, input)
 	}
 	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
@@ -137,6 +147,10 @@ func (l *Layer) resizeandTransformoutputdims(handle *cudnn.Handler) (*layers.IO,
 
 //LoadTrainer loads a trainer into the layer
 func (l *Layer) LoadTrainer(handle *cudnn.Handler, wtrainer, btrainer trainer.Trainer) error {
+	if l.mode == convtransposereverse {
+		//wtrainer.SetRate(-.001)
+		//btrainer.SetRate(-.001)
+	}
 	return l.conv.LoadTrainer(handle, wtrainer, btrainer)
 }
 

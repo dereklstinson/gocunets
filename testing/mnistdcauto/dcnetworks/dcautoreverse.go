@@ -1,4 +1,4 @@
-package roman
+package dcnetworks
 
 import (
 	gocunets "github.com/dereklstinson/GoCuNets"
@@ -11,8 +11,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//Encoder using regular method of increasing size of convolution...by just increasing the outer padding
-func Encoder(handle *cudnn.Handler,
+//DCAutoReverse using regular method of increasing size of convolution...by just increasing the outer padding
+func DCAutoReverse(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
@@ -72,18 +72,23 @@ func Encoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E7    6
 	*/
-	network.AddLayer(cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(1, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged)) // 1
+	network.AddLayer(
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	) // 1
 
 	/*
 		Activation Layer MIDDLE    7
 	*/
-	network.AddLayer(activation.Leaky(handle))
+	network.AddLayer(
+
+		activation.Leaky(handle),
+	)
 
 	/*
 		Convoultion Layer D1       8
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 4, 7, 7), filter(1, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 4, 7, 7), filter(4, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //7
 	/*
 		Activation Layer D2       9

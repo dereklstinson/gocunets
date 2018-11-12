@@ -212,7 +212,7 @@ func SetupDynamic(handle *cudnn.Handler,
 		return nil, err
 	}
 
-	err = layer.bias.T().SetValues(handle, 0.0)
+	err = layer.bias.T().SetValues(handle, 0.001)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +329,7 @@ func layersetup(
 	alpha := 1.0
 	alpha2 := 1.0
 	beta := 0.0
-	beta2 := 1.0
+	beta2 := 0.0
 	return &Layer{
 		size: sizeinbytes,
 		conv: conv,

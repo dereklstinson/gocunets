@@ -2,6 +2,7 @@ package convolution
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
@@ -10,14 +11,18 @@ import (
 
 //Ops is a struct
 type Ops struct {
-	desc       *gocudnn.ConvolutionD
-	helper     gocudnn.Convolution
-	stagedalgo bool
-	fwdalgo    gocudnn.ConvFwdAlgo
-	bwddata    gocudnn.ConvBwdDataAlgo
-	bwdfilt    gocudnn.ConvBwdFiltAlgo
-	dims       int
-	group      int
+	desc        *gocudnn.ConvolutionD
+	helper      gocudnn.Convolution
+	stagedalgo  bool
+	fwdalgo     gocudnn.ConvFwdAlgo
+	setfwd      bool
+	bwddata     gocudnn.ConvBwdDataAlgo
+	setbwd      bool
+	bwdfilt     gocudnn.ConvBwdFiltAlgo
+	setfilt     bool
+	dims        int
+	group       int
+	pwspacesize gocudnn.SizeT
 }
 
 //OpInfo is the contains the info to make the op
@@ -196,20 +201,26 @@ func (c *Ops) BwdPropData(
 	if a == nil || b == nil {
 		return errors.New("Unsuported Datatype")
 	}
-	if c.stagedalgo == false {
+	if c.stagedalgo == false && (wspace.ByteSize() != c.pwspacesize || c.setbwd == false) {
+
+		c.setbwd = true
+		c.pwspacesize = wspace.ByteSize()
 		var pflg gocudnn.ConvolutionBwdFlags
 		if wspace != nil {
 			algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
 			if err != nil {
+				_, _, wdims, _ := w.Properties()
+				fmt.Println("weights:", wdims, "dy: ", dy.TD().Dims(), "dx: ", dx.TD().Dims())
 				return err
 			}
-			c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
+			return c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
 		}
 		algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.desc, dx.TD(), pflg.DataPref.NoWorkSpace(), 0)
 		if err != nil {
+			fmt.Println(w.FD().TensorD().Dims(), dy.TD().Dims(), dx.TD().Dims())
 			return err
 		}
-		c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
+		return c.desc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), algo, wspace, b, dx.TD(), dx.Memer())
 
 	}
 
@@ -232,7 +243,10 @@ func (c *Ops) BwdPropFilt(
 	}
 	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
 	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
-	if c.stagedalgo == false {
+	if c.stagedalgo == false && (wspace.ByteSize() != c.pwspacesize || c.setfilt == false) {
+
+		c.setfilt = true
+		c.pwspacesize = wspace.ByteSize()
 		var pflg gocudnn.ConvolutionBwdFlags
 		if wspace != nil {
 			algo, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), dy.TD(), c.desc, dw.FD(), pflg.FltrPref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
@@ -282,7 +296,10 @@ func (c *Ops) FwdProp(
 		fmt.Println("12: ", y.TD())
 		fmt.Println("13: ", y.Memer())
 	*/
-	if c.stagedalgo == false {
+	if c.stagedalgo == false && (wspace.ByteSize() != c.pwspacesize || c.setfwd == false) {
+
+		c.setfwd = true
+		c.pwspacesize = wspace.ByteSize()
 		var pflg gocudnn.ConvolutionFwdFlags
 		if wspace != nil {
 			algo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.desc, y.TD(), pflg.Pref.SpecifyWorkSpaceLimit(), wspace.ByteSize())
@@ -296,6 +313,7 @@ func (c *Ops) FwdProp(
 			return err
 		}
 		return c.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), algo, wspace, b, y.TD(), y.Memer())
+
 	}
 	return c.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.fwdalgo, wspace, b, y.TD(), y.Memer())
 }

@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"math/rand"
-	"strconv"
 
-	"github.com/dereklstinson/GoCuNets"
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
@@ -14,10 +14,11 @@ import (
 	"github.com/dereklstinson/GoCuNets/utils/filing"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
 	"github.com/dereklstinson/GoCudnn"
+	"github.com/nfnt/resize"
 )
 
 func main() {
-
+	gocudnn.Cuda{}.LockHostThread()
 	const romanimagelocation = "../mnist/roman/"
 	const filedirectory = "../mnist/files/"
 	const mnistfilelabel = "train-labels.idx1-ubyte"
@@ -43,58 +44,92 @@ func main() {
 
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
-	handles := gocunets.CreateHandle(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
+	handles := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
 	handles.SetStream(stream)
-	var dataflag gocudnn.DataTypeFlag
+	var dataflag cudnn.DataTypeFlag
 	var convflag gocudnn.ConvolutionFlags
-	var fflag gocudnn.TensorFormatFlag
+	var fflag cudnn.TensorFormatFlag
 	toroman := roman.Encoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
 	utils.CheckError(toroman.DynamicHidden())
 	romanoutput, arabicnums := putintogpumem(batchedoutput, []int32{10, 1, 28, 28}, batchesofinputbatches, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
-	imager, err := imaging.MakeImager(handles.XHandle())
+	imager, err := imaging.MakeImager(handles)
 	utils.CheckError(err)
 	epocs := 100
-	MSE, err := loss.CreateMSECalculatorGPU(fflag.NCHW(), dataflag.Float(), 4, true)
+	snapshotsize := 100
+	MSE, err := loss.CreateMSECalculatorGPU(handles, true)
 	utils.CheckError(err)
-	msebackprop, err := romanoutput.ZeroClone()
-	utils.CheckError(err)
-	for i := 0; i < epocs; i++ {
-		lossarray := make([]float32, len(arabicnums))
-		for j := range arabicnums {
 
+	utils.CheckError(err)
+	//Need this memory as an inbetween for the Autoencoder and Loss Function so that it can return the errors to the autoencoder
+	fconout, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+	utils.CheckError(err)
+	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Image
+	imagerlayer, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+	utils.CheckError(err)
+	totalrunimage := make([]image.Image, 0)
+	for i := 0; i < epocs; i++ {
+		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif
+		images := make([]image.Image, 0)
+		//Making a lossaray to calculate the loss per batch
+		epocloss := float32(0)
+		for j := range arabicnums {
+			stream.Sync()
 			utils.CheckError(toroman.ForwardProp(handles, nil, arabicnums[j], romanoutput))
 			stream.Sync()
-			MSE.ErrorGPU(handles.Cudnn(), romanoutput, msebackprop)
-			stream.Sync()
-			lossarray[i], err = MSE.LossGPU(handles.Cudnn(), msebackprop)
+			fconout.LoadTValues(romanoutput.T().Memer())
+			MSE.ErrorGPU(handles, fconout, romanoutput)
 			utils.CheckError(err)
 			stream.Sync()
-			utils.CheckError(toroman.BackPropFilterData(handles, nil, arabicnums[j], msebackprop))
+			epocloss += MSE.Loss()
+			stream.Sync()
+			utils.CheckError(toroman.BackPropFilterData(handles, nil, arabicnums[j], fconout))
 			stream.Sync()
 			utils.CheckError(toroman.UpdateWeights(handles, 10))
 			stream.Sync()
+			if j%snapshotsize == 0 {
+
+				utils.CheckError(toroman.ForwardProp(handles, nil, arabicnums[0], romanoutput))
+				imagerlayer.LoadTValues(fconout.T().Memer())
+				stream.Sync()
+				outputimage, err := imager.TileBatches(handles, imagerlayer, 2, 5)
+				utils.CheckError(err)
+				images = append(images, outputimage)
+				//	fmt.Println("Grabbing Image:", j)
+				stream.Sync()
+			}
 		}
 
-		shuffle(arabicnums)
-		outputimage, err := imager.TileBatches(handles.XHandle(), romanoutput, 2, 5)
-		utils.CheckError(err)
+		somenewimages := make([]image.Image, len(images))
+		for j := range images {
+			somenewimages[j] = resize.Resize(0, 280, images[j], resize.NearestNeighbor)
+		}
+		totalrunimage = append(totalrunimage, somenewimages...)
+
+		epocloss /= float32(len(arabicnums))
 		stream.Sync()
+		fmt.Println("At Epoc: ", i, "Loss is :", epocloss)
+		if epocloss <= 10.5 || i >= 20 {
+			fmt.Println("HIT 11.5 Loss")
+			giffer.MakeGrayGif(totalrunimage)
+			fmt.Println("Writing GIF")
+			utils.CheckError(filing.WritetoHD(imagesave, "AutoDCresize0", giffer))
 
-		utils.CheckError(filing.WriteImage(imagesave, "RomanEpoc"+strconv.Itoa(i), outputimage))
-		var adder float32
-		for j := range lossarray {
-			adder += lossarray[j]
+			//	utils.CheckError(filing.WriteImage(imagesave, "AutoEncoder"+number, outputimage))
+			fmt.Println("Done Writing GIF")
+			devs[0].Reset()
+			return
 		}
-		adder /= float32(len(lossarray))
-		fmt.Println("Loss is :", adder)
+		//	shuffle(arabicnums, arabicoutput)
 
 	}
 
+	devs[0].Reset()
+
 }
 
-func putintogpumem(romans []float32, dimsroman []int32, arabic [][]float32, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dimsarabic []int32, memmanaged bool) (output *layers.IO, runs []*layers.IO) {
+func putintogpumem(romans []float32, dimsroman []int32, arabic [][]float32, frmt cudnn.TensorFormat, dtype cudnn.DataType, dimsarabic []int32, memmanaged bool) (output *layers.IO, runs []*layers.IO) {
 	var err error
 	runs = make([]*layers.IO, len(arabic))
 	for i := range arabic {
