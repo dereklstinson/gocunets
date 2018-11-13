@@ -26,7 +26,7 @@ func (l *Layer) resizeforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (l *Layer) resizeBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (l *Layer) resizeBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+
 	if err != nil {
 		return err
 	}

@@ -13,6 +13,10 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+const alphadefault = 1.0
+const beta1default = 0.0
+const beta2default = 1.0
+
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
@@ -326,10 +330,6 @@ func layersetup(
 		return nil, err
 	}
 
-	alpha := 1.0
-	alpha2 := 1.0
-	beta := 0.0
-	beta2 := 0.0
 	return &Layer{
 		size: sizeinbytes,
 		conv: conv,
@@ -337,19 +337,19 @@ func layersetup(
 		w:    w,
 		bias: bias,
 		fwd: xtras{
-			alpha:  alpha,
-			alpha2: alpha2,
-			beta:   beta,
+			alpha:  alphadefault,
+			alpha2: alphadefault,
+			beta:   beta1default,
 		},
 		bwdd: xtras{
-			alpha:  alpha,
-			alpha2: alpha2,
-			beta:   beta,
+			alpha:  alphadefault,
+			alpha2: alphadefault,
+			beta:   beta1default,
 		},
 		bwdf: xtras{
-			alpha:  alpha,
-			alpha2: alpha2,
-			beta:   beta2,
+			alpha:  alphadefault,
+			alpha2: alphadefault,
+			beta:   beta2default,
 		},
 		datatype: dtype,
 	}, nil

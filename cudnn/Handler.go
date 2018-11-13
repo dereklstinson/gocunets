@@ -1,8 +1,6 @@
 package cudnn
 
 import (
-	"errors"
-
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -26,7 +24,7 @@ func (h *Handler) XHandle() *gocudnn.XHandle {
 //Sync syncs the streams
 func (h *Handler) Sync() error {
 	if h.stream == nil {
-		return errors.New("handlers stream is not set")
+		return gocudnn.Cuda{}.CtxSynchronize()
 	}
 	return h.stream.Sync()
 }
@@ -34,6 +32,11 @@ func (h *Handler) Sync() error {
 //SyncContext will sync the contexts
 func (h *Handler) SyncContext() error {
 	return gocudnn.Cuda{}.CtxSynchronize()
+}
+
+//DeviceSync syncs the device
+func (h *Handler) DeviceSync() error {
+	return gocudnn.Cuda{}.DeviceSync()
 }
 
 //CreateHandler creates a the handlers

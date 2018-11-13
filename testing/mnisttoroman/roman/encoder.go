@@ -17,7 +17,13 @@ func RomanDecoder(handle *cudnn.Handler,
 	dtype cudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
-	batchsize int32) *gocunets.Network {
+	batchsize int32,
+	metabatchsize int32,
+	learningrates float32,
+	codingvector int32,
+	numofneurons int32,
+	l1regularization float32,
+	l2regularization float32) *gocunets.Network {
 	in := utils.Dims
 	filter := utils.Dims
 	padding := utils.Dims
@@ -29,14 +35,14 @@ func RomanDecoder(handle *cudnn.Handler,
 	var cflg gocudnn.ConvolutionModeFlag
 	reversecmode := cflg.Convolution()
 	network := gocunets.CreateNetwork()
-	const numofneurons = int32(30)
+
 	//Setting Up Network
 
 	/*
 		Convoultion Layer D1       8
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(3, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), true, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), true, memmanaged),
 	) //7
 	/*
 		Activation Layer D2       9
@@ -83,9 +89,9 @@ func RomanDecoder(handle *cudnn.Handler,
 	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
 	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
 	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .00001, .00001, batchsize)
-		a.SetRate(.001) //This is here to change the rate if you so want to
-		b.SetRate(.001)
+		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), l1regularization, l2regularization, metabatchsize)
+		a.SetRate(learningrates) //This is here to change the rate if you so want to
+		b.SetRate(learningrates)
 
 		trainersbatch[i], trainerbias[i] = a, b
 
@@ -104,7 +110,13 @@ func ArabicEncoder(handle *cudnn.Handler,
 	dtype cudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
-	batchsize int32) *gocunets.Network {
+	batchsize int32,
+	metabatchsize int32,
+	learningrates float32,
+	codingvector int32,
+	numofneurons int32,
+	l1regularization float32,
+	l2regularization float32) *gocunets.Network {
 	in := utils.Dims
 	filter := utils.Dims
 	padding := utils.Dims
@@ -120,7 +132,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E1  0
 	*/
-	const numofneurons = int32(30)
+
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-8+1 = 21
@@ -159,7 +171,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Convoultion Layer E7    6
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(3, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(codingvector, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 1
 
 	/*
@@ -176,9 +188,9 @@ func ArabicEncoder(handle *cudnn.Handler,
 	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
 	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
 	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .00001, .00001, batchsize)
-		a.SetRate(.001) //This is here to change the rate if you so want to
-		b.SetRate(.001)
+		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), l1regularization, l2regularization, metabatchsize)
+		a.SetRate(learningrates) //This is here to change the rate if you so want to
+		b.SetRate(learningrates)
 
 		trainersbatch[i], trainerbias[i] = a, b
 
@@ -197,7 +209,13 @@ func ArabicDecoder(handle *cudnn.Handler,
 	dtype cudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
-	batchsize int32) *gocunets.Network {
+	batchsize int32,
+	metabatchsize int32,
+	learningrates float32,
+	codingvector int32,
+	numofneurons int32,
+	l1regularization float32,
+	l2regularization float32) *gocunets.Network {
 	in := utils.Dims
 	filter := utils.Dims
 	padding := utils.Dims
@@ -210,12 +228,12 @@ func ArabicDecoder(handle *cudnn.Handler,
 	reversecmode := cflg.Convolution()
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
-	const numofneurons = int32(30)
+
 	/*
 		Convoultion Layer D1
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(3, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7
 	/*
 		Activation Layer D2
@@ -262,9 +280,9 @@ func ArabicDecoder(handle *cudnn.Handler,
 	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
 	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
 	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .00001, .00001, batchsize)
-		a.SetRate(.001) //This is here to change the rate if you so want to
-		b.SetRate(.001)
+		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), l1regularization, l2regularization, metabatchsize)
+		a.SetRate(learningrates) //This is here to change the rate if you so want to
+		b.SetRate(learningrates)
 
 		trainersbatch[i], trainerbias[i] = a, b
 

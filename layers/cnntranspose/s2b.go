@@ -72,91 +72,58 @@ func (l *Layer) s2bforward(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y
 		}
 		l.previouss2b = dims
 	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	err = l.trans.S2BForward(handle, x.T(), l.hiddenmem.T())
 	if err != nil {
 		return err
 	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	err = l.conv.ForwardProp(handle, wspace, l.hiddenmem, l.hiddenmem2)
 	if err != nil {
 		return err
 	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	return l.trans.B2SForward(handle, l.hiddenmem2.T(), y.T())
 
 }
 
 func (l *Layer) s2bBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.SyncContext()
+
+	err := l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
 	if err != nil {
 		return err
 	}
-	err = l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
-	if err != nil {
-		return err
-	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	err = l.conv.BackPropFilterData(handle, wspace, l.hiddenmem, l.hiddenmem2)
 	if err != nil {
 		return err
 	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	return l.trans.S2BBackward(handle, x.DeltaT(), l.hiddenmem.DeltaT())
 
 }
 func (l *Layer) s2bBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.SyncContext()
+
+	err := l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
 	if err != nil {
 		return err
 	}
-	err = l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
-	if err != nil {
-		return err
-	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	return l.conv.BackPropFilter(handle, wspace, l.hiddenmem, l.hiddenmem2)
 
 }
 func (l *Layer) s2bBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	err := handle.SyncContext()
+
+	err := l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
 	if err != nil {
 		return err
 	}
-	err = l.trans.B2SBackward(handle, l.hiddenmem2.DeltaT(), y.DeltaT())
-	if err != nil {
-		return err
-	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	err = l.conv.BackPropData(handle, wspace, l.hiddenmem, l.hiddenmem2)
 	if err != nil {
 		return err
 	}
-	err = handle.SyncContext()
-	if err != nil {
-		return err
-	}
+
 	return l.trans.S2BBackward(handle, x.DeltaT(), l.hiddenmem.DeltaT())
 
 }
@@ -176,10 +143,7 @@ func (l *Layer) s2outputIO(handle *cudnn.Handler, input *layers.IO) (*layers.IO,
 			return nil, err
 		}
 		l.previouss2b = dims
-		err = handle.Sync()
-		if err != nil {
-			return nil, err
-		}
+
 		//fmt.Println("N1N2 values", n1n2)
 		frmt1, _, dims1, _, err := l.trans.GetB2SOutputProperties(handle, l.hiddenmem2.T(), n1n2)
 		if err != nil {

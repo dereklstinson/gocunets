@@ -17,6 +17,13 @@ import (
 	"github.com/nfnt/resize"
 )
 
+const learningrates = .001
+const codingvector = int32(3)
+const numofneurons = int32(40)
+const l1regularization = float32(.0001)
+const l2regularization = float32(.0001)
+const metabatchsize = 4
+
 func main() {
 	gocudnn.Cuda{}.LockHostThread()
 	const romanimagelocation = "../mnist/roman/"
@@ -51,11 +58,11 @@ func main() {
 	var dataflag cudnn.DataTypeFlag
 	var convflag gocudnn.ConvolutionFlags
 	var fflag cudnn.TensorFormatFlag
-	Encoder := roman.ArabicEncoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	Encoder := roman.ArabicEncoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10, int32(metabatchsize*10), learningrates, codingvector, numofneurons, l1regularization, l2regularization)
 	utils.CheckError(Encoder.DynamicHidden())
-	ToArabic := roman.ArabicDecoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	ToArabic := roman.ArabicDecoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10, int32(metabatchsize*10), learningrates, codingvector, numofneurons, l1regularization, l2regularization)
 	utils.CheckError(Encoder.DynamicHidden())
-	ToRoman := roman.RomanDecoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10)
+	ToRoman := roman.RomanDecoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10, int32(metabatchsize*10), learningrates, codingvector, numofneurons, l1regularization, l2regularization)
 	utils.CheckError(Encoder.DynamicHidden())
 	romanoutput := putintogpumemRoman(batchedoutput, []int32{10, 1, 28, 28}, fflag.NCHW(), dataflag.Float(), true)
 	//Load the batches into gpu mem this is basically the Arabic numbers are place in arabicoutput.T() and arabicnums.DeltaT()
@@ -63,7 +70,7 @@ func main() {
 	imager, err := imaging.MakeImager(handles)
 	utils.CheckError(err)
 	epocs := 100
-	snapshotsize := 100
+	snapshotsize := 500
 	MSEArabic, err := loss.CreateMSECalculatorGPU(handles, true)
 	utils.CheckError(err)
 	MSERoman, err := loss.CreateMSECalculatorGPU(handles, true)
@@ -74,11 +81,12 @@ func main() {
 	utils.CheckError(err)
 	ArabicOutput, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
 	utils.CheckError(err)
-	chokepoint, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 3, 1, 1}, true)
+	chokepoint, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, codingvector, 1, 1}, true)
 	utils.CheckError(err)
 	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Image
 	imagerlayer, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
 	utils.CheckError(err)
+
 	totalrunimage := make([]image.Image, 0)
 	for i := 0; i < epocs; i++ {
 		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif
@@ -93,18 +101,22 @@ func main() {
 			utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint, arabicoutput[j]))
 			stream.Sync()
 			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
-
-			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-			epoclossarabic += MSEArabic.Loss()
+			stream.Sync()
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint, romanoutput))
+			stream.Sync()
+			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
+			stream.Sync()
+			epoclossarabic += MSEArabic.Loss()
+
 			if j%snapshotsize == 0 {
+				stream.Sync()
 				imagerlayer.LoadTValues(romanoutput.T().Memer())
 				stream.Sync()
 				outputimage, err := imager.TileBatches(handles, imagerlayer, 2, 5)
 				utils.CheckError(err)
 				images = append(images, outputimage)
 				//	fmt.Println("Grabbing Image:", j)
-				stream.Sync()
+
 			}
 
 			stream.Sync()
@@ -120,12 +132,18 @@ func main() {
 			stream.Sync()
 			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint))
 			stream.Sync()
-			utils.CheckError(ToRoman.UpdateWeights(handles, 10))
-			stream.Sync()
-			utils.CheckError(ToArabic.UpdateWeights(handles, 10))
-			stream.Sync()
-			utils.CheckError(Encoder.UpdateWeights(handles, 10))
-			stream.Sync()
+
+			if j%metabatchsize == metabatchsize-1 || j == (len(arabicnums)-1) {
+				batchsize := ((j % metabatchsize) + 1) * 10
+				utils.CheckError(handles.SyncContext())
+				utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
+				stream.Sync()
+				utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
+				stream.Sync()
+				utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
+				utils.CheckError(handles.SyncContext())
+
+			}
 
 		}
 
@@ -138,11 +156,10 @@ func main() {
 		epoclossroman /= float32(len(arabicnums))
 		epoclossarabic /= float32(len(arabicnums))
 		stream.Sync()
-		fmt.Println("ROMAN  At Epoc: ", i, "Loss is :", epoclossroman)
-		fmt.Println("ARABIC At Epoc: ", i, "Loss is :", epoclossarabic)
+		fmt.Println("Epoc: ", i, "ROMAN Loss : ", epoclossroman, "ARABIC Loss: ", epoclossarabic)
 
-		if epoclossroman <= 5 || i >= 30 {
-			fmt.Println("HIT 5 Loss")
+		if epoclossroman <= 3 || i >= 30 {
+			fmt.Println("HIT  Loss")
 			giffer.MakeGrayGif(totalrunimage)
 			fmt.Println("Writing GIF")
 			utils.CheckError(filing.WritetoHD(imagesave, "AutoDCresize0", giffer))
