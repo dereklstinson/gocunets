@@ -34,6 +34,10 @@ type Layer struct {
 	pad        []int32
 	dilation   []int32
 	stride     []int32
+	l1b        float32
+	l2b        float32
+	l1w        float32
+	l2w        float32
 }
 
 //TempSave is a temporary struct for saving.  It will most likely be changed
@@ -82,7 +86,26 @@ func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	if err != nil {
 		return err
 	}
-	return c.train.UpdateWeights(handle, c.w, batch)
+	c.l1b, c.l2b, err = c.btrain.L1L2Loss()
+	if err != nil {
+		return err
+	}
+	c.train.UpdateWeights(handle, c.w, batch)
+	c.l1w, c.l2w, err = c.train.L1L2Loss()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//L1Loss will return the L1 loss for the weights and bias
+func (c *Layer) L1Loss() (weights float32, bias float32) {
+	return c.l1w, c.l1b
+}
+
+//L2Loss will return this layers l2Loss
+func (c *Layer) L2Loss() (weights float32, bias float32) {
+	return c.l2w, c.l2b
 }
 
 //LoadTrainer sets up the momentum trainer

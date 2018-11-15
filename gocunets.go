@@ -549,10 +549,7 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Mall
 
 //UpdateWeights updates the weights of a Network
 func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
-	err := handle.SyncContext()
-	if err != nil {
-		return err
-	}
+	var err error
 	for i := 0; i < len(m.layer); i++ {
 
 		err = m.layer[i].updateWeights(handle, batch)
@@ -560,5 +557,7 @@ func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
 			return err
 		}
 	}
-	return handle.SyncContext()
+	return nil
 }
+
+func (m *Network)GetLayerLosses
