@@ -81,10 +81,12 @@ func main() {
 	utils.CheckError(err)
 	ArabicOutput, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
 	utils.CheckError(err)
-	chokepoint, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, codingvector, 1, 1}, true)
-	utils.CheckError(err)
-	//	choketoroman, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, codingvector, 1, 1}, true)
-	//utils.CheckError(err)
+	chokepoint := make([]*layers.IO, len(arabicnums))
+	for i := range chokepoint {
+		chokepoint[i], err = layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, codingvector, 1, 1}, true)
+		utils.CheckError(err)
+	}
+
 	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Image
 	imagerlayer, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
 	utils.CheckError(err)
@@ -109,14 +111,14 @@ func main() {
 				metabatchbool = false
 			}
 			if (!startroman || !metabatchbool) && !actuallystartromannow {
-				utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint))
+				utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
 				//choketoroman.LoadTValues(chokepoint.T().Memer())
-				utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint, arabicoutput[j]))
+				utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
 				utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
 				utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
 				epoclossarabic += MSEArabic.Loss()
-				utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint, ArabicOutput))
-				utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint))
+				utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
+				utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 				if metabatchcounter < (metabatchsize) {
 					metabatchcounter++
 				} else {
@@ -130,13 +132,13 @@ func main() {
 
 			} else {
 				actuallystartromannow = true
-				utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint))
+				//utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint))
 				//	choketoroman.LoadTValues(chokepoint.T().Memer())
-				utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint, romanoutput))
+				utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
 				utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
 				utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
 				epoclossroman += MSERoman.Loss()
-				utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint, RomanOutput))
+				utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
 
 				if j%int(ap*(float32(i+1)/ep)) == int(ap*(float32(i+1)/ep))-1 {
 					imagerlayer.LoadTValues(romanoutput.T().Memer())
