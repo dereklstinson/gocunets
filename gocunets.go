@@ -45,12 +45,14 @@ type Network struct {
 	resizecounter int
 	hybridsize    int
 	reshaper      *reshape.Layer
-	//	originalinput *layers.IO //original input that might have to be held onto so that errors can backprop back through it
 	resizeinput   *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
 	previousdims  []int32
 	descriminator bool
+	l1losses      []float32
+	l2losses      []float32
 }
 
+/*
 //Handles holds both handle and xhandle handle
 type Handles struct {
 	cudnn   *gocudnn.Handle
@@ -68,7 +70,7 @@ func (h *Handles) XHandle() *gocudnn.XHandle {
 	return h.xhandle
 }
 
-/*
+
 //CreateHandleV2 creates a multi use handle that uses both gocudnn handle and xhandle
 func CreateHandleV2(dev *gocudnn.Device) *Handles {
 
@@ -149,6 +151,7 @@ func (m *Network) TrainersNeeded() int {
 			counter++
 		}
 	}
+	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
 	return counter
 }
 
@@ -198,6 +201,7 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 		m.err <- errors.New("(*Network)LoadTrainers -- TrainersNeeded don't match the length of trainers passed")
 	}
 	counter := 0
+
 	for i := 0; i < len(m.layer); i++ {
 		if m.layer[i].needstrainer() == true {
 			m.err <- m.layer[i].loadtrainer(handle, trainerweights[counter], trainerbias[counter])
@@ -550,14 +554,24 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Mall
 //UpdateWeights updates the weights of a Network
 func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	var err error
+	counter := 0
 	for i := 0; i < len(m.layer); i++ {
 
 		err = m.layer[i].updateWeights(handle, batch)
 		if err != nil {
 			return err
 		}
+		a, b := m.layer[i].l1l2loss()
+		if a > 0 && b > 0 {
+			m.l1losses[counter], m.l2losses[counter] = a, b
+			counter++
+		}
+
 	}
 	return nil
 }
 
-func (m *Network)GetLayerLosses
+//L1L2Loss returns the L1L2 loss arrays for every layer that has a trainer
+func (m *Network) L1L2Loss() (L1, L2 []float32) {
+	return m.l1losses, m.l2losses
+}

@@ -173,6 +173,11 @@ func (l *Layer) LoadTrainer(handle *cudnn.Handler, wtrainer, btrainer trainer.Tr
 	return l.conv.LoadTrainer(handle, wtrainer, btrainer)
 }
 
+//L1L2Loss returns the L1 and L2 loss for the layer
+func (l *Layer) L1L2Loss() (L1, L2 float32) {
+	return l.conv.L1L2Loss()
+}
+
 //UpdateWeights updates the weights in the layer
 func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	if l.mode == convtransposes2b {

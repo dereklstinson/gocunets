@@ -12,14 +12,16 @@ import (
 
 //Layer is a fcnn layer for a network
 type Layer struct {
-	neurons *layers.IO
-	bias    *layers.IO
-	conv    *convolution.Ops
-	fwd     xtras
-	bwdd    xtras
-	bwdf    xtras
-	train   trainer.Trainer
-	btrain  trainer.Trainer
+	neurons          *layers.IO
+	bias             *layers.IO
+	conv             *convolution.Ops
+	fwd              xtras
+	bwdd             xtras
+	bwdf             xtras
+	train            trainer.Trainer
+	btrain           trainer.Trainer
+	l1lossw, l2lossw float32
+	l1lossb, l2lossb float32
 }
 
 type xtras struct {
@@ -28,6 +30,7 @@ type xtras struct {
 	beta   float64
 }
 
+//CreateFromshapeNoOut Creates the layer with no output
 func CreateFromshapeNoOut(handle *cudnn.Handler, neurons int32, shape []int32, managedmem bool, dtype cudnn.DataType, frmt cudnn.TensorFormat) (*Layer, error) {
 
 	mode := convolution.Flags().Mode.CrossCorrelation()
@@ -219,10 +222,13 @@ func appenderror(message string, err error) error {
 	return errors.New(message + ": " + orig)
 }
 
+//WeightsFillSlice fills the weights into a slice
 func (l *Layer) WeightsFillSlice(input interface{}) error {
 	return l.neurons.T().Memer().FillSlice(input)
 
 }
+
+//MakeOutputTensor makes the output tensor
 func (l *Layer) MakeOutputTensor(batch int) (*layers.IO, error) {
 	frmt, dtype, dims, err := l.neurons.Properties()
 	if err != nil {
@@ -239,6 +245,7 @@ func (l *Layer) MakeOutputTensor(batch int) (*layers.IO, error) {
 	return nil, errors.New("Not Supported Format")
 }
 
+//DeltaWeights fills a slice with the deltaweights
 func (l *Layer) DeltaWeights(input interface{}) error {
 	return l.neurons.DeltaT().Memer().FillSlice(input)
 }
@@ -291,9 +298,25 @@ func (l *Layer) UpdateWeights(ctx *cudnn.Handler, batch int) error {
 	if err != nil {
 		return err
 	}
-	return l.train.UpdateWeights(ctx, l.neurons, batch)
+	err = l.train.UpdateWeights(ctx, l.neurons, batch)
+	if err != nil {
+		return err
+	}
+	l.l1lossb, l.l2lossb, err = l.btrain.L1L2Loss()
+	if err != nil {
+		return err
+	}
+	l.l1lossw, l.l2lossw, err = l.train.L1L2Loss()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
+//L1L2Loss returns the l1 and l2 loss for the layer
+func (l *Layer) L1L2Loss() (float32, float32) {
+	return l.l1lossb + l.l1lossw, l.l2lossb + l.l2lossw
+}
 func dimscheck(a, b []int32) error {
 	if len(a) != len(b) {
 		return errors.New("num of dims not same")

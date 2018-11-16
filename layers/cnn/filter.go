@@ -98,14 +98,9 @@ func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	return nil
 }
 
-//L1Loss will return the L1 loss for the weights and bias
-func (c *Layer) L1Loss() (weights float32, bias float32) {
-	return c.l1w, c.l1b
-}
-
-//L2Loss will return this layers l2Loss
-func (c *Layer) L2Loss() (weights float32, bias float32) {
-	return c.l2w, c.l2b
+//L1L2Loss will return the L1 loss and L2 loss for the layer
+func (c *Layer) L1L2Loss() (L1 float32, L2 float32) {
+	return c.l1b + c.l1w, c.l2b + c.l2w
 }
 
 //LoadTrainer sets up the momentum trainer

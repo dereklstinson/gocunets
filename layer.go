@@ -101,6 +101,7 @@ func wraplayer(input interface{}) *layer {
 		return nil
 	}
 }
+
 func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 
 	if l.cnn != nil {
@@ -143,42 +144,31 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
 	var err error
 	if l.cnn != nil {
-		err = handle.Sync()
-		if err != nil {
-			return err
-		}
 		err = l.cnn.UpdateWeights(handle, batch)
-		err = handle.Sync()
-		if err != nil {
-			return err
-		}
-		return err
 	}
 	if l.fcnn != nil {
-		err = handle.Sync()
-		if err != nil {
-			return err
-		}
 		err = l.fcnn.UpdateWeights(handle, batch)
-		if err != nil {
-			return err
-		}
-
-		return handle.Sync()
 	}
 	if l.cnntranspose != nil {
-		err = handle.Sync()
-		if err != nil {
-			return err
-		}
 		err = l.cnntranspose.UpdateWeights(handle, batch)
-		if err != nil {
-			return err
-		}
 
-		return handle.Sync()
 	}
-	return nil
+
+	return err
+}
+func (l *layer) l1l2loss() (l1, l2 float32) {
+
+	if l.cnn != nil {
+		return l.cnn.L1L2Loss()
+	}
+	if l.fcnn != nil {
+		return l.fcnn.L1L2Loss()
+	}
+	if l.cnntranspose != nil {
+		return l.cnntranspose.L1L2Loss()
+
+	}
+	return -1, -1
 }
 
 //ForwardProp does the forward prop for a layer

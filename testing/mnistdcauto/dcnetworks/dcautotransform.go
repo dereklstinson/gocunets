@@ -18,6 +18,7 @@ func DCAutoTransform(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
+	inputlayer bool,
 	memmanaged bool,
 	batchsize int32) *gocunets.Network {
 	in := utils.Dims
@@ -100,7 +101,7 @@ func DCAutoTransform(handle *cudnn.Handler,
 		Convoultion Layer D3       11
 	*/
 	network.AddLayer(
-		cnntranspose.Transform(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), memmanaged),
+		cnntranspose.Transform(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), false, memmanaged),
 	)
 	/*
 		Activation Layer D4        13
@@ -113,7 +114,7 @@ func DCAutoTransform(handle *cudnn.Handler,
 		Convoultion Layer D5       14
 	*/
 	network.AddLayer(
-		cnntranspose.Transform(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(numofneurons, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), memmanaged),
+		cnntranspose.Transform(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(numofneurons, numofneurons, 7, 7), CMode, padding(3, 3), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //28 -7 + 1 +3*2 = 28
 	/*
 		Activation Layer D6        15

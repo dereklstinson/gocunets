@@ -7,7 +7,7 @@ import (
 	"time"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/gocudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/mnistgpu"

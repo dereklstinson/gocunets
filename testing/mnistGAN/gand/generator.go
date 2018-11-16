@@ -1,10 +1,10 @@
 package gand
 
+/*
 import (
 	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/layers/xactivation"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -24,19 +24,19 @@ func Generator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudn
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
-		xactivation.SetupLeaky(handle.XHandle(), dtype),
+		activation.SetupLeaky(handle.XHandle(), dtype),
 	)
 	network.AddLayer( //convolution
 		cnn.SetupDynamic(handle.Cudnn(), frmt, dtype, in(batchsize, 20, 28, 28), filter(1, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
@@ -62,3 +62,4 @@ func Generator(handle *gocunets.Handles, frmt gocudnn.TensorFormat, dtype gocudn
 	network.LoadTrainers(handle, trainersbatch, trainerbias)
 	return network
 }
+*/

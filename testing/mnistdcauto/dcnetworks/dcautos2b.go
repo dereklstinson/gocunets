@@ -100,7 +100,7 @@ func DCAutoS2B(handle *cudnn.Handler,
 		Convoultion Layer D3      10
 	*/
 	network.AddLayer(
-		cnntranspose.S2B(handle, frmt, dtype, in(2, 2), filter(numofneurons, numofneurons, 7, 7), CMode, padding(4, 4), stride(1, 1), dilation(1, 1), memmanaged),
+		cnntranspose.S2B(handle, frmt, dtype, in(2, 2), filter(numofneurons, numofneurons, 7, 7), CMode, padding(4, 4), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //2-5 +6+1=  4 .... 4*4 =16
 	/*
 		Activation Layer D4        11
@@ -113,7 +113,7 @@ func DCAutoS2B(handle *cudnn.Handler,
 		Convoultion Layer D5       12
 	*/
 	network.AddLayer(
-		cnntranspose.S2B(handle, frmt, dtype, in(4, 4), filter(numofneurons, numofneurons, 8, 8), CMode, padding(5, 5), stride(1, 1), dilation(1, 1), memmanaged),
+		cnntranspose.S2B(handle, frmt, dtype, in(4, 4), filter(numofneurons, numofneurons, 8, 8), CMode, padding(5, 5), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //4-6+8+1=7  ... 7 *4 =28
 	/*
 		Activation Layer D6        13
