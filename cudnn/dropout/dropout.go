@@ -1,6 +1,8 @@
 package dropout
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCudnn"
@@ -24,6 +26,33 @@ func (op *Ops) BackProp(handle *cudnn.Handler, dx, dy *tensor.Volume) error {
 //ForwardProp does the feed forward
 func (op *Ops) ForwardProp(handle *cudnn.Handler, x, y *tensor.Volume) error {
 	return gocudnn.DropOut{}.Funcs.DropoutForward(handle.Cudnn(), op.dropout, x.TD(), x.Memer(), y.TD(), y.Memer(), op.reserve)
+}
+
+//Destroy destroys the dropout layer
+func (op *Ops) Destroy() error {
+
+	var errf bool
+
+	errorstring := "Dropout: "
+	err := op.dropout.DestroyDescriptor()
+	if err != nil {
+		errf = true
+		errorstring = errorstring + err.Error() + " , "
+	}
+	err = op.state.Free()
+	if err != nil {
+		errf = true
+		errorstring = errorstring + err.Error() + " , "
+	}
+	err = op.reserve.Free()
+	if err != nil {
+		errf = true
+		errorstring = errorstring + err.Error() + " , "
+	}
+	if errf == true {
+		return errors.New(errorstring)
+	}
+	return nil
 }
 
 //Stage stages the op
