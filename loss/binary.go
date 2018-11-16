@@ -2,7 +2,7 @@ package loss
 
 import "math"
 
-//Binary Struct holds the binary loss amd derovatove calculations
+//Binary Struct holds the binary loss and derivative calculations
 type Binary struct {
 }
 
