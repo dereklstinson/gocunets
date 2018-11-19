@@ -67,23 +67,8 @@ body {
 	}
 }
 </style>
-	<script>
-	  
-		//checkout the site below for more info
-		//https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Client-side_web_APIs/Fetching_data
-
-		  //  var buttonpress = document.querySelector('button');
-		
-					
-		function updateDisplay(elid,ehh) {
-		  document.getElementById(elid).src=ehh+ + new Date().getTime();
-	  
-		}
-
-		   
-</script>
-</head>
 <body>
+
 
 <div class="header">
   <h1>On Demand Layout</h1>
@@ -98,34 +83,90 @@ body {
   <a href="#">Link</a>
   <a href="#">Link</a>
 </div>
+<div>
 
+</div>
 <div class="row">
   <div class="column">
-	<h2>Loss</h2>
-	<img id="image1" src="">
-	<p>This shows loss</p>
-	<script>
-		//updateDisplay("image1","{{.Url1}}")
-		setTimeout( updateDisplay("image1","{{.Url1}}", 1000));
-	</script>
-
-   
+  	<h2>Loss Graph</h2>
+		<img id="image1" src="{{.Url1}}">
+		<p>This is the loss over epoc.</p>
 </div>
   <div class="column">
-	<h2>Input Image</h2>
+	<h2>Auto Encoder Input Image</h2>
 	<img id="image2" src="{{.Url2}}">
-	<p>Selve Serving Description</p>
-	<button type="button"
-	onclick="updateDisplay('image2','{{.Url2}}')">Update</button>
+	<p>Input image for autoencoder.</p>
+	
   </div>
   <div class="column">
-	<h2>Output Image</h2>
+	<h2>Auto Encoder Output Image</h2>
 	<img id="image3" src="{{.Url3}}">
-	<p>Selve Serving Description</p>
-	<button type="button"
-	onclick="updateDisplay('image3','{{.Url3}}')">Update</button>
+	<p>Output image for autoencoder.</p>
+	
   </div>
 </div>
+<div class="row">
+		<div class="column">
+			<h2>Gan Output</h2>
+			<img id="image4" src="{{.Url4}}">
+			<p>This is the output from the gan.</p>
+	</div>
+		<div class="column">
+		<h2>Input Image</h2>
+		<img id="image5" src="{{.Url5}}">
+		<p>Selve Serving Description</p>
+		
+		</div>
+		<div class="column">
+		<h2>Output Image</h2>
+		<img id="image6" src="{{.Url6}}">
+		<p>Selve Serving Description</p>
+		
+		</div>
+	</div>
+<script>
+	var mywaittime =5000;
+		var myVar1 = setInterval(myimage1,mywaittime)
+		function myimage1(){
+			var d = new Date();
+			var theurl = "{{.Url1}}"+d.toLocaleTimeString();
+			 document.getElementById("image1").src= theurl;
+			}
+			var myVar2 = setInterval(myimage2,mywaittime)
+		function myimage2(){
+			var d = new Date();
+			var theurl = "{{.Url2}}"+d.toLocaleTimeString();
+			 document.getElementById("image2").src= theurl;
+			}
+			var myVar3 = setInterval(myimage3,mywaittime)
+		function myimage3(){
+			var d = new Date();
+			var theurl = "{{.Url3}}"+d.toLocaleTimeString();
+			 document.getElementById("image3").src= theurl;
+			}
 
+			var myVar4 = setInterval(myimage4,mywaittime)
+		function myimage4(){
+			var d = new Date();
+			var theurl = "{{.Url4}}"+d.toLocaleTimeString();
+			 document.getElementById("image4").src= theurl;
+			}
+			var myVar5 = setInterval(myimage5,mywaittime)
+		function myimage5(){
+			var d = new Date();
+			var theurl = "{{.Url5}}"+d.toLocaleTimeString();
+			 document.getElementById("image5").src= theurl;
+			}
+			var myVar6 = setInterval(myimage6,mywaittime)
+		function myimage6(){
+			var d = new Date();
+			var theurl = "{{.Url6}}"+d.toLocaleTimeString();
+			 document.getElementById("image6").src= theurl;
+			}
+			</script>
+		</head>
+</script>
+		</head>
+	
 </body>
 </html>
