@@ -3,6 +3,7 @@ package ui
 import (
 	"html/template"
 	"image/jpeg"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -10,21 +11,22 @@ import (
 	"github.com/dereklstinson/GoCuNets/utils/filing"
 )
 
-const imagefolderlocation = "/home/derek/Desktop/GANMNIST/"
-const webpagelocation = "/home/derek/go/src/github.com/dereklstinson/ui/index.html"
-const testingnewport = ":8081"
+const imagefolderlocationtest = "/home/derek/Desktop/mpii/images/"
+const webpagelocationtest = "/home/derek/go/src/github.com/dereklstinson/GoCuNets/ui/index.html"
+const testingnewporttest = ":8081"
 
-//ServerMain2 is the main
-func ServerMain2() {
-	// Hello world, the web server
+//ServerMainTest is the test server with just a bunch of images from the harddrive
+func ServerMainTest() {
+	pagebytes, err := ioutil.ReadFile(webpagelocationtest)
+	check(err)
 	url := SetupURL("/loss/", "/inputimage/", "/outputimage/", "/extra1/", "/extra2/", "/extra3/")
 	handlers := make([]imageHandler, 0)
 	for i := range url.url {
-		handlers = append(handlers, makeimagehandler(imagefolderlocation, i*20))
+		handlers = append(handlers, makeimagehandler(imagefolderlocationtest, i*20))
 	}
-	serverlocation := "http://localhost" + testingnewport
+	serverlocation := "http://localhost" + testingnewporttest
 	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		holdertemplate2(w, serverlocation, url.url)
+		holdertemplate2test(w, serverlocation, url.url, string(pagebytes))
 
 		//	w.Header().Set("Cache-Control", "no-store")
 
@@ -32,20 +34,20 @@ func ServerMain2() {
 
 	http.HandleFunc("/index", helloHandler)
 	for i := range url.url {
-		http.HandleFunc(url.url[i], handlers[i].F())
+		http.HandleFunc(url.url[i], handlers[i].Handle())
 
 	}
 
-	log.Fatal(http.ListenAndServe(testingnewport, nil))
+	log.Fatal(http.ListenAndServe(testingnewporttest, nil))
 }
 
 //URLs are the urls for the
-type URLs struct {
+type URLsTest struct {
 	url []string
 }
 
 //WebPage is the webpage stuff
-type WebPage struct {
+type WebPageTest struct {
 	Url1 string
 	Url2 string
 	Url3 string
@@ -54,9 +56,9 @@ type WebPage struct {
 	Url6 string
 }
 
-//SetupURL to stream images
-func SetupURL(urls ...string) URLs {
-	return URLs{
+//SetupURLTest to stream images
+func SetupURLTest(urls ...string) URLsTest {
+	return URLsTest{
 		url: urls,
 	}
 }
@@ -73,7 +75,7 @@ func makeimagehandler(folder string, startindex int) imageHandler {
 		path:  filing.GetFilePaths(folder),
 	}
 }
-func (h *imageHandler) F() func(w http.ResponseWriter, req *http.Request) {
+func (h *imageHandler) Handle() func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		file, err := os.Open(h.path[h.index])
 		check(err)
@@ -103,8 +105,8 @@ func (h *imageHandler) F() func(w http.ResponseWriter, req *http.Request) {
 
 }
 
-func holdertemplate2(w http.ResponseWriter, serverlocation string, data []string) {
-	urls := WebPage{
+func holdertemplate2test(w http.ResponseWriter, serverlocation string, data []string, webpage string) {
+	urls := WebPageTest{
 		Url1: serverlocation + data[0],
 		Url2: serverlocation + data[1],
 		Url3: serverlocation + data[2],
@@ -113,14 +115,10 @@ func holdertemplate2(w http.ResponseWriter, serverlocation string, data []string
 		Url6: serverlocation + data[5],
 	}
 	//t, err := template.ParseFiles(pagelocation)
-	t, err := template.New("webpage").Parse(thewebpagetemplate2())
+	//t, err := template.New("index").ParseFiles(webpagelocation)
+	t, err := template.New("webpage").Parse(webpage)
 	check(err)
 
 	check(t.Execute(w, urls))
 
-}
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

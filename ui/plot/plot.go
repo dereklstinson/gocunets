@@ -75,6 +75,32 @@ func Verses(title, xaxis, yaxis string, h, w int, data ...LabeledData) (io.Write
 
 }
 
+//Verses2 does a verses line plot with the data passed.
+//title,xaxis,yaxis are the labels for the plot image
+//h,w are the size of the image
+//returns a WriteTo.  I did this because I thought the user might want to store an array of them
+//Verse2 is the same as verses accept it takes a slice of LabeledData instead of a bunch of arguments of LabeledData
+func Verses2(title, xaxis, yaxis string, h, w int, data []LabeledData) (io.WriterTo, error) {
+	rand.Seed(int64(20))
+
+	p, err := plot.New()
+	if err != nil {
+		panic(err)
+	}
+
+	p.Title.Text = title
+	p.X.Label.Text = xaxis
+	p.Y.Label.Text = yaxis
+	for i := range data {
+		err = plotutil.AddLines(p, data[i].Label, data[i].Data)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return p.WriterTo(vg.Length(h)*vg.Centimeter, vg.Length(w)*vg.Centimeter, "jpg")
+
+}
+
 //Difference will subtract that datapoints of the Y axis of B from A.  It will also add to the plot  "A.Label - B.Label"
 //A and B need to have the same number of elements.  This only works on discrete n arrays so x=i intigers
 //It will return an io.WriterTo and an error

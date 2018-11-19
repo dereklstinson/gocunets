@@ -1,96 +1,73 @@
 package ui
 
 import (
-	"bytes"
-	"encoding/base64"
 	"html/template"
-	"image/jpeg"
-	"log"
 	"net/http"
-	"os"
 )
 
-const ipaddressserverlocation = ":8080"
-
-//ServerMain is the main
-func ServerMain() {
-	// Hello world, the web server
-
-	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		holdertemplate(w)
-	}
-
-	http.HandleFunc("/hello", helloHandler)
-	log.Fatal(http.ListenAndServe(ipaddressserverlocation, nil))
-}
-
-const testimagelocation = "/home/derek/Desktop/mpii/images/000013469.jpg"
-
-//First test Ui mainpage
-type UImainpage struct {
-	//Loss
-	LossHeader string
-	LSrc       string
-	LossInfo   string
-	LWidth     int
-	LHeight    int
-	//Name
-	Name   string
-	Src    string
-	Width  int
-	Height int
-	Info   string
-	//Name1
-	Name1   string
-	Src1    string
-	Width1  int
-	Height1 int
-	Info1   string
-}
-
-func builduimainpagetest() UImainpage {
-	var some UImainpage
-	some.LossHeader = "ITS A LOSS"
-	some.LSrc = getjpeg()
-	some.LossInfo = "This isn't loss"
-	some.Name = "TESTING"
-	some.Src = getjpeg()
-	some.Info = "same image"
-	some.Name1 = "Testing1"
-	some.Src1 = getjpeg()
-	some.Info1 = "same image1"
-	return some
-}
-func getjpeg() string {
-	file, err := os.Open(testimagelocation)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	img, err := jpeg.Decode(file)
-	if err != nil {
-		panic(err)
-	}
-	buffer := new(bytes.Buffer)
-	err = jpeg.Encode(buffer, img, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return base64.StdEncoding.EncodeToString(buffer.Bytes())
-}
-
-func holdertemplate(w http.ResponseWriter) {
-	check := func(err error) {
-		if err != nil {
-			log.Fatal(err)
+/*
+Handler interface. This is the cool way to control data without having a global variables.
+example:
+   (s *slideshow)Handle()func(w http.ResponseWriter, req *http.Request){
+		return  func( w http.ResponseWriter, req *http.Request){
+		err:=	jpeg.Encode(w, s.img[s.index%len(s.img)], nil)
+		if err !=nil{panic(err)}
+		s.index++
 		}
+}
+*/
+type Handler interface {
+	Handle() func(http.ResponseWriter, *http.Request)
+}
+
+const webpagelocation = "/home/derek/go/src/github.com/dereklstinson/GoCuNets/ui/index.html"
+
+//ServerMainTest is the test server with just a bunch of images from the harddrive
+func ServerMain(port, pagelocation string) {
+
+}
+
+//URLs are the urls for the
+type URLs struct {
+	url []string
+}
+
+//WebPage is the webpage stuff
+type WebPage struct {
+	Url1 string
+	Url2 string
+	Url3 string
+	Url4 string
+	Url5 string
+	Url6 string
+}
+
+//SetupURL to stream images
+func SetupURL(urls ...string) URLs {
+	return URLs{
+		url: urls,
 	}
-	data := builduimainpagetest()
-	t, err := template.New("webpage").Parse(thewebpagetemplate())
+}
+
+func holdertemplate2(w http.ResponseWriter, serverlocation string, data []string, webpage string) {
+	urls := WebPage{
+		Url1: serverlocation + data[0],
+		Url2: serverlocation + data[1],
+		Url3: serverlocation + data[2],
+		Url4: serverlocation + data[3],
+		Url5: serverlocation + data[4],
+		Url6: serverlocation + data[5],
+	}
+	//t, err := template.ParseFiles(pagelocation)
+	//t, err := template.New("index").ParseFiles(webpagelocation)
+	t, err := template.New("webpage").Parse(webpage)
 	check(err)
 
-	err = t.Execute(w, data)
-	check(err)
+	check(t.Execute(w, urls))
 
+}
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

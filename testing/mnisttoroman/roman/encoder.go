@@ -203,7 +203,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	return network
 }
 
-//DCAutoReverse using regular method of increasing size of convolution...by just increasing the outer padding
+//ArabicDecoder using regular method of increasing size of convolution...by just increasing the outer padding
 func ArabicDecoder(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,

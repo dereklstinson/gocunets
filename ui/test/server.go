@@ -7,5 +7,5 @@ import (
 func main() {
 	// Hello world, the web server
 
-	ui.ServerMain2()
+	ui.ServerMain()
 }
