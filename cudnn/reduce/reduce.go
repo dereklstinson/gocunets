@@ -31,8 +31,8 @@ func (o *Ops) Reduce(handle *cudnn.Handler, indicies *gocudnn.Malloced, workspac
 	if err != nil {
 		return err
 	}
-	a := gocudnn.CScalarByDataType(dtypet, alpha)
-	c := gocudnn.CScalarByDataType(dtypet, beta)
+	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha)
+	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}

@@ -25,13 +25,14 @@ type DifLossHandler struct {
 //NewDifLossHandler Makes a VSLoss Handle.  If epoc is true it will label the x axis as epoc. Otherwise it will label it batch.
 // Just make sure you are passing the right amount of data through the LossData Channel.  So, the axis is labeled correctly.
 // Y axis will be labeled Loss.
-func NewDifLossHandler(title string, numberofplots int, epoc bool, LossData <-chan []LabelFloat) *DifLossHandler {
+func NewDifLossHandler(title string, LossData <-chan []LabelFloat, epoc bool, plotlengths int, labels ...string) (*DifLossHandler, []LabelFloat) {
 	var xaxis string
 	if epoc == true {
 		xaxis = "Epocs"
 	} else {
 		xaxis = "Batch"
 	}
+	numberofplots := len(labels)
 	y := make([][]float32, numberofplots)
 	data := make([]plot.LabeledData, numberofplots)
 	x := &DifLossHandler{
@@ -39,15 +40,19 @@ func NewDifLossHandler(title string, numberofplots int, epoc bool, LossData <-ch
 		title:        title,
 		xaxis:        xaxis,
 		yaxis:        "Loss",
-		h:            6,
-		w:            15,
+		h:            8,
+		w:            20,
 		originaldata: y,
 		data:         data,
 	}
 
 	go x.runchannel(LossData)
-
-	return x
+	lblflt := make([]LabelFloat, numberofplots)
+	for i := range lblflt {
+		lblflt[i].Data = make([]float32, plotlengths)
+		lblflt[i].Label = labels[i]
+	}
+	return x, lblflt
 }
 
 func (l *DifLossHandler) runchannel(LossData <-chan []LabelFloat) {
@@ -78,7 +83,7 @@ func (l *DifLossHandler) ChangeHW(h, w int) {
 
 }
 
-//F is the func used for the web handler
+//Handle is  used for the web handler
 func (l *DifLossHandler) Handle() func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		l.mux.Lock()

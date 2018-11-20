@@ -48,7 +48,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Activation Layer D2       9
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
 	)
 	/*
 		Convoultion Layer D3      10
@@ -60,7 +61,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Activation Layer D4        11
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
 	)
 
 	/*
@@ -73,7 +75,7 @@ func RomanDecoder(handle *cudnn.Handler,
 		Activation Layer D6       13
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
 	)
 
 	/*
@@ -140,7 +142,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Activation Layer E2    1
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
 	)
 	/*
 		Convoultion Layer E3    2
@@ -152,7 +154,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Activation Layer E4    3
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
 	)
 
 	/*
@@ -165,7 +168,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Activation Layer E6    5
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 7, 7}, true),
 	)
 	/*
 		Convoultion Layer E7    6
@@ -179,7 +183,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 	*/
 	network.AddLayer(
 
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 1, 1}, true),
 	)
 
 	//var err error
@@ -232,6 +237,7 @@ func ArabicDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D1
 	*/
+
 	network.AddLayer(
 		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7
@@ -239,7 +245,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Activation Layer D2
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
 	)
 	/*
 		Convoultion Layer D3
@@ -251,7 +258,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Activation Layer D4
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
 	)
 
 	/*
@@ -264,7 +272,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Activation Layer D6
 	*/
 	network.AddLayer(
-		activation.Leaky(handle),
+		//	activation.Leaky(handle),
+		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
 	)
 
 	/*

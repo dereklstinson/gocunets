@@ -55,7 +55,7 @@ func setup(handle *cudnn.Handler, mode activation.Mode, nanproped cudnn.NanMode,
 			Beta:  bf,
 		},
 		bwd: Scalars{
-			Alpha: af,
+			Alpha: ab,
 			Beta:  bb,
 		},
 	}, nil
@@ -132,13 +132,14 @@ func (a *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	//fmt.Println(a.fwd.alpha, a.fwd.beta)
 	if a.alphasbetas == nil {
 		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil)
-	}
-	if a.alphasbetas.DeltaT() == nil {
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.alphasbetas.T(), nil)
-	}
-	if a.alphasbetas.T() == nil {
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, a.alphasbetas.DeltaT())
-	}
+	} /*
+		if a.alphasbetas.DeltaT() == nil && a.alphasbetas.T() != nil {
+			return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.alphasbetas.T(), nil)
+		}
+		if a.alphasbetas.DeltaT() != nil && a.alphasbetas.T() == nil {
+			return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, a.alphasbetas.DeltaT())
+		}
+	*/
 	return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.alphasbetas.T(), a.alphasbetas.DeltaT())
 }
 
@@ -148,15 +149,17 @@ func (a *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	if a.alphasbetas == nil {
 		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil)
 	}
-	if a.alphasbetas.DeltaT() == nil {
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.alphasbetas.T(), nil)
+	/*
+		if a.alphasbetas.DeltaT() == nil && a.alphasbetas.T() != nil {
+			return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.alphasbetas.T(), nil)
 
-	}
-	if a.alphasbetas.T() == nil {
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, a.alphasbetas.DeltaT())
+		}
+		if a.alphasbetas.DeltaT() != nil && a.alphasbetas.T() == nil {
+			return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, a.alphasbetas.DeltaT())
 
-	}
-	return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.alphasbetas.DeltaT(), a.alphasbetas.DeltaT())
+		}
+	*/
+	return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.alphasbetas.T(), a.alphasbetas.DeltaT())
 
 }
 

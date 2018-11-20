@@ -11,7 +11,7 @@ func AdvancedThreshRandRelu(handle *cudnn.Handler, dtype cudnn.DataType, inputdi
 	var tff cudnn.TensorFormatFlag
 	var flg activation.ModeFlag
 
-	layer, err := setup(handle, flg.AdvancedThreshRandRelu(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
+	layer, err := setup(handle, flg.AdvancedThreshRandRelu(), defaultnanprop, 1.5, -.25, 1.5, -.25, defaultcoef)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func AdvancedThreshRandRelu(handle *cudnn.Handler, dtype cudnn.DataType, inputdi
 	if err != nil {
 		return nil, err
 	}
-	err = abs.DeltaT().SetRandomNormal(0, .07)
+	err = abs.DeltaT().SetRandomNormal(.001, .5) //Threshold
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func AdvancedThreshRandReluADVANCED(handle *cudnn.Handler, dtype cudnn.DataType,
 	var tff cudnn.TensorFormatFlag
 	var flg activation.ModeFlag
 
-	layer, err := setup(handle, flg.AdvancedThreshRandRelu(), nanprop, alphaforward, alphabackward, betaforward, betabackward, defaultcoef)
+	layer, err := setup(handle, flg.AdvancedThreshRandRelu(), nanprop, alphaforward, betaforward, alphabackward, betabackward, defaultcoef)
 	if err != nil {
 		return nil, err
 	}

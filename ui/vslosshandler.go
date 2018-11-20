@@ -31,13 +31,14 @@ type LabelFloat struct {
 //NewVSLossHandle Makes a VSLoss Handle.  If epoc is true it will label the x axis as epoc. Otherwise it will label it batch.
 // Just make sure you are passing the right amount of data through the LossData Channel.  So, the axis is labeled correctly.
 // Y axis will be labeled Loss.
-func NewVSLossHandle(title string, numberofplots int, epoc bool, LossData <-chan []LabelFloat) *VSLossHandler {
+func NewVSLossHandle(title string, LossData <-chan []LabelFloat, epoc bool, plotlengths int, labels ...string) (*VSLossHandler, []LabelFloat) {
 	var xaxis string
 	if epoc == true {
 		xaxis = "Epocs"
 	} else {
 		xaxis = "Batch"
 	}
+	numberofplots := len(labels)
 	y := make([][]float32, numberofplots)
 	data := make([]plot.LabeledData, numberofplots)
 	x := &VSLossHandler{
@@ -52,24 +53,36 @@ func NewVSLossHandle(title string, numberofplots int, epoc bool, LossData <-chan
 	}
 
 	go x.runchannel(LossData)
-
-	return x
+	lblflt := make([]LabelFloat, numberofplots)
+	for i := range lblflt {
+		lblflt[i].Data = make([]float32, plotlengths)
+		lblflt[i].Label = labels[i]
+	}
+	return x, lblflt
 }
 
 func (l *VSLossHandler) runchannel(LossData <-chan []LabelFloat) {
 
 	var err error
 	for array := range LossData {
-		for i := range array {
-			l.originaldata[i] = append(l.originaldata[i], array[i].Data...)
-			l.data[i], err = plot.NewLabeledData(array[i].Label, l.originaldata[i])
-		}
-		l.mux.Lock()
-		l.Plots, err = plot.Verses2(l.title, l.xaxis, l.yaxis, l.h, l.w, l.data)
-		l.mux.Unlock()
-		if err != nil {
-			panic(err)
-		}
+		go func(array []LabelFloat) {
+			l.mux.Lock()
+			for i := range array {
+				for j := range array[i].Data {
+					if array[i].Data[j] > 50 {
+						array[i].Data[j] = 50
+					}
+				}
+				l.originaldata[i] = append(l.originaldata[i], array[i].Data...)
+				l.data[i], err = plot.NewLabeledData(array[i].Label, l.originaldata[i])
+
+			}
+			l.Plots, err = plot.Verses2(l.title, l.xaxis, l.yaxis, l.h, l.w, l.data)
+			if err != nil {
+				panic(err)
+			}
+			l.mux.Unlock()
+		}(array)
 		//l.data[0].
 		//plot.NewLabeledData
 	}
@@ -86,10 +99,13 @@ func (l *VSLossHandler) ChangeHW(h, w int) {
 //F is the func used for the web handler
 func (l *VSLossHandler) Handle() func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
+
 		l.mux.Lock()
-		_, err := l.Plots.WriteTo(w)
-		if err != nil {
-			panic(err)
+		if l.Plots != nil {
+			_, err := l.Plots.WriteTo(w)
+			if err != nil {
+				panic(err)
+			}
 		}
 		l.mux.Unlock()
 	}

@@ -89,7 +89,7 @@ func main() {
 		utils.CheckError(err)
 	}
 
-	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Image
+	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Imageasdfasd
 	imagerlayer, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
 	utils.CheckError(err)
 	metabatchcounter := 0
@@ -102,14 +102,11 @@ func main() {
 
 	windows := ui.NewWindows(3, "http://localhost", ":8080", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, buffersize)
-
-	ArabicLoss := ui.NewVSLossHandle("Batch Loss", 1, false, LossDataChan)
-	windows.AddWindow("Arabic Loss", "", "100", "/ALoss/", ArabicLoss)
-	ArabicLossLabel := make([]ui.LabelFloat, 1)
-	ArabicLossLabel[0].Label = "Batch Loss"
 	lossplotlength := 200
 	lossplotindex := 0
-	ArabicLossLabel[0].Data = make([]float32, lossplotlength)
+	ArabicLoss, ArabicLossLabel := ui.NewVSLossHandle("Batch Loss", LossDataChan, false, lossplotlength, "Arabic Loss")
+	windows.AddWindow("Arabic Loss", "", "100", "/ALoss/", ArabicLoss)
+
 	go ui.ServerMain(windows)
 	for i := 0; i < epocs; i++ {
 		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif

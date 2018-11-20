@@ -209,6 +209,24 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 		}
 	}
 }
+func (m *Network) AddLayers(layer ...interface{}) {
+	for i := range layer {
+		switch x := layer[i].(type) {
+		case error:
+			if x != nil {
+				m.err <- x
+			}
+		default:
+			l := wraplayer(x)
+			if l == nil {
+				m.err <- errors.New("Unsupported Layer")
+			}
+			m.layer = append(m.layer, l)
+		}
+
+	}
+
+}
 
 //AddLayer adds a layer without setting the mem
 func (m *Network) AddLayer(layer interface{}, err error) {
@@ -218,7 +236,7 @@ func (m *Network) AddLayer(layer interface{}, err error) {
 	l := wraplayer(layer)
 	if l == nil {
 
-		m.err <- err
+		m.err <- errors.New("Unsupported Layer")
 	}
 	m.layer = append(m.layer, l)
 	return
