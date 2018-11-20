@@ -10,6 +10,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
 	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
+	"github.com/dereklstinson/GoCuNets/ui"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/dereklstinson/GoCuNets/utils/filing"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
@@ -23,6 +24,7 @@ const numofneurons = int32(50)
 const l1regularization = float32(.00001)
 const l2regularization = float32(.00001)
 const metabatchsize = 2
+const buffersize = 10
 
 func main() {
 	gocudnn.Cuda{}.LockHostThread()
@@ -97,6 +99,16 @@ func main() {
 	totalrunimage := make([]image.Image, 0)
 	ep := float32(epocs)
 	ap := float32(len(arabicnums))
+
+	windows := ui.NewWindows(3, "http://localhost:8080", "/index")
+	LossDataChan := make(chan []ui.LabelFloat, buffersize)
+
+	ArabicLoss := ui.NewVSLossHandle("Batch Loss", false, LossDataChan)
+	windows.AddWindow("Arabic Loss", "", "20", "/ALoss/", ArabicLoss)
+	ArabicLossLabel := make([]ui.LabelFloat, 1)
+	ArabicLossLabel[0].Label = "Batch Loss"
+	ArabicLossLabel[0].Data = make([]float32, 1)
+	go ui.ServerMain(windows)
 	for i := 0; i < epocs; i++ {
 		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif
 		images := make([]image.Image, 0)
@@ -116,7 +128,10 @@ func main() {
 				utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
 				utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
 				utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-				epoclossarabic += MSEArabic.Loss()
+				ArabicLossLabel[0].Data[0] = MSEArabic.Loss()
+
+				epoclossarabic += ArabicLossLabel[0].Data[0]
+				LossDataChan <- ArabicLossLabel
 				utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
 				utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 				if metabatchcounter < (metabatchsize) {

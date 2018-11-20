@@ -7,60 +7,83 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/utils/filing"
 )
 
 const imagefolderlocationtest = "/home/derek/Desktop/mpii/images/"
-const webpagelocationtest = "/home/derek/go/src/github.com/dereklstinson/GoCuNets/ui/index.html"
+const webpagelocationtest = "/home/derek/go/src/github.com/dereklstinson/GoCuNets/ui/index_test.html"
 const testingnewporttest = ":8081"
 
 //ServerMainTest is the test server with just a bunch of images from the harddrive
 func ServerMainTest() {
 	pagebytes, err := ioutil.ReadFile(webpagelocationtest)
 	check(err)
-	url := SetupURL("/loss/", "/inputimage/", "/outputimage/", "/extra1/", "/extra2/", "/extra3/")
+	url := []string{"/loss/", "/inputimage/", "/outputimage/", "/extra1/", "/extra2/", "/extra3/"}
+	headers := []string{"LALALAL", "BLABLALBA", "CHAHAHAH", "LOINWEFG", "jfgasdkl", "CRAZY"}
+	paragraphs := []string{"ppppLALALAL", "pppppBLABLALBA", "ppppppCHAHAHAH", "pppppLOINWEFG", "pppppjfgasdkl", "pppppCRAZY"}
+	refreshrate := []string{"10", "20", "100", "200", "1000", "2000"}
+	wpt2 := MakeWebPageTest2(testingnewporttest, 3, headers, paragraphs, refreshrate, url)
 	handlers := make([]imageHandler, 0)
-	for i := range url.url {
+	for i := range url {
 		handlers = append(handlers, makeimagehandler(imagefolderlocationtest, i*20))
 	}
-	serverlocation := "http://localhost" + testingnewporttest
+	//serverlocation := "http://localhost" + testingnewporttest
 	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		holdertemplate2test(w, serverlocation, url.url, string(pagebytes))
+		webpagesectiontemplate2(w, wpt2, string(pagebytes))
 
 		//	w.Header().Set("Cache-Control", "no-store")
 
 	}
 
 	http.HandleFunc("/index", helloHandler)
-	for i := range url.url {
-		http.HandleFunc(url.url[i], handlers[i].Handle())
+	for i := range url {
+		http.HandleFunc(url[i], handlers[i].Handle())
 
 	}
 
 	log.Fatal(http.ListenAndServe(testingnewporttest, nil))
 }
 
-//URLs are the urls for the
-type URLsTest struct {
-	url []string
+type DivOutputsTest struct {
+	Header    string
+	URL       string
+	ID        string
+	Paragraph string
+	NewRow    template.HTML
+	EndRow    template.HTML
+	Func      template.JS
+	MyVar     template.JS
+	Rate      template.JS
 }
 
-//WebPage is the webpage stuff
-type WebPageTest struct {
-	Url1 string
-	Url2 string
-	Url3 string
-	Url4 string
-	Url5 string
-	Url6 string
-}
+func MakeWebPageTest2(port string, columns int, headers, paragraphs, rate, url []string) []DivOutputsTest {
+	x := make([]DivOutputsTest, len(url))
+	newrow := template.HTML("<div class=\"row\">")
+	endrow := template.HTML("</div>")
+	for i := range x {
+		suffix := strconv.Itoa(i)
+		if i%columns == 0 {
+			x[i].NewRow = newrow
+		}
+		if i%columns == columns-1 {
+			x[i].EndRow = endrow
+		}
+		x[i].Rate = template.JS(rate[i])
+		//	x[i].Refresh = template.JS("refvar" + suffix)
+		x[i].URL = "http://localhost" + port + url[i]
+		x[i].Paragraph = paragraphs[i]
+		x[i].Header = headers[i]
+		x[i].ID = "image" + suffix
+		x[i].Func = template.JS("imagefunc" + suffix)
+		x[i].MyVar = template.JS("myvar" + suffix)
 
-//SetupURLTest to stream images
-func SetupURLTest(urls ...string) URLsTest {
-	return URLsTest{
-		url: urls,
 	}
+	//if (len(x)-1)%columns != columns-1{
+	x[len(x)-1].EndRow = endrow
+	//	}
+	return x
 }
 
 type imageHandler struct {
@@ -104,21 +127,13 @@ func (h *imageHandler) Handle() func(w http.ResponseWriter, req *http.Request) {
 	}
 
 }
+func webpagesectiontemplate2(w http.ResponseWriter, sections []DivOutputsTest, webpage string) {
 
-func holdertemplate2test(w http.ResponseWriter, serverlocation string, data []string, webpage string) {
-	urls := WebPageTest{
-		Url1: serverlocation + data[0],
-		Url2: serverlocation + data[1],
-		Url3: serverlocation + data[2],
-		Url4: serverlocation + data[3],
-		Url5: serverlocation + data[4],
-		Url6: serverlocation + data[5],
-	}
 	//t, err := template.ParseFiles(pagelocation)
 	//t, err := template.New("index").ParseFiles(webpagelocation)
 	t, err := template.New("webpage").Parse(webpage)
 	check(err)
 
-	check(t.Execute(w, urls))
+	check(t.Execute(w, sections))
 
 }

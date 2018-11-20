@@ -1,4 +1,4 @@
-<!--
+<!--- 
 <html lang="en">
 <head>
 <title>GoCuNets Output</title>
@@ -89,7 +89,11 @@ body {
 </div>
 {{range .}}
 {{ .NewRow}}
+
+
+
   <div class="column">
+	
   	<h2>{{.Header}}</h2>
 		<img id="{{.Id}}" src="{{.Url}}">
 		<p>{{.Paragraph}}</p>
@@ -103,6 +107,8 @@ body {
         </script>
 </div>
 {{ .EndRow}}
+
+
 {{end}}
 
 

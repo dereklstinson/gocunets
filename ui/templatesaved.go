@@ -1,5 +1,10 @@
-<!--
-<html lang="en">
+package ui
+
+func webTemp() string {
+	return thewebpagetemplatest2
+}
+
+const thewebpagetemplatest2 = `<html lang="en">
 <head>
 <title>GoCuNets Output</title>
 <meta charset="utf-8">
@@ -110,5 +115,4 @@ body {
 	
 </body>
 </html>
-
--->
+`
