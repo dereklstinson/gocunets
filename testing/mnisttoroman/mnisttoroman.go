@@ -24,7 +24,7 @@ const numofneurons = int32(50)
 const l1regularization = float32(.00001)
 const l2regularization = float32(.00001)
 const metabatchsize = 2
-const buffersize = 10
+const buffersize = 5000
 
 func main() {
 	gocudnn.Cuda{}.LockHostThread()
@@ -100,14 +100,16 @@ func main() {
 	ep := float32(epocs)
 	ap := float32(len(arabicnums))
 
-	windows := ui.NewWindows(3, "http://localhost:8080", "/index")
+	windows := ui.NewWindows(3, "http://localhost", ":8080", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, buffersize)
 
-	ArabicLoss := ui.NewVSLossHandle("Batch Loss", false, LossDataChan)
-	windows.AddWindow("Arabic Loss", "", "20", "/ALoss/", ArabicLoss)
+	ArabicLoss := ui.NewVSLossHandle("Batch Loss", 1, false, LossDataChan)
+	windows.AddWindow("Arabic Loss", "", "100", "/ALoss/", ArabicLoss)
 	ArabicLossLabel := make([]ui.LabelFloat, 1)
 	ArabicLossLabel[0].Label = "Batch Loss"
-	ArabicLossLabel[0].Data = make([]float32, 1)
+	lossplotlength := 200
+	lossplotindex := 0
+	ArabicLossLabel[0].Data = make([]float32, lossplotlength)
 	go ui.ServerMain(windows)
 	for i := 0; i < epocs; i++ {
 		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif
@@ -128,10 +130,19 @@ func main() {
 				utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
 				utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
 				utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-				ArabicLossLabel[0].Data[0] = MSEArabic.Loss()
+				if lossplotindex < lossplotlength {
+					ArabicLossLabel[0].Data[lossplotindex] = MSEArabic.Loss()
 
-				epoclossarabic += ArabicLossLabel[0].Data[0]
-				LossDataChan <- ArabicLossLabel
+				} else {
+					lossplotindex = 0
+					LossDataChan <- ArabicLossLabel
+					ArabicLossLabel[0].Data[lossplotindex] = MSEArabic.Loss()
+
+				}
+
+				epoclossarabic += ArabicLossLabel[0].Data[lossplotindex]
+				lossplotindex++
+
 				utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
 				utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 				if metabatchcounter < (metabatchsize) {

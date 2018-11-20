@@ -96,14 +96,14 @@ body {
 {{ .NewRow}}
   <div class="column">
   	<h2>{{.Header}}</h2>
-		<img id="{{.Id}}" src="{{.Url}}">
+		<img id="{{.ID}}" src="{{.URL}}">
 		<p>{{.Paragraph}}</p>
 		<script>
 			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}})
 		function {{.Func}}(){
 			var d = new Date();
-			var theurl = "{{.Url}}"+d.toLocaleTimeString();
-			 document.getElementById("{{.Id}}").src= theurl;
+			var theurl = "{{.URL}}"+d.toLocaleTimeString();
+			 document.getElementById("{{.ID}}").src= theurl;
 		}
         </script>
 </div>

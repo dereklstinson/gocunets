@@ -26,19 +26,21 @@ type Windows struct {
 	windows          []DivOutputs
 	handlers         []Handler
 	columns          int
+	port             string
 	ipaddressandport string
 	page             string
 }
 
-func NewWindows(columns int, ipaddresswithport, page string) Windows {
+func NewWindows(columns int, ipaddress, port, page string) Windows {
 	return Windows{
+		port:             port,
 		columns:          columns,
-		ipaddressandport: ipaddresswithport,
+		ipaddressandport: ipaddress + port,
 		page:             page,
 	}
 }
 func (w *Windows) AddWindow(header, paragraph, refreshrate, url string, h Handler) {
-	i := len(w.windows) - 1
+	i := len(w.windows)
 	suffix := strconv.Itoa(i)
 	var newrow template.HTML
 	var endrow template.HTML
@@ -84,7 +86,7 @@ func ServerMain(windows Windows) {
 	for i := range windows.windows {
 		http.HandleFunc(windows.windows[i].Name, windows.handlers[i].Handle())
 	}
-	log.Fatal(http.ListenAndServe(testingnewporttest, nil))
+	log.Fatal(http.ListenAndServe(windows.port, nil))
 
 }
 func handleindex(w http.ResponseWriter, windows Windows, webpage string) {

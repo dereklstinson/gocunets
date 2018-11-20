@@ -31,21 +31,24 @@ type LabelFloat struct {
 //NewVSLossHandle Makes a VSLoss Handle.  If epoc is true it will label the x axis as epoc. Otherwise it will label it batch.
 // Just make sure you are passing the right amount of data through the LossData Channel.  So, the axis is labeled correctly.
 // Y axis will be labeled Loss.
-func NewVSLossHandle(title string, epoc bool, LossData <-chan []LabelFloat) *VSLossHandler {
+func NewVSLossHandle(title string, numberofplots int, epoc bool, LossData <-chan []LabelFloat) *VSLossHandler {
 	var xaxis string
 	if epoc == true {
 		xaxis = "Epocs"
 	} else {
 		xaxis = "Batch"
 	}
-
+	y := make([][]float32, numberofplots)
+	data := make([]plot.LabeledData, numberofplots)
 	x := &VSLossHandler{
-		epoc:  epoc,
-		title: title,
-		xaxis: xaxis,
-		yaxis: "Loss",
-		h:     6,
-		w:     15,
+		epoc:         epoc,
+		title:        title,
+		xaxis:        xaxis,
+		yaxis:        "Loss",
+		h:            6,
+		w:            15,
+		originaldata: y,
+		data:         data,
 	}
 
 	go x.runchannel(LossData)

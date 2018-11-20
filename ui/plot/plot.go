@@ -97,7 +97,7 @@ func Verses2(title, xaxis, yaxis string, h, w int, data []LabeledData) (io.Write
 			panic(err)
 		}
 	}
-	return p.WriterTo(vg.Length(h)*vg.Centimeter, vg.Length(w)*vg.Centimeter, "jpg")
+	return p.WriterTo(vg.Length(w)*vg.Centimeter, vg.Length(h)*vg.Centimeter, "jpg")
 
 }
 
