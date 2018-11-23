@@ -12,10 +12,8 @@ import (
 	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
 	"github.com/dereklstinson/GoCuNets/ui"
 	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCuNets/utils/filing"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
 	"github.com/dereklstinson/GoCudnn"
-	"github.com/nfnt/resize"
 )
 
 const learningrates = .001
@@ -24,7 +22,6 @@ const numofneurons = int32(50)
 const l1regularization = float32(.00001)
 const l2regularization = float32(.00001)
 const metabatchsize = 2
-const buffersize = 5000
 
 func main() {
 	gocudnn.Cuda{}.LockHostThread()
@@ -69,8 +66,7 @@ func main() {
 	romanoutput := putintogpumemRoman(batchedoutput, []int32{10, 1, 28, 28}, fflag.NCHW(), dataflag.Float(), true)
 	//Load the batches into gpu mem this is basically the Arabic numbers are place in arabicoutput.T() and arabicnums.DeltaT()
 	arabicoutput, arabicnums := putintogpumemArabic(batchesofinputbatches, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
-	imager, err := imaging.MakeImager(handles)
-	utils.CheckError(err)
+
 	epocs := 200
 	///snapshotsize := 500
 	MSEArabic, err := loss.CreateMSECalculatorGPU(handles, true)
@@ -90,126 +86,149 @@ func main() {
 	}
 
 	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Imageasdfasd
-	imagerlayer, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
-	utils.CheckError(err)
+
 	metabatchcounter := 0
-	var startroman bool
-	var metabatchbool bool
-	var actuallystartromannow bool
-	totalrunimage := make([]image.Image, 0)
-	ep := float32(epocs)
-	ap := float32(len(arabicnums))
+	metabatchcounter1 := 0
+	//	var startroman bool
+	//var metabatchbool bool
+	//var actuallystartromannow bool
 
-	windows := ui.NewWindows(3, "http://localhost", ":8080", "/index")
-	LossDataChan := make(chan []ui.LabelFloat, buffersize)
-	lossplotlength := 200
-	lossplotindex := 0
-	ArabicLoss, ArabicLossLabel := ui.NewVSLossHandle("Batch Loss", LossDataChan, false, lossplotlength, "Arabic Loss")
-	windows.AddWindow("Arabic Loss", "", "100", "/ALoss/", ArabicLoss)
+	windows := ui.NewWindows(4, "http://localhost", ":8080", "/index")
+	LossDataChan := make(chan []ui.LabelFloat, 2)
+	lossplotlength := 1
 
+	imagebuffer := 5
+	imagechans := make([]chan image.Image, 3)
+	bufferindex := make([]chan int, 3)
+	imagerlayer := make([]*layers.IO, 3)
+	imagehandlers := make([]*ui.ImageHandler, 3)
+	imager := make([]*imaging.Imager, 3)
+
+	for i := range imagehandlers {
+		imager[i], err = imaging.MakeImager(handles)
+		utils.CheckError(err)
+		imagechans[i] = make(chan image.Image, imagebuffer)
+		bufferindex[i] = make(chan int, 3)
+		imagehandlers[i] = ui.MakeImageHandler(imagebuffer, imagechans[i], bufferindex[i])
+		imagerlayer[i], err = layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+		utils.CheckError(err)
+	}
+	refresh := "2000"
+	ceiling := float32(9)
+	ArabicLoss, EpocLosses := ui.NewVSLossHandle("Epoc Loss", ceiling, LossDataChan, true, lossplotlength, "Arabic Loss", "Roman Loss")
+	windows.AddWindow("Arabic Loss Vs Roman Loss", "", refresh, "/ALoss/", ArabicLoss)
+	windows.AddWindow("Roman Output", "These are the Roman outputs", refresh, "/romanout/", imagehandlers[0])
+	windows.AddWindow("Arabic Output", "These are the Arabic outputs", refresh, "/arabicoutput/", imagehandlers[1])
+	windows.AddWindow("Input Image", "Here is the input image for the outputs", refresh, "/arabicinput/", imagehandlers[2])
 	go ui.ServerMain(windows)
+	EpocLosses[0].Data[0] = ceiling
+	EpocLosses[1].Data[0] = ceiling
+	LossDataChan <- EpocLosses
 	for i := 0; i < epocs; i++ {
-		giffer := imaging.NewGiffer(0, 1) //giffer stacks a bunch of images and puts them into a gif
-		images := make([]image.Image, 0)
+
 		//Making a lossaray to calculate the loss per batch
 		epoclossarabic := float32(0)
 		epoclossroman := float32(0)
 
 		for j := range arabicnums {
-			if metabatchcounter == 0 {
-				metabatchbool = true
+			/*
+				if metabatchcounter == 0 {
+					metabatchbool = true
+				} else {
+					metabatchbool = false
+				}
+			*/
+			utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
+			//choketoroman.LoadTValues(chokepoint.T().Memer())
+			utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
+			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
+			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
+
+			epoclossarabic += MSEArabic.Loss()
+
+			utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
+			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
+			if metabatchcounter < (metabatchsize) {
+				metabatchcounter++
 			} else {
-				metabatchbool = false
+				//	stream.Sync()
+				batchsize := 10 * metabatchsize
+				utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
+				utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
+				metabatchcounter = 0
+
 			}
-			if (!startroman || !metabatchbool) && !actuallystartromannow {
-				utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
-				//choketoroman.LoadTValues(chokepoint.T().Memer())
-				utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
-				utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
-				utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-				if lossplotindex < lossplotlength {
-					ArabicLossLabel[0].Data[lossplotindex] = MSEArabic.Loss()
+			//if !((!startroman || !metabatchbool) && !actuallystartromannow) {
 
-				} else {
-					lossplotindex = 0
-					LossDataChan <- ArabicLossLabel
-					ArabicLossLabel[0].Data[lossplotindex] = MSEArabic.Loss()
+			//actuallystartromannow = true
+			//utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint))
+			//	choketoroman.LoadTValues(chokepoint.T().Memer())
+			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
+			utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
+			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
+			epoclossroman += MSERoman.Loss()
+			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
 
-				}
-
-				epoclossarabic += ArabicLossLabel[0].Data[lossplotindex]
-				lossplotindex++
-
-				utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
-				utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
-				if metabatchcounter < (metabatchsize) {
-					metabatchcounter++
-				} else {
-					//	stream.Sync()
-					batchsize := 10 * metabatchsize
-					utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
-					utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
-					metabatchcounter = 0
-
-				}
+			if metabatchcounter1 < (metabatchsize) {
+				metabatchcounter1++
 
 			} else {
-				actuallystartromannow = true
-				//utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint))
-				//	choketoroman.LoadTValues(chokepoint.T().Memer())
-				utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
-				utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
-				utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
-				epoclossroman += MSERoman.Loss()
-				utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
+				batchsize := 10 * metabatchsize
+				utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
+				metabatchcounter1 = 0
+			}
 
-				if j%int(ap*(float32(i+1)/ep)) == int(ap*(float32(i+1)/ep))-1 {
-					imagerlayer.LoadTValues(romanoutput.T().Memer())
-					outputimage, err := imager.TileBatches(handles, imagerlayer, 2, 5)
-					utils.CheckError(err)
-					images = append(images, outputimage)
+			//	}
+
+			for k := range bufferindex {
+
+				var w int
+				select {
+				case w = <-bufferindex[k]:
+				default:
+					w = 0
 				}
 
-				if metabatchcounter < (metabatchsize) {
-					metabatchcounter++
+				if w < imagebuffer {
+					switch k {
+					case 0:
+						imagerlayer[k].LoadTValues(romanoutput.T().Memer())
+						outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
+						utils.CheckError(err)
+						imagechans[k] <- outputimage
+					case 1:
+						imagerlayer[k].LoadTValues(ArabicOutput.T().Memer())
+						outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
+						utils.CheckError(err)
+						imagechans[k] <- outputimage
+					case 2:
+						imagerlayer[k].LoadTValues(arabicnums[j].T().Memer())
+						outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
+						utils.CheckError(err)
+						imagechans[k] <- outputimage
+					}
 
 				} else {
-					batchsize := 10 * metabatchsize
-					utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
-					metabatchcounter = 0
+
 				}
-
 			}
 
-		}
-		if actuallystartromannow == true {
-			somenewimages := make([]image.Image, len(images))
-			for j := range images {
-				somenewimages[j] = resize.Resize(0, 280, images[j], resize.NearestNeighbor)
-			}
-			totalrunimage = append(totalrunimage, somenewimages...)
 		}
 
 		epoclossroman /= float32(len(arabicnums))
 		epoclossarabic /= float32(len(arabicnums))
+		EpocLosses[0].Data[0] = epoclossarabic
+		EpocLosses[1].Data[0] = epoclossroman
+		LossDataChan <- EpocLosses
+
 		stream.Sync()
 		fmt.Println("Epoc: ", i, "ROMAN Loss : ", epoclossroman, "ARABIC Loss: ", epoclossarabic)
-		if epoclossarabic <= 5 {
-			startroman = true
-		}
-
-		if (actuallystartromannow == true && epoclossroman <= 3) || i >= epocs-1 {
-			fmt.Println("HIT  Loss")
-			giffer.MakeGrayGif(totalrunimage)
-			fmt.Println("Writing GIF")
-			utils.CheckError(filing.WritetoHD(imagesave, "AutoDCresize0", giffer))
-
-			//	utils.CheckError(filing.WriteImage(imagesave, "AutoEncoder"+number, outputimage))
-			fmt.Println("Done Writing GIF")
-			devs[0].Reset()
-			return
-		}
-		//	shuffle(arabicnums, arabicoutput)
+		/*
+			if epoclossarabic <= 13 {
+				startroman = true
+			}
+		*/
+		shuffle(arabicnums, arabicoutput)
 
 	}
 
@@ -238,9 +257,10 @@ func putintogpumemRoman(romans []float32, dimsroman []int32, frmt cudnn.TensorFo
 	utils.CheckError(err)
 	return output
 }
-func shuffle(runs []*layers.IO) {
+func shuffle(runs, output []*layers.IO) {
 	rand.Shuffle(len(runs), func(i, j int) {
 		runs[i], runs[j] = runs[j], runs[i]
+		output[i], output[j] = output[j], output[i]
 	})
 }
 

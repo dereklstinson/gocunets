@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/pkg/browser"
 )
 
 /*
@@ -32,6 +34,7 @@ type Windows struct {
 }
 
 func NewWindows(columns int, ipaddress, port, page string) Windows {
+	browser.OpenURL(ipaddress + port + page)
 	return Windows{
 		port:             port,
 		columns:          columns,

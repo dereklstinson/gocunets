@@ -48,8 +48,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Activation Layer D2       9
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
+		activation.Leaky(handle),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
 	)
 	/*
 		Convoultion Layer D3      10
@@ -61,8 +61,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Activation Layer D4        11
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
+		activation.Leaky(handle),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
 	)
 
 	/*
@@ -75,7 +75,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Activation Layer D6       13
 	*/
 	network.AddLayer(
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
+		activation.Leaky(handle),
 	)
 
 	/*
@@ -142,7 +143,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Activation Layer E2    1
 	*/
 	network.AddLayer(
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
+		activation.Leaky(handle),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
 	)
 	/*
 		Convoultion Layer E3    2
@@ -154,8 +156,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Activation Layer E4    3
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
+		activation.Leaky(handle),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
 	)
 
 	/*
@@ -168,8 +170,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Activation Layer E6    5
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 7, 7}, true),
+		activation.Leaky(handle),
+	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 7, 7}, true),
 	)
 	/*
 		Convoultion Layer E7    6
@@ -183,8 +185,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 	*/
 	network.AddLayer(
 
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 1, 1}, true),
+		activation.Leaky(handle),
+	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 1, 1}, true),
 	)
 
 	//var err error
@@ -245,8 +247,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Activation Layer D2
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
+		activation.Leaky(handle),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
 	)
 	/*
 		Convoultion Layer D3
@@ -258,8 +260,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Activation Layer D4
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
+		activation.Leaky(handle),
+		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
 	)
 
 	/*
@@ -272,8 +274,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Activation Layer D6
 	*/
 	network.AddLayer(
-		//	activation.Leaky(handle),
-		activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
+		activation.Leaky(handle),
+	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
 	)
 
 	/*

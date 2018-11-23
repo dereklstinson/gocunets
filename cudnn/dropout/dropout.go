@@ -20,12 +20,12 @@ type Ops struct {
 
 //BackProp does the back propagation for dropoutlayer
 func (op *Ops) BackProp(handle *cudnn.Handler, dx, dy *tensor.Volume) error {
-	return gocudnn.DropOut{}.Funcs.DropoutBackward(handle.Cudnn(), op.dropout, dy.TD(), dy.Memer(), dx.TD(), dx.Memer(), op.reserve)
+	return op.dropout.DropoutBackward(handle.Cudnn(), dy.TD(), dy.Memer(), dx.TD(), dx.Memer(), op.reserve)
 }
 
 //ForwardProp does the feed forward
 func (op *Ops) ForwardProp(handle *cudnn.Handler, x, y *tensor.Volume) error {
-	return gocudnn.DropOut{}.Funcs.DropoutForward(handle.Cudnn(), op.dropout, x.TD(), x.Memer(), y.TD(), y.Memer(), op.reserve)
+	return op.dropout.DropoutForward(handle.Cudnn(), x.TD(), x.Memer(), y.TD(), y.Memer(), op.reserve)
 }
 
 //Destroy destroys the dropout layer
@@ -57,10 +57,7 @@ func (op *Ops) Destroy() error {
 
 //Stage stages the op
 func Stage(handle *cudnn.Handler, x *tensor.Volume, dropout float32, seed uint64, managed bool) (*Ops, error) {
-	desc, err := gocudnn.DropOut{}.CreateDropoutDescriptor()
-	if err != nil {
-		return nil, err
-	}
+
 	rss, err := gocudnn.DropOut{}.Funcs.DropoutGetReserveSpaceSize(x.TD())
 	if err != nil {
 		return nil, err
@@ -79,7 +76,8 @@ func Stage(handle *cudnn.Handler, x *tensor.Volume, dropout float32, seed uint64
 			reserve.Free()
 			return nil, err
 		}
-		err = desc.SetDropoutDescriptor(handle.Cudnn(), dropout, state, sss, seed)
+
+		desc, err := gocudnn.DropOut{}.NewDropoutDescriptor(handle.Cudnn(), dropout, state, sss, seed)
 		if err != nil {
 			state.Free()
 			reserve.Free()
@@ -104,7 +102,7 @@ func Stage(handle *cudnn.Handler, x *tensor.Volume, dropout float32, seed uint64
 		reserve.Free()
 		return nil, err
 	}
-	err = desc.SetDropoutDescriptor(handle.Cudnn(), dropout, state, sss, seed)
+	desc, err := gocudnn.DropOut{}.NewDropoutDescriptor(handle.Cudnn(), dropout, state, sss, seed)
 	if err != nil {
 		state.Free()
 		reserve.Free()

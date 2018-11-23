@@ -11,6 +11,7 @@ import (
 //VSLossHandler draws a vs chart for loss.  You might want to put several things in it like Training Loss Vs Testing Loss.
 type VSLossHandler struct {
 	Plots        io.WriterTo
+	ceiling      float32
 	title        string
 	xaxis        string
 	yaxis        string
@@ -31,7 +32,7 @@ type LabelFloat struct {
 //NewVSLossHandle Makes a VSLoss Handle.  If epoc is true it will label the x axis as epoc. Otherwise it will label it batch.
 // Just make sure you are passing the right amount of data through the LossData Channel.  So, the axis is labeled correctly.
 // Y axis will be labeled Loss.
-func NewVSLossHandle(title string, LossData <-chan []LabelFloat, epoc bool, plotlengths int, labels ...string) (*VSLossHandler, []LabelFloat) {
+func NewVSLossHandle(title string, ceiling float32, LossData <-chan []LabelFloat, epoc bool, plotlengths int, labels ...string) (*VSLossHandler, []LabelFloat) {
 	var xaxis string
 	if epoc == true {
 		xaxis = "Epocs"
@@ -43,6 +44,7 @@ func NewVSLossHandle(title string, LossData <-chan []LabelFloat, epoc bool, plot
 	data := make([]plot.LabeledData, numberofplots)
 	x := &VSLossHandler{
 		epoc:         epoc,
+		ceiling:      ceiling,
 		title:        title,
 		xaxis:        xaxis,
 		yaxis:        "Loss",
@@ -69,8 +71,8 @@ func (l *VSLossHandler) runchannel(LossData <-chan []LabelFloat) {
 			l.mux.Lock()
 			for i := range array {
 				for j := range array[i].Data {
-					if array[i].Data[j] > 50 {
-						array[i].Data[j] = 50
+					if array[i].Data[j] > l.ceiling {
+						array[i].Data[j] = l.ceiling
 					}
 				}
 				l.originaldata[i] = append(l.originaldata[i], array[i].Data...)
@@ -108,6 +110,7 @@ func (l *VSLossHandler) Handle() func(w http.ResponseWriter, req *http.Request) 
 			}
 		}
 		l.mux.Unlock()
+
 	}
 
 }

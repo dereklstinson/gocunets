@@ -187,7 +187,7 @@ func (c *Ops) BwdPropData(
 	alpha float64,
 	w *tensor.Volume,
 	dy *tensor.Volume,
-	wspace gocudnn.Memer,
+	wspace *gocudnn.Malloced,
 	beta float64,
 	dx *tensor.Volume) error {
 
@@ -233,7 +233,7 @@ func (c *Ops) BwdPropFilt(
 	alpha float64,
 	x *tensor.Volume,
 	dy *tensor.Volume,
-	wspace gocudnn.Memer,
+	wspace *gocudnn.Malloced,
 	beta float64,
 	dw *tensor.Volume) error {
 
@@ -272,7 +272,7 @@ func (c *Ops) FwdProp(
 	alpha float64,
 	x *tensor.Volume,
 	w *tensor.Volume,
-	wspace gocudnn.Memer,
+	wspace *gocudnn.Malloced,
 	beta float64,
 	y *tensor.Volume) error {
 
