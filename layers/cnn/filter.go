@@ -4,10 +4,12 @@ package cnn
 import (
 	"encoding/json"
 	"errors"
+	"image"
 	"io"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -40,10 +42,11 @@ type Layer struct {
 	l2w        float32
 }
 
-//TempSave is a temporary struct for saving.  It will most likely be changed
-type TempSave struct {
-	Weights layers.Info `json:"Weights"`
-	Bias    layers.Info `json:"Bias"`
+//Params is a temporary struct for saving.  It will most likely be changed
+type Params struct {
+	Layer   string      `json:"Layer"`
+	Weights tensor.Info `json:"Weights"`
+	Bias    tensor.Info `json:"Bias"`
 }
 type xtras struct {
 	alpha  float64
@@ -55,29 +58,40 @@ func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
-//Encode saves the weights to json
-func (c *Layer) Encode(w io.Writer) error {
-	var save TempSave
-	weights, err := c.w.Info()
+type PNGimage struct {
+	im image.Image
+}
+
+//WriteTo allows the json to be saved
+func (t *Params) WriteTo(w io.Writer) (int64, error) {
+	marshed, err := json.Marshal(t)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	b, err := c.bias.Info()
+	x, err := w.Write(marshed)
+	return int64(x), err
+}
+func (c *Layer) PNGW() *PNGimage {
+	return &PNGimage{}
+}
+
+//SaveParams converts the weights a params struct so it can be written
+func (c *Layer) SaveParams() *Params {
+
+	var save Params
+	save.Layer = "CNN"
+	weights, err := c.w.T().Info()
 	if err != nil {
-		return err
+		return nil
+	}
+	b, err := c.bias.T().Info()
+	if err != nil {
+		return nil
 	}
 	save.Bias = b
 	save.Weights = weights
-	marshed, err := json.Marshal(save)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(marshed)
-	if err != nil {
 
-		return err
-	}
-	return nil
+	return &save
 }
 
 //UpdateWeights does the weight update

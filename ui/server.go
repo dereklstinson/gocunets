@@ -27,37 +27,41 @@ type Handler interface {
 type Windows struct {
 	windows          []DivOutputs
 	handlers         []Handler
-	columns          int
+	columnsperrow    []int
+	currentrow       int
+	currentcol       int
 	port             string
 	ipaddressandport string
 	page             string
 }
 
-func NewWindows(columns int, ipaddress, port, page string) Windows {
+func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
 	browser.OpenURL(ipaddress + port + page)
 	return Windows{
 		port:             port,
-		columns:          columns,
+		columnsperrow:    columnsperrow,
 		ipaddressandport: ipaddress + port,
 		page:             page,
 	}
 }
 func (w *Windows) AddWindow(header, paragraph, refreshrate, url string, h Handler) {
+
 	i := len(w.windows)
 	suffix := strconv.Itoa(i)
 	var newrow template.HTML
 	var endrow template.HTML
 
-	if i%w.columns == 0 {
+	if i%w.columnsperrow[w.currentrow] == 0 {
 		newrow = template.HTML("<div class=\"row\">")
 	}
-	if i%w.columns == w.columns-1 {
+	if i%w.columnsperrow[w.currentrow] == w.columnsperrow[w.currentrow]-1 {
 		endrow = template.HTML("</div>")
 	}
 
 	//	x[i].Refresh = template.JS("refvar" + suffix)
-
+	colwide := colstring(w.columnsperrow[w.currentrow])
 	d := DivOutputs{
+		ColWid:    colwide,
 		NewRow:    newrow,
 		EndRow:    endrow,
 		Header:    header,
@@ -71,10 +75,35 @@ func (w *Windows) AddWindow(header, paragraph, refreshrate, url string, h Handle
 	}
 	w.windows = append(w.windows, d)
 	w.handlers = append(w.handlers, h)
+	w.currentcol++
+	if !(w.currentcol < w.columnsperrow[w.currentrow]) {
+		w.currentcol = 0
+		if w.currentrow < len(w.columnsperrow)-1 {
+			w.currentrow++
+		}
+	}
 }
 func (w *Windows) endlastrow() {
 	i := len(w.windows) - 1
 	w.windows[i].EndRow = template.HTML("</div>")
+}
+func colstring(columns int) string {
+	switch columns {
+	case 5:
+		return "column12_5"
+
+	case 4:
+		return "column25"
+	case 3:
+		return "column33"
+
+	case 2:
+		return "column50"
+
+	case 1:
+		return "column100"
+	}
+	return ""
 }
 
 const webpagelocation = "/home/derek/go/src/github.com/dereklstinson/GoCuNets/ui/index.html"
@@ -111,6 +140,7 @@ type DivOutputs struct {
 	ID        string
 	Paragraph string
 	Name      string
+	ColWid    string
 	NewRow    template.HTML
 	EndRow    template.HTML
 	Func      template.JS

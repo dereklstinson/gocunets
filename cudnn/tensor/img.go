@@ -1,6 +1,5 @@
 package tensor
 
-/*
 import (
 	"errors"
 	"fmt"
@@ -10,7 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn"
 )
 
 func arraysizefromdims(dims []int32) int {
@@ -170,8 +169,8 @@ func (t *Volume) convert() ([][]image.Image, error) {
 		return nil, errors.New("Dims of 4 only supported")
 	}
 
-	var tf gocudnn.TensorFormatFlag
-	var dt gocudnn.DataTypeFlag
+	var tf cudnn.TensorFormatFlag
+	var dt cudnn.DataTypeFlag
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +243,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 				for k := 0; k < maxy; k++ {
 					for l := 0; l < maxx; l++ {
 						pix := conv[(i*chans*maxy*maxx)+(j*maxy*maxx)+(k*maxx)+l]
-						img.Set(j, i, color.RGBA{pix, pix, pix, 255})
+						img.Set(l, k, color.RGBA{pix, pix, pix, 255})
 					}
 				}
 				imgs[i][j] = img
@@ -266,7 +265,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 				for k := 0; k < maxy; k++ {
 					for l := 0; l < maxx; l++ {
 						pix := conv[(i*chans*maxy*maxx)+(k*chans*maxx)+(k*chans)+j]
-						img.Set(j, i, color.RGBA{pix, pix, pix, 255})
+						img.Set(l, k, color.RGBA{pix, pix, pix, 255})
 					}
 				}
 				imgs[i][j] = img
@@ -290,7 +289,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 				for k := 0; k < maxy; k++ {
 					for l := 0; l < maxx; l++ {
 						pix := conv[(i*chans*maxy*maxx)+(j*maxy*maxx)+(k*maxx)+l]
-						img.Set(j, i, color.RGBA{pix, pix, pix, 255})
+						img.Set(l, k, color.RGBA{pix, pix, pix, 255})
 					}
 				}
 				imgs[i][j] = img
@@ -300,4 +299,3 @@ func (t *Volume) convert() ([][]image.Image, error) {
 
 	return imgs, nil
 }
-*/

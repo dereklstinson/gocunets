@@ -95,7 +95,7 @@ func main() {
 	//var metabatchbool bool
 	//var actuallystartromannow bool
 
-	windows := ui.NewWindows(4, "http://localhost", ":8080", "/index")
+	windows := ui.NewWindows([]int{4}, "http://localhost", ":8080", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, 2)
 	lossplotlength := 1
 

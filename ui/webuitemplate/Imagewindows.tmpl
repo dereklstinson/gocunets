@@ -1,0 +1,18 @@
+
+{{range .}}
+{{ .NewRow}}
+  <div class="{{.ColWid}}">
+  	<h2>{{.Header}}</h2>
+		<img id="{{.ID}}" src="{{.URL}}">
+		<p>{{.Paragraph}}</p>
+		<script>
+			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}})
+		function {{.Func}}(){
+			var d = new Date();
+			var theurl = "{{.URL}}"+d.toLocaleTimeString();
+			 document.getElementById("{{.ID}}").src= theurl;
+		}
+        </script>
+</div>
+{{ .EndRow}}
+{{end}}

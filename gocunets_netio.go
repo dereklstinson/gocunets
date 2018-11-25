@@ -11,19 +11,19 @@ import (
 
 //LayerIOMinMax contains the minmax for an layer
 type LayerIOMinMax struct {
-	Name    string
-	IO      bool
-	Weights IOMinMax
-	Bias    IOMinMax
+	Name    string   `json:"name,omitempty"`
+	IO      bool     `json:"io,omitempty"`
+	Weights IOMinMax `json:"weights,omitempty"`
+	Bias    IOMinMax `json:"bias,omitempty"`
 }
 
 //IOMinMax contains the IO minmax
 type IOMinMax struct {
-	Name  string
-	Minx  []float32
-	Maxx  []float32
-	Mindx []float32
-	Maxdx []float32
+	Name  string    `json:"name,omitempty"`
+	Minx  []float32 `json:"minx,omitempty"`
+	Maxx  []float32 `json:"maxx,omitempty"`
+	Mindx []float32 `json:"mindx,omitempty"`
+	Maxdx []float32 `json:"maxdx,omitempty"`
 }
 type netios struct {
 	cnn     *cnn.Layer
@@ -31,6 +31,18 @@ type netios struct {
 	io      *layers.IO
 }
 
+//GetMinMaxes returns the min maxes for all the weights and biases and hidden ios in the network
+func (m *Network) GetMinMaxes(handle *cudnn.Handler) ([]*LayerIOMinMax, error) {
+	x := make([]*LayerIOMinMax, len(m.totalionets))
+	var err error
+	for i := range m.totalionets {
+		x[i], err = m.totalionets[i].minmaxes(handle)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return x, nil
+}
 func wrapnetio(input interface{}) *netios {
 	switch l := input.(type) {
 
@@ -93,7 +105,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler, batches bool) error {
 
 	return nil
 }
-func (n *netios) XMinMax(handle *cudnn.Handler) (*LayerIOMinMax, error) {
+func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 	switch {
 	case n.cnn != nil:
 		var err error
