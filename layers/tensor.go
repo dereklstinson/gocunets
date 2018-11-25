@@ -12,11 +12,13 @@ import (
 
 //IO is an all purpose struct that contains an x tensor and a dx tensor used for training
 type IO struct {
-	x       *tensor.Volume
-	dx      *tensor.Volume
-	input   bool
-	dims    []int32
-	managed bool
+	x            *tensor.Volume
+	dx           *tensor.Volume
+	minx, maxx   *reduceop
+	mindx, maxdx *reduceop
+	input        bool
+	dims         []int32
+	managed      bool
 }
 
 //Settings contains the info that is needed to build an IO
@@ -52,6 +54,30 @@ func (i *IO) StoreDeltas(x bool) {
 //ClearDeltas allows the user to clear the deltas of the IO
 func (i *IO) ClearDeltas() error {
 	return i.dx.Memer().Set(0)
+
+}
+
+//MinX returns the minx value per batch in the tensor or if it is used for the filter it would be the minx value per neuron
+func (i *IO) MinX(handle *cudnn.Handler) ([]float32, error) {
+	return i.minx.Reduce(handle, i.T())
+
+}
+
+//MaxX returns the MaxX per batch value in the tensor or if it is used for the filter it would be the MaxX value per neuron
+func (i *IO) MaxX(handle *cudnn.Handler) ([]float32, error) {
+	return i.maxx.Reduce(handle, i.T())
+
+}
+
+//MaxDX returns the MaxDX per batch value in the tensor or if it is used for the filter it would be the MaxDX value per neuron
+func (i *IO) MaxDX(handle *cudnn.Handler) ([]float32, error) {
+	return i.mindx.Reduce(handle, i.DeltaT())
+
+}
+
+//MinDX returns the MinDX per batch value in the tensor or if it is used for the filter it would be the MinDX value per neuron
+func (i *IO) MinDX(handle *cudnn.Handler) ([]float32, error) {
+	return i.maxdx.Reduce(handle, i.DeltaT())
 
 }
 
@@ -144,6 +170,28 @@ func (i *IO) T() *tensor.Volume {
 func addtoerror(addition string, current error) error {
 	errorstring := current.Error()
 	return errors.New(addition + ": " + errorstring)
+}
+
+//SetMinMaxReducers will build the reducers for the IO
+func (i *IO) SetMinMaxReducers(handle *cudnn.Handler, batches bool) (err error) {
+
+	i.minx, err = buildreduceop(handle, true, i.T(), batches)
+	if err != nil {
+		return err
+	}
+	i.mindx, err = buildreduceop(handle, true, i.DeltaT(), batches)
+	if err != nil {
+		return err
+	}
+	i.maxx, err = buildreduceop(handle, false, i.T(), batches)
+	if err != nil {
+		return err
+	}
+	i.maxdx, err = buildreduceop(handle, false, i.DeltaT(), batches)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 //PlaceDeltaT will put a *tensor.Volume into the DeltaT and destroy the previous memory held in the spot

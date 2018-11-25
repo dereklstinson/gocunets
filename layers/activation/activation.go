@@ -3,13 +3,16 @@ package activation
 import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/activation"
+	"github.com/dereklstinson/GoCuNets/cudnn/reduce"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is an activation layer
 type Layer struct {
-	act         *activation.Ops
+	act    *activation.Ops
+	reduce *reduce.Ops
+
 	fwd         Scalars
 	bwd         Scalars
 	memmanaged  bool

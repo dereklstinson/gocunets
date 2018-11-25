@@ -27,6 +27,7 @@ type Volume struct {
 	thelp     gocudnn.Tensor
 	fhelp     gocudnn.Filter
 	ophelp    gocudnn.OpTensor
+	min, max  float32
 	dims      []int32
 	strides   []int32
 	managed   bool

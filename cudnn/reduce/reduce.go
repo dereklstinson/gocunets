@@ -8,15 +8,26 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+type flagsforop struct {
+	DType      cudnn.DataTypeFlag
+	NanProp    cudnn.NanModeFlag
+	ReduceMode OpFlags
+	IndFlag    IndiciesFLag
+	IndType    IndTypeFlag
+}
+
+//Flags are the reduce op
+var Flags flagsforop
+
 //Ops contains the reduce ops information
 type Ops struct {
 	desc *gocudnn.ReduceTensorD
 }
 
 //Stage stages the Reduce Operation
-func Stage(op gocudnn.ReduceTensorOp, dtype gocudnn.DataType, nanprop gocudnn.PropagationNAN, reducetensorinds gocudnn.ReduceTensorIndices, indicietype gocudnn.IndiciesType) (*Ops, error) {
+func Stage(op OpMode, dtype cudnn.DataType, nanprop cudnn.NanMode, reducetensorinds IndiciesMode, indicietype TypeMode) (*Ops, error) {
 	var red gocudnn.Reduce
-	desc, err := red.CreateReduceTensorDescriptor(op, dtype, nanprop, reducetensorinds, indicietype)
+	desc, err := red.NewReduceTensorDescriptor(op.cu(), dtype.Cu(), nanprop.Cu(), reducetensorinds.cu(), indicietype.cu())
 	if err != nil {
 		return nil, err
 	}

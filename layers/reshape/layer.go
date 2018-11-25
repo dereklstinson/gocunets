@@ -59,7 +59,7 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 		return l.resizeforward(handle, x, y)
 	case lmf.Transform():
 		//return l.transformtensforward(handle, x, y)
-		errors.New("THIS NEEDS FIXED")
+		return errors.New("THIS NEEDS FIXED")
 	}
 
 	return errors.New("Layer doesn't support mode passed")
@@ -77,7 +77,7 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 		return l.resizebackward(handle, x, y)
 	case lmf.Transform():
 		//	return l.transformtensbackward(handle, x, y)
-		errors.New("THIS NEEDS FIXED")
+		return errors.New("THIS NEEDS FIXED")
 	}
 
 	return errors.New("Layer doesn't support mode passed")

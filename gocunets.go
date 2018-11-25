@@ -23,7 +23,6 @@ type Settings struct {
 
 //Layer is a layer that has the name the dims and what flags it needs
 type Layer struct {
-	Name  string `json:"name,omitempty"`
 	Dims  []int  `json:"dims,omitempty"`
 	Flags []Flag `json:"flags,omitempty"`
 }
@@ -37,83 +36,23 @@ type Flag struct {
 
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
-	layer         []*layer
-	mem           []*layers.IO
-	err           chan error
-	position      int
-	hiomode       hiddenmode
-	resizecounter int
-	hybridsize    int
-	reshaper      *reshape.Layer
-	resizeinput   *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
-	previousdims  []int32
-	descriminator bool
-	l1losses      []float32
-	l2losses      []float32
+	layer           []*layer
+	mem             []*layers.IO
+	totalionets     []*netios
+	err             chan error
+	position        int
+	hiomode         hiddenmode
+	resizecounter   int
+	hybridsize      int
+	reshaper        *reshape.Layer
+	resizeinput     *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
+	previousdims    []int32
+	descriminator   bool
+	l1losses        []float32
+	l2losses        []float32
+	totalionetsinit bool
 }
 
-/*
-//Handles holds both handle and xhandle handle
-type Handles struct {
-	cudnn   *gocudnn.Handle
-	xhandle *gocudnn.XHandle
-	stream  *gocudnn.Stream
-}
-
-//Cudnn returns a pointer to the cudnn handle
-func (h *Handles) Cudnn() *gocudnn.Handle {
-	return h.cudnn
-}
-
-//XHandle returns a pointer to the XHandle
-func (h *Handles) XHandle() *gocudnn.XHandle {
-	return h.xhandle
-}
-
-
-//CreateHandleV2 creates a multi use handle that uses both gocudnn handle and xhandle
-func CreateHandleV2(dev *gocudnn.Device) *Handles {
-
-	x := gocudnn.NewHandle()
-	y, err := gocudnn.Xtra{}.MakeXHandleV2(dev)
-	if err != nil {
-		panic(err)
-	}
-	return &Handles{
-		cudnn:   x,
-		xhandle: y,
-	}
-}
-*/
-/*
-//CreateHandle creates a handle
-func CreateHandle(dev *gocudnn.Device, xtrakernsfolder string) *Handles {
-
-	x := gocudnn.NewHandle()
-	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
-	if err != nil {
-		panic(err)
-	}
-	return &Handles{
-		cudnn:   x,
-		xhandle: y,
-	}
-}
-
-//SetStream sets the stream for the handles
-func (h *Handles) SetStream(stream *gocudnn.Stream) error {
-	err := h.cudnn.SetStream(stream)
-	if err != nil {
-		return err
-	}
-	err = h.xhandle.SetStream(stream)
-	if err != nil {
-		return err
-	}
-	h.stream = stream
-	return nil
-}
-*/
 func networkerrors(err <-chan error) {
 	for i := range err {
 		if i != nil {
@@ -209,6 +148,8 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 		}
 	}
 }
+
+//AddLayers will take a list of layers and shove them into the network
 func (m *Network) AddLayers(layer ...interface{}) {
 	for i := range layer {
 		switch x := layer[i].(type) {
@@ -247,11 +188,15 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	if len(m.mem) > 0 || m.mem != nil {
 		return errors.New("Mem Already Set")
 	}
-
+	m.totalionets = make([]*netios, 0)
 	var previous *layers.IO
 	previous = input
 	for i := 0; i < len(m.layer)-1; i++ {
-		//	fmt.Println("GEtoutput from ", i)
+		layerwbs := wrapnetio(m.layer[i])
+		if layerwbs != nil {
+			m.totalionets = append(m.totalionets, layerwbs)
+		}
+
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
 			for j := 0; j < len(m.mem); j++ {
@@ -260,11 +205,13 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
+		m.totalionets = append(m.totalionets, wrapnetio(mem))
 		previous = mem
 		m.mem = append(m.mem, mem)
 
 	}
-	return nil
+
+	return m.buildminmax(handle, false)
 }
 func (m *Network) freehiddenios() error {
 	var flag bool
@@ -280,6 +227,7 @@ func (m *Network) freehiddenios() error {
 	if flag == true {
 		return errors.New("Not all mem destroyed")
 	}
+
 	m.mem = nil
 	return nil
 }

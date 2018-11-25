@@ -48,11 +48,13 @@ body {
 }
 
 /* Create three equal columns that floats next to each other */
+
 .column {
 	float: left;
-	width: 33.3%;
+	width: auto;
 	padding: 10px;
 }
+
 
 /* Clear floats after the columns */
 .row:after {
@@ -87,6 +89,7 @@ body {
   <a href="#">Link</a>
   <a href="#">Link</a>
 </div>
+
 {{range .}}
 {{ .NewRow}}
   <div class="column">
@@ -94,6 +97,7 @@ body {
 		<img id="{{.Id}}" src="{{.Url}}">
 		<p>{{.Paragraph}}</p>
 		<script>
+			{{ }}
 			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}})
 		function {{.Func}}(){
 			var d = new Date();

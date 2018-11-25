@@ -18,10 +18,12 @@ import (
 
 const learningrates = .001
 const codingvector = int32(10)
-const numofneurons = int32(50)
-const l1regularization = float32(.00001)
-const l2regularization = float32(.00001)
-const metabatchsize = 2
+const numofneurons = int32(35)
+const l1regularization = float32(.0001)
+const l2regularization = float32(.0001)
+
+const metabatchsize = 1
+const batchsize = 10
 
 func main() {
 	gocudnn.Cuda{}.LockHostThread()
@@ -87,8 +89,8 @@ func main() {
 
 	//Need this to reshape the output of the autoencoder into something the imager can use to make an image.Imageasdfasd
 
-	metabatchcounter := 0
-	metabatchcounter1 := 0
+	//metabatchcounter := 0
+	//	metabatchcounter1 := 0
 	//	var startroman bool
 	//var metabatchbool bool
 	//var actuallystartromannow bool
@@ -114,7 +116,7 @@ func main() {
 		utils.CheckError(err)
 	}
 	refresh := "2000"
-	ceiling := float32(9)
+	ceiling := float32(10)
 	ArabicLoss, EpocLosses := ui.NewVSLossHandle("Epoc Loss", ceiling, LossDataChan, true, lossplotlength, "Arabic Loss", "Roman Loss")
 	windows.AddWindow("Arabic Loss Vs Roman Loss", "", refresh, "/ALoss/", ArabicLoss)
 	windows.AddWindow("Roman Output", "These are the Roman outputs", refresh, "/romanout/", imagehandlers[0])
@@ -131,15 +133,9 @@ func main() {
 		epoclossroman := float32(0)
 
 		for j := range arabicnums {
-			/*
-				if metabatchcounter == 0 {
-					metabatchbool = true
-				} else {
-					metabatchbool = false
-				}
-			*/
+
 			utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
-			//choketoroman.LoadTValues(chokepoint.T().Memer())
+
 			utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
 			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
 			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
@@ -148,37 +144,16 @@ func main() {
 
 			utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
 			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
-			if metabatchcounter < (metabatchsize) {
-				metabatchcounter++
-			} else {
-				//	stream.Sync()
-				batchsize := 10 * metabatchsize
-				utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
-				utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
-				metabatchcounter = 0
 
-			}
-			//if !((!startroman || !metabatchbool) && !actuallystartromannow) {
-
-			//actuallystartromannow = true
-			//utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint))
-			//	choketoroman.LoadTValues(chokepoint.T().Memer())
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
 			utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
 			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
 			epoclossroman += MSERoman.Loss()
 			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
 
-			if metabatchcounter1 < (metabatchsize) {
-				metabatchcounter1++
-
-			} else {
-				batchsize := 10 * metabatchsize
-				utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
-				metabatchcounter1 = 0
-			}
-
-			//	}
+			utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
+			utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
+			utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
 
 			for k := range bufferindex {
 
@@ -221,13 +196,11 @@ func main() {
 		EpocLosses[1].Data[0] = epoclossroman
 		LossDataChan <- EpocLosses
 
-		stream.Sync()
 		fmt.Println("Epoc: ", i, "ROMAN Loss : ", epoclossroman, "ARABIC Loss: ", epoclossarabic)
-		/*
-			if epoclossarabic <= 13 {
-				startroman = true
-			}
-		*/
+		err = gocudnn.Cuda{}.CtxSynchronize()
+		if err != nil {
+			panic(err)
+		}
 		shuffle(arabicnums, arabicoutput)
 
 	}

@@ -55,7 +55,7 @@ body {
 /* Create three equal columns that floats next to each other */
 .column {
 	float: left;
-	width: 25%;
+	width: auto;
 	padding: 4px;
 }
 
@@ -73,9 +73,7 @@ body {
 	}
 }
 </style>
-<script>
 
-</script>
 <body>
 
 
