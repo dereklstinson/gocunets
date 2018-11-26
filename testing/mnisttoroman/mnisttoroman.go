@@ -13,7 +13,6 @@ import (
 	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
 	"github.com/dereklstinson/GoCuNets/ui"
 	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCuNets/utils/filing"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
 	"github.com/dereklstinson/GoCudnn"
 )
@@ -21,8 +20,8 @@ import (
 const learningrates = .001
 const codingvector = int32(10)
 const numofneurons = int32(35)
-const l1regularization = float32(.0001)
-const l2regularization = float32(.0001)
+const l1regularization = float32(.0005)
+const l2regularization = float32(.0005)
 
 const metabatchsize = 1
 const batchsize = 10
@@ -97,7 +96,7 @@ func main() {
 	//var metabatchbool bool
 	//var actuallystartromannow bool
 
-	windows := ui.NewWindows([]int{4, 3}, "http://localhost", ":8080", "/index")
+	windows := ui.NewWindows([]int{4, 5}, "http://localhost", ":8080", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, 2)
 	lossplotlength := 1
 
@@ -155,23 +154,7 @@ func main() {
 		encoderparahandlers[i] = ui.MakeParagraphHandler(imagebuffer, encoderparachans[i], encoderparabufferindex[i])
 		windows.AddWindow("Hidden "+strconv.Itoa(i), refresh, "/encode"+strconv.Itoa(i)+"/", encoderimagehandlers[i], "/pencode"+strconv.Itoa(i)+"/", encoderparahandlers[i])
 	}
-	dencoderimagechans := make([]chan image.Image, encoderhidden)
-	dencoderparachans := make([]chan string, encoderhidden)
 
-	dencoderbufferindex := make([]chan int, encoderhidden)
-	dencoderparabufferindex := make([]chan int, encoderhidden)
-
-	dencoderimagehandlers := make([]*ui.ImageHandler, encoderhidden)
-	dencoderparahandlers := make([]*ui.ParagraphHandler, encoderhidden)
-	for i := 0; i < encoderhidden; i++ {
-		dencoderimagechans[i] = make(chan image.Image, imagebuffer)
-		dencoderparachans[i] = make(chan string, imagebuffer)
-		dencoderbufferindex[i] = make(chan int, 3)
-		dencoderparabufferindex[i] = make(chan int, 3)
-		dencoderimagehandlers[i] = ui.MakeImageHandler(imagebuffer, dencoderimagechans[i], dencoderbufferindex[i])
-		dencoderparahandlers[i] = ui.MakeParagraphHandler(imagebuffer, dencoderparachans[i], dencoderparabufferindex[i])
-		windows.AddWindow("Hidden "+strconv.Itoa(i), refresh, "/dencode"+strconv.Itoa(i)+"/", encoderimagehandlers[i], "/dpencode"+strconv.Itoa(i)+"/", encoderparahandlers[i])
-	}
 	/*
 		//arabic
 		decoderarabic := ToArabic.HiddenIOandWeightCount()
@@ -209,19 +192,18 @@ func main() {
 			utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
 
 			utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
-			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
-			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-
-			epoclossarabic += MSEArabic.Loss()
-
-			utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
-			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
 			utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
 			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
 			epoclossroman += MSERoman.Loss()
 			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
+
+			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
+			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
+			epoclossarabic += MSEArabic.Loss()
+			utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
+			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 
 			utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
 			utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
@@ -239,7 +221,7 @@ func main() {
 				if w < imagebuffer {
 					switch k {
 					case 0:
-						imagerlayer[k].LoadTValues(romanoutput.T().Memer())
+						imagerlayer[k].LoadTValues(RomanOutput.T().Memer())
 						outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
 						utils.CheckError(err)
 						imagechans[k] <- outputimage
@@ -303,97 +285,21 @@ func main() {
 				}
 
 			}
-			Eminmax, err := Encoder.GetMinMaxes(handles)
-			utils.CheckError(err)
-			Eimages, err := Encoder.GetLayerImages(handles, 0, 0)
-			utils.CheckError(err)
-
-			for k := range encoderbufferindex {
-
-				var w int
-				select {
-				case w = <-encoderbufferindex[k]:
-				default:
-					w = 0
+			if j%(len(arabicnums)/4) == 1 {
+				/*	midepocloss := epoclossroman
+					midepocarab /= float32(j)
+					midepocroman := epoclossroman
+					midepocarab /= float32(j)
+				*/
+				err = gocudnn.Cuda{}.CtxSynchronize()
+				if err != nil {
+					panic(err)
 				}
 
-				if w < imagebuffer {
-					x := Eimages[k].X
-					filing.WriteImage("/home/derek/Desktop/Weightimage/", "THISFILE"+strconv.Itoa(i)+"0000"+strconv.Itoa(j)+"OOOO"+strconv.Itoa(k), x)
-					encoderimagechans[k] <- x
-				} else {
-
-				}
-
-				select {
-				case w = <-encoderparabufferindex[k]:
-				default:
-					w = 0
-				}
-				if w < imagebuffer {
-					name := Eminmax[k].Name
-					if name == "CNN-Transpose" || name == "CNN" {
-						wminx := Eminmax[k].Weights.Minx
-						wmaxx := Eminmax[k].Weights.Maxx
-						bminx := Eminmax[k].Bias.Minx
-						bmaxx := Eminmax[k].Weights.Maxx
-						encoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f} Bias{Min: %f ,Max: %f}", name, k, wminx, wmaxx, bminx, bmaxx)
-					} else {
-						wminx := Eminmax[k].Weights.Minx
-						wmaxx := Eminmax[k].Weights.Maxx
-						encoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f}", name, k, wminx, wmaxx)
-					}
-
-				}
-				select {
-				case w = <-dencoderbufferindex[k]:
-				default:
-					w = 0
-				}
-
-				if w < imagebuffer {
-					dencoderimagechans[k] <- Eimages[k].DX
-				} else {
-
-				}
-				select {
-				case w = <-dencoderparabufferindex[k]:
-				default:
-					w = 0
-				}
-				if w < imagebuffer {
-					name := Eminmax[k].Name
-					if name == "CNN-Transpose" || name == "CNN" {
-						wminx := Eminmax[k].Weights.Mindx
-						wmaxx := Eminmax[k].Weights.Maxdx
-						bminx := Eminmax[k].Bias.Mindx
-						bmaxx := Eminmax[k].Weights.Maxdx
-						dencoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f} Bias{Min: %f ,Max: %f}", name, k, wminx, wmaxx, bminx, bmaxx)
-					} else {
-						wminx := Eminmax[k].Weights.Mindx
-						wmaxx := Eminmax[k].Weights.Maxdx
-						dencoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f}", name, k, wminx, wmaxx)
-					}
-
-				}
-			}
-		}
-		epoclossroman /= float32(len(arabicnums))
-		epoclossarabic /= float32(len(arabicnums))
-		EpocLosses[0].Data[0] = epoclossarabic
-		EpocLosses[1].Data[0] = epoclossroman
-		LossDataChan <- EpocLosses
-
-		fmt.Println("Epoc: ", i, "ROMAN Loss : ", epoclossroman, "ARABIC Loss: ", epoclossarabic)
-		err = gocudnn.Cuda{}.CtxSynchronize()
-		if err != nil {
-			panic(err)
-		}
-		/*
-			Eminmax, err := Encoder.GetMinMaxes(handles)
-			utils.CheckError(err)
-			Eimages, err := Encoder.GetLayerImages(handles, 10, 10)
-			utils.CheckError(err)
+				Eminmax, err := Encoder.GetMinMaxes(handles)
+				utils.CheckError(err)
+				Eimages, err := Encoder.GetLayerImages(handles, 1, 1)
+				utils.CheckError(err)
 
 				for k := range encoderbufferindex {
 
@@ -426,43 +332,27 @@ func main() {
 						} else {
 							wminx := Eminmax[k].Weights.Minx
 							wmaxx := Eminmax[k].Weights.Maxx
-							encoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f}", name, k, wminx, wmaxx)
+							encoderparachans[k] <- fmt.Sprintf("Layer: %s %d, IO:{Min: %f ,Max: %f}", name, k, wminx, wmaxx)
 						}
 
 					}
-					select {
-					case w = <-dencoderbufferindex[k]:
-					default:
-						w = 0
-					}
 
-					if w < imagebuffer {
-						dencoderimagechans[k] <- Eimages[k].DX
-					} else {
-
-					}
-					select {
-					case w = <-dencoderparabufferindex[k]:
-					default:
-						w = 0
-					}
-					if w < imagebuffer {
-						name := Eminmax[k].Name
-						if name == "CNN-Transpose" || name == "CNN" {
-							wminx := Eminmax[k].Weights.Mindx
-							wmaxx := Eminmax[k].Weights.Maxdx
-							bminx := Eminmax[k].Bias.Mindx
-							bmaxx := Eminmax[k].Weights.Maxdx
-							dencoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f} Bias{Min: %f ,Max: %f}", name, k, wminx, wmaxx, bminx, bmaxx)
-						} else {
-							wminx := Eminmax[k].Weights.Mindx
-							wmaxx := Eminmax[k].Weights.Maxdx
-							dencoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f}", name, k, wminx, wmaxx)
-						}
-
-					}
 				}
-		*/
+			}
+
+			utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
+			utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
+			utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
+		}
+
+		epoclossarabic /= float32(len(arabicnums))
+		epoclossroman /= float32(len(arabicnums))
+
+		EpocLosses[0].Data[0] = epoclossarabic
+		EpocLosses[1].Data[0] = epoclossroman
+		LossDataChan <- EpocLosses
+
+		fmt.Println("Epoc: ", i, "ROMAN Loss : ", epoclossroman, "ARABIC Loss: ", epoclossarabic)
 		shuffle(arabicnums, arabicoutput)
 	}
 

@@ -39,7 +39,7 @@ func colornormal(params []float32) []int {
 //Y and X represent how much padding of (hopefully black) there is between the channels and neurons
 func (t *Volume) ToOneImageColor(X, Y int) (image.Image, error) {
 	images, err := t.ToImagesColor()
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
 	return ToOneImage(images, X, Y), nil
@@ -93,12 +93,13 @@ func (t *Volume) convertColor() ([][]image.Image, error) {
 	//fmt.Println("making image.Image")
 	switch frmt {
 	case tf.NCHW():
+
 		chans = int(dims[1])
 		maxy = int(dims[2])
 		maxx = int(dims[3])
 		var wg sync.WaitGroup
 		maxthreads := runtime.NumCPU()
-
+		counter := 0
 		for i := 0; i < number; i++ {
 			imgs[i] = make([]image.Image, chans)
 			for j := 0; j < chans; j++ {
@@ -127,18 +128,24 @@ func (t *Volume) convertColor() ([][]image.Image, error) {
 								G = uint8(pix)
 								B = uint8(127 + (pix / 2))
 							}
-							img.Set(l, k, color.RGBA{R, G, B, 255})
+							c := color.RGBA{R: R, G: G, B: B, A: 255}
+
+							img.Set(l, k, c)
+
 						}
 					}
 					imgs[i][j] = img
 					wg.Done()
 				}(i, j)
-				if (i*chans+j)%maxthreads == maxthreads-1 {
+				if (counter)%maxthreads == maxthreads-1 {
 					wg.Wait()
+
 				}
+				counter++
 			}
 		}
 		wg.Wait()
+		return imgs, nil
 	case tf.NHWC():
 		chans = int(dims[3])
 		maxy = int(dims[1])
@@ -186,6 +193,7 @@ func (t *Volume) convertColor() ([][]image.Image, error) {
 			}
 		}
 		wg.Wait()
+		return imgs, nil
 	case tf.NCHWvectC():
 		chans = int(dims[1])
 		maxy = int(dims[2])
@@ -233,6 +241,7 @@ func (t *Volume) convertColor() ([][]image.Image, error) {
 			}
 		}
 		wg.Wait()
+		return imgs, nil
 	}
 
 	return imgs, nil

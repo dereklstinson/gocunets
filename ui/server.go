@@ -98,8 +98,10 @@ func (w *Windows) endlastrow() {
 }
 func colstring(columns int) string {
 	switch columns {
+	case 6:
+		return "column16_66"
 	case 5:
-		return "column12_5"
+		return "column20"
 
 	case 4:
 		return "column25"

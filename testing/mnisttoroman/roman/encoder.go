@@ -186,6 +186,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	network.AddLayer(
 
 		activation.Leaky(handle),
+
 	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 1, 1}, true),
 	)
 

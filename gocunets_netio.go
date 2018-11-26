@@ -68,6 +68,7 @@ func (m *Network) GetMinMaxes(handle *cudnn.Handler) ([]*LayerIOMinMax, error) {
 func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 	switch {
 	case n.cnn != nil:
+
 		img, err := n.cnn.Weights().T().ToOneImageColor(x, y)
 		if err != nil {
 			return nil, err
@@ -83,6 +84,7 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 			DX:    dimg,
 		}, nil
 	case n.cnntran != nil:
+
 		img, err := n.cnntran.Weights().T().ToOneImageColor(x, y)
 		if err != nil {
 			return nil, err
@@ -98,6 +100,7 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 			DX:    dimg,
 		}, nil
 	case n.io != nil:
+
 		img, err := n.io.T().ToOneImageColor(x, y)
 		if err != nil {
 			return nil, err

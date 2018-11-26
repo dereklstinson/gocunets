@@ -17,6 +17,19 @@ const thewebpagetemplatest2 = `<html lang="en">
 * {
 	box-sizing: border-box;
 }
+.zoom {
+    padding: 0px;
+    transition: transform .2s;
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+}
+
+.zoom:hover {
+    -ms-transform: scale(2); /* IE 9 */
+    -webkit-transform: scale(2); /* Safari 3-8 */
+    transform: scale(2); 
+}
 img {
 	width: 100%;
 	height: auto;
@@ -55,9 +68,14 @@ body {
 }
 
 /* Create three equal columns that floats next to each other */
-.column12_5 {
+.column16_66 {
 	float: left;
-	width: 12.5%;
+	width: 16.66%;
+	padding: 4px;
+}
+.column20 {
+	float: left;
+	width: 20%;
 	padding: 4px;
 }
 .column25 {
@@ -72,12 +90,12 @@ body {
 }
 .column50 {
 	float: left;
-	width: 50%;
+	width 50%;
 	padding: 4px;
 }
 .column100 {
 	float: left;
-	width: 100%;
+	width 100%;
 	padding: 4px;
 }
 /* Clear floats after the columns */
@@ -119,9 +137,10 @@ body {
 {{ .NewRow}}
   <div class="{{.ColWid}}">
   	<h2>{{.Header}}</h2>
-		<img id="{{.ID}}" src="{{.URL}}">
+
+	  <div class="zoom">  <img id="{{.ID}}" src="{{.URL}}">		</div>
 		<div id = "{{.PID}}" src="{{.PURL}}"></div>
-	<!---	<p id ="{{.PID}}" src="{{.PURL}}"></p> --->
+
 		<script>
 			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}});
 		function {{.Func}}(){
@@ -138,7 +157,8 @@ body {
 			 });
 		
 		}
-        </script>
+		</script>
+
 </div>
 {{ .EndRow}}
 {{end}}
@@ -198,9 +218,14 @@ body {
 }
 
 /* Create three equal columns that floats next to each other */
-.column12_5 {
+.column16_66 {
 	float: left;
-	width: 12.5%;
+	width: 16.66%;
+	padding: 4px;
+}
+.column20 {
+	float: left;
+	width: 20%;
 	padding: 4px;
 }
 .column25 {
