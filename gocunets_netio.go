@@ -20,11 +20,9 @@ type LayerIOMinMax struct {
 
 //IOMinMax contains the IO minmax
 type IOMinMax struct {
-	Name  string  `json:"name,omitempty"`
-	Minx  float32 `json:"minx,omitempty"`
-	Maxx  float32 `json:"maxx,omitempty"`
-	Mindx float32 `json:"mindx,omitempty"`
-	Maxdx float32 `json:"maxdx,omitempty"`
+	Name string  `json:"name,omitempty"`
+	Minx float32 `json:"minx,omitempty"`
+	Maxx float32 `json:"maxx,omitempty"`
 }
 
 //ImagesLIO is used to hold and label the images of a section of the network.
@@ -32,7 +30,6 @@ type ImagesLIO struct {
 	Layer bool        `json:"layer,omitempty"`
 	Name  string      `json:"name,omitempty"`
 	X     image.Image `json:"x,omitempty"`
-	DX    image.Image `json:"dx,omitempty"`
 }
 type netios struct {
 	cnn     *cnn.Layer
@@ -73,15 +70,17 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 		if err != nil {
 			return nil, err
 		}
-		dimg, err := n.cnn.Weights().DeltaT().ToOneImageColor(x, y)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			dimg, err := n.cnn.Weights().DeltaT().ToOneImageColor(x, y)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		return &ImagesLIO{
 			Layer: true,
 			Name:  "CNN",
 			X:     img,
-			DX:    dimg,
+			//	DX:    dimg,
 		}, nil
 	case n.cnntran != nil:
 
@@ -89,15 +88,17 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 		if err != nil {
 			return nil, err
 		}
-		dimg, err := n.cnntran.Weights().DeltaT().ToOneImageColor(x, y)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			dimg, err := n.cnntran.Weights().DeltaT().ToOneImageColor(x, y)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		return &ImagesLIO{
 			Layer: true,
 			Name:  "TransCNN",
 			X:     img,
-			DX:    dimg,
+			//	DX:    dimg,
 		}, nil
 	case n.io != nil:
 
@@ -105,7 +106,7 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 		if err != nil {
 			return nil, err
 		}
-		dimg, err := n.io.DeltaT().ToOneImageColor(x, y)
+		//dimg, err := n.io.DeltaT().ToOneImageColor(x, y)
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +114,7 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 			Layer: false,
 			Name:  "IO",
 			X:     img,
-			DX:    dimg,
+			//	DX:    dimg,
 		}, nil
 	}
 	return nil, errors.New("SHouln't have got here")
@@ -197,20 +198,21 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		if err != nil {
 			return nil, err
 		}
-		dwmin, err := n.cnn.DWMin(handle)
-		if err != nil {
-			return nil, err
-		}
-		dwmax, err := n.cnn.DWMax(handle)
-		if err != nil {
-			return nil, err
-		}
+		/*	dwmin, err := n.cnn.DWMin(handle)
+			if err != nil {
+				return nil, err
+			}
+			dwmax, err := n.cnn.DWMax(handle)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		weights := IOMinMax{
-			Name:  "Weights",
-			Minx:  wmin[0],
-			Maxx:  wmax[0],
-			Mindx: dwmin[0],
-			Maxdx: dwmax[0],
+			Name: "Weights",
+			Minx: wmin[0],
+			Maxx: wmax[0],
+			//	Mindx: dwmin[0],
+			//	Maxdx: dwmax[0],
 		}
 		bmax, err := n.cnn.BMax(handle)
 		if err != nil {
@@ -219,21 +221,21 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		bmin, err := n.cnn.BMin(handle)
 		if err != nil {
 			return nil, err
-		}
-		dbmax, err := n.cnn.DBMax(handle)
-		if err != nil {
-			return nil, err
-		}
-		dbmin, err := n.cnn.DBMin(handle)
-		if err != nil {
-			return nil, err
-		}
+		} /*
+			dbmax, err := n.cnn.DBMax(handle)
+			if err != nil {
+				return nil, err
+			}
+			dbmin, err := n.cnn.DBMin(handle)
+			if err != nil {
+				return nil, err
+			}*/
 		bias := IOMinMax{
-			Name:  "Bias",
-			Minx:  bmin[0],
-			Maxx:  bmax[0],
-			Mindx: dbmin[0],
-			Maxdx: dbmax[0],
+			Name: "Bias",
+			Minx: bmin[0],
+			Maxx: bmax[0],
+			//	Mindx: dbmin[0],
+			//	Maxdx: dbmax[0],
 		}
 		return &LayerIOMinMax{
 			Name:    "CNN",
@@ -250,20 +252,22 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		if err != nil {
 			return nil, err
 		}
-		dwmin, err := n.cnntran.DWMin(handle)
-		if err != nil {
-			return nil, err
-		}
-		dwmax, err := n.cnntran.DWMax(handle)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			dwmin, err := n.cnntran.DWMin(handle)
+			if err != nil {
+				return nil, err
+			}
+			dwmax, err := n.cnntran.DWMax(handle)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		weights := IOMinMax{
-			Name:  "Weights",
-			Minx:  wmin[0],
-			Maxx:  wmax[0],
-			Mindx: dwmin[0],
-			Maxdx: dwmax[0],
+			Name: "Weights",
+			Minx: wmin[0],
+			Maxx: wmax[0],
+			//	Mindx: dwmin[0],
+			//	Maxdx: dwmax[0],
 		}
 		bmax, err := n.cnntran.BMax(handle)
 		if err != nil {
@@ -273,20 +277,22 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		if err != nil {
 			return nil, err
 		}
-		dbmax, err := n.cnntran.DBMax(handle)
-		if err != nil {
-			return nil, err
-		}
-		dbmin, err := n.cnntran.DBMin(handle)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			dbmax, err := n.cnntran.DBMax(handle)
+			if err != nil {
+				return nil, err
+			}
+			dbmin, err := n.cnntran.DBMin(handle)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		bias := IOMinMax{
-			Name:  "Bias",
-			Minx:  bmin[0],
-			Maxx:  bmax[0],
-			Mindx: dbmin[0],
-			Maxdx: dbmax[0],
+			Name: "Bias",
+			Minx: bmin[0],
+			Maxx: bmax[0],
+			//	Mindx: dbmin[0],
+			//	Maxdx: dbmax[0],
 		}
 		return &LayerIOMinMax{
 			Name:    "CNN-Transpose",
@@ -303,20 +309,22 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		if err != nil {
 			return nil, err
 		}
-		dwmin, err := n.io.MinDX(handle)
-		if err != nil {
-			return nil, err
-		}
-		dwmax, err := n.io.MaxDX(handle)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			dwmin, err := n.io.MinDX(handle)
+			if err != nil {
+				return nil, err
+			}
+			dwmax, err := n.io.MaxDX(handle)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		weights := IOMinMax{
-			Name:  "Ouput",
-			Minx:  wmin[0],
-			Maxx:  wmax[0],
-			Mindx: dwmin[0],
-			Maxdx: dwmax[0],
+			Name: "Ouput",
+			Minx: wmin[0],
+			Maxx: wmax[0],
+			//	Mindx: dwmin[0],
+			//	Maxdx: dwmax[0],
 		}
 
 		return &LayerIOMinMax{
