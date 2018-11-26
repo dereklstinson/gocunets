@@ -2,6 +2,7 @@ package gocunets
 
 import (
 	"errors"
+	"image"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -19,16 +20,37 @@ type LayerIOMinMax struct {
 
 //IOMinMax contains the IO minmax
 type IOMinMax struct {
-	Name  string    `json:"name,omitempty"`
-	Minx  []float32 `json:"minx,omitempty"`
-	Maxx  []float32 `json:"maxx,omitempty"`
-	Mindx []float32 `json:"mindx,omitempty"`
-	Maxdx []float32 `json:"maxdx,omitempty"`
+	Name  string  `json:"name,omitempty"`
+	Minx  float32 `json:"minx,omitempty"`
+	Maxx  float32 `json:"maxx,omitempty"`
+	Mindx float32 `json:"mindx,omitempty"`
+	Maxdx float32 `json:"maxdx,omitempty"`
+}
+
+//ImagesLIO is used to hold and label the images of a section of the network.
+type ImagesLIO struct {
+	Layer bool        `json:"layer,omitempty"`
+	Name  string      `json:"name,omitempty"`
+	X     image.Image `json:"x,omitempty"`
+	DX    image.Image `json:"dx,omitempty"`
 }
 type netios struct {
 	cnn     *cnn.Layer
 	cnntran *cnntranspose.Layer
 	io      *layers.IO
+}
+
+//GetLayerImages will return an array of images of the io of the network
+func (m *Network) GetLayerImages(handle *cudnn.Handler, x, y int) ([]*ImagesLIO, error) {
+	imgios := make([]*ImagesLIO, len(m.totalionets))
+	var err error
+	for i := range m.totalionets {
+		imgios[i], err = m.totalionets[i].images(handle, x, y)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return imgios, nil
 }
 
 //GetMinMaxes returns the min maxes for all the weights and biases and hidden ios in the network
@@ -43,17 +65,72 @@ func (m *Network) GetMinMaxes(handle *cudnn.Handler) ([]*LayerIOMinMax, error) {
 	}
 	return x, nil
 }
+func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
+	switch {
+	case n.cnn != nil:
+		img, err := n.cnn.Weights().T().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		dimg, err := n.cnn.Weights().DeltaT().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		return &ImagesLIO{
+			Layer: true,
+			Name:  "CNN",
+			X:     img,
+			DX:    dimg,
+		}, nil
+	case n.cnntran != nil:
+		img, err := n.cnntran.Weights().T().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		dimg, err := n.cnntran.Weights().DeltaT().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		return &ImagesLIO{
+			Layer: true,
+			Name:  "TransCNN",
+			X:     img,
+			DX:    dimg,
+		}, nil
+	case n.io != nil:
+		img, err := n.io.T().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		dimg, err := n.io.DeltaT().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		return &ImagesLIO{
+			Layer: false,
+			Name:  "IO",
+			X:     img,
+			DX:    dimg,
+		}, nil
+	}
+	return nil, errors.New("SHouln't have got here")
+}
+func (l *layer) wrapnetio() *netios {
+	switch {
+	case l.cnn != nil:
+		return &netios{cnn: l.cnn}
+	case l.cnntranspose != nil:
+		return &netios{cnntran: l.cnntranspose}
+	default:
+		return nil
+	}
+
+}
 func wrapnetio(input interface{}) *netios {
 	switch l := input.(type) {
 
-	case *cnntranspose.Layer:
-		return &netios{
-			cnntran: l,
-		}
-	case *cnn.Layer:
-		return &netios{
-			cnn: l,
-		}
+	case *layer:
+		return l.wrapnetio()
 	case *layers.IO:
 		return &netios{
 			io: l,
@@ -127,10 +204,10 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		}
 		weights := IOMinMax{
 			Name:  "Weights",
-			Minx:  wmin,
-			Maxx:  wmax,
-			Mindx: dwmin,
-			Maxdx: dwmax,
+			Minx:  wmin[0],
+			Maxx:  wmax[0],
+			Mindx: dwmin[0],
+			Maxdx: dwmax[0],
 		}
 		bmax, err := n.cnn.BMax(handle)
 		if err != nil {
@@ -150,10 +227,10 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		}
 		bias := IOMinMax{
 			Name:  "Bias",
-			Minx:  bmin,
-			Maxx:  bmax,
-			Mindx: dbmin,
-			Maxdx: dbmax,
+			Minx:  bmin[0],
+			Maxx:  bmax[0],
+			Mindx: dbmin[0],
+			Maxdx: dbmax[0],
 		}
 		return &LayerIOMinMax{
 			Name:    "CNN",
@@ -180,10 +257,10 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		}
 		weights := IOMinMax{
 			Name:  "Weights",
-			Minx:  wmin,
-			Maxx:  wmax,
-			Mindx: dwmin,
-			Maxdx: dwmax,
+			Minx:  wmin[0],
+			Maxx:  wmax[0],
+			Mindx: dwmin[0],
+			Maxdx: dwmax[0],
 		}
 		bmax, err := n.cnntran.BMax(handle)
 		if err != nil {
@@ -203,10 +280,10 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		}
 		bias := IOMinMax{
 			Name:  "Bias",
-			Minx:  bmin,
-			Maxx:  bmax,
-			Mindx: dbmin,
-			Maxdx: dbmax,
+			Minx:  bmin[0],
+			Maxx:  bmax[0],
+			Mindx: dbmin[0],
+			Maxdx: dbmax[0],
 		}
 		return &LayerIOMinMax{
 			Name:    "CNN-Transpose",
@@ -233,10 +310,10 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		}
 		weights := IOMinMax{
 			Name:  "Ouput",
-			Minx:  wmin,
-			Maxx:  wmax,
-			Mindx: dwmin,
-			Maxdx: dwmax,
+			Minx:  wmin[0],
+			Maxx:  wmax[0],
+			Mindx: dwmin[0],
+			Maxdx: dwmax[0],
 		}
 
 		return &LayerIOMinMax{

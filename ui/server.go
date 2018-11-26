@@ -27,6 +27,7 @@ type Handler interface {
 type Windows struct {
 	windows          []DivOutputs
 	handlers         []Handler
+	names            []string
 	columnsperrow    []int
 	currentrow       int
 	currentcol       int
@@ -35,6 +36,7 @@ type Windows struct {
 	page             string
 }
 
+//NewWindows creates allows the user to create a bunch of windows to access the neural network
 func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
 	browser.OpenURL(ipaddress + port + page)
 	return Windows{
@@ -44,7 +46,9 @@ func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
 		page:             page,
 	}
 }
-func (w *Windows) AddWindow(header, paragraph, refreshrate, url string, h Handler) {
+
+//AddWindow adds a window to the ui
+func (w *Windows) AddWindow(header, refreshrate, url string, uh Handler, purl string, up Handler) {
 
 	i := len(w.windows)
 	suffix := strconv.Itoa(i)
@@ -61,20 +65,24 @@ func (w *Windows) AddWindow(header, paragraph, refreshrate, url string, h Handle
 	//	x[i].Refresh = template.JS("refvar" + suffix)
 	colwide := colstring(w.columnsperrow[w.currentrow])
 	d := DivOutputs{
-		ColWid:    colwide,
-		NewRow:    newrow,
-		EndRow:    endrow,
-		Header:    header,
-		Paragraph: paragraph,
-		Name:      url,
-		Rate:      template.JS(refreshrate),
-		URL:       w.ipaddressandport + url,
-		ID:        "image" + suffix,
-		Func:      template.JS("imagefunc" + suffix),
-		MyVar:     template.JS("myvar" + suffix),
+		ColWid: colwide,
+		NewRow: newrow,
+		EndRow: endrow,
+		Header: header,
+		PURL:   w.ipaddressandport + purl,
+		Name:   url,
+		Rate:   template.JS(refreshrate),
+		URL:    w.ipaddressandport + url,
+		PID:    "para" + suffix,
+		ID:     "image" + suffix,
+		Func:   template.JS("imagefunc" + suffix),
+		MyVar:  template.JS("myvar" + suffix),
 	}
+	w.names = append(w.names, url)
+	w.names = append(w.names, purl)
 	w.windows = append(w.windows, d)
-	w.handlers = append(w.handlers, h)
+	w.handlers = append(w.handlers, uh)
+	w.handlers = append(w.handlers, up)
 	w.currentcol++
 	if !(w.currentcol < w.columnsperrow[w.currentrow]) {
 		w.currentcol = 0
@@ -83,6 +91,7 @@ func (w *Windows) AddWindow(header, paragraph, refreshrate, url string, h Handle
 		}
 	}
 }
+
 func (w *Windows) endlastrow() {
 	i := len(w.windows) - 1
 	w.windows[i].EndRow = template.HTML("</div>")
@@ -115,8 +124,8 @@ func ServerMain(windows Windows) {
 		handleindex(w, windows, webTemp())
 	}
 	http.HandleFunc("/index", indexhandler)
-	for i := range windows.windows {
-		http.HandleFunc(windows.windows[i].Name, windows.handlers[i].Handle())
+	for i := range windows.handlers {
+		http.HandleFunc(windows.names[i], windows.handlers[i].Handle())
 	}
 	log.Fatal(http.ListenAndServe(windows.port, nil))
 
@@ -135,17 +144,18 @@ type URLs struct {
 
 //DivOutputs is a struct that helps build a dynamic output for the ui
 type DivOutputs struct {
-	Header    string
-	URL       string
-	ID        string
-	Paragraph string
-	Name      string
-	ColWid    string
-	NewRow    template.HTML
-	EndRow    template.HTML
-	Func      template.JS
-	MyVar     template.JS
-	Rate      template.JS
+	Header string
+	URL    string
+	PURL   string
+	ID     string
+	PID    string
+	Name   string
+	ColWid string
+	NewRow template.HTML
+	EndRow template.HTML
+	Func   template.JS
+	MyVar  template.JS
+	Rate   template.JS
 }
 
 func holdertemplate2(w http.ResponseWriter, serverlocation string, data []string, webpage string) {

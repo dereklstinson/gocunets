@@ -1,6 +1,9 @@
 <!--
+
 <html lang="en">
 <head>
+<script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js">
+</script>
 <title>GoCuNets Output</title>
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -48,14 +51,31 @@ body {
 }
 
 /* Create three equal columns that floats next to each other */
-
-.column {
+.column12_5 {
 	float: left;
-	width: auto;
-	padding: 10px;
+	width: 12.5%;
+	padding: 4px;
 }
-
-
+.column25 {
+	float: left;
+	width: 25%;
+	padding: 4px;
+}
+.column33 {
+	float: left;
+	width: 33.33%;
+	padding: 4px;
+}
+.column50 {
+	float: left;
+	width: 50%;
+	padding: 4px;
+}
+.column100 {
+	float: left;
+	width: 100%;
+	padding: 4px;
+}
 /* Clear floats after the columns */
 .row:after {
 	content: "";
@@ -70,11 +90,13 @@ body {
 	}
 }
 </style>
+
+<body>
 <script>
 
-</script>
-<body>
 
+
+</script>
 
 <div class="header">
   <h1>On Demand Layout</h1>
@@ -89,21 +111,28 @@ body {
   <a href="#">Link</a>
   <a href="#">Link</a>
 </div>
-
 {{range .}}
 {{ .NewRow}}
-  <div class="column">
+  <div class="{{.ColWid}}">
   	<h2>{{.Header}}</h2>
-		<img id="{{.Id}}" src="{{.Url}}">
-		<p>{{.Paragraph}}</p>
+		<img id="{{.ID}}" src="{{.URL}}">
+		<div id = "{{.PID}}" src="{{.PURL}}"></div>
+
 		<script>
-			{{ }}
-			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}})
+			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}});
 		function {{.Func}}(){
 			var d = new Date();
-			var theurl = "{{.Url}}"+d.toLocaleTimeString();
-			 document.getElementById("{{.Id}}").src= theurl;
-			// document.getElementById("{{.Id}}").innerHTML= theurl;
+			var theurl = "{{.URL}}"+d.toLocaleTimeString();
+			var thepurl = "{{.PURL}}"+d.toLocaleTimeString();
+		
+			 document.getElementById("{{.ID}}").src= theurl;
+			 jQuery.get(thepurl,function(data,status){
+				 if (status=="success"){
+					document.getElementById("{{.PID}}").innerHTML= data;
+				 }
+				
+			 });
+		
 		}
         </script>
 </div>
@@ -115,5 +144,4 @@ body {
 	
 </body>
 </html>
-
--->
+--->

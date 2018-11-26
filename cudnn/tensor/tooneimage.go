@@ -1,6 +1,8 @@
 package tensor
 
-import "image"
+import (
+	"image"
+)
 
 //ToOneImage will spread out the image.Images into one image.Image.  It will only work if all the [][]image.Image are the same size
 //Channels will be in the x direction, and neurons will be in the y direction. X and Y are the amount of separation in pixels in the given dim between images.
@@ -17,9 +19,14 @@ func ToOneImage(layer [][]image.Image, X, Y int) image.Image {
 	MaxX := (littlex * bigX) + xtraX
 
 	BigImage := image.NewRGBA(image.Rect(0, 0, MaxX, MaxY))
-
+	//var wg sync.WaitGroup()
+	//maxthreads:= runtime.NumCPU()
+	//counter:=0
 	for i := range layer {
 		for j := range layer[i] {
+			if layer[i][j] == nil {
+				panic("layer ij is nil")
+			}
 			img := layer[i][j]
 			x := img.Bounds().Max.X
 			y := img.Bounds().Max.Y
@@ -29,6 +36,7 @@ func ToOneImage(layer [][]image.Image, X, Y int) image.Image {
 					bigj := j*(littlex+X) + w
 					//img.At(w,h)
 					if w < x && h < y {
+						//		fmt.Println(h, w)
 						BigImage.Set(bigj, bigi, img.At(w, h))
 					}
 

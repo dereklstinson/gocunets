@@ -88,6 +88,11 @@ func (l *Layer) DBMin(handle *cudnn.Handler) ([]float32, error) {
 	return l.conv.DBMin(handle)
 }
 
+//Weights exposes the inner convolutional layer that does the convolution method for the transpose
+func (l *Layer) Weights() *layers.IO {
+	return l.conv.Weights()
+}
+
 //ForwardProp does the forward propagation of convolution transpose
 func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch l.mode {

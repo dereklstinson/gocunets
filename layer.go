@@ -56,48 +56,48 @@ func (l *layer) needstrainer() bool {
 	return false
 }
 
-func wraplayer(input interface{}) *layer {
+func wraplayer(input interface{}) (*layer, bool) { //the bool is for a counter to count the layers that contain weights
 	switch l := input.(type) {
 
 	case *activation.Layer:
 		return &layer{
 			activation: l,
-		}
+		}, false
 	case *cnn.Layer:
 		return &layer{
 			cnn: l,
-		}
+		}, true
 	case *fcnn.Layer:
 		return &layer{
 			fcnn: l,
-		}
+		}, true
 	case *softmax.Layer:
 		return &layer{
 			softmax: l,
-		}
+		}, false
 	case *pooling.Layer:
 		return &layer{
 			pool: l,
-		}
+		}, false
 	case *dropout.Layer:
 		return &layer{
 			drop: l,
-		}
+		}, false
 	case *batchnorm.Layer:
 		return &layer{
 			batch: l,
-		}
+		}, false
 	case *reshape.Layer:
 		return &layer{
 			reshape: l,
-		}
+		}, false
 	case *cnntranspose.Layer:
 		return &layer{
 			cnntranspose: l,
-		}
+		}, true
 
 	default:
-		return nil
+		return nil, false
 	}
 }
 

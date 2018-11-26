@@ -6,6 +6,8 @@ func webTemp() string {
 
 const thewebpagetemplatest2 = `<html lang="en">
 <head>
+<script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js">
+</script>
 <title>GoCuNets Output</title>
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -70,12 +72,12 @@ body {
 }
 .column50 {
 	float: left;
-	width 50%;
+	width: 50%;
 	padding: 4px;
 }
 .column100 {
 	float: left;
-	width 100%;
+	width: 100%;
 	padding: 4px;
 }
 /* Clear floats after the columns */
@@ -94,7 +96,11 @@ body {
 </style>
 
 <body>
+<script>
 
+
+
+</script>
 
 <div class="header">
   <h1>On Demand Layout</h1>
@@ -114,13 +120,23 @@ body {
   <div class="{{.ColWid}}">
   	<h2>{{.Header}}</h2>
 		<img id="{{.ID}}" src="{{.URL}}">
-		<p>{{.Paragraph}}</p>
+		<div id = "{{.PID}}" src="{{.PURL}}"></div>
+	<!---	<p id ="{{.PID}}" src="{{.PURL}}"></p> --->
 		<script>
-			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}})
+			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}});
 		function {{.Func}}(){
 			var d = new Date();
 			var theurl = "{{.URL}}"+d.toLocaleTimeString();
+			var thepurl = "{{.PURL}}"+d.toLocaleTimeString();
+		
 			 document.getElementById("{{.ID}}").src= theurl;
+			 jQuery.get(thepurl,function(data,status){
+				 if (status=="success"){
+					document.getElementById("{{.PID}}").innerHTML= data;
+				 }
+				
+			 });
+		
 		}
         </script>
 </div>
@@ -249,7 +265,7 @@ body {
 		<img id="{{.ID}}" src="{{.URL}}">
 		<p id="{{.PID}} src ="{{.Paragraph}}">
 		<script>
-			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}})
+			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}});
 		function {{.Func}}(){
 			var d = new Date();
 			

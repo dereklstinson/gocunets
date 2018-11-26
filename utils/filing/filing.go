@@ -31,6 +31,9 @@ func WritetoHD(dir, fname string, e Encoder) error {
 
 //WriteImage will take an image.Image and encode it to a jpg
 func WriteImage(dir string, fname string, newimage image.Image) error {
+	if newimage == nil {
+		panic("image.Image passed is nil")
+	}
 	if strings.Contains(dir, fname) == true {
 		dir = strings.TrimSuffix(dir, fname)
 

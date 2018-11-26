@@ -4,6 +4,7 @@ package gocunets
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
@@ -36,21 +37,22 @@ type Flag struct {
 
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
-	layer           []*layer
-	mem             []*layers.IO
-	totalionets     []*netios
-	err             chan error
-	position        int
-	hiomode         hiddenmode
-	resizecounter   int
-	hybridsize      int
-	reshaper        *reshape.Layer
-	resizeinput     *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
-	previousdims    []int32
-	descriminator   bool
-	l1losses        []float32
-	l2losses        []float32
-	totalionetsinit bool
+	layer             []*layer
+	mem               []*layers.IO
+	totalionets       []*netios
+	totalionetcounter int
+	err               chan error
+	position          int
+	hiomode           hiddenmode
+	resizecounter     int
+	hybridsize        int
+	reshaper          *reshape.Layer
+	resizeinput       *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
+	previousdims      []int32
+	descriminator     bool
+	l1losses          []float32
+	l2losses          []float32
+	totalionetsinit   bool
 }
 
 func networkerrors(err <-chan error) {
@@ -158,9 +160,15 @@ func (m *Network) AddLayers(layer ...interface{}) {
 				m.err <- x
 			}
 		default:
-			l := wraplayer(x)
+			l, hasweights := wraplayer(x)
 			if l == nil {
+
 				m.err <- errors.New("Unsupported Layer")
+			}
+			if hasweights {
+				m.totalionetcounter += 2
+			} else {
+				m.totalionetcounter++
 			}
 			m.layer = append(m.layer, l)
 		}
@@ -174,13 +182,24 @@ func (m *Network) AddLayer(layer interface{}, err error) {
 	if err != nil {
 		m.err <- err
 	}
-	l := wraplayer(layer)
-	if l == nil {
+	l, hasweights := wraplayer(layer)
+	if l != nil {
+		m.layer = append(m.layer, l)
+		if hasweights {
+			m.totalionetcounter += 2
 
-		m.err <- errors.New("Unsupported Layer")
+		} else {
+			m.totalionetcounter++
+		}
+		return
 	}
-	m.layer = append(m.layer, l)
+	m.err <- errors.New("Unsupported Layer")
 	return
+}
+
+//HiddenIOandWeightCount will return the number of hidden ios and weights that are not exposed to other networks
+func (m *Network) HiddenIOandWeightCount() int {
+	return m.totalionetcounter - 1
 }
 
 //buildhiddenios will build a hidden network layer based on the input given used for my generator network
@@ -194,6 +213,7 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	for i := 0; i < len(m.layer)-1; i++ {
 		layerwbs := wrapnetio(m.layer[i])
 		if layerwbs != nil {
+			//	fmt.Println("Adding Layer")
 			m.totalionets = append(m.totalionets, layerwbs)
 		}
 
@@ -206,11 +226,23 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
 		m.totalionets = append(m.totalionets, wrapnetio(mem))
+		//	fmt.Println("adding hidden")
 		previous = mem
 		m.mem = append(m.mem, mem)
 
 	}
+	layerwbs := wrapnetio(m.layer[len(m.layer)-1])
+	if layerwbs != nil {
+		//		fmt.Println("Adding Layer")
+		m.totalionets = append(m.totalionets, layerwbs)
+	}
 
+	//fmt.Println(len(m.totalionets), m.totalionetcounter-1)
+	if len(m.totalionets) != m.totalionetcounter-1 {
+		fmt.Println(len(m.totalionets), m.totalionetcounter-1)
+		panic("len(m.totalionets)!= m.totalionetcounter-1  please fix")
+
+	}
 	return m.buildminmax(handle, false)
 }
 func (m *Network) freehiddenios() error {
