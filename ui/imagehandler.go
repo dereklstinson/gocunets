@@ -13,8 +13,17 @@ type ImageHandler struct {
 	mux       sync.Mutex
 	iin, iout int
 	size      int
-}
+} /*
+//MakeImageHandler makes a new image handler
+func MakeImageHandlerV2(bufferlen int, img <-chan image.Image, buffersize chan<- int) (*ImageHandler, chan<-image.Image ,<-chan int {
 
+	x := &ImageHandler{}
+	x.img = make([]image.Image, bufferlen)
+	x.size = bufferlen
+	go x.runchannel(img, buffersize)
+	return x
+}
+*/
 //MakeImageHandler makes a new image handler
 func MakeImageHandler(bufferlen int, img <-chan image.Image, buffersize chan<- int) *ImageHandler {
 

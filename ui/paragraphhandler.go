@@ -15,6 +15,18 @@ type ParagraphHandler struct {
 }
 
 //MakeParagraphHandler makes a new image handler
+func MakeParagraphHandlerV2(bufferlen int) (*ParagraphHandler, chan<- string, <-chan int) {
+
+	p := make(chan string, bufferlen)
+	b := make(chan int, bufferlen)
+	x := &ParagraphHandler{}
+	x.par = make([]string, bufferlen)
+	x.size = bufferlen
+	go x.runchannel(p, b)
+	return x, p, b
+}
+
+//MakeParagraphHandler makes a new image handler
 func MakeParagraphHandler(bufferlen int, paragraph <-chan string, buffersize chan<- int) *ParagraphHandler {
 
 	x := &ParagraphHandler{}

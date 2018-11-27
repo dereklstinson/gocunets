@@ -47,6 +47,8 @@ func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
 	}
 }
 
+//func (w *Windows) AddWindowV2(header, refreshrate, url string, image Handler, paragraph string, para Handler)
+
 //AddWindow adds a window to the ui
 func (w *Windows) AddWindow(header, refreshrate, url string, uh Handler, purl string, up Handler) {
 
