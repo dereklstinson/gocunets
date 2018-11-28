@@ -10,8 +10,10 @@ import (
 
 //Adam is a struct that does the holds the params for adam optimization
 type Adam struct {
-	loss1     float32
-	loss2     float32
+	loss1     []float32
+	loss2     []float32
+	goptr1    *gocudnn.GoPointer
+	goptr2    *gocudnn.GoPointer
 	gpuloss1  *gocudnn.Malloced
 	gpuloss2  *gocudnn.Malloced
 	gsum      *gocudnn.Malloced
@@ -44,7 +46,16 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 	switch dtype {
 
 	case dflg.Float():
-
+		a.loss1 = make([]float32, 1)
+		a.loss2 = make([]float32, 1)
+		a.goptr1, err = gocudnn.MakeGoPointer(a.loss1)
+		if err != nil {
+			return err
+		}
+		a.goptr2, err = gocudnn.MakeGoPointer(a.loss2)
+		if err != nil {
+			return err
+		}
 		asize := dimsize(dims)
 		x := make([]float32, asize)
 		sizet, err := gocudnn.FindSizeT(x)
@@ -89,43 +100,42 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 
 //UpdateWeights updates the weights
 func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsize int) error {
-	err := handle.Sync()
+	var err error
+	/*err = handle.Sync()
 	if err != nil {
 		return err
-	}
+	}*/
 	a.SetBatch(float32(batchsize))
 	err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
 	if err != nil {
 		return err
 	}
-	err = handle.Sync()
+	/*
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+	*/
+	return a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+}
+func (a *Adam) l1l2loss() error {
+	var err error
+	err = gocudnn.UnifiedMemCopy(a.goptr1, a.gpuloss1)
 	if err != nil {
 		return err
 	}
-	return a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+	err = gocudnn.UnifiedMemCopy(a.goptr2, a.gpuloss2)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
 
 //L1L2Loss returns the l1l2 loss of the memory that adam was training
-func (a *Adam) L1L2Loss() (float32, float32, error) {
-	kind := gocudnn.MemcpyKindFlag{}.Default()
-	size := gocudnn.SizeT(4)
-	l1, err := gocudnn.MakeGoPointer(a.loss1)
-	if err != nil {
-		return 0, 0, err
-	}
-	l2, err := gocudnn.MakeGoPointer(a.loss2)
-	if err != nil {
-		return 0, 0, err
-	}
-	err = gocudnn.CudaMemCopy(l1, a.gpuloss1, size, kind)
-	if err != nil {
-		return 0, 0, err
-	}
-	err = gocudnn.CudaMemCopy(l2, a.gpuloss2, size, kind)
-	if err != nil {
-		return 0, 0, err
-	}
-	return a.loss1, a.loss2, nil
+func (a *Adam) L1L2Loss() (float32, float32) {
+
+	return a.loss1[0], a.loss2[0]
 }
 func dimsize(dims []int32) int32 {
 	x := int32(1)

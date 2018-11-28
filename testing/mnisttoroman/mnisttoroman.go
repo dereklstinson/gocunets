@@ -256,26 +256,14 @@ func main() {
 					if w < imagebuffer {
 						switch k {
 						case 0:
-							//imagerlayer[k].LoadTValues(romanoutput.T().Memer())
-							//outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
-							//utils.CheckError(err)
-
 							parachans[k] <- fmt.Sprintf("Roman Loss:%-0.2f", romanloss)
 						case 1:
-							//	imagerlayer[k].LoadTValues(ArabicOutput.T().Memer())
-							//	outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
-							//	utils.CheckError(err)
 
 							parachans[k] <- fmt.Sprintf("Arabic Loss: %-0.2f", arabicloss)
 						case 2:
-							//	imagerlayer[k].LoadTValues(arabicnums[j].T().Memer())
-							//	outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
-							//	utils.CheckError(err)
+
 							parachans[k] <- fmt.Sprintf("Epoc: %d, Batch %d", i, j)
 						case 3:
-							//	imagerlayer[k].LoadTValues(arabicnums[j].T().Memer())
-							//	outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
-							//	utils.CheckError(err)
 							parachans[k] <- fmt.Sprintf("Epoc: %d, Batch %d, Roman Loss: %-0.2f, Arabic Loss: %-0.2f", i, j, romanloss, arabicloss)
 						}
 

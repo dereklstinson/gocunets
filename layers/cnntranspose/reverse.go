@@ -11,7 +11,6 @@ import (
 func ReverseBuild(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
-	inputdimsguess []int32, //UpscaledDims will be the dims of the input before the convolution
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad, //largestgains with no pad
@@ -19,7 +18,7 @@ func ReverseBuild(handle *cudnn.Handler,
 	dilation []int32, //largest gains with dilation
 	inputlayer bool,
 	managedmem bool) (*Layer, error) {
-	conv, err := cnn.SetupDynamicReverse(handle, frmt, dtype, inputdimsguess, filterdims, convmode, pad, stride, dilation, managedmem)
+	conv, err := cnn.SetupDynamicReverse(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, err
 	}

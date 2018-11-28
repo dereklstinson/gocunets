@@ -167,5 +167,5 @@ func (l *layer) l1l2loss() (l1, l2 float32) {
 		return l.cnntranspose.L1L2Loss()
 
 	}
-	return -1, -1
+	return -123, -123
 }

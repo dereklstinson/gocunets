@@ -302,14 +302,10 @@ func (l *Layer) UpdateWeights(ctx *cudnn.Handler, batch int) error {
 	if err != nil {
 		return err
 	}
-	l.l1lossb, l.l2lossb, err = l.btrain.L1L2Loss()
-	if err != nil {
-		return err
-	}
-	l.l1lossw, l.l2lossw, err = l.train.L1L2Loss()
-	if err != nil {
-		return err
-	}
+	l.l1lossb, l.l2lossb = l.btrain.L1L2Loss()
+
+	l.l1lossw, l.l2lossw = l.train.L1L2Loss()
+
 	return nil
 }
 

@@ -24,7 +24,7 @@ func RomanDecoder(handle *cudnn.Handler,
 	numofneurons int32,
 	l1regularization float32,
 	l2regularization float32) *gocunets.Network {
-	in := utils.Dims
+
 	filter := utils.Dims
 	padding := utils.Dims
 	stride := utils.Dims
@@ -41,8 +41,8 @@ func RomanDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D1       8
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), true, memmanaged),
+	network.AddLayer( //in(batchsize, 3, 7, 7)
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), true, memmanaged),
 	) //7
 	/*
 		Activation Layer D2       9
@@ -54,8 +54,8 @@ func RomanDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D3      10
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( //in(batchsize, numofneurons, 14, 14)
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7-8+(14)+1 =14
 	/*
 		Activation Layer D4        11
@@ -68,8 +68,8 @@ func RomanDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D5       12
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //14-8 +14 +1 =21
 	/*
 		Activation Layer D6       13
@@ -82,8 +82,8 @@ func RomanDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D7         14
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( //in(batchsize, numofneurons, 28, 28),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //28
 
 	//var err error
@@ -120,7 +120,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	numofneurons int32,
 	l1regularization float32,
 	l2regularization float32) *gocunets.Network {
-	in := utils.Dims
+
 	filter := utils.Dims
 	padding := utils.Dims
 	stride := utils.Dims
@@ -136,8 +136,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Convoultion Layer E1  0
 	*/
 
-	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	network.AddLayer( //in(batchsize, 1, 28, 28),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-8+1 = 21
 	/*
 		Activation Layer E2    1
@@ -149,8 +149,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E3    2
 	*/
-	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //21-8+1 =14
 	/*
 		Activation Layer E4    3
@@ -163,8 +163,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E5    4
 	*/
-	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	network.AddLayer( // in(batchsize, numofneurons, 14, 14),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 14-8+1=7
 	/*
 		Activation Layer E6    5
@@ -176,8 +176,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E7    6
 	*/
-	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(codingvector, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+	network.AddLayer( // in(batchsize, numofneurons, 7, 7),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(codingvector, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 1
 
 	/*
@@ -224,7 +224,7 @@ func ArabicDecoder(handle *cudnn.Handler,
 	numofneurons int32,
 	l1regularization float32,
 	l2regularization float32) *gocunets.Network {
-	in := utils.Dims
+
 	filter := utils.Dims
 	padding := utils.Dims
 	stride := utils.Dims
@@ -241,8 +241,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Convoultion Layer D1
 	*/
 
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 3, 7, 7), filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( // in(batchsize, 3, 7, 7),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(codingvector, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7
 	/*
 		Activation Layer D2
@@ -254,8 +254,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D3
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( // in(batchsize, numofneurons, 14, 14),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7-8+(14)+1 =14
 	/*
 		Activation Layer D4
@@ -268,8 +268,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D5
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //14-8 +14 +1 =21
 	/*
 		Activation Layer D6
@@ -282,8 +282,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer D7
 	*/
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+	network.AddLayer( //in(batchsize, numofneurons, 28, 28),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //28
 
 	//var err error

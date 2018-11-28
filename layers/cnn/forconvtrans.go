@@ -16,7 +16,7 @@ import (
 func SetupDynamicReverse(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
-	guessinputdims []int32,
+	//	guessinputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -27,7 +27,7 @@ func SetupDynamicReverse(handle *cudnn.Handler,
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(guessinputdims)
+	err = layer.MakeRandomFromFaninDims(filterdims)
 	if err != nil {
 		return nil, err
 	}

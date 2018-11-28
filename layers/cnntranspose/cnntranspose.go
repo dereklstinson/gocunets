@@ -38,9 +38,7 @@ type convtransposemode int
 
 const (
 	convtransposetrans   = convtransposemode(1)
-	convtransposeresize  = convtransposemode(2)
-	convtransposes2b     = convtransposemode(3)
-	convtransposereverse = convtransposemode(4)
+	convtransposereverse = convtransposemode(2)
 )
 
 //SetupMinMaxReducers sets up the minmax reducers for the bias and weights
@@ -97,12 +95,9 @@ func (l *Layer) Weights() *layers.IO {
 func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch l.mode {
 
-	case convtransposeresize:
-		return utils.ErrorWrapper("cnntranspose resize forward", l.resizeforward(handle, wspace, x, y))
 	case convtransposetrans:
 		return utils.ErrorWrapper("cnntranspose transform forward", l.tranformforward(handle, wspace, x, y))
-	case convtransposes2b:
-		return utils.ErrorWrapper("cnntranspose s2b forward", l.s2bforward(handle, wspace, x, y))
+
 	case convtransposereverse:
 		return utils.ErrorWrapper("cnntranspose reverse forward", l.reverseForwardProp(handle, wspace, x, y))
 	}
@@ -113,12 +108,9 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch l.mode {
 
-	case convtransposeresize:
-		return l.resizeBackPropData(handle, wspace, x, y)
 	case convtransposetrans:
 		return l.transformBackPropData(handle, wspace, x, y)
-	case convtransposes2b:
-		return l.s2bBackPropData(handle, wspace, x, y)
+
 	case convtransposereverse:
 		return utils.ErrorWrapper("cnntranspose reverse backdata", l.reverseBackPropData(handle, wspace, x, y))
 
@@ -130,12 +122,10 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	if l.inputlayer == true {
 		switch l.mode {
-		case convtransposeresize:
-			return l.resizeBackPropFilter(handle, wspace, x, y)
+
 		case convtransposetrans:
 			return l.transformBackPropFilter(handle, wspace, x, y)
-		case convtransposes2b:
-			return l.s2bBackPropFilter(handle, wspace, x, y)
+
 		case convtransposereverse:
 			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
 		}
@@ -143,12 +133,10 @@ func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 	} else {
 
 		switch l.mode {
-		case convtransposeresize:
-			return l.resizeBackPropFilterData(handle, wspace, x, y)
+
 		case convtransposetrans:
 			return l.transformBackPropFilterData(handle, wspace, x, y)
-		case convtransposes2b:
-			return l.s2bBackPropFilterData(handle, wspace, x, y)
+
 		case convtransposereverse:
 			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspace, x, y))
 		}
@@ -171,7 +159,7 @@ func build(handle *cudnn.Handler,
 	mode convtransposemode,
 	inputlayer bool,
 	managedmem bool) (*Layer, error) {
-	conv, err := cnn.SetupDynamic(handle, frmt, dtype, filterdims, filterdims, convmode, pad, stride, dilation, managedmem)
+	conv, err := cnn.SetupDynamic(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
 	if err != nil {
 		return nil, err
 	}
@@ -198,12 +186,9 @@ func build(handle *cudnn.Handler,
 func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	switch l.mode {
 
-	case convtransposeresize:
-		return l.resizeandTransformoutputdims(handle)
 	case convtransposetrans:
 		return l.resizeandTransformoutputdims(handle)
-	case convtransposes2b:
-		return l.s2outputIO(handle, input)
+
 	case convtransposereverse:
 		return l.reverseOutput(handle, input)
 	}
@@ -230,8 +215,6 @@ func (l *Layer) L1L2Loss() (L1, L2 float32) {
 
 //UpdateWeights updates the weights in the layer
 func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
-	if l.mode == convtransposes2b {
-		//	return l.conv.UpdateWeights(handle, batch*int(l.s2bbatchmult))
-	}
+
 	return l.conv.UpdateWeights(handle, batch)
 }

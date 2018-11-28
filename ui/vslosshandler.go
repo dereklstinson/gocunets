@@ -79,7 +79,7 @@ func (l *VSLossHandler) runchannel(LossData <-chan []LabelFloat) {
 				l.data[i], err = plot.NewLabeledData(array[i].Label, l.originaldata[i])
 
 			}
-			l.Plots, err = plot.Verses3(l.title, l.xaxis, l.yaxis, l.h, l.w, l.data)
+			l.Plots, err = plot.Verses2(l.title, l.xaxis, l.yaxis, l.h, l.w, l.data)
 			if err != nil {
 				panic(err)
 			}

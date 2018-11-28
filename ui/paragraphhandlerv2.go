@@ -6,27 +6,41 @@ import (
 	"sync"
 )
 
-//ParagraphHandler takes
-type ParagraphHandler struct {
+//ParagraphHandlerV2 is the handler for the ui
+type ParagraphHandlerV2 struct {
 	par       []string
 	mux       sync.Mutex
 	iin, iout int
 	size      int
+	p         chan string
+	b         chan int
 }
 
-//MakeParagraphHandler makes a new image handler
-func MakeParagraphHandler(bufferlen int, paragraph <-chan string, buffersize chan<- int) *ParagraphHandler {
+//MakeParagraphHandlerV2 makes a new image handler
+func MakeParagraphHandlerV2(bufferlen int) *ParagraphHandlerV2 {
 
-	x := &ParagraphHandler{}
+	x := &ParagraphHandlerV2{}
 	x.par = make([]string, bufferlen)
 	x.size = bufferlen
-	go x.runchannel(paragraph, buffersize)
+	x.p = make(chan string, bufferlen)
+	x.b = make(chan int, bufferlen)
+	go x.runchannel2(x.p, x.b)
 	return x
 }
 
-func (l *ParagraphHandler) runchannel(paragraph <-chan string, buffersize chan<- int) {
+//Paragraph works like Sprintf sending messages through a hidden channel
+func (l *ParagraphHandlerV2) Paragraph(format string, a ...interface{}) {
+	l.p <- fmt.Sprintf(format, a...)
 
-	for pg := range paragraph {
+}
+
+//Buffer returns the buffer channel
+func (l *ParagraphHandlerV2) Buffer() <-chan int {
+	return l.b
+}
+func (l *ParagraphHandlerV2) runchannel2(p <-chan string, b chan<- int) {
+
+	for pg := range p {
 
 		if (l.iin+1)%l.size != l.iout%l.size {
 			l.mux.Lock()
@@ -34,13 +48,13 @@ func (l *ParagraphHandler) runchannel(paragraph <-chan string, buffersize chan<-
 			l.mux.Unlock()
 			l.iin++
 		}
-		buffersize <- l.iin - l.iout
+		b <- l.iin - l.iout
 	}
 
 }
 
 //Handle is the function that returns the handle function
-func (l *ParagraphHandler) Handle() func(w http.ResponseWriter, req *http.Request) {
+func (l *ParagraphHandlerV2) Handle() func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if l.par == nil {
 

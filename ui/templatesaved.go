@@ -137,8 +137,8 @@ body {
 {{ .NewRow}}
   <div class="{{.ColWid}}">
   	<h2>{{.Header}}</h2>
-
-	  <div class="zoom">  <img id="{{.ID}}" src="{{.URL}}">		</div>
+	   <div><img id="{{.ID}}" src="{{.URL}}"></div>
+	 
 		<div id = "{{.PID}}" src="{{.PURL}}"></div>
 
 		<script>
@@ -169,6 +169,7 @@ body {
 </body>
 </html>
 `
+
 const thewebpagetemplatest2testing = `<html lang="en">
 <head>
 <title>GoCuNets Output</title>

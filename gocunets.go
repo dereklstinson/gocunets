@@ -560,13 +560,22 @@ func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
 			return err
 		}
 		a, b := m.layer[i].l1l2loss()
-		if a > 0 && b > 0 {
+		if a > -1 && b > -1 {
 			m.l1losses[counter], m.l2losses[counter] = a, b
 			counter++
 		}
 
 	}
 	return nil
+}
+func (m *Network) TotalL1L2Loss() (L1, L2 float32) {
+	L1, L2 = 0, 0
+	for i := range m.l1losses {
+		L1 += m.l1losses[i]
+		L2 += m.l2losses[i]
+	}
+
+	return L1, L2
 }
 
 //L1L2Loss returns the L1L2 loss arrays for every layer that has a trainer

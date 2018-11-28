@@ -4,6 +4,7 @@ package layers
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
@@ -19,6 +20,7 @@ type IO struct {
 	input        bool
 	dims         []int32
 	managed      bool
+	mux          sync.Mutex
 }
 
 //Settings contains the info that is needed to build an IO
@@ -58,27 +60,38 @@ func (i *IO) ClearDeltas() error {
 }
 
 //MinX returns the minx value per batch in the tensor or if it is used for the filter it would be the minx value per neuron
-func (i *IO) MinX(handle *cudnn.Handler) ([]float32, error) {
-	return i.minx.Reduce(handle, i.T())
+func (i *IO) MinX(handle *cudnn.Handler) (x []float32, e error) {
+	i.mux.Lock()
+	x, e = i.minx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
 
 }
 
 //MaxX returns the MaxX per batch value in the tensor or if it is used for the filter it would be the MaxX value per neuron
-func (i *IO) MaxX(handle *cudnn.Handler) ([]float32, error) {
-	return i.maxx.Reduce(handle, i.T())
+func (i *IO) MaxX(handle *cudnn.Handler) (x []float32, e error) {
+	i.mux.Lock()
+	x, e = i.maxx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
 
 }
 
 //MaxDX returns the MaxDX per batch value in the tensor or if it is used for the filter it would be the MaxDX value per neuron
-func (i *IO) MaxDX(handle *cudnn.Handler) ([]float32, error) {
-	return i.mindx.Reduce(handle, i.DeltaT())
+func (i *IO) MaxDX(handle *cudnn.Handler) (x []float32, e error) {
+	i.mux.Lock()
+	x, e = i.mindx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
 
 }
 
 //MinDX returns the MinDX per batch value in the tensor or if it is used for the filter it would be the MinDX value per neuron
-func (i *IO) MinDX(handle *cudnn.Handler) ([]float32, error) {
-	return i.maxdx.Reduce(handle, i.DeltaT())
-
+func (i *IO) MinDX(handle *cudnn.Handler) (x []float32, e error) {
+	i.mux.Lock()
+	x, e = i.maxdx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
 }
 
 //Info returns info

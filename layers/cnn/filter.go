@@ -6,6 +6,7 @@ import (
 	"errors"
 	"image"
 	"io"
+	"sync"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
@@ -17,7 +18,7 @@ import (
 
 const alphadefault = 1.0
 const beta1default = 0.0
-const beta2default = 1.0
+const beta2default = 0.0
 
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
@@ -40,6 +41,7 @@ type Layer struct {
 	l2b        float32
 	l1w        float32
 	l2w        float32
+	mux        sync.Mutex
 }
 
 //Params is a temporary struct for saving.  It will most likely be changed
@@ -100,12 +102,10 @@ func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	if err != nil {
 		return err
 	}
-	c.l1b, c.l2b, err = c.btrain.L1L2Loss()
-	if err != nil {
-		return err
-	}
+	c.l1b, c.l2b = c.btrain.L1L2Loss()
+
 	c.train.UpdateWeights(handle, c.w, batch)
-	c.l1w, c.l2w, err = c.train.L1L2Loss()
+	c.l1w, c.l2w = c.train.L1L2Loss()
 	if err != nil {
 		return err
 	}
@@ -232,7 +232,7 @@ func (c *Layer) OutputDims(inputdims []int32) []int32 {
 func SetupDynamic(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
-	guessinputdims []int32,
+	//	guessinputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -243,12 +243,12 @@ func SetupDynamic(handle *cudnn.Handler,
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(guessinputdims)
+	err = layer.MakeRandomFromFaninDims(filterdims)
 	if err != nil {
 		return nil, err
 	}
 
-	err = layer.bias.T().SetValues(handle, 0.001)
+	err = layer.bias.T().SetValues(handle, 0.0001)
 	if err != nil {
 		return nil, err
 	}

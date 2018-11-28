@@ -52,19 +52,25 @@ func Verses2(title, xaxis, yaxis string, h, w int, data []LabeledData) (io.Write
 	p.Title.Text = title
 	p.X.Label.Text = xaxis
 	p.Y.Label.Text = yaxis
+	interfaceddata := makeaddlinereadable(data)
 
-	for i := range data {
+	err = plotutil.AddLines(p,
+		interfaceddata...,
+	)
 
-		err = plotutil.AddLines(p,
-			data[i].Label, data[i].Data)
-		if err != nil {
-			panic(err)
-		}
-	}
 	return p.WriterTo(vg.Length(w)*vg.Centimeter, vg.Length(h)*vg.Centimeter, "jpg")
 
 }
+func makeaddlinereadable(data []LabeledData) []interface{} {
+	x := make([]interface{}, 0)
+	for i := range data {
+		x = append(x, data[i].Label)
+		x = append(x, data[i].Data)
+	}
+	return x
+}
 
+/*
 //Verses3 does a verses line plot with the data passed.
 //title,xaxis,yaxis are the labels for the plot image
 //h,w are the size of the image
@@ -239,3 +245,4 @@ func Verses3(title, xaxis, yaxis string, h, w int, data []LabeledData) (io.Write
 	return p.WriterTo(vg.Length(w)*vg.Centimeter, vg.Length(h)*vg.Centimeter, "jpg")
 
 }
+*/
