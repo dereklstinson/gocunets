@@ -11,12 +11,12 @@ type Device struct {
 }
 
 //GetDevices returns a slice of devices
-func GetDevices() ([]Device, error) {
+func GetDevices() ([]*Device, error) {
 	amount, err := nvml.GetDeviceCount()
 	if err != nil {
 		return nil, err
 	}
-	devices := make([]Device, amount)
+	devices := make([]*Device, amount)
 	for i := uint(0); i < amount; i++ {
 		devices[i].d, err = nvml.NewDevice(i)
 		if err != nil {

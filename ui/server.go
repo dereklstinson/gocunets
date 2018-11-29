@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/ui/gpuperformance"
 	"github.com/pkg/browser"
 )
 
@@ -39,12 +40,19 @@ type Windows struct {
 //NewWindows creates allows the user to create a bunch of windows to access the neural network
 func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
 	browser.OpenURL(ipaddress + port + page)
-	return Windows{
+	x := Windows{
 		port:             port,
 		columnsperrow:    columnsperrow,
 		ipaddressandport: ipaddress + port,
 		page:             page,
 	}
+	mem, cc, mc, t, p := gpuperformance.CreateGPUPerformanceHandlers(1000, 300)
+	x.AddWindow("MemFree", "2000", "/gpumem/", mem, "/generic/", nil)
+	x.AddWindow("MemFree", "2000", "/gpuclock/", cc, "/generic/", nil)
+	x.AddWindow("MemFree", "2000", "/gpumemclock/", mc, "/generic/", nil)
+	x.AddWindow("MemFree", "2000", "/gputemp/", t, "/generic/", nil)
+	x.AddWindow("MemFree", "2000", "/gpupower/", p, "/generic/", nil)
+	return x
 }
 
 //func (w *Windows) AddWindowV2(header, refreshrate, url string, image Handler, paragraph string, para Handler)
@@ -84,7 +92,10 @@ func (w *Windows) AddWindow(header, refreshrate, url string, uh Handler, purl st
 	w.names = append(w.names, purl)
 	w.windows = append(w.windows, d)
 	w.handlers = append(w.handlers, uh)
-	w.handlers = append(w.handlers, up)
+	if up != nil {
+		w.handlers = append(w.handlers, up)
+	}
+
 	w.currentcol++
 	if !(w.currentcol < w.columnsperrow[w.currentrow]) {
 		w.currentcol = 0
@@ -129,6 +140,7 @@ func ServerMain(windows Windows) {
 	}
 	http.HandleFunc("/index", indexhandler)
 	for i := range windows.handlers {
+
 		http.HandleFunc(windows.names[i], windows.handlers[i].Handle())
 	}
 	log.Fatal(http.ListenAndServe(windows.port, nil))

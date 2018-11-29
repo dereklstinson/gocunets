@@ -24,7 +24,7 @@ func MakeParagraphHandlerV2(bufferlen int) *ParagraphHandlerV2 {
 	x.size = bufferlen
 	x.p = make(chan string, bufferlen)
 	x.b = make(chan int, bufferlen)
-	go x.runchannel2(x.p, x.b)
+	go x.runchannel(x.p, x.b)
 	return x
 }
 
@@ -38,7 +38,7 @@ func (l *ParagraphHandlerV2) Paragraph(format string, a ...interface{}) {
 func (l *ParagraphHandlerV2) Buffer() <-chan int {
 	return l.b
 }
-func (l *ParagraphHandlerV2) runchannel2(p <-chan string, b chan<- int) {
+func (l *ParagraphHandlerV2) runchannel(p <-chan string, b chan<- int) {
 
 	for pg := range p {
 
