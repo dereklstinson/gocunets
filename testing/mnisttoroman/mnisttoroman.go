@@ -98,15 +98,16 @@ func main() {
 
 	windows := ui.NewWindows([]int{4, 5}, "http://localhost", ":8080", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, 2)
-	lossplotlength := 1
+	lossplotlength := 100
 
 	imagebuffer := 4
+	imagehandlers := make([]*ui.ImageHandler, 7)
 	imagechans := make([]chan image.Image, 3)
-	bufferindex := make([]chan int, 3)
-	parabufferindex := make([]chan int, 4)
+	bufferindex := make([]chan int, 7)
+	parabufferindex := make([]chan int, 8)
 	imagerlayer := make([]*layers.IO, 3)
-	parachans := make([]chan string, 4)
-	imagehandlers := make([]*ui.ImageHandler, 3)
+	parachans := make([]chan string, len(imagehandlers)+1)
+
 	parahandlers := make([]*ui.ParagraphHandler, 4)
 	imager := make([]*imaging.Imager, 3)
 
@@ -127,12 +128,17 @@ func main() {
 	parabufferindex[len(imagehandlers)] = make(chan int, 3)
 	parahandlers[len(imagehandlers)] = ui.MakeParagraphHandler(imagebuffer, parachans[len(imagehandlers)], parabufferindex[len(imagehandlers)])
 	refresh := "2000" //asdf
-	ceiling := float32(10)
-	ArabicLoss, EpocLosses := ui.NewVSLossHandle("Epoc Loss", ceiling, LossDataChan, true, lossplotlength, "Arabic Loss", "Roman Loss")
-	windows.AddWindow("Arabic Loss Vs Roman Loss", refresh, "/ALoss/", ArabicLoss, "/ARLoss/", parahandlers[3])
-	windows.AddWindow("Roman Output", refresh, "/romanout/", imagehandlers[0], "/romanp/", parahandlers[0])
-	windows.AddWindow("Arabic Output", refresh, "/arabicoutput/", imagehandlers[1], "/arabp/", parahandlers[1])
-	windows.AddWindow("Input Image", refresh, "/arabicinput/", imagehandlers[2], "/arabinput/", parahandlers[2])
+	ceiling := float32(30)
+	ArabicLoss, EpocLosses := ui.NewVSLossHandle("Epoc Loss", ceiling, LossDataChan, false, lossplotlength, "Arabic Loss", "Roman Loss")
+	windows.AddWindow("Arabic Loss Vs Roman Loss", refresh, "/ALoss/", ArabicLoss, "/ARLoss/", parahandlers[len(imagehandlers)])
+	windows.AddWindow("Input Image", refresh, "/arabicinput/", imagehandlers[0], "/arabinput/", parahandlers[0])
+	windows.AddWindow("Arabic Output Current", refresh, "/arabicoutputCurrent/", imagehandlers[1], "/arabpCurrent/", parahandlers[1])
+	windows.AddWindow("Roman Output Current", refresh, "/romanoutputCurrent/", imagehandlers[2], "/romanCurrent/", parahandlers[2])
+
+	windows.AddWindow("Arabic Output Best", refresh, "/arabicoutputbest/", imagehandlers[3], "/arabpbest/", parahandlers[3])
+	windows.AddWindow("Arabic Output Worst", refresh, "/arabicoutputworst/", imagehandlers[4], "/arabpworst/", parahandlers[4])
+	windows.AddWindow("Roman Output Best", refresh, "/romanoutBest/", imagehandlers[5], "/romanpBest/", parahandlers[5])
+	windows.AddWindow("Roman Output Worst", refresh, "/romanoutWorst/", imagehandlers[6], "/romanpworst/", parahandlers[6])
 
 	encoderhidden := Encoder.HiddenIOandWeightCount()
 
@@ -155,40 +161,37 @@ func main() {
 		windows.AddWindow("Hidden "+strconv.Itoa(i), refresh, "/encode"+strconv.Itoa(i)+"/", encoderimagehandlers[i], "/pencode"+strconv.Itoa(i)+"/", encoderparahandlers[i])
 	}
 
-	/*
-		//arabic
-		decoderarabic := ToArabic.HiddenIOandWeightCount()
-		arabicimagechans := make([]chan image.Image, decoderarabic)
-		arabicbufferindex := make([]chan int, decoderarabic)
-		arabicparabufferindex := make([]chan int, decoderarabic)
-		arabicimagerlayer := make([]*layers.IO, decoderarabic)
-		arabicparachans := make([]chan string, decoderarabic)
-		arabicimagehandlers := make([]*ui.ImageHandler, decoderarabic)
-		arabicparahandlers := make([]*ui.ParagraphHandler, decoderarabic)
-		arabicimager := make([]*imaging.Imager, decoderarabic)
-		//roman
-		decoderroman := ToRoman.HiddenIOandWeightCount()
-		romanimagechans := make([]chan image.Image, decoderroman)
-		romanbufferindex := make([]chan int, decoderroman)
-		romanparabufferindex := make([]chan int, decoderroman)
-		romanimagerlayer := make([]*layers.IO, decoderroman)
-		romanparachans := make([]chan string, decoderroman)
-		romanimagehandlers := make([]*ui.ImageHandler, decoderroman)
-		romanparahandlers := make([]*ui.ParagraphHandler, decoderroman)
-		romanimager := make([]*imaging.Imager, 3)
-	*/
 	go ui.ServerMain(windows)
 	EpocLosses[0].Data[0] = ceiling
 	EpocLosses[1].Data[0] = ceiling
 	LossDataChan <- EpocLosses
+	outsidecounter := 0
 	for i := 0; i < epocs; i++ {
-
+		/*
+			best:=[]struct{
+				rvalue float32
+				rindex int
+				avalue float32
+				aindex int
+			}
+			worst:=[]struct{
+				rvalue float32
+				rindex int
+				avalue float32
+				aindex int
+			}
+		*/
 		//Making a lossaray to calculate the loss per batch
 		epoclossarabic := float32(0)
 		epoclossroman := float32(0)
 
 		for j := range arabicnums {
+			if outsidecounter >= lossplotlength {
 
+				LossDataChan <- EpocLosses
+				outsidecounter = 0
+
+			}
 			utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
 
 			utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
@@ -196,12 +199,34 @@ func main() {
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
 			utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
 			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
-			epoclossroman += MSERoman.Loss()
+			EpocLosses[1].Data[outsidecounter] = MSERoman.Loss()
+			/*
+				if best.rvalue > EpocLosses[1].Data[outsidecounter] {
+					best.rvalue = EpocLosses[1].Data[outsidecounter]
+					best.rindex = j
+				}
+				if worst.rvalue < EpocLosses[1].Data[outsidecounter] {
+					worst.rvalue = EpocLosses[1].Data[outsidecounter]
+					worst.rindex = j
+				}
+			*/
+			epoclossroman += EpocLosses[1].Data[outsidecounter]
 			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
 
 			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
 			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-			epoclossarabic += MSEArabic.Loss()
+			EpocLosses[0].Data[outsidecounter] = MSEArabic.Loss()
+			/*
+				if best.avalue > EpocLosses[0].Data[outsidecounter] {
+					best.avalue = EpocLosses[0].Data[outsidecounter]
+					best.aindex = j
+				}
+				if worst.avalue < EpocLosses[0].Data[outsidecounter] {
+					worst.avalue = EpocLosses[0].Data[outsidecounter]
+					worst.aindex = j
+				}
+			*/
+			epoclossarabic += EpocLosses[0].Data[outsidecounter]
 			utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
 			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 
@@ -209,6 +234,7 @@ func main() {
 			utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
 			utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
 
+			outsidecounter++
 			for k := range bufferindex {
 
 				var w int
@@ -336,11 +362,55 @@ func main() {
 		epoclossarabic /= float32(len(arabicnums))
 		epoclossroman /= float32(len(arabicnums))
 
-		EpocLosses[0].Data[0] = epoclossarabic
-		EpocLosses[1].Data[0] = epoclossroman
-		LossDataChan <- EpocLosses
+		//EpocLosses[0].Data[0] = epoclossarabic
+		//EpocLosses[1].Data[0] = epoclossroman
+		//LossDataChan <- EpocLosses
 
 		fmt.Println("Epoc: ", i, "ROMAN Loss : ", epoclossroman, "ARABIC Loss: ", epoclossarabic)
+
+		//	windows.AddWindow("Arabic Output Best", refresh, "/arabicoutputbest/", imagehandlers[3], "/arabpbest/", parahandlers[3])
+		//	windows.AddWindow("Arabic Output Worst", refresh, "/arabicoutputworst/", imagehandlers[4], "/arabpworst/", parahandlers[4])
+		//	windows.AddWindow("Roman Output Best", refresh, "/romanoutBest/", imagehandlers[5], "/romanpBest/", parahandlers[5])
+		//	windows.AddWindow("Roman Output Worst", refresh, "/romanoutWorst/", imagehandlers[6], "/romanpworst/", parahandlers[6])
+		/*
+			for k := range encoderbufferindex {
+
+				var w int
+				select {
+				case w = <-encoderbufferindex[k]:
+				default:
+					w = 0
+				}
+
+				if w < imagebuffer {
+					encoderimagechans[k] <- Eimages[k].X
+				} else {
+
+				}
+
+				select {
+				case w = <-encoderparabufferindex[k]:
+				default:
+					w = 0
+				}
+				if w < imagebuffer {
+					name := Eminmax[k].Name
+					if name == "CNN-Transpose" || name == "CNN" {
+						wminx := Eminmax[k].Weights.Minx
+						wmaxx := Eminmax[k].Weights.Maxx
+						bminx := Eminmax[k].Bias.Minx
+						bmaxx := Eminmax[k].Weights.Maxx
+						encoderparachans[k] <- fmt.Sprintf("Layer: %s %d, Weights:{Min: %f ,Max: %f} Bias{Min: %f ,Max: %f}", name, k, wminx, wmaxx, bminx, bmaxx)
+					} else {
+						wminx := Eminmax[k].Weights.Minx
+						wmaxx := Eminmax[k].Weights.Maxx
+						encoderparachans[k] <- fmt.Sprintf("Layer: %s %d, IO:{Min: %f ,Max: %f}", name, k, wminx, wmaxx)
+					}
+
+				}
+
+			}
+		*/
 		shuffle(arabicnums, arabicoutput)
 	}
 

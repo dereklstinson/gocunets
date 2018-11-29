@@ -21,9 +21,9 @@ type Power struct {
 func makePower(values <-chan []int, numberofplots, plotlengths int) *Power {
 
 	x := &Power{
-		title: "Device Temperature",
+		title: "Power Used",
 		xaxis: "Time",
-		yaxis: "C",
+		yaxis: "Watts",
 		h:     6,
 		w:     15,
 		data:  makeinitializedlabeldata(numberofplots, plotlengths),

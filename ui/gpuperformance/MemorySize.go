@@ -25,7 +25,7 @@ func makeMemory(values <-chan []int, numberofplots, plotlengths int) *Memory {
 	x := &Memory{
 		title: "DeviceMem",
 		xaxis: "Time",
-		yaxis: "MemUsed",
+		yaxis: "MB (used)",
 		h:     6,
 		w:     15,
 
