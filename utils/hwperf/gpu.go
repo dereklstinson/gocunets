@@ -1,6 +1,8 @@
 package hwperf
 
 import (
+	"fmt"
+
 	"github.com/dereklstinson/gpu-monitoring-tools/bindings/go/nvml"
 )
 
@@ -12,10 +14,15 @@ type Device struct {
 
 //GetDevices returns a slice of devices
 func GetDevices() ([]*Device, error) {
+	err := nvml.Init()
+	if err != nil {
+		return nil, err
+	}
 	amount, err := nvml.GetDeviceCount()
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Number of devices", i)
 	devices := make([]*Device, amount)
 	for i := uint(0); i < amount; i++ {
 		devices[i].d, err = nvml.NewDevice(i)
