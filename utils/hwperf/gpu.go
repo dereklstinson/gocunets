@@ -22,17 +22,24 @@ func GetDevices() ([]*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Number of devices", i)
-	devices := make([]*Device, amount)
+	fmt.Println("Number of devices", amount)
+	devices := make([]*Device, 0)
 	for i := uint(0); i < amount; i++ {
-		devices[i].d, err = nvml.NewDevice(i)
+		fmt.Println(i)
+
+		newdevice, err := nvml.NewDevice(i)
+
 		if err != nil {
 			return nil, err
 		}
-		devices[i].s, err = devices[i].d.Status()
+		dstatus, err := newdevice.Status()
 		if err != nil {
 			return nil, err
 		}
+		devices = append(devices, &Device{
+			d: newdevice,
+			s: dstatus,
+		})
 	}
 	return devices, nil
 }

@@ -20,11 +20,11 @@ func CreateGPUPerformanceHandlers(refreshms, Lengthoftime int) (*Memory, *CoreCl
 		panic(err)
 	}
 	go runchannel(devs, refreshms, mem, clockmem, clockcore, temps, pow)
-	m, cc, mc, t, p := makeMemory(mem, Lengthoftime, len(devs)),
-		makeCoreClock(mem, Lengthoftime, len(devs)),
-		makeMemClock(mem, Lengthoftime, len(devs)),
-		makeTemp(mem, Lengthoftime, len(devs)),
-		makePower(mem, Lengthoftime, len(devs))
+	m, cc, mc, t, p := makeMemory(mem, len(devs), Lengthoftime),
+		makeCoreClock(clockcore, len(devs), Lengthoftime),
+		makeMemClock(clockmem, len(devs), Lengthoftime),
+		makeTemp(temps, len(devs), Lengthoftime),
+		makePower(pow, len(devs), Lengthoftime)
 
 	return m, cc, mc, t, p
 }

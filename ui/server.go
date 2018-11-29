@@ -46,12 +46,12 @@ func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
 		ipaddressandport: ipaddress + port,
 		page:             page,
 	}
-	mem, cc, mc, t, p := gpuperformance.CreateGPUPerformanceHandlers(1000, 300)
-	x.AddWindow("MemFree", "2000", "/gpumem/", mem, "/generic/", nil)
-	x.AddWindow("MemFree", "2000", "/gpuclock/", cc, "/generic/", nil)
-	x.AddWindow("MemFree", "2000", "/gpumemclock/", mc, "/generic/", nil)
-	x.AddWindow("MemFree", "2000", "/gputemp/", t, "/generic/", nil)
-	x.AddWindow("MemFree", "2000", "/gpupower/", p, "/generic/", nil)
+	mem, cc, mc, t, p := gpuperformance.CreateGPUPerformanceHandlers(500, 600)
+	x.AddWindow("Gpu Mem Used (MB)", "500", "/gpumem/", mem, "", nil)
+	x.AddWindow("Gpu Core Speed (MHZ)", "500", "/gpuclock/", cc, "", nil)
+	x.AddWindow("Gpu Memory Speed (MHZ)", "500", "/gpumemclock/", mc, "", nil)
+	x.AddWindow("Temp (C) ", "500", "/gputemp/", t, "", nil)
+	x.AddWindow("Power (Watts)", "500", "/gpupower/", p, "", nil)
 	return x
 }
 
@@ -89,11 +89,12 @@ func (w *Windows) AddWindow(header, refreshrate, url string, uh Handler, purl st
 		MyVar:  template.JS("myvar" + suffix),
 	}
 	w.names = append(w.names, url)
-	w.names = append(w.names, purl)
+
 	w.windows = append(w.windows, d)
 	w.handlers = append(w.handlers, uh)
 	if up != nil {
 		w.handlers = append(w.handlers, up)
+		w.names = append(w.names, purl)
 	}
 
 	w.currentcol++
