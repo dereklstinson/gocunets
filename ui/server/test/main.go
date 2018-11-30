@@ -2,13 +2,41 @@ package main
 
 import (
 	"fmt"
+	"html/template"
+	"os"
 
 	"github.com/dereklstinson/GoCuNets/ui/server"
 )
 
 func main() {
-	fmt.Println(server.Replacecomment("HOWDY"))
-	fmt.Println(server.Image("img1", "someURL"))
+	//Colums in row
+	var col template.HTML
+	Headers := []string{"Layer0", "Layer1", "Layer2", "Layer3"}
+	fillers := []string{"All the people", "around the world", "everybody wang chung tonight", "DADADADADADADADADADADAD"}
+	for i := 0; i < len(Headers); i++ {
+		x := server.Header("3", Headers[i])
+		for j := 0; j < 4; j++ {
+			x = x + server.ParagraphID(fmt.Sprintf("para_%d", j), fillers[j])
+		}
+		col = col + server.Divcolumnwrap("column", x)
+
+	}
+	row := server.Divcolumnwrap("row", col)
+	fmt.Println(row)
+	file, err := os.Create("/home/derek/go/test/test.html")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	fmt.Fprint(file, row)
+}
+
+type WindowJ struct {
+	Para0 string `json:"para_0,omitempty"`
+	Para1 string `json:"para_1,omitempty"`
+	Para2 string `json:"para_2,omitempty"`
+	Para3 string `json:"para_3,omitempty"`
+	Para4 string `json:"para_4,omitempty"`
 }
 
 const thewebpagetemplatest2 = `<html lang="en">

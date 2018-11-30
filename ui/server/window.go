@@ -22,4 +22,6 @@ type stats struct {
 	stats  []string
 }
 
-func (n *Network) BuildPage()
+func (n *NetworkStats) BuildPage() {
+
+}
