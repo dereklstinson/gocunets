@@ -18,7 +18,7 @@ import (
 
 const alphadefault = 1.0
 const beta1default = 0.0
-const beta2default = 0.0
+const beta2default = 1.0
 
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1

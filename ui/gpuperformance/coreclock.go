@@ -8,8 +8,9 @@ import (
 	"github.com/dereklstinson/GoCuNets/ui/plot"
 )
 
+//CoreClock handles the device core clock speed info
 type CoreClock struct {
-	Plots io.WriterTo
+	plots io.WriterTo
 	title string
 	xaxis string
 	yaxis string
@@ -42,7 +43,7 @@ func (m *CoreClock) runchannel(value <-chan []int) {
 		for x := range val {
 			placeandshiftback(m.data[x], val[x])
 		}
-		m.Plots, err = plot.Verses2(m.title, m.xaxis, m.yaxis, m.h, m.w, m.data)
+		m.plots, err = plot.Verses2(m.title, m.xaxis, m.yaxis, m.h, m.w, m.data)
 		if err != nil {
 			panic(err)
 		}
@@ -54,8 +55,8 @@ func (m *CoreClock) runchannel(value <-chan []int) {
 func (m *CoreClock) Handle() func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		m.mux.Lock()
-		if m.Plots != nil {
-			_, err := m.Plots.WriteTo(w)
+		if m.plots != nil {
+			_, err := m.plots.WriteTo(w)
 			if err != nil {
 				panic(err)
 			}

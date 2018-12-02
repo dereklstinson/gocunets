@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"os"
+	"log"
+	"net/http"
 
-	"github.com/dereklstinson/GoCuNets/ui/server"
+	"github.com/dereklstinson/GoCuNets/ui/servertest"
 )
 
 func main() {
@@ -16,27 +17,40 @@ func main() {
 	for i := 0; i < len(Headers); i++ {
 		x := server.Header("3", Headers[i])
 		for j := 0; j < 4; j++ {
-			x = x + server.ParagraphID(fmt.Sprintf("para_%d", j), fillers[j])
+			x = x + server.ParagraphID(fmt.Sprintf("para_%d_%d", j, i), fillers[j])
 		}
-		col = col + server.Divcolumnwrap("column", x)
+		col = col + server.Divcolumnwrap("column25", x)
 
 	}
 	row := server.Divcolumnwrap("row", col)
 	fmt.Println(row)
-	file, err := os.Create("/home/derek/go/test/test.html")
-	if err != nil {
-		panic(err)
+
+	indexhandler := func(w http.ResponseWriter, req *http.Request) {
+		handleindex(w, row, thewebpagetemplatest2)
 	}
-	defer file.Close()
-	fmt.Fprint(file, row)
+	http.HandleFunc("/index", indexhandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+//WindowJ was for a test
 type WindowJ struct {
 	Para0 string `json:"para_0,omitempty"`
 	Para1 string `json:"para_1,omitempty"`
 	Para2 string `json:"para_2,omitempty"`
 	Para3 string `json:"para_3,omitempty"`
 	Para4 string `json:"para_4,omitempty"`
+}
+
+func handleindex(w http.ResponseWriter, windows template.HTML, webpage string) {
+	t, err := template.New("webpage").Parse(webpage)
+	check(err)
+
+	check(t.Execute(w, windows))
+}
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 const thewebpagetemplatest2 = `<html lang="en">
@@ -168,38 +182,6 @@ body {
   <a href="#">Link</a>
   <a href="#">Link</a>
 </div>
-{{range .}}
-{{ .NewRow}}
-  <div class="{{.ColWid}}">
-  	<h2>{{.Header}}</h2>
-	   <div><img id="{{.ID}}" src="{{.URL}}"></div>
-	 
-		<div id = "{{.PID}}" src="{{.PURL}}"></div>
-
-		<script>
-			var {{.MyVar}} = setInterval({{.Func}},{{.Rate}});
-		function {{.Func}}(){
-			var d = new Date();
-			var theurl = "{{.URL}}"+d.toLocaleTimeString();
-			var thepurl = "{{.PURL}}"+d.toLocaleTimeString();
-		
-			 document.getElementById("{{.ID}}").src= theurl;
-			 $.get(thepurl,function(data,status){
-				 if (status=="success"){
-					document.getElementById("{{.PID}}").innerHTML= data;
-				 }
-				
-			 });
-		
-		}
-		</script>
-
-</div>
-{{ .EndRow}}
-{{end}}
-
-
-	
-	
+{{.}}	
 </body>
 </html>`

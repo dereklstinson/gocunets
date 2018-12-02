@@ -10,6 +10,7 @@ import (
 
 //BackProp does the backprop of a layer
 func (l *layer) backpropdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+
 	err := handle.Sync()
 	if err != nil {
 		return err
@@ -43,6 +44,7 @@ func (l *layer) backpropdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 		return handle.Sync()
 	}
 	if l.drop != nil {
+
 		err = l.drop.BackProp(handle, x, y)
 		if err != nil {
 			return err

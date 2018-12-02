@@ -8,7 +8,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/ui/plot"
 )
 
-//VSLossHandler draws a vs chart for loss.  You might want to put several things in it like Training Loss Vs Testing Loss.
+//DifLossHandler draws a vs chart for loss.  You might want to put several things in it like Training Loss Vs Testing Loss.
 type DifLossHandler struct {
 	Plots        io.WriterTo
 	title        string
@@ -25,7 +25,7 @@ type DifLossHandler struct {
 //NewDifLossHandler Makes a VSLoss Handle.  If epoc is true it will label the x axis as epoc. Otherwise it will label it batch.
 // Just make sure you are passing the right amount of data through the LossData Channel.  So, the axis is labeled correctly.
 // Y axis will be labeled Loss.
-func NewDifLossHandler(title string, LossData <-chan []LabelFloat, epoc bool, plotlengths int, labels ...string) (*DifLossHandler, []LabelFloat) {
+func NewDifLossHandler(title string, LossData <-chan []LabelFloat2, epoc bool, plotlengths int, labels ...string) (*DifLossHandler, []LabelFloat2) {
 	var xaxis string
 	if epoc == true {
 		xaxis = "Epocs"
@@ -47,7 +47,7 @@ func NewDifLossHandler(title string, LossData <-chan []LabelFloat, epoc bool, pl
 	}
 
 	go x.runchannel(LossData)
-	lblflt := make([]LabelFloat, numberofplots)
+	lblflt := make([]LabelFloat2, numberofplots)
 	for i := range lblflt {
 		lblflt[i].Data = make([]float32, plotlengths)
 		lblflt[i].Label = labels[i]
@@ -55,7 +55,12 @@ func NewDifLossHandler(title string, LossData <-chan []LabelFloat, epoc bool, pl
 	return x, lblflt
 }
 
-func (l *DifLossHandler) runchannel(LossData <-chan []LabelFloat) {
+type LabelFloat2 struct {
+	Label string
+	Data  []float32
+}
+
+func (l *DifLossHandler) runchannel(LossData <-chan []LabelFloat2) {
 
 	var err error
 	for array := range LossData {

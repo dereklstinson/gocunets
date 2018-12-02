@@ -7,33 +7,34 @@ import (
 	"github.com/dereklstinson/GoCuNets/utils/hwperf"
 )
 
-//CreateGPUPerformanceHandlers
-func CreateGPUPerformanceHandlers(refreshms, Lengthoftime int) (*Memory, *CoreClock, *MemClock, *Temp, *Power) {
+//CreateGPUPerformanceHandlers returns the performance handlers for memory used gpu temp and power.
+//Updates the values every ms. Sample amount is the number of samples stored for the plot
+func CreateGPUPerformanceHandlers(refreshms, sampleamount int) (*Memory /**CoreClock, *MemClock,*/, *Temp, *Power) {
 	buffersize := 3
 	temps := make(chan []int, buffersize)
 	mem := make(chan []int, buffersize)
-	clockcore := make(chan []int, buffersize)
+	//clockcore := make(chan []int, buffersize)
 	pow := make(chan []int, buffersize)
-	clockmem := make(chan []int, buffersize)
+	//	clockmem := make(chan []int, buffersize)
 	devs, err := hwperf.GetDevices()
 	if err != nil {
 		panic(err)
 	}
-	go runchannel(devs, refreshms, mem, clockmem, clockcore, temps, pow)
-	m, cc, mc, t, p := makeMemory(mem, len(devs), Lengthoftime),
-		makeCoreClock(clockcore, len(devs), Lengthoftime),
-		makeMemClock(clockmem, len(devs), Lengthoftime),
-		makeTemp(temps, len(devs), Lengthoftime),
-		makePower(pow, len(devs), Lengthoftime)
+	go runchannel(devs, refreshms, mem /* clockmem, clockcore,*/, temps, pow)
+	m /*cc, mc,*/, t, p := makeMemory(mem, len(devs), sampleamount),
+		//	makeCoreClock(clockcore, len(devs), Lengthoftime),
+		//makeMemClock(clockmem, len(devs), Lengthoftime),
+		makeTemp(temps, len(devs), sampleamount),
+		makePower(pow, len(devs), sampleamount)
 
-	return m, cc, mc, t, p
+	return m /*cc, mc,*/, t, p
 }
 
-func runchannel(device []*hwperf.Device, refreshms int, mem, clockmem, clockcore, temp, power chan<- []int) {
+func runchannel(device []*hwperf.Device, refreshms int, mem /*clockcore,clockmem,*/, temp, power chan<- []int) {
 	ticker := time.NewTicker(time.Duration(refreshms) * time.Millisecond)
 	dl := len(device)
-	devcoreclocks := make([]int, dl)
-	devmemclocks := make([]int, dl)
+	//devcoreclocks := make([]int, dl)
+	//devmemclocks := make([]int, dl)
 	memused := make([]int, dl)
 	//memfree := make([]int, dl)
 	powers := make([]int, dl)
@@ -43,8 +44,8 @@ func runchannel(device []*hwperf.Device, refreshms int, mem, clockmem, clockcore
 		<-ticker.C
 		for i := range device {
 			device[i].RefreshStatus()
-			dc, dm := device[i].Clocks()
-			devcoreclocks[i], devmemclocks[i] = int(dc), int(dm)
+			//	dc, dm := device[i].Clocks()
+			//	devcoreclocks[i], devmemclocks[i] = int(dc), int(dm)
 			temps[i] = int(device[i].Temp())
 			powers[i] = int(device[i].Power())
 			usedm, _ := device[i].Memory()
@@ -54,8 +55,8 @@ func runchannel(device []*hwperf.Device, refreshms int, mem, clockmem, clockcore
 		mem <- memused
 		temp <- temps
 		power <- powers
-		clockcore <- devcoreclocks
-		clockmem <- devmemclocks
+		//	clockcore <- devcoreclocks
+		//	clockmem <- devmemclocks
 
 	}
 

@@ -117,6 +117,12 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 		return l.pool.MakeOutputLayer(input)
 	}
 	if l.drop != nil {
+
+		err := l.drop.BuildFromPreset(handle, input)
+		if err != nil {
+
+			return nil, err
+		}
 		return input.ZeroClone()
 	}
 	if l.activation != nil {

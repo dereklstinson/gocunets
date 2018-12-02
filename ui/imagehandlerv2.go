@@ -29,7 +29,7 @@ func MakeImageHandlerV2(bufferlen int) *ImageHandlerV2 {
 	return x
 }
 
-//Paragraph works like Sprintf sending messages through a hidden channel
+//Image works like Sprintf sending messages through a hidden channel
 func (l *ImageHandlerV2) Image(image image.Image) {
 	l.imgc <- image
 

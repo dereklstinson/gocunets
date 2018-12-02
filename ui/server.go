@@ -4,7 +4,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/ui/gpuperformance"
 	"github.com/pkg/browser"
@@ -25,91 +24,38 @@ type Handler interface {
 	Handle() func(http.ResponseWriter, *http.Request)
 }
 
+//Windows are the ui sections of the network
 type Windows struct {
-	windows          []DivOutputs
+	windows          IndexTemplate
 	handlers         []Handler
 	names            []string
-	columnsperrow    []int
-	currentrow       int
-	currentcol       int
 	port             string
 	ipaddressandport string
 	page             string
 }
 
+//IndexTemplate is the indexed template of the networks
+type IndexTemplate struct {
+	HardwareCharts []HardwareCharts
+	DivOutputs     []DivOutputs
+	MinMaxes       []MinMaxes
+}
+
 //NewWindows creates allows the user to create a bunch of windows to access the neural network
-func NewWindows(columnsperrow []int, ipaddress, port, page string) Windows {
+func NewWindows(ipaddress, port, page string) Windows {
 	browser.OpenURL(ipaddress + port + page)
 	x := Windows{
 		port:             port,
-		columnsperrow:    columnsperrow,
 		ipaddressandport: ipaddress + port,
 		page:             page,
 	}
-	mem, cc, mc, t, p := gpuperformance.CreateGPUPerformanceHandlers(500, 600)
-	x.AddWindow("Gpu Mem Used (MB)", "500", "/gpumem/", mem, "", nil)
-	x.AddWindow("Gpu Core Speed (MHZ)", "500", "/gpuclock/", cc, "", nil)
-	x.AddWindow("Gpu Memory Speed (MHZ)", "500", "/gpumemclock/", mc, "", nil)
-	x.AddWindow("Temp (C) ", "500", "/gputemp/", t, "", nil)
-	x.AddWindow("Power (Watts)", "500", "/gpupower/", p, "", nil)
+	mem, t, p := gpuperformance.CreateGPUPerformanceHandlers(3000, 120)
+	x.AddHardwareCharts("Gpu Mem Used (MB)", "500", "/gpumem/", mem, 3, true, false)
+	x.AddHardwareCharts("Temp (C) ", "500", "/gputemp/", t, 3, false, false)
+	x.AddHardwareCharts("Power (Watts)", "500", "/gpupower/", p, 3, false, true)
 	return x
 }
 
-//func (w *Windows) AddWindowV2(header, refreshrate, url string, image Handler, paragraph string, para Handler)
-
-//AddWindow adds a window to the ui
-func (w *Windows) AddWindow(header, refreshrate, url string, uh Handler, purl string, up Handler) {
-
-	i := len(w.windows)
-	suffix := strconv.Itoa(i)
-	var newrow template.HTML
-	var endrow template.HTML
-
-	if i%w.columnsperrow[w.currentrow] == 0 {
-		newrow = template.HTML("<div class=\"row\">")
-	}
-	if i%w.columnsperrow[w.currentrow] == w.columnsperrow[w.currentrow]-1 {
-		endrow = template.HTML("</div>")
-	}
-
-	//	x[i].Refresh = template.JS("refvar" + suffix)
-	colwide := colstring(w.columnsperrow[w.currentrow])
-	d := DivOutputs{
-		ColWid: colwide,
-		NewRow: newrow,
-		EndRow: endrow,
-		Header: header,
-		PURL:   w.ipaddressandport + purl,
-		Name:   url,
-		Rate:   template.JS(refreshrate),
-		URL:    w.ipaddressandport + url,
-		PID:    "para" + suffix,
-		ID:     "image" + suffix,
-		Func:   template.JS("imagefunc" + suffix),
-		MyVar:  template.JS("myvar" + suffix),
-	}
-	w.names = append(w.names, url)
-
-	w.windows = append(w.windows, d)
-	w.handlers = append(w.handlers, uh)
-	if up != nil {
-		w.handlers = append(w.handlers, up)
-		w.names = append(w.names, purl)
-	}
-
-	w.currentcol++
-	if !(w.currentcol < w.columnsperrow[w.currentrow]) {
-		w.currentcol = 0
-		if w.currentrow < len(w.columnsperrow)-1 {
-			w.currentrow++
-		}
-	}
-}
-
-func (w *Windows) endlastrow() {
-	i := len(w.windows) - 1
-	w.windows[i].EndRow = template.HTML("</div>")
-}
 func colstring(columns int) string {
 	switch columns {
 	case 6:
@@ -131,8 +77,6 @@ func colstring(columns int) string {
 	return ""
 }
 
-const webpagelocation = "/home/derek/go/src/github.com/dereklstinson/GoCuNets/ui/index.html"
-
 //ServerMain is the test server with just a bunch of images from the harddrive
 func ServerMain(windows Windows) {
 	//serverlocation := "http://localhost" + testingnewporttest
@@ -149,6 +93,7 @@ func ServerMain(windows Windows) {
 }
 func handleindex(w http.ResponseWriter, windows Windows, webpage string) {
 	t, err := template.New("webpage").Parse(webpage)
+
 	check(err)
 
 	check(t.Execute(w, windows.windows))
@@ -157,22 +102,6 @@ func handleindex(w http.ResponseWriter, windows Windows, webpage string) {
 //URLs are the urls for the
 type URLs struct {
 	url []string
-}
-
-//DivOutputs is a struct that helps build a dynamic output for the ui
-type DivOutputs struct {
-	Header string
-	URL    string
-	PURL   string
-	ID     string
-	PID    string
-	Name   string
-	ColWid string
-	NewRow template.HTML
-	EndRow template.HTML
-	Func   template.JS
-	MyVar  template.JS
-	Rate   template.JS
 }
 
 func holdertemplate2(w http.ResponseWriter, serverlocation string, data []string, webpage string) {
