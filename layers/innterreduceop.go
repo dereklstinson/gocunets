@@ -18,6 +18,89 @@ type reduceop struct {
 	unified     bool
 }
 
+func buildminreduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+	rflg := reduce.Flags
+	return genericbuildreduceop(handle, rflg.ReduceMode.Min(), iomem, batches)
+}
+func buildmaxreduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+	rflg := reduce.Flags
+	return genericbuildreduceop(handle, rflg.ReduceMode.Max(), iomem, batches)
+}
+func buildavgreduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+	rflg := reduce.Flags
+	return genericbuildreduceop(handle, rflg.ReduceMode.Avg(), iomem, batches)
+}
+func buildnorm1reduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+	rflg := reduce.Flags
+	return genericbuildreduceop(handle, rflg.ReduceMode.Norm1(), iomem, batches)
+}
+func buildnorm2reduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+	rflg := reduce.Flags
+	return genericbuildreduceop(handle, rflg.ReduceMode.Norm2(), iomem, batches)
+}
+
+func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+	rflg := reduce.Flags
+	frmt, dtype, dims, err := iomem.Properties()
+	managed := iomem.Unified()
+	if err != nil {
+		return nil, err
+	}
+	reducedims := make([]int32, len(dims))
+
+	for i := 0; i < len(reducedims); i++ {
+		reducedims[i] = 1
+	}
+	if batches == true {
+		reducedims[0] = dims[0]
+	}
+	op, err := reduce.Stage(mode, dtype, rflg.NanProp.NoPropNAN(), rflg.IndFlag.NoIndices(), rflg.IndType.Type32Bit())
+	if err != nil {
+		return nil, err
+	}
+	mem, err := tensor.Build(frmt, dtype, reducedims, managed)
+	if err != nil {
+		return nil, err
+	}
+	wspacesize, err := op.GetWorkSpaceSize(handle, iomem, mem)
+	if err != nil {
+		return nil, err
+	}
+	val := make([]float32, dims[0])
+	gpr, err := gocudnn.MakeGoPointer(val)
+	if err != nil {
+		return nil, err
+	}
+	if managed {
+		wspace, err := gocudnn.UnifiedMangedGlobal(wspacesize)
+		if err != nil {
+			return nil, err
+		}
+		return &reduceop{
+			op:     op,
+			mem:    mem,
+			wspace: wspace,
+			alpha:  1,
+			beta:   0,
+			val:    val,
+			gptr:   gpr,
+		}, nil
+	}
+	wspace, err := gocudnn.Malloc(wspacesize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &reduceop{
+		op:     op,
+		mem:    mem,
+		wspace: wspace,
+		alpha:  1,
+		beta:   0,
+		val:    val,
+		gptr:   gpr,
+	}, nil
+}
 func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume, batches bool) (*reduceop, error) {
 	frmt, dtype, dims, err := iomem.Properties()
 	managed := iomem.Unified()

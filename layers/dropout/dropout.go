@@ -1,6 +1,8 @@
 package dropout
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/dropout"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -32,7 +34,9 @@ func Setup(handle *cudnn.Handler, x *layers.IO, drpout float32, seed uint64, man
 //Preset presets the layer, but doesn't build it. Useful if you want to set up the network before the tensor descriptors for the input
 //are made. handle can be nil.  I just wanted to keep it consistant.
 func Preset(handle *cudnn.Handler, dropout float32, seed uint64, managed bool) (*Layer, error) {
-
+	if dropout >= 1 {
+		return nil, errors.New("Dropout can't be greater than or equal to 1")
+	}
 	return &Layer{
 		dropout: dropout,
 		seed:    seed,

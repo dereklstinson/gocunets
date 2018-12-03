@@ -17,7 +17,7 @@ import (
 
 const learningrates = .001
 const codingvector = int32(10)
-const numofneurons = int32(35)
+const numofneurons = int32(32)
 const l1regularization = float32(.0005)
 const l2regularization = float32(.0005)
 

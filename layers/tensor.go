@@ -13,14 +13,14 @@ import (
 
 //IO is an all purpose struct that contains an x tensor and a dx tensor used for training
 type IO struct {
-	x            *tensor.Volume
-	dx           *tensor.Volume
-	minx, maxx   *reduceop
-	mindx, maxdx *reduceop
-	input        bool
-	dims         []int32
-	managed      bool
-	mux          sync.Mutex
+	x                                     *tensor.Volume
+	dx                                    *tensor.Volume
+	minx, maxx, avgx, norm1x, norm2x      *reduceop
+	mindx, maxdx, avgdx, norm1dx, norm2dx *reduceop
+	input                                 bool
+	dims                                  []int32
+	managed                               bool
+	mux                                   sync.Mutex
 }
 
 //Settings contains the info that is needed to build an IO

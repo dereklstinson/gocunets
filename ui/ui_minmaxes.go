@@ -56,3 +56,4 @@ func (w *Windows) AddMinMax(header, refreshrate, purl string, up Handler, column
 	w.names = append(w.names, purl)
 
 }
+func NetworkStatHelper()
