@@ -28,6 +28,85 @@ type Settings struct {
 	Managed bool                  `json:"managed,omitempty"`
 }
 
+//PerActivationPreset will presetup some values for the batch norm PerActivation
+func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
+	b, err := batchnorm.PreStagePerActivation(handle, managed)
+	fw := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	bwd := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	bwp := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	return &Layer{
+		b:   b,
+		fw:  fw,
+		bwp: bwp,
+		bwd: bwd,
+		eps: float64(2e-5),
+	}, err
+}
+
+//SpatialPreset will presetup some values for the batch norm Spatial Mode
+func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
+	b, err := batchnorm.PreStageSpatial(handle, managed)
+	fw := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	bwd := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	bwp := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	return &Layer{
+		b:   b,
+		fw:  fw,
+		bwp: bwp,
+		bwd: bwd,
+		eps: float64(2e-5),
+	}, err
+
+}
+
+//SpatialPersistantPreset will presetup some values for the batch norm SpatialPersistantPreset Mode
+func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
+	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
+	fw := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	bwd := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	bwp := abscalars{
+		a: 1.0,
+		b: 0.0,
+	}
+	return &Layer{
+		b:   b,
+		fw:  fw,
+		bwp: bwp,
+		bwd: bwd,
+		eps: float64(2e-5),
+	}, err
+
+}
+
+//SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
+func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
+	return l.b.Stage(handle, x.T())
+}
+
 //LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.
 //I am 70 percent sure that fwd and bwd data are set correctly.  I am about 25% sure bwd param is set correctly.  I will change it if it needs it
 func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
@@ -42,7 +121,7 @@ func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode,
 	}
 	bwp := abscalars{
 		a: 1.0,
-		b: 1.0,
+		b: 0.0,
 	}
 	return &Layer{
 		b:   b,

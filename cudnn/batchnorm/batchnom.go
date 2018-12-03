@@ -11,6 +11,7 @@ import (
 //Ops contains the operation of batchnorm.
 type Ops struct {
 	epsilon float64
+	managed bool
 	mode    gocudnn.BatchNormMode
 	bnsbmvd *gocudnn.TensorD
 	scale   *gocudnn.Malloced
@@ -105,10 +106,11 @@ func (o *Ops) Free() error {
 //PreStageSpatial Normalization is performed over N+spatial dimensions.
 //This mode is intended for use after convolutional layers (where spatial invariance is desired).
 //In this mode the bnBias, bnScale tensor dimensions are 1xCx1x1.
-func PreStageSpatial(handle *cudnn.Handler) (*Ops, error) {
+func PreStageSpatial(handle *cudnn.Handler, managed bool) (*Ops, error) {
 	var x gocudnn.BatchNormModeFlag
 	return &Ops{
-		mode: x.Spatial(),
+		mode:    x.Spatial(),
+		managed: managed,
 	}, nil
 }
 
@@ -127,20 +129,66 @@ When Inf-s/NaN-s are present in the input data, the output in this mode is the s
 For finite but very large input values, the algorithm may encounter overflows more frequently due to a lower dynamic range and emit Inf-s/NaN-s while CUDNN_BATCHNORM_SPATIAL will produce finite results.
 The user can invoke cudnnQueryRuntimeError() to check if a numerical overflow occurred in this mode.
 */
-func PreStageSpatialPersistant(handle *cudnn.Handler) (*Ops, error) {
+func PreStageSpatialPersistant(handle *cudnn.Handler, managed bool) (*Ops, error) {
 	var x gocudnn.BatchNormModeFlag
 	return &Ops{
-		mode: x.SpatialPersistent(),
+		mode:    x.SpatialPersistent(),
+		managed: managed,
 	}, nil
 }
 
 //PreStagePerActivation Normalization is performed per-activation. This mode is intended to be used after non-convolutional network layers.
 //In this mode the tensor dimensions of bnBias and bnScale, the parameters used in the cudnnBatchNormalization* functions, are 1xCxHxW.
-func PreStagePerActivation(handle *cudnn.Handler) (*Ops, error) {
+func PreStagePerActivation(handle *cudnn.Handler, managed bool) (*Ops, error) {
 	var x gocudnn.BatchNormModeFlag
 	return &Ops{
-		mode: x.PerActivation(),
+		mode:    x.PerActivation(),
+		managed: managed,
 	}, nil
+}
+
+//Stage will stage the o Ops from the prestaged function
+func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) error {
+
+	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), o.mode)
+	if err != nil {
+		return nil
+	}
+
+	rrm, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	rrv, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	rsm, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	rsv, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	rbnscd, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	rbnbd, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	bias, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	scale, err := buildfromdesc(handle, bnd, o.managed)
+	if err != nil {
+		return nil
+	}
+	o.bnsbmvd, o.rrm, o.rrv, o.rsm, o.rsv, o.rbnbd, o.rbnscd, o.scale, o.bias = bnd, rrm, rrv, rsm, rsv, rbnbd, rbnscd, scale, bias
+	return nil
 }
 
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
@@ -157,58 +205,30 @@ func Stage(handle *cudnn.Handler, x *tensor.Volume, mode gocudnn.BatchNormMode, 
 	}
 	rrv, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rrm.Free()
 		return nil, err
 	}
 	rsm, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rrv.Free()
-		rrm.Free()
 		return nil, err
 	}
 	rsv, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rsm.Free()
-		rrv.Free()
-		rrm.Free()
 		return nil, err
 	}
 	rbnscd, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rsm.Free()
-		rsv.Free()
-		rrv.Free()
-		rrm.Free()
 		return nil, err
 	}
 	rbnbd, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rbnscd.Free()
-		rsm.Free()
-		rsv.Free()
-		rrv.Free()
-		rrm.Free()
 		return nil, err
 	}
 	bias, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rbnscd.Free()
-		rsm.Free()
-		rsv.Free()
-		rrv.Free()
-		rrm.Free()
-		rbnbd.Free()
 		return nil, err
 	}
 	scale, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		rbnscd.Free()
-		rsm.Free()
-		rsv.Free()
-		rrv.Free()
-		rrm.Free()
-		rbnbd.Free()
-		bias.Free()
 		return nil, err
 	}
 

@@ -213,31 +213,25 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	for i := 0; i < len(m.layer)-1; i++ {
 		layerwbs := wrapnetio(m.layer[i])
 		if layerwbs != nil {
-			//	fmt.Println("Adding Layer")
 			m.totalionets = append(m.totalionets, layerwbs)
 		}
-
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
 			for j := 0; j < len(m.mem); j++ {
 				m.mem[j].Destroy()
 			}
-
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
-		m.totalionets = append(m.totalionets, wrapnetio(mem))
-		//	fmt.Println("adding hidden")
+		netiomem := wrapnetio(mem)
+		netiomem.name = m.layer[i].name + "-Output"
+		m.totalionets = append(m.totalionets, netiomem)
 		previous = mem
 		m.mem = append(m.mem, mem)
-
 	}
 	layerwbs := wrapnetio(m.layer[len(m.layer)-1])
 	if layerwbs != nil {
-		//		fmt.Println("Adding Layer")
 		m.totalionets = append(m.totalionets, layerwbs)
 	}
-
-	//fmt.Println(len(m.totalionets), m.totalionetcounter-1)
 	if len(m.totalionets) != m.totalionetcounter-1 {
 		fmt.Println(len(m.totalionets), m.totalionetcounter-1)
 		panic("len(m.totalionets)!= m.totalionetcounter-1  please fix")

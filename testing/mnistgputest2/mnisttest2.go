@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
@@ -20,6 +21,7 @@ import (
 )
 
 func main() {
+	var mux sync.Mutex
 	rand.Seed(time.Now().UnixNano())
 	//	savelocationforimages := "/home/derek/Desktop/GANMNIST/"
 	//	imagenames := "MNIST"
@@ -34,13 +36,11 @@ func main() {
 	if len(devices) == 2 {
 		device = devices[1]
 	}
-
 	err = device.Set()
 	cherror(err)
 	handle := cudnn.CreateHandler(device, trainingkernellocation)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	cherror(handle.SetStream(stream))
-
 	var dtypeflags cudnn.DataTypeFlag
 	var fmtflags cudnn.TensorFormatFlag
 	frmt := fmtflags.NCHW()
@@ -51,7 +51,6 @@ func main() {
 	NanProp := gocudnn.PropagationNANFlag{}.PropagateNan()
 	memmanaged := true
 
-	in := dims
 	filter := dims
 	padding := dims
 	stride := dims
@@ -73,7 +72,7 @@ func main() {
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		activation.Leaky(handle),
@@ -82,7 +81,7 @@ func main() {
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
 	)
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 20, 14, 14), filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		activation.Leaky(handle),
@@ -91,14 +90,14 @@ func main() {
 		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
 	)
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 20, 7, 7), filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
 	)
 	network.AddLayer( //activation
 		activation.Leaky(handle),
 	)
 
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 20, 4, 4), filter(10, 20, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(10, 20, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 		//fcnn.CreateFromshapeNoOut(handle.Cudnn(), 10, in(batchsize, 20, 4, 4), memmanaged, dtype, frmt),
 	)
 	network.AddLayer( //softmaxoutput
@@ -124,8 +123,7 @@ func main() {
 	for k := 0; k < epochs; k++ {
 
 		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
-			//		fmt.Println("Epoch:", k, "Batch:", j)
-			//	cuda.CtxSynchronize()
+
 			cherror(stream.Sync())
 			cherror(network.ForwardProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
 			cherror(stream.Sync())
@@ -135,7 +133,7 @@ func main() {
 			cherror(stream.Sync())
 
 		}
-
+		mux.Lock()
 		netoutput := make([][]float32, testbatchnum)
 		desiredoutput := make([][]float32, testbatchnum)
 		for j := 0; j < testbatchnum; j++ {
@@ -151,18 +149,20 @@ func main() {
 			cherror(stream.Sync())
 			cherror(gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j]))
 			cherror(stream.Sync())
+
 		}
+		mux.Unlock()
 		cherror(stream.Sync())
-		func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
+		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
+			mux.Lock()
 			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
 			fmt.Printf("Epoch Percent Correct: %-0.3f		 Epoch Loss: %-0.3f              Epoch Number: %d\n", percent, loss, k)
-
+			mux.Unlock()
 		}(netoutput, desiredoutput, k, testbatchnum, batchsize)
 
 	}
 
 	gocudnn.Cuda{}.UnLockHostThread()
-	cherror(device.Reset())
 
 }
 func printoutput(numofans, batchsize int, input []float32) {

@@ -17,7 +17,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
 	batchsize int32) *gocunets.Network {
-	in := utils.Dims
+
 	filter := utils.Dims
 	padding := utils.Dims
 	stride := utils.Dims
@@ -34,7 +34,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 	*/
 	const numofneurons = int32(50)
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-8+1 = 21
 	/*
 		Activation Layer E2    2
@@ -46,7 +46,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer E3    3
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //21-8+1 =14
 	/*
 		Activation Layer E4    4
@@ -59,7 +59,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer E5    5
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 14-8+1=7
 	/*
 		Activation Layer E6    6
@@ -71,7 +71,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer E7    7
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 1
 
 	/*
@@ -86,7 +86,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D1       9
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 4, 1, 1), filter(numofneurons, 4, 7, 7), CMode, padding(6, 6), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 4, 7, 7), CMode, padding(6, 6), stride(1, 1), dilation(1, 1), memmanaged),
 	) //7
 	/*
 		Activation Layer D2       10
@@ -98,7 +98,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D3      11
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
 	) //7-8+(14)+1 =14
 	/*
 		Activation Layer D4        12
@@ -111,7 +111,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D5       13
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
 	) //14-8 +14 +1 =21
 	/*
 		Activation Layer D6       14
@@ -124,7 +124,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D7         15
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(1, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(1, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28
 
 	//var err error

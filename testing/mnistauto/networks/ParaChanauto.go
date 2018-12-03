@@ -17,7 +17,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
 	batchsize int32) *gocunets.Network {
-	in := utils.Dims
+
 	filter := utils.Dims
 	padding := utils.Dims
 	stride := utils.Dims
@@ -33,7 +33,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 	*/
 	const numofneurons = int32(120)
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 784, 1, 1), filter(50, 784, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(50, 784, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer E2
@@ -45,7 +45,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer E3
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 50, 1, 1), filter(numofneurons, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 50, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer E4
@@ -58,7 +58,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer E5
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer E6
@@ -70,7 +70,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer E7
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer E8
@@ -82,7 +82,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer E9
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 
 	/*
@@ -95,7 +95,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer E11
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(4, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(4, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer MIDDLE
@@ -109,7 +109,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer D1
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 4, 1, 1), filter(numofneurons, 4, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 4, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer D2
@@ -121,7 +121,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer D3
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer D4
@@ -134,7 +134,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer D5
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer D6
@@ -147,7 +147,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer D7
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer D8
@@ -159,7 +159,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer D9
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		Activation Layer D10
@@ -171,7 +171,7 @@ func ParaChanAuto(handle *cudnn.Handler,
 		Convoultion Layer D11
 	*/
 	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 1, 1), filter(784, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(784, numofneurons, 1, 1), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	)
 	/*
 		network.AddLayer( //activation

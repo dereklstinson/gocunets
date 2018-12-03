@@ -18,7 +18,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
 	batchsize int32) *gocunets.Network {
-	in := utils.Dims
+
 	filter := utils.Dims
 	padding := utils.Dims
 	stride := utils.Dims
@@ -36,7 +36,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 	*/
 	const numofneurons = int32(30)
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, 1, 28, 28), filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //28-8+1 = 21
 	/*
 		Activation Layer E2    1
@@ -48,7 +48,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer E3    2
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) //21-8+1 =14
 	/*
 		Activation Layer E4    3
@@ -61,7 +61,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer E5    4
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 14-8+1=7
 	/*
 		Activation Layer E6    5
@@ -73,7 +73,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer E7    6
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, in(batchsize, numofneurons, 7, 7), filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.SetupDynamic(handle, frmt, dtype, filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 1
 
 	/*
@@ -88,7 +88,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D1       8
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, 4, 7, 7), filter(4, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(4, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7
 	/*
 		Activation Layer D2       9
@@ -100,7 +100,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D3      10
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 14, 14), filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //7-8+(14)+1 =14
 	/*
 		Activation Layer D4        11
@@ -113,7 +113,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D5       12
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 21, 21), filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //14-8 +14 +1 =21
 	/*
 		Activation Layer D6       13
@@ -126,7 +126,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D7         14
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, in(batchsize, numofneurons, 28, 28), filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
 	) //28
 
 	//var err error
