@@ -60,7 +60,7 @@ func (i *IO) ClearDeltas() error {
 }
 
 //MinX returns the minx value per batch in the tensor or if it is used for the filter it would be the minx value per neuron
-func (i *IO) MinX(handle *cudnn.Handler) (x []float32, e error) {
+func (i *IO) MinX(handle *cudnn.Handler) (x float32, e error) {
 	i.mux.Lock()
 	x, e = i.minx.Reduce(handle, i.T())
 	i.mux.Unlock()
@@ -69,7 +69,7 @@ func (i *IO) MinX(handle *cudnn.Handler) (x []float32, e error) {
 }
 
 //MaxX returns the MaxX per batch value in the tensor or if it is used for the filter it would be the MaxX value per neuron
-func (i *IO) MaxX(handle *cudnn.Handler) (x []float32, e error) {
+func (i *IO) MaxX(handle *cudnn.Handler) (x float32, e error) {
 	i.mux.Lock()
 	x, e = i.maxx.Reduce(handle, i.T())
 	i.mux.Unlock()
@@ -77,8 +77,35 @@ func (i *IO) MaxX(handle *cudnn.Handler) (x []float32, e error) {
 
 }
 
-//MaxDX returns the MaxDX per batch value in the tensor or if it is used for the filter it would be the MaxDX value per neuron
-func (i *IO) MaxDX(handle *cudnn.Handler) (x []float32, e error) {
+//AvgX returns the Avg X value for the IO
+func (i *IO) AvgX(handle *cudnn.Handler) (x float32, e error) {
+	i.mux.Lock()
+	x, e = i.avgx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
+
+}
+
+//Norm1X returns Norm1 X value for IO
+func (i *IO) Norm1X(handle *cudnn.Handler) (x float32, e error) {
+	i.mux.Lock()
+	x, e = i.norm1x.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
+
+}
+
+//Norm2X returns Norm2 X value for IO
+func (i *IO) Norm2X(handle *cudnn.Handler) (x float32, e error) {
+	i.mux.Lock()
+	x, e = i.norm2x.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
+
+}
+
+//MinDX returns the min dx value for th io.
+func (i *IO) MinDX(handle *cudnn.Handler) (x float32, e error) {
 	i.mux.Lock()
 	x, e = i.mindx.Reduce(handle, i.T())
 	i.mux.Unlock()
@@ -86,12 +113,40 @@ func (i *IO) MaxDX(handle *cudnn.Handler) (x []float32, e error) {
 
 }
 
-//MinDX returns the MinDX per batch value in the tensor or if it is used for the filter it would be the MinDX value per neuron
-func (i *IO) MinDX(handle *cudnn.Handler) (x []float32, e error) {
+//MaxDX returns the Max DX  value for th io.
+func (i *IO) MaxDX(handle *cudnn.Handler) (x float32, e error) {
 	i.mux.Lock()
 	x, e = i.maxdx.Reduce(handle, i.T())
 	i.mux.Unlock()
 	return x, e
+
+}
+
+//AvgDX returns the Avg DX value for the IO
+func (i *IO) AvgDX(handle *cudnn.Handler) (x float32, e error) {
+	i.mux.Lock()
+	x, e = i.avgdx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
+
+}
+
+//Norm1DX returns Norm1 dX value for IO
+func (i *IO) Norm1DX(handle *cudnn.Handler) (x float32, e error) {
+	i.mux.Lock()
+	x, e = i.norm1dx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
+
+}
+
+//Norm2DX returns Norm2 dX value for IO
+func (i *IO) Norm2DX(handle *cudnn.Handler) (x float32, e error) {
+	i.mux.Lock()
+	x, e = i.norm2dx.Reduce(handle, i.T())
+	i.mux.Unlock()
+	return x, e
+
 }
 
 //Info returns info
@@ -185,22 +240,52 @@ func addtoerror(addition string, current error) error {
 	return errors.New(addition + ": " + errorstring)
 }
 
-//SetMinMaxReducers will build the reducers for the IO
-func (i *IO) SetMinMaxReducers(handle *cudnn.Handler, batches bool) (err error) {
+//SetXStatReducers will build the reducers for the IO x min,max,avg,norm1, norm2
+func (i *IO) SetXStatReducers(handle *cudnn.Handler) (err error) {
 
-	i.minx, err = buildreduceop(handle, true, i.T(), batches)
+	i.minx, err = buildminreduce(handle, i.T())
 	if err != nil {
 		return err
 	}
-	i.mindx, err = buildreduceop(handle, true, i.DeltaT(), batches)
+
+	i.maxx, err = buildmaxreduce(handle, i.T())
 	if err != nil {
 		return err
 	}
-	i.maxx, err = buildreduceop(handle, false, i.T(), batches)
+	i.avgx, err = buildavgreduce(handle, i.T())
 	if err != nil {
 		return err
 	}
-	i.maxdx, err = buildreduceop(handle, false, i.DeltaT(), batches)
+	i.norm1x, err = buildnorm1reduce(handle, i.T())
+	if err != nil {
+		return err
+	}
+	i.norm2x, err = buildnorm2reduce(handle, i.T())
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+//SetDXStatReducers will build the reducers for the IO dx min,max,avg,norm1, norm2
+func (i *IO) SetDXStatReducers(handle *cudnn.Handler) (err error) {
+	i.mindx, err = buildminreduce(handle, i.DeltaT())
+	if err != nil {
+		return err
+	}
+	i.maxdx, err = buildmaxreduce(handle, i.DeltaT())
+	if err != nil {
+		return err
+	}
+	i.avgdx, err = buildavgreduce(handle, i.DeltaT())
+	if err != nil {
+		return err
+	}
+	i.norm1dx, err = buildnorm1reduce(handle, i.DeltaT())
+	if err != nil {
+		return err
+	}
+	i.norm2dx, err = buildnorm2reduce(handle, i.DeltaT())
 	if err != nil {
 		return err
 	}

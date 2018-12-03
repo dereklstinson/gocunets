@@ -26,7 +26,7 @@ func (w *Windows) AddNetIO(header, refreshrate, url string, uh Handler, purl str
 
 	i := len(w.windows.DivOutputs)
 	j := len(w.windows.HardwareCharts)
-	k := len(w.windows.MinMaxes)
+	k := len(w.windows.Stats)
 	suffix := strconv.Itoa(i + j + k)
 	var newrow template.HTML
 	var endrow template.HTML

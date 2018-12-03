@@ -143,22 +143,22 @@ func wrapnetio(input interface{}) *netios {
 		return nil
 	}
 }
-func (n *netios) rebuildminmaxhidden(handle *cudnn.Handler, batches bool) error {
+func (n *netios) rebuildminmaxhidden(handle *cudnn.Handler) error {
 	switch {
 	case n.io != nil:
-		return n.io.SetMinMaxReducers(handle, batches)
+		return n.io.SetXStatReducers(handle)
 	default:
 		return nil
 	}
 }
-func (n *netios) buildminmax(handle *cudnn.Handler, batches bool) error {
+func (n *netios) buildminmax(handle *cudnn.Handler) error {
 	switch {
 	case n.cnn != nil:
-		return n.cnn.SetupMinMaxReducers(handle, batches)
+		return n.cnn.SetupWStatReducers(handle)
 	case n.cnntran != nil:
-		return n.cnntran.SetupMinMaxReducers(handle, batches)
+		return n.cnntran.SetupWStatReducers(handle)
 	case n.io != nil:
-		return n.io.SetMinMaxReducers(handle, batches)
+		return n.io.SetXStatReducers(handle)
 	default:
 		return errors.New("Doesn't Contain the layer")
 	}
@@ -168,7 +168,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler, batches bool) error {
 	switch {
 	case !m.totalionetsinit:
 		for i := range m.totalionets {
-			err := m.totalionets[i].buildminmax(handle, batches)
+			err := m.totalionets[i].buildminmax(handle)
 			if err != nil {
 				return err
 			}
@@ -176,7 +176,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler, batches bool) error {
 		m.totalionetsinit = true
 	case m.totalionetsinit:
 		for i := range m.totalionets {
-			err := m.totalionets[i].rebuildminmaxhidden(handle, batches)
+			err := m.totalionets[i].rebuildminmaxhidden(handle)
 			if err != nil {
 				return err
 			}
@@ -209,8 +209,8 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		*/
 		weights := IOMinMax{
 			Name: "Weights",
-			Minx: wmin[0],
-			Maxx: wmax[0],
+			Minx: wmin,
+			Maxx: wmax,
 			//	Mindx: dwmin[0],
 			//	Maxdx: dwmax[0],
 		}
@@ -232,8 +232,8 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 			}*/
 		bias := IOMinMax{
 			Name: "Bias",
-			Minx: bmin[0],
-			Maxx: bmax[0],
+			Minx: bmin,
+			Maxx: bmax,
 			//	Mindx: dbmin[0],
 			//	Maxdx: dbmax[0],
 		}
@@ -264,8 +264,8 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		*/
 		weights := IOMinMax{
 			Name: "Weights",
-			Minx: wmin[0],
-			Maxx: wmax[0],
+			Minx: wmin,
+			Maxx: wmax,
 			//	Mindx: dwmin[0],
 			//	Maxdx: dwmax[0],
 		}
@@ -289,8 +289,8 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		*/
 		bias := IOMinMax{
 			Name: "Bias",
-			Minx: bmin[0],
-			Maxx: bmax[0],
+			Minx: bmin,
+			Maxx: bmax,
 			//	Mindx: dbmin[0],
 			//	Maxdx: dbmax[0],
 		}
@@ -321,8 +321,8 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOMinMax, error) {
 		*/
 		weights := IOMinMax{
 			Name: "Ouput",
-			Minx: wmin[0],
-			Maxx: wmax[0],
+			Minx: wmin,
+			Maxx: wmax,
 			//	Mindx: dwmin[0],
 			//	Maxdx: dwmax[0],
 		}

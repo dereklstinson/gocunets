@@ -16,23 +16,48 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 		return err
 	}
 	if l.cnn != nil {
-		return l.cnn.ForwardProp(handle, wspace, x, y)
+		err = l.cnn.ForwardProp(handle, wspace, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 	if l.fcnn != nil {
-		return l.fcnn.ForwardProp(handle, x, y)
+		err = l.fcnn.ForwardProp(handle, x, y)
+
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 	if l.drop != nil {
-		return l.drop.ForwardProp(handle, x, y)
+		err = l.drop.ForwardProp(handle, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 	if l.activation != nil {
 
-		return l.activation.ForwardProp(handle, x, y)
+		err = l.activation.ForwardProp(handle, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 	if l.softmax != nil {
-		return l.softmax.ForwardProp(handle, x, y)
+		err = l.softmax.ForwardProp(handle, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 	if l.pool != nil {
-		return l.pool.ForwardProp(handle, x, y)
+		err = l.pool.ForwardProp(handle, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 
 	if l.reshape != nil {
@@ -44,7 +69,11 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 
 	}
 	if l.batch != nil {
-		l.batch.ForwardProp(handle, x, y)
+		err = l.batch.ForwardProp(handle, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 	}
 	if l.cnntranspose != nil {
 		err = l.cnntranspose.ForwardProp(handle, wspace, x, y)

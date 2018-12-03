@@ -17,7 +17,7 @@ import (
 
 const learningrates = .001
 const codingvector = int32(10)
-const numofneurons = int32(32)
+const numofneurons = int32(64)
 const l1regularization = float32(.0005)
 const l2regularization = float32(.0005)
 
@@ -87,7 +87,7 @@ func main() {
 		utils.CheckError(err)
 	}
 
-	windows := ui.NewWindows("http://localhost", ":8080", "/index")
+	windows := ui.NewWindows("http://localhost", ":8083", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, 2)
 	//lossplotlength := 100
 
@@ -164,6 +164,9 @@ func main() {
 			outputs := []*layers.IO{arabicnums[j], ArabicOutput, RomanOutput}
 			lossroman := MSERoman.Loss()
 			lossarabic := MSEArabic.Loss()
+			if lossroman == 0 || lossarabic == 0 {
+				fmt.Println("At Batch", j, "Roman Loss:", lossroman, ", Arabic Loss:", lossarabic)
+			}
 			epoclossroman += lossroman
 
 			epoclossarabic += lossarabic
@@ -181,7 +184,7 @@ func main() {
 					w = 0
 				}
 				if imagebuffer > w {
-
+					utils.CheckError(handles.Sync())
 					imagerlayer[k].LoadTValues(outputs[k].T().Memer())
 					outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
 					utils.CheckError(err)
@@ -200,7 +203,6 @@ func main() {
 		shuffle(arabicnums, arabicoutput)
 	}
 
-	devs[0].Reset()
 }
 
 func putintogpumemArabic(arabic [][]float32, frmt cudnn.TensorFormat, dtype cudnn.DataType, dimsarabic []int32, memmanaged bool) (output, runs []*layers.IO) {

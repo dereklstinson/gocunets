@@ -102,6 +102,47 @@ func (o *Ops) Free() error {
 	return errstack
 }
 
+//PreStageSpatial Normalization is performed over N+spatial dimensions.
+//This mode is intended for use after convolutional layers (where spatial invariance is desired).
+//In this mode the bnBias, bnScale tensor dimensions are 1xCx1x1.
+func PreStageSpatial(handle *cudnn.Handler) (*Ops, error) {
+	var x gocudnn.BatchNormModeFlag
+	return &Ops{
+		mode: x.Spatial(),
+	}, nil
+}
+
+/*PreStageSpatialPersistant - similar to spatial but can be faster
+
+An optimized path may be selected for CUDNN_DATA_FLOAT and CUDNN_DATA_HALF types, compute capability 6.0 or higher for the following two batch normalization API calls: cudnnBatchNormalizationForwardTraining(), and cudnnBatchNormalizationBackward().
+In the case of cudnnBatchNormalizationBackward(), the savedMean and savedInvVariance arguments should not be NULL.
+
+The rest of this section applies for NCHW mode only:
+
+This mode may use a scaled atomic integer reduction that is deterministic but imposes more restrictions on the input data range.
+When a numerical overflow occurs the algorithm may produce NaN-s or Inf-s (infinity) in output buffers.
+
+When Inf-s/NaN-s are present in the input data, the output in this mode is the same as from a pure floating-point implementation.
+
+For finite but very large input values, the algorithm may encounter overflows more frequently due to a lower dynamic range and emit Inf-s/NaN-s while CUDNN_BATCHNORM_SPATIAL will produce finite results.
+The user can invoke cudnnQueryRuntimeError() to check if a numerical overflow occurred in this mode.
+*/
+func PreStageSpatialPersistant(handle *cudnn.Handler) (*Ops, error) {
+	var x gocudnn.BatchNormModeFlag
+	return &Ops{
+		mode: x.SpatialPersistent(),
+	}, nil
+}
+
+//PreStagePerActivation Normalization is performed per-activation. This mode is intended to be used after non-convolutional network layers.
+//In this mode the tensor dimensions of bnBias and bnScale, the parameters used in the cudnnBatchNormalization* functions, are 1xCxHxW.
+func PreStagePerActivation(handle *cudnn.Handler) (*Ops, error) {
+	var x gocudnn.BatchNormModeFlag
+	return &Ops{
+		mode: x.PerActivation(),
+	}, nil
+}
+
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
 func Stage(handle *cudnn.Handler, x *tensor.Volume, mode gocudnn.BatchNormMode, managed bool) (*Ops, error) {
 

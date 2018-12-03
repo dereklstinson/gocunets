@@ -101,22 +101,33 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 //UpdateWeights updates the weights
 func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsize int) error {
 	var err error
-	/*err = handle.Sync()
+	err = handle.Sync()
 	if err != nil {
 		return err
-	}*/
+	}
 	a.SetBatch(float32(batchsize))
 	err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
 	if err != nil {
 		return err
 	}
-	/*
-		err = handle.Sync()
-		if err != nil {
-			return err
-		}
-	*/
-	return a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+
+	err = handle.Sync()
+	if err != nil {
+		return err
+	}
+	err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+	if err != nil {
+		return err
+	}
+	err = handle.Sync()
+	if err != nil {
+		return err
+	}
+	err = a.l1l2loss()
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
 }
 func (a *Adam) l1l2loss() error {
 	var err error

@@ -41,48 +41,48 @@ const (
 	convtransposereverse = convtransposemode(2)
 )
 
-//SetupMinMaxReducers sets up the minmax reducers for the bias and weights
-func (l *Layer) SetupMinMaxReducers(handle *cudnn.Handler, batches bool) (err error) {
-	return l.conv.SetupMinMaxReducers(handle, batches)
+//SetupWStatReducers sets up the minmax reducers for the bias and weights
+func (l *Layer) SetupWStatReducers(handle *cudnn.Handler) (err error) {
+	return l.conv.SetupWStatReducers(handle)
 }
 
 //WMax returns the Max weight value per neuron
-func (l *Layer) WMax(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) WMax(handle *cudnn.Handler) (float32, error) {
 	return l.conv.WMax(handle)
 }
 
 //DWMax returns the Max delta weight value per neuron
-func (l *Layer) DWMax(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) DWMax(handle *cudnn.Handler) (float32, error) {
 	return l.conv.DWMax(handle)
 }
 
 //BMax returns the Max bias value per neuron
-func (l *Layer) BMax(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) BMax(handle *cudnn.Handler) (float32, error) {
 	return l.conv.BMax(handle)
 }
 
 //DBMax returns the Max delta bias value per neuron
-func (l *Layer) DBMax(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) DBMax(handle *cudnn.Handler) (float32, error) {
 	return l.conv.DBMax(handle)
 }
 
 //WMin returns the Min weight value per neuron
-func (l *Layer) WMin(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) WMin(handle *cudnn.Handler) (float32, error) {
 	return l.conv.WMin(handle)
 }
 
 //DWMin returns the Min delta weight value per neuron
-func (l *Layer) DWMin(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) DWMin(handle *cudnn.Handler) (float32, error) {
 	return l.conv.DWMin(handle)
 }
 
 //BMin returns the Min bias value per neuron
-func (l *Layer) BMin(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) BMin(handle *cudnn.Handler) (float32, error) {
 	return l.conv.BMin(handle)
 }
 
 //DBMin returns the Min delta bias value per neuron
-func (l *Layer) DBMin(handle *cudnn.Handler) ([]float32, error) {
+func (l *Layer) DBMin(handle *cudnn.Handler) (float32, error) {
 	return l.conv.DBMin(handle)
 }
 

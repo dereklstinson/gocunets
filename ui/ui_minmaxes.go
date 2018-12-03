@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-//MinMaxes are the minmaxes of the network layers or hidden io
-type MinMaxes struct {
+//Stats are the minmaxes of the network layers or hidden io
+type Stats struct {
 	Header string
 	PURL   string
 	PID    string
@@ -19,12 +19,12 @@ type MinMaxes struct {
 	Rate   template.JS
 }
 
-//AddMinMax adds a window to the ui
-func (w *Windows) AddMinMax(header, refreshrate, purl string, up Handler, columnsinrow int, beginrow, endofrow bool) {
+//AddStats adds a window to the ui
+func (w *Windows) AddStats(header, refreshrate, purl string, up Handler, columnsinrow int, beginrow, endofrow bool) {
 
 	i := len(w.windows.DivOutputs)
 	j := len(w.windows.HardwareCharts)
-	k := len(w.windows.MinMaxes)
+	k := len(w.windows.Stats)
 	suffix := strconv.Itoa(i + j + k)
 	var newrow template.HTML
 	var endrow template.HTML
@@ -37,7 +37,7 @@ func (w *Windows) AddMinMax(header, refreshrate, purl string, up Handler, column
 	}
 	colwide := colstring(columnsinrow)
 
-	d := MinMaxes{
+	d := Stats{
 		ColWid: colwide,
 		NewRow: newrow,
 		EndRow: endrow,
@@ -51,9 +51,11 @@ func (w *Windows) AddMinMax(header, refreshrate, purl string, up Handler, column
 		Func:  template.JS("imagefunc" + suffix),
 		MyVar: template.JS("myvar" + suffix),
 	}
-	w.windows.MinMaxes = append(w.windows.MinMaxes, d)
+	w.windows.Stats = append(w.windows.Stats, d)
 	w.handlers = append(w.handlers, up)
 	w.names = append(w.names, purl)
 
 }
-func NetworkStatHelper()
+func NetworkStatHelper() {
+
+}

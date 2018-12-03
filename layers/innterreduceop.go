@@ -18,28 +18,28 @@ type reduceop struct {
 	unified     bool
 }
 
-func buildminreduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func buildminreduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
-	return genericbuildreduceop(handle, rflg.ReduceMode.Min(), iomem, batches)
+	return genericbuildreduceop(handle, rflg.ReduceMode.Min(), iomem)
 }
-func buildmaxreduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func buildmaxreduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
-	return genericbuildreduceop(handle, rflg.ReduceMode.Max(), iomem, batches)
+	return genericbuildreduceop(handle, rflg.ReduceMode.Max(), iomem)
 }
-func buildavgreduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func buildavgreduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
-	return genericbuildreduceop(handle, rflg.ReduceMode.Avg(), iomem, batches)
+	return genericbuildreduceop(handle, rflg.ReduceMode.Avg(), iomem)
 }
-func buildnorm1reduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func buildnorm1reduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
-	return genericbuildreduceop(handle, rflg.ReduceMode.Norm1(), iomem, batches)
+	return genericbuildreduceop(handle, rflg.ReduceMode.Norm1(), iomem)
 }
-func buildnorm2reduce(handle *cudnn.Handler, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func buildnorm2reduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
-	return genericbuildreduceop(handle, rflg.ReduceMode.Norm2(), iomem, batches)
+	return genericbuildreduceop(handle, rflg.ReduceMode.Norm2(), iomem)
 }
 
-func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
 	frmt, dtype, dims, err := iomem.Properties()
 	managed := iomem.Unified()
@@ -51,9 +51,7 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 	for i := 0; i < len(reducedims); i++ {
 		reducedims[i] = 1
 	}
-	if batches == true {
-		reducedims[0] = dims[0]
-	}
+
 	op, err := reduce.Stage(mode, dtype, rflg.NanProp.NoPropNAN(), rflg.IndFlag.NoIndices(), rflg.IndType.Type32Bit())
 	if err != nil {
 		return nil, err
@@ -101,7 +99,7 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 		gptr:   gpr,
 	}, nil
 }
-func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume, batches bool) (*reduceop, error) {
+func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume) (*reduceop, error) {
 	frmt, dtype, dims, err := iomem.Properties()
 	managed := iomem.Unified()
 	if err != nil {
@@ -112,10 +110,6 @@ func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume, batche
 	for i := 0; i < len(reducedims); i++ {
 		reducedims[i] = 1
 	}
-	if batches == true {
-		reducedims[0] = dims[0]
-	}
-
 	rflg := reduce.Flags
 	var opmode reduce.OpMode
 	if min == true {
@@ -170,24 +164,24 @@ func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume, batche
 		gptr:   gpr,
 	}, nil
 }
-func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) ([]float32, error) {
+func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) (float32, error) {
 	err := r.reduce(handle, x)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if r.unified == true {
 		err = gocudnn.UnifiedMemCopy(r.gptr, r.mem.Memer())
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
-		return r.val, nil
+		return r.val[0], nil
 	}
 	bsize := r.mem.Memer().ByteSize()
 	err = gocudnn.CudaMemCopy(r.gptr, r.mem.Memer(), bsize, gocudnn.MemcpyKindFlag{}.DeviceToHost())
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return r.val, nil
+	return r.val[0], nil
 }
 func (r *reduceop) reduce(handle *cudnn.Handler, x *tensor.Volume) error {
 	return r.op.Reduce(handle, r.indicies, r.wspace, r.alpha, x, r.beta, r.mem)

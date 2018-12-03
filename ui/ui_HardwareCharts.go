@@ -22,7 +22,7 @@ type HardwareCharts struct {
 func (w *Windows) AddHardwareCharts(header, refreshrate, url string, handle Handler, columnsinrow int, beginrow bool, endofrow bool) {
 	i := len(w.windows.DivOutputs)
 	j := len(w.windows.HardwareCharts)
-	k := len(w.windows.MinMaxes)
+	k := len(w.windows.Stats)
 	suffix := strconv.Itoa(i + j + k)
 	var newrow template.HTML
 	var endrow template.HTML

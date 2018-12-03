@@ -38,7 +38,7 @@ type Windows struct {
 type IndexTemplate struct {
 	HardwareCharts []HardwareCharts
 	DivOutputs     []DivOutputs
-	MinMaxes       []MinMaxes
+	Stats          []Stats
 }
 
 //NewWindows creates allows the user to create a bunch of windows to access the neural network

@@ -232,7 +232,6 @@ func (c *Layer) OutputDims(inputdims []int32) []int32 {
 func SetupDynamic(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
-	//	guessinputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,

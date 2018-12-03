@@ -181,6 +181,8 @@ func findreverse4doutputdims4dNHWC(x, w, padding, stride, dilation []int32) []in
 }
 func findreverseoutputdim(x, w, s, p, d int32) int32 {
 	// output = 1+ (input + (2*padding) - (((filter-1)*dilation)+1))/slide
+	//	(input-1)*slide = (output +2*padding)-(((filter-1)*dilation)+1)
+	//output= 2*padding-(((filter-1)*dilation)+1)-(input-1)*slide
 	// input = 1 + (output + (2*padding) - (((filter-1)*dilation)+1))/slide
 	//  slide *(input-1) = output + (2*padding) - (((filter-1)*dilation)+1)
 	//  output = (slide *(input-1)) - (2*padding) + (((filter-1)*dilation)+1)
