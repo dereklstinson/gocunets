@@ -175,6 +175,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler, batches bool) error {
 		for i := range m.totalionets {
 			err := m.totalionets[i].buildminmax(handle)
 			if err != nil {
+
 				return err
 			}
 		}
@@ -183,6 +184,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler, batches bool) error {
 		for i := range m.totalionets {
 			err := m.totalionets[i].rebuildstathidden(handle)
 			if err != nil {
+
 				return err
 			}
 		}

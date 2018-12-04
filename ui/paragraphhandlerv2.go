@@ -31,7 +31,6 @@ func MakeParagraphHandlerV2(bufferlen int) *ParagraphHandlerV2 {
 //Paragraph works like Sprintf sending messages through a hidden channel
 func (l *ParagraphHandlerV2) Paragraph(format string, a ...interface{}) {
 	l.p <- fmt.Sprintf(format, a...)
-
 }
 
 //Buffer returns the buffer channel
@@ -44,7 +43,7 @@ func (l *ParagraphHandlerV2) runchannel(p <-chan string, b chan<- int) {
 
 		if (l.iin+1)%l.size != l.iout%l.size {
 			l.mux.Lock()
-			l.par[l.iin%l.size] = "<p>" + pg + "</p>"
+			l.par[l.iin%l.size] = pg
 			l.mux.Unlock()
 			l.iin++
 		}

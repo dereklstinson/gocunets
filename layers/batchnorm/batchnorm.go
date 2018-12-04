@@ -1,6 +1,8 @@
 package batchnorm
 
 import (
+	"fmt"
+
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -16,6 +18,8 @@ type Layer struct {
 	eps     float64
 	af      float64
 	counter int64
+	mode    gocudnn.BatchNormMode
+	managed bool
 }
 type abscalars struct {
 	a float64
@@ -30,7 +34,8 @@ type Settings struct {
 
 //PerActivationPreset will presetup some values for the batch norm PerActivation
 func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
-	b, err := batchnorm.PreStagePerActivation(handle, managed)
+	//	b, err := batchnorm.PreStagePerActivation(handle, managed)
+	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
 		a: 1.0,
 		b: 0.0,
@@ -44,17 +49,20 @@ func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		b: 0.0,
 	}
 	return &Layer{
-		b:   b,
-		fw:  fw,
-		bwp: bwp,
-		bwd: bwd,
-		eps: float64(2e-5),
-	}, err
+		//	b:       b,
+		fw:      fw,
+		bwp:     bwp,
+		bwd:     bwd,
+		eps:     float64(2e-5),
+		mode:    flg.PerActivation(),
+		managed: managed,
+	}, nil
 }
 
 //SpatialPreset will presetup some values for the batch norm Spatial Mode
 func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
-	b, err := batchnorm.PreStageSpatial(handle, managed)
+	//	b, err := batchnorm.PreStageSpatial(handle, managed)
+	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
 		a: 1.0,
 		b: 0.0,
@@ -68,18 +76,21 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		b: 0.0,
 	}
 	return &Layer{
-		b:   b,
-		fw:  fw,
-		bwp: bwp,
-		bwd: bwd,
-		eps: float64(2e-5),
-	}, err
+		//b:    b,
+		fw:      fw,
+		bwp:     bwp,
+		bwd:     bwd,
+		eps:     float64(2e-5),
+		mode:    flg.Spatial(),
+		managed: managed,
+	}, nil
 
 }
 
 //SpatialPersistantPreset will presetup some values for the batch norm SpatialPersistantPreset Mode
 func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
-	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
+	//	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
+	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
 		a: 1.0,
 		b: 0.0,
@@ -93,18 +104,23 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 		b: 0.0,
 	}
 	return &Layer{
-		b:   b,
-		fw:  fw,
-		bwp: bwp,
-		bwd: bwd,
-		eps: float64(2e-5),
-	}, err
+		//	b:    b,
+		fw:      fw,
+		bwp:     bwp,
+		bwd:     bwd,
+		eps:     float64(2e-5),
+		mode:    flg.SpatialPersistent(),
+		managed: managed,
+	}, nil
 
 }
 
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
 func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
-	return l.b.Stage(handle, x.T())
+	var err error
+	fmt.Println("RanPreset")
+	l, err = LayerSetup(handle, x, l.mode, l.managed)
+	return err
 }
 
 //LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.
@@ -123,12 +139,15 @@ func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode,
 		a: 1.0,
 		b: 0.0,
 	}
+	fmt.Println("Ran Layer Setup")
 	return &Layer{
-		b:   b,
-		fw:  fw,
-		bwp: bwp,
-		bwd: bwd,
-		eps: float64(2e-5),
+		b:       b,
+		fw:      fw,
+		bwp:     bwp,
+		bwd:     bwd,
+		eps:     float64(2e-5),
+		mode:    mode,
+		managed: managed,
 	}, err
 }
 

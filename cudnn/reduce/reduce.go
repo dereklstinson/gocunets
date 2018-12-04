@@ -22,6 +22,7 @@ var Flags flagsforop
 //Ops contains the reduce ops information
 type Ops struct {
 	desc *gocudnn.ReduceTensorD
+	op   OpMode
 }
 
 //Stage stages the Reduce Operation
@@ -33,6 +34,7 @@ func Stage(op OpMode, dtype cudnn.DataType, nanprop cudnn.NanMode, reducetensori
 	}
 	return &Ops{
 		desc: desc,
+		op:   op,
 	}, nil
 }
 
@@ -47,8 +49,11 @@ func (o *Ops) Reduce(handle *cudnn.Handler, indicies *gocudnn.Malloced, workspac
 	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-
-	return o.desc.ReduceTensorOp(handle.Cudnn(), indicies, workspace, a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
+	err = o.desc.ReduceTensorOp(handle.Cudnn(), indicies, workspace, a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
+	if err != nil {
+		return errors.New(o.op.Readable() + ":" + err.Error())
+	}
+	return nil
 
 }
 

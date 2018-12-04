@@ -4,9 +4,18 @@ import (
 	"fmt"
 	"html/template"
 
+	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/ui/uihelper"
 )
 
+func (m *Network) GetHTMLedStats(handle *cudnn.Handler) (string, error) {
+	x, err := m.GetStats(handle)
+	if err != nil {
+		return "", err
+	}
+	return string(combine(MakeHTMLTemplates(x))), nil
+
+}
 func MakeHTMLTemplates(input []*LayerIOStats) []template.HTML {
 	section := make([]template.HTML, len(input))
 	for i := range input {

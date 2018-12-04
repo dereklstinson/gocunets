@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/loss"
@@ -95,7 +96,7 @@ func main() {
 	imagehandlers := make([]*ui.ImageHandlerV2, 3)
 
 	imagerlayer := make([]*layers.IO, 3)
-	//	parahandlers := make([]*ui.ParagraphHandlerV2, 3)
+
 	imager := make([]*imaging.Imager, 3)
 
 	for i := range imager {
@@ -114,7 +115,14 @@ func main() {
 	windows.AddNetIO("Input Image", refresh, "/arabicinput/", imagehandlers[0], "", nil, 4, false, false)
 	windows.AddNetIO("Arabic Output Current", refresh, "/arabicoutputCurrent/", imagehandlers[1], "", nil, 4, false, false)
 	windows.AddNetIO("Roman Output Current", refresh, "/romanoutputCurrent/", imagehandlers[2], "", nil, 4, false, true)
-
+	networkstats := make([]*ui.ParagraphHandlerV2, 3)
+	for i := range networkstats {
+		networkstats[i] = ui.MakeParagraphHandlerV2(imagebuffer)
+	}
+	networks := []*gocunets.Network{Encoder, ToArabic, ToRoman}
+	windows.AddStats("Arabic Encoder Stats", "5000", "/ArabicEncoder/", networkstats[0], 3, true, false)
+	windows.AddStats("Arabic Decoder Stats", "5000", "/ArabicDecoder/", networkstats[1], 3, false, false)
+	windows.AddStats("Roman Decoder Stats", "5000", "/RomanDecoder/", networkstats[2], 3, false, true)
 	go ui.ServerMain(windows)
 
 	//LossDataChan <- EpocLosses
@@ -191,6 +199,20 @@ func main() {
 					imagehandlers[k].Image(outputimage)
 
 				}
+			}
+
+		}
+		for j := range networkstats {
+			var w int
+			select {
+			case w = <-networkstats[j].Buffer():
+			default:
+				w = 0
+			}
+			if w < imagebuffer {
+				paras, err := networks[j].GetHTMLedStats(handles)
+				utils.CheckError(err)
+				networkstats[j].Paragraph(paras)
 			}
 
 		}

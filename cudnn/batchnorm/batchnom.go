@@ -2,6 +2,7 @@ package batchnorm
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
@@ -150,88 +151,70 @@ func PreStagePerActivation(handle *cudnn.Handler, managed bool) (*Ops, error) {
 //Stage will stage the o Ops from the prestaged function
 func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) error {
 
-	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), o.mode)
-	if err != nil {
-		return nil
-	}
+	o, err := Stage(handle, x, o.mode, o.managed)
 
-	rrm, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	rrv, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	rsm, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	rsv, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	rbnscd, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	rbnbd, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	bias, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	scale, err := buildfromdesc(handle, bnd, o.managed)
-	if err != nil {
-		return nil
-	}
-	o.bnsbmvd, o.rrm, o.rrv, o.rsm, o.rsv, o.rbnbd, o.rbnscd, o.scale, o.bias = bnd, rrm, rrv, rsm, rsv, rbnbd, rbnscd, scale, bias
-	return nil
+	return err
+
 }
 
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
 func Stage(handle *cudnn.Handler, x *tensor.Volume, mode gocudnn.BatchNormMode, managed bool) (*Ops, error) {
-
+	fmt.Println("Staging descriptor")
 	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), mode)
 	if err != nil {
 		return nil, err
 	}
-
+	a, b, c, d := bnd.GetDescrptor()
+	if d != nil {
+		panic(d)
+	}
+	fmt.Println(a, b, c)
 	rrm, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	rrv, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	rsm, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	rsv, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	rbnscd, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	rbnbd, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	bias, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 	scale, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
-
+	_, _, _, err = bnd.GetDescrptor()
+	if err != nil {
+		panic(err)
+		return nil, err
+	}
+	fmt.Println("Staged Op")
 	return &Ops{
 		bnsbmvd: bnd,
 		mode:    mode,
@@ -243,6 +226,7 @@ func Stage(handle *cudnn.Handler, x *tensor.Volume, mode gocudnn.BatchNormMode, 
 		rbnscd:  rbnscd,
 		scale:   scale,
 		bias:    bias,
+		managed: managed,
 	}, nil
 
 }
@@ -255,6 +239,9 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler, alpha, beta, averagingfacto
 	}
 	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
 	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
+	fmt.Println(o)
+	stuff, stuff1, stuff3, stuff4 := o.bnsbmvd.GetDescrptor()
+	fmt.Println(stuff, stuff1, stuff3, stuff4)
 	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardTraining(handle.Cudnn(),
 		o.mode,
 		a,

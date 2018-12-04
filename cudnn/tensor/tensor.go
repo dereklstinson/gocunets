@@ -111,10 +111,6 @@ func build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 
 	if len(dims) > 4 {
 		var newmemer *gocudnn.Malloced
-		//var tens *gocudnn.TensorD
-		//var filts *gocudnn.FilterD
-		//	var tensstrided *gocudnn.TensorD
-		//	var err error
 		tens, err := thelper.NewTensorNdDescriptorEx(frmt, dtype, dims)
 		if err != nil {
 			return nil, err
@@ -234,6 +230,11 @@ func (t *Volume) TD() *gocudnn.TensorD {
 //FD returns the filter descriptor for Tensor
 func (t *Volume) FD() *gocudnn.FilterD {
 	return t.fD
+}
+
+//Dims returns the dims of the tensor
+func (t *Volume) Dims() []int32 {
+	return t.dims
 }
 
 //Memer returns the Memer for Tensor

@@ -185,7 +185,7 @@ body {
 {{end}}
 
 <h1>Network Stats</h1>
-{{range .MinMaxes}}
+{{range .Stats}}
 {{ .NewRow}}
   <div class="{{.ColWid}}">
 	  <h2>{{.Header}}</h2>

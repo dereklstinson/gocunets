@@ -195,6 +195,11 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 		return input.ZeroClone()
 	}
 	if l.batch != nil {
+
+		err := l.batch.SetupPreset(handle, input)
+		if err != nil {
+			return nil, err
+		}
 		return input.ZeroClone()
 	}
 

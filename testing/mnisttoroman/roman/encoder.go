@@ -1,14 +1,13 @@
 package roman
 
 import (
-	"math/rand"
+	"github.com/dereklstinson/GoCuNets/layers/batchnorm"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
-	"github.com/dereklstinson/GoCuNets/layers/dropout"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -62,7 +61,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Convoultion Layer D3/4
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 
 	network.AddLayer( // in(batchsize, numofneurons, 14, 14),
@@ -81,7 +81,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Convoultion Layer D6/7
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
 		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, memmanaged),
@@ -97,7 +98,8 @@ func RomanDecoder(handle *cudnn.Handler,
 		Convoultion Layer D9/10
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 	network.AddLayer( //in(batchsize, numofneurons, 28, 28),
 		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, memmanaged),
@@ -168,7 +170,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Convoultion Layer E3    2
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), memmanaged),
@@ -185,7 +188,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Convoultion Layer E5    4
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 5, 5), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), memmanaged),
@@ -202,7 +206,8 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Convoultion Layer E7    6
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(codingvector, numofneurons, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
@@ -284,7 +289,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Convoultion Layer D3/4
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 
 	network.AddLayer( // in(batchsize, numofneurons, 14, 14),
@@ -303,8 +309,10 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Convoultion Layer D6/7
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
+
 	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
 		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, memmanaged),
 	) //14-8 +14 +1 =21
@@ -319,7 +327,8 @@ func ArabicDecoder(handle *cudnn.Handler,
 		Convoultion Layer D9/10
 	*/
 	network.AddLayer(
-		dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
+		batchnorm.PerActivationPreset(handle, memmanaged),
+		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 	)
 	network.AddLayer( //in(batchsize, numofneurons, 28, 28),
 		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, memmanaged),

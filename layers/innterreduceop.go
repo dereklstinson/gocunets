@@ -164,7 +164,32 @@ func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume) (*redu
 		gptr:   gpr,
 	}, nil
 }
+func checkifones(x []int32) bool {
+	for i := range x {
+		if x[i] != 1 {
+			return false
+		}
+	}
+	return true
+}
 func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) (float32, error) {
+	if checkifones(x.Dims()) {
+		if r.unified == true {
+			err := gocudnn.UnifiedMemCopy(r.gptr, x.Memer())
+			if err != nil {
+				return 0, err
+			}
+			return r.val[0], nil
+		}
+		bsize := x.Memer().ByteSize()
+		err := gocudnn.CudaMemCopy(r.gptr, x.Memer(), bsize, gocudnn.MemcpyKindFlag{}.DeviceToHost())
+		if err != nil {
+			return 0, err
+		}
+		return r.val[0], nil
+
+	}
+
 	err := r.reduce(handle, x)
 	if err != nil {
 		return 0, err
