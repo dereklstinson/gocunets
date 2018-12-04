@@ -23,9 +23,9 @@ type IOStats struct {
 	Name  string  `json:"name,omitempty"`
 	Min   float32 `json:"minx,omitempty"`
 	Max   float32 `json:"maxx,omitempty"`
-	Avg   float32
-	Norm1 float32
-	Norm2 float32
+	Avg   float32 `json:"avg,omitempty"`
+	Norm1 float32 `json:"norm_1,omitempty"`
+	Norm2 float32 `json:"norm_2,omitempty"`
 }
 
 //ImagesLIO is used to hold and label the images of a section of the network.
@@ -66,6 +66,7 @@ func (m *Network) GetStats(handle *cudnn.Handler) ([]*LayerIOStats, error) {
 	}
 	return x, nil
 }
+
 func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 	switch {
 	case n.cnn != nil:
@@ -252,7 +253,7 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOStats, error) {
 			Norm2: bnorm2,
 		}
 		return &LayerIOStats{
-			Name:    "CNN",
+			Name:    n.name,
 			Weights: weights,
 			Bias:    bias,
 		}, nil
@@ -316,7 +317,7 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOStats, error) {
 			Norm2: bnorm2,
 		}
 		return &LayerIOStats{
-			Name:    "CNN-Transpose",
+			Name:    n.name,
 			Weights: weights,
 			Bias:    bias,
 		}, nil
@@ -330,27 +331,31 @@ func (n *netios) minmaxes(handle *cudnn.Handler) (*LayerIOStats, error) {
 		if err != nil {
 			return nil, err
 		}
-		/*
-			dwmin, err := n.io.MinDX(handle)
-			if err != nil {
-				return nil, err
-			}
-			dwmax, err := n.io.MaxDX(handle)
-			if err != nil {
-				return nil, err
-			}
-		*/
+		wavg, err := n.io.AvgX(handle)
+		if err != nil {
+			return nil, err
+		}
+		wnorm1, err := n.io.Norm1X(handle)
+		if err != nil {
+			return nil, err
+		}
+		wnorm2, err := n.io.Norm2X(handle)
+		if err != nil {
+			return nil, err
+		}
 		weights := IOStats{
-			Name: "Ouput",
-			Min:  wmin,
-			Max:  wmax,
-			//	Mindx: dwmin[0],
-			//	Maxdx: dwmax[0],
+			Name:  "Ouput",
+			Min:   wmin,
+			Max:   wmax,
+			Avg:   wavg,
+			Norm1: wnorm1,
+			Norm2: wnorm2,
 		}
 
 		return &LayerIOStats{
-			Name:    "IO-Hidden",
+			Name:    n.name,
 			Weights: weights,
+			IO:      true,
 		}, nil
 	}
 
