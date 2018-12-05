@@ -2,7 +2,6 @@ package batchnorm
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
@@ -11,18 +10,19 @@ import (
 
 //Ops contains the operation of batchnorm.
 type Ops struct {
-	epsilon float64
-	managed bool
-	mode    gocudnn.BatchNormMode
-	bnsbmvd *gocudnn.TensorD
-	scale   *gocudnn.Malloced
-	bias    *gocudnn.Malloced
-	rrm     *gocudnn.Malloced
-	rrv     *gocudnn.Malloced
-	rsm     *gocudnn.Malloced
-	rsv     *gocudnn.Malloced
-	rbnscd  *gocudnn.Malloced
-	rbnbd   *gocudnn.Malloced
+	epsilon           float64
+	managed           bool
+	exponentialfactor uint
+	mode              gocudnn.BatchNormMode
+	bnsbmvd           *gocudnn.TensorD
+	scale             *gocudnn.Malloced
+	bias              *gocudnn.Malloced
+	rrm               *gocudnn.Malloced
+	rrv               *gocudnn.Malloced
+	rsm               *gocudnn.Malloced
+	rsv               *gocudnn.Malloced
+	rbnscd            *gocudnn.Malloced
+	rbnbd             *gocudnn.Malloced
 }
 
 func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD, managed bool) (*gocudnn.Malloced, error) {
@@ -158,63 +158,57 @@ func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) error {
 }
 
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
-func Stage(handle *cudnn.Handler, x *tensor.Volume, mode gocudnn.BatchNormMode, managed bool) (*Ops, error) {
-	fmt.Println("Staging descriptor")
+func Stage(handle *cudnn.Handler,
+	x *tensor.Volume,
+	mode gocudnn.BatchNormMode,
+	managed bool) (*Ops, error) {
+
 	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), mode)
 	if err != nil {
 		return nil, err
 	}
-	a, b, c, d := bnd.GetDescrptor()
-	if d != nil {
-		panic(d)
-	}
-	fmt.Println(a, b, c)
+
 	rrm, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	rrv, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	rsm, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	rsv, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	rbnscd, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	rbnbd, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	bias, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
 	scale, err := buildfromdesc(handle, bnd, managed)
 	if err != nil {
-		panic(err)
+
 		return nil, err
 	}
-	_, _, _, err = bnd.GetDescrptor()
-	if err != nil {
-		panic(err)
-		return nil, err
-	}
-	fmt.Println("Staged Op")
+
 	return &Ops{
 		bnsbmvd: bnd,
 		mode:    mode,
@@ -232,17 +226,22 @@ func Stage(handle *cudnn.Handler, x *tensor.Volume, mode gocudnn.BatchNormMode, 
 }
 
 //ForwardTraining is used for the forward training
-func (o *Ops) ForwardTraining(handle *cudnn.Handler, alpha, beta, averagingfactor, epsilon float64, x, y *tensor.Volume) error {
+func (o *Ops) ForwardTraining(handle *cudnn.Handler,
+	alpha,
+	beta,
+	averagingfactor,
+	epsilon float64,
+	x,
+	y *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
 	}
 	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
 	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
-	fmt.Println(o)
-	stuff, stuff1, stuff3, stuff4 := o.bnsbmvd.GetDescrptor()
-	fmt.Println(stuff, stuff1, stuff3, stuff4)
-	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardTraining(handle.Cudnn(),
+
+	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardTraining(
+		handle.Cudnn(),
 		o.mode,
 		a,
 		b,
@@ -263,8 +262,59 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler, alpha, beta, averagingfacto
 
 }
 
+/*
+
+
+cudnnStatus_t cudnnBatchNormalizationForwardTraining(
+      cudnnHandle_t                    handle,
+      cudnnBatchNormMode_t             mode,
+      const void                      *alpha,
+      const void                      *beta,
+      const cudnnTensorDescriptor_t    xDesc,
+      const void                      *x,
+      const cudnnTensorDescriptor_t    yDesc,
+      void                            *y,
+      const cudnnTensorDescriptor_t    bnScaleBiasMeanVarDesc,
+      const void                      *bnScale,
+      const void                      *bnBias,
+      double                           exponentialAverageFactor,
+      void                            *resultRunningMean,
+      void                            *resultRunningVariance,
+      double                           epsilon,
+      void                            *resultSaveMean,
+	  void                            *resultSaveInvVariance)
+
+cudnnStatus_t cudnnBatchNormalizationBackward(
+      cudnnHandle_t                    handle,
+      cudnnBatchNormMode_t             mode,
+      const void                      *alphaDataDiff,
+      const void                      *betaDataDiff,
+      const void                      *alphaParamDiff,
+      const void                      *betaParamDiff,
+      const cudnnTensorDescriptor_t    xDesc,
+      const void                      *x,
+      const cudnnTensorDescriptor_t    dyDesc,
+      const void                      *dy,
+      const cudnnTensorDescriptor_t    dxDesc,
+      void                            *dx,
+      const cudnnTensorDescriptor_t    bnScaleBiasDiffDesc,
+      const void                      *bnScale,
+      void                            *resultBnScaleDiff,
+      void                            *resultBnBiasDiff,
+      double                           epsilon,
+      const void                      *savedMean,
+      const void                      *savedInvVariance)
+*/
 //BackwardProp is used for the forward training
-func (o *Ops) BackwardProp(handle *cudnn.Handler, alphaparam, betaparam, alphadata, betadata, epsilon float64, x, dx, dy *tensor.Volume) error {
+func (o *Ops) BackwardProp(handle *cudnn.Handler,
+	alphaparam,
+	betaparam,
+	alphadata,
+	betadata,
+	epsilon float64,
+	x,
+	dx,
+	dy *tensor.Volume) error {
 	_, dtype, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -273,7 +323,8 @@ func (o *Ops) BackwardProp(handle *cudnn.Handler, alphaparam, betaparam, alphada
 	bd := gocudnn.CScalarByDataType(dtype.Cu(), betadata)
 	ap := gocudnn.CScalarByDataType(dtype.Cu(), alphaparam)
 	bp := gocudnn.CScalarByDataType(dtype.Cu(), betaparam)
-	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationBackward(handle.Cudnn(),
+	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationBackward(
+		handle.Cudnn(),
 		o.mode,
 		ad,
 		bd,
@@ -281,10 +332,10 @@ func (o *Ops) BackwardProp(handle *cudnn.Handler, alphaparam, betaparam, alphada
 		bp,
 		x.TD(),
 		x.Memer(),
-		dx.TD(),
-		dx.Memer(),
 		dy.TD(),
 		dy.Memer(),
+		dx.TD(),
+		dx.Memer(),
 		o.bnsbmvd,
 		o.scale,
 		o.rbnscd,

@@ -1,13 +1,18 @@
 package batchnorm
 
 import (
-	"fmt"
-
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
+
+const alphaforwarddefault = 1
+const betaforwarddefault = 1
+const alphabackwarddefault = 1
+const betabackwarddefault = 1
+const alphabackwardparamdefault = 1
+const betabackwardparamdefault = 1
 
 //Layer the ops of a batch norm
 type Layer struct {
@@ -17,7 +22,7 @@ type Layer struct {
 	bwd     abscalars
 	eps     float64
 	af      float64
-	counter int64
+	counter uint64
 	mode    gocudnn.BatchNormMode
 	managed bool
 }
@@ -37,19 +42,19 @@ func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	//	b, err := batchnorm.PreStagePerActivation(handle, managed)
 	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphaforwarddefault,
+		b: betaforwarddefault,
 	}
 	bwd := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwarddefault,
+		b: betabackwarddefault,
 	}
 	bwp := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwardparamdefault,
+		b: betabackwardparamdefault,
 	}
 	return &Layer{
-		//	b:       b,
+
 		fw:      fw,
 		bwp:     bwp,
 		bwd:     bwd,
@@ -64,16 +69,16 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatial(handle, managed)
 	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphaforwarddefault,
+		b: betaforwarddefault,
 	}
 	bwd := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwarddefault,
+		b: betabackwarddefault,
 	}
 	bwp := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwardparamdefault,
+		b: betabackwardparamdefault,
 	}
 	return &Layer{
 		//b:    b,
@@ -92,16 +97,16 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 	//	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
 	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphaforwarddefault,
+		b: betaforwarddefault,
 	}
 	bwd := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwarddefault,
+		b: betabackwarddefault,
 	}
 	bwp := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwardparamdefault,
+		b: betabackwardparamdefault,
 	}
 	return &Layer{
 		//	b:    b,
@@ -118,8 +123,8 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
 func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 	var err error
-	fmt.Println("RanPreset")
-	l, err = LayerSetup(handle, x, l.mode, l.managed)
+
+	l.b, err = batchnorm.Stage(handle, x.T(), l.mode, l.managed)
 	return err
 }
 
@@ -128,18 +133,18 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
 	b, err := batchnorm.Stage(handle, x.T(), mode, managed)
 	fw := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphaforwarddefault,
+		b: betaforwarddefault,
 	}
 	bwd := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwarddefault,
+		b: betabackwarddefault,
 	}
 	bwp := abscalars{
-		a: 1.0,
-		b: 0.0,
+		a: alphabackwardparamdefault,
+		b: betabackwardparamdefault,
 	}
-	fmt.Println("Ran Layer Setup")
+
 	return &Layer{
 		b:       b,
 		fw:      fw,
@@ -152,8 +157,13 @@ func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode,
 }
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
-func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(
+	handle *cudnn.Handler,
+	x,
+	y *layers.IO,
+) error {
 	l.af = (1.0 / (1.0 + float64(l.counter)))
+
 	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), y.T())
 	l.counter++
 	return err
@@ -161,7 +171,15 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 
 //BackProp does the back propagation in training the layer
 func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.b.BackwardProp(handle, l.bwp.a, l.bwp.b, l.bwd.a, l.bwd.b, l.eps, x.T(), x.DeltaT(), y.DeltaT())
+	return l.b.BackwardProp(handle,
+		l.bwp.a,
+		l.bwp.b,
+		l.bwd.a,
+		l.bwd.b,
+		l.eps,
+		x.T(),
+		x.DeltaT(),
+		y.DeltaT())
 }
 
 //SetEps sets epsilon

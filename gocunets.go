@@ -472,6 +472,7 @@ func (m *Network) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 	}
 	lnum := len(m.layer)
 	for i := 1; i < lnum-1; i++ {
+
 		err = m.layer[i].forwardprop(handle, wspace, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return wraperror("forward index:"+strconv.Itoa(i), err)
@@ -528,7 +529,7 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Mall
 	}
 
 	for i := lnum - 2; i > 0; i-- {
-		//	fmt.Println("index", i)
+
 		err = m.layer[i].backpropfilterdata(handle, wspace, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return err
