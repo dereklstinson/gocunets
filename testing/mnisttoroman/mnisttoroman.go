@@ -88,7 +88,7 @@ func main() {
 		utils.CheckError(err)
 	}
 
-	windows := ui.NewWindows("http://localhost", ":8083", "/index")
+	windows := ui.NewWindows("http://localhost", ":8080", "/index")
 	LossDataChan := make(chan []ui.LabelFloat, 2)
 	//lossplotlength := 100
 

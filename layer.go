@@ -38,6 +38,9 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias t
 		return l.fcnn.LoadTrainer(handle, trainerweights, trainerbias)
 
 	}
+	if l.batch != nil {
+		return l.batch.LoadTrainer(handle, trainerweights, trainerbias)
+	}
 	if l.cnntranspose != nil {
 		return l.cnntranspose.LoadTrainer(handle, trainerweights, trainerbias)
 	}
@@ -52,6 +55,9 @@ func (l *layer) needstrainer() bool {
 		return true
 	}
 	if l.cnntranspose != nil {
+		return true
+	}
+	if l.batch != nil {
 		return true
 	}
 	return false
@@ -228,7 +234,9 @@ func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
 		err = l.cnntranspose.UpdateWeights(handle, batch)
 
 	}
-
+	if l.batch != nil {
+		err = l.batch.UpdateWeights(handle, batch)
+	}
 	return err
 }
 func (l *layer) l1l2loss() (l1, l2 float32) {

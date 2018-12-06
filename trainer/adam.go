@@ -21,6 +21,7 @@ type Adam struct {
 	trainer   *gocudnn.TrainerD
 	params    gocudnn.TrainingParams
 	regparams gocudnn.RegParams
+	dims      []int32
 }
 
 const defaultadambeta1 = 0.9
@@ -30,16 +31,12 @@ const defaultadamrate = .001
 
 //SetTrainingMem creates the training mem for the adam trainer
 func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
-
-	/*
-		if err != nil {
-			return err
-		}
-	*/
+	a.freememer()
 	_, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return err
 	}
+	a.dims = dims
 	DeFault := gocudnn.MemcpyKindFlag{}.Default()
 	Global := gocudnn.ManagedMemFlag{}.Global()
 	var dflg cudnn.DataTypeFlag
@@ -96,6 +93,45 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 		return errors.New("Only Float datatype supported at the moment")
 	}
 	return nil
+}
+
+func (a *Adam) freememer() error {
+	memerrorstrings := "FreeingMem"
+	flag := false
+	if a.goptr1 != nil {
+		memerrorstrings = memerrorstrings + a.goptr1.Free().Error() + " , "
+		flag = true
+	}
+	if a.goptr2 != nil {
+		memerrorstrings = memerrorstrings + a.goptr2.Free().Error() + " , "
+		flag = true
+	}
+	if a.gpuloss1 != nil {
+		memerrorstrings = memerrorstrings + a.gpuloss1.Free().Error() + " , "
+		flag = true
+	}
+	if a.gpuloss2 != nil {
+		memerrorstrings = memerrorstrings + a.gpuloss2.Free().Error() + " , "
+		flag = true
+
+	}
+	if a.gsum != nil {
+		memerrorstrings = memerrorstrings + a.gsum.Free().Error() + " , "
+		flag = true
+	}
+	if a.xsum != nil {
+		memerrorstrings = memerrorstrings + a.xsum.Free().Error() + " , "
+		flag = true
+	}
+	if flag {
+		return errors.New(memerrorstrings)
+	}
+	return nil
+}
+
+//Dims returns the dims of the training parameter holders
+func (a *Adam) Dims() []int32 {
+	return a.dims
 }
 
 //UpdateWeights updates the weights

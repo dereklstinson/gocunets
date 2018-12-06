@@ -1,30 +1,37 @@
 package batchnorm
 
 import (
+	"fmt"
+
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const alphaforwarddefault = 1
-const betaforwarddefault = 1
+const betaforwarddefault = 0
 const alphabackwarddefault = 1
-const betabackwarddefault = 1
+const betabackwarddefault = 0
 const alphabackwardparamdefault = 1
 const betabackwardparamdefault = 1
 
 //Layer the ops of a batch norm
 type Layer struct {
-	b       *batchnorm.Ops
-	fw      abscalars
-	bwp     abscalars
-	bwd     abscalars
-	eps     float64
-	af      float64
-	counter uint64
-	mode    gocudnn.BatchNormMode
-	managed bool
+	b          *batchnorm.Ops
+	fw         abscalars
+	bwp        abscalars
+	bwd        abscalars
+	bias       *layers.IO
+	scale      *layers.IO
+	eps        float64
+	af         float64
+	counter    uint64
+	mode       gocudnn.BatchNormMode
+	managed    bool
+	scaletrain trainer.Trainer
+	biastrain  trainer.Trainer
 }
 type abscalars struct {
 	a float64
@@ -125,9 +132,42 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 	var err error
 
 	l.b, err = batchnorm.Stage(handle, x.T(), l.mode, l.managed)
+	if err != nil {
+		return err
+	}
+
+	frmt, dtype, dims, managed := l.b.BiasScaleProperties()
+	l.bias, err = layers.BuildIO(frmt, dtype, dims, managed)
+	if err != nil {
+		fmt.Println("Creating Bias mem...Dims are:", dims)
+		return err
+	}
+	l.scale, err = layers.BuildIO(frmt, dtype, dims, managed)
+	if err != nil {
+		fmt.Println("Creating scale mem...Dims are:", dims)
+		return err
+	}
+	err = l.scale.T().ScaleValues(handle, .5)
+	if err != nil {
+		return err
+	}
+	err = l.bias.T().ScaleValues(handle, .5)
+	err = trainer.CreateTrainingMem(handle, l.scaletrain, l.scale)
+	if err != nil {
+		fmt.Println("Creating Training Mem for scale")
+		return err
+	}
+
+	err = trainer.CreateTrainingMem(handle, l.biastrain, l.bias)
+	if err != nil {
+		fmt.Println("Creating Training Mem for bias")
+		return err
+	}
+
 	return err
 }
 
+/*
 //LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.
 //I am 70 percent sure that fwd and bwd data are set correctly.  I am about 25% sure bwd param is set correctly.  I will change it if it needs it
 func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
@@ -155,6 +195,7 @@ func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode,
 		managed: managed,
 	}, err
 }
+*/
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
 func (l *Layer) ForwardProp(
@@ -164,7 +205,7 @@ func (l *Layer) ForwardProp(
 ) error {
 	l.af = (1.0 / (1.0 + float64(l.counter)))
 
-	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), y.T())
+	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
 	l.counter++
 	return err
 }
@@ -178,8 +219,48 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 		l.bwd.b,
 		l.eps,
 		x.T(),
+		l.scale.T(),
+		l.scale.DeltaT(),
+		l.bias.DeltaT(),
 		x.DeltaT(),
 		y.DeltaT())
+}
+
+//UpdateWeights does the weight update
+func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
+	err := l.bias.T().AddTo(handle, l.bias.DeltaT(), 1, 1)
+	if err != nil {
+		return err
+	}
+	err = l.scale.T().AddTo(handle, l.scale.DeltaT(), 1, 1)
+	if err != nil {
+		return err
+	}
+	l.bias.DeltaT().SetValues(handle, 0)
+
+	l.scale.DeltaT().SetValues(handle, 0)
+	/*
+		err = l.biastrain.UpdateWeights(handle, l.bias, batch)
+		if err != nil {
+			return err
+		}
+	*/
+	/*
+		err = l.scaletrain.UpdateWeights(handle, l.scale, batch)
+		if err != nil {
+			return err
+		}
+	*/
+	return nil
+}
+
+//LoadTrainer sets up the momentum trainer
+func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias trainer.Trainer) error {
+
+	l.scaletrain = trainerscale
+	l.biastrain = trainerbias
+
+	return nil
 }
 
 //SetEps sets epsilon
