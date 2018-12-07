@@ -19,8 +19,8 @@ import (
 const learningrates = .001
 const codingvector = int32(10)
 const numofneurons = int32(64)
-const l1regularization = float32(.0005)
-const l2regularization = float32(.0005)
+const l1regularization = float32(0.000001)
+const l2regularization = float32(0.000001)
 
 const metabatchsize = 1
 const batchsize = 10
@@ -110,8 +110,8 @@ func main() {
 
 	refresh := "2000"
 	ceiling := float32(15)
-	ArabicLoss, EpocLosses := ui.NewVSLossHandle("Epoc Loss", ceiling, LossDataChan, false, len(arabicnums), vsbatchskip, "Arabic Loss", "Roman Loss")
-	windows.AddNetIO("Arabic Loss Vs Roman Loss", refresh, "/ALoss/", ArabicLoss, "", nil, 4, true, false)
+	ArabicLoss, EpocLosses := ui.NewVSLossHandle("Epoc Loss", ceiling, LossDataChan, false, len(arabicnums), 1, "Arabic Loss", "Roman Loss")
+	windows.AddNetIO("Arabic Loss Vs Roman Loss", "500", "/ALoss/", ArabicLoss, "", nil, 4, true, false)
 	windows.AddNetIO("Input Image", refresh, "/arabicinput/", imagehandlers[0], "", nil, 4, false, false)
 	windows.AddNetIO("Arabic Output Current", refresh, "/arabicoutputCurrent/", imagehandlers[1], "", nil, 4, false, false)
 	windows.AddNetIO("Roman Output Current", refresh, "/romanoutputCurrent/", imagehandlers[2], "", nil, 4, false, true)
@@ -158,12 +158,12 @@ func main() {
 			utils.CheckError(stream.Sync())
 			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
 			utils.CheckError(stream.Sync())
-			if j%3 == 3-1 {
-				utils.CheckError(ToArabic.UpdateWeights(handles, batchsize*3))
-				utils.CheckError(Encoder.UpdateWeights(handles, batchsize*3))
-				utils.CheckError(ToRoman.UpdateWeights(handles, batchsize*3))
-				utils.CheckError(stream.Sync())
-			}
+
+			utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
+			utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
+			utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
+			utils.CheckError(stream.Sync())
+
 			//	utils.CheckError(ToArabic.UpdateWeights(handles, batchsize))
 			//	utils.CheckError(Encoder.UpdateWeights(handles, batchsize))
 			//	utils.CheckError(ToRoman.UpdateWeights(handles, batchsize))
@@ -178,11 +178,11 @@ func main() {
 			epoclossroman += lossroman
 
 			epoclossarabic += lossarabic
-			if j%vsbatchskip == 0 {
-				EpocLosses[0].Data = lossarabic
-				EpocLosses[1].Data = lossroman
-				LossDataChan <- EpocLosses
-			}
+			//	if j%vsbatchskip == 0 {
+			EpocLosses[0].Data = lossarabic
+			EpocLosses[1].Data = lossroman
+			LossDataChan <- EpocLosses
+			//	}
 
 			for k := range imagehandlers {
 				var w int

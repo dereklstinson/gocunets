@@ -65,7 +65,7 @@ func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		fw:      fw,
 		bwp:     bwp,
 		bwd:     bwd,
-		eps:     float64(2e-5),
+		eps:     float64(1e-5),
 		mode:    flg.PerActivation(),
 		managed: managed,
 	}, nil
@@ -92,7 +92,7 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		fw:      fw,
 		bwp:     bwp,
 		bwd:     bwd,
-		eps:     float64(2e-5),
+		eps:     float64(1e-5),
 		mode:    flg.Spatial(),
 		managed: managed,
 	}, nil
@@ -147,11 +147,11 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 		fmt.Println("Creating scale mem...Dims are:", dims)
 		return err
 	}
-	err = l.scale.T().ScaleValues(handle, .5)
+	err = l.scale.T().SetRandomNormal(.7, 1)
 	if err != nil {
 		return err
 	}
-	err = l.bias.T().ScaleValues(handle, .5)
+	err = l.bias.T().SetRandomNormal(.01, .1)
 	err = trainer.CreateTrainingMem(handle, l.scaletrain, l.scale)
 	if err != nil {
 		fmt.Println("Creating Training Mem for scale")
@@ -163,7 +163,7 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 		fmt.Println("Creating Training Mem for bias")
 		return err
 	}
-
+	l.af = .1
 	return err
 }
 
@@ -203,10 +203,10 @@ func (l *Layer) ForwardProp(
 	x,
 	y *layers.IO,
 ) error {
-	l.af = (1.0 / (1.0 + float64(l.counter)))
+	//	l.af = (1.0 / (1.0 + float64(l.counter)))
 
 	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
-	l.counter++
+	//	l.counter++
 	return err
 }
 
@@ -228,29 +228,31 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 
 //UpdateWeights does the weight update
 func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
-	err := l.bias.T().AddTo(handle, l.bias.DeltaT(), 1, 1)
-	if err != nil {
-		return err
-	}
-	err = l.scale.T().AddTo(handle, l.scale.DeltaT(), 1, 1)
-	if err != nil {
-		return err
-	}
-	l.bias.DeltaT().SetValues(handle, 0)
+	var err error
+	/*
+		err := l.bias.T().AddTo(handle, l.bias.DeltaT(), -1, 1)
+		if err != nil {
+			return err
+		}
+		err = l.scale.T().AddTo(handle, l.scale.DeltaT(), -1, 1)
+		if err != nil {
+			return err
+		}
+		l.bias.DeltaT().SetValues(handle, 0)
 
-	l.scale.DeltaT().SetValues(handle, 0)
-	/*
-		err = l.biastrain.UpdateWeights(handle, l.bias, batch)
-		if err != nil {
-			return err
-		}
+		l.scale.DeltaT().SetValues(handle, 0)
 	*/
-	/*
-		err = l.scaletrain.UpdateWeights(handle, l.scale, batch)
-		if err != nil {
-			return err
-		}
-	*/
+
+	err = l.biastrain.UpdateWeights(handle, l.bias, batch)
+	if err != nil {
+		return err
+	}
+
+	err = l.scaletrain.UpdateWeights(handle, l.scale, batch)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
