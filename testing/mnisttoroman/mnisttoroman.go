@@ -16,11 +16,12 @@ import (
 	"github.com/dereklstinson/GoCudnn"
 )
 
-const learningrates = .001
-const codingvector = int32(10)
-const numofneurons = int32(64)
-const l1regularization = float32(0.000001)
-const l2regularization = float32(0.000001)
+const ipAddress = "http://192.168.137.27" //"http://localhost"
+const learningrates = .005
+const codingvector = int32(12)
+const numofneurons = int32(128)
+const l1regularization = float32(0.0)
+const l2regularization = float32(0.0)
 
 const metabatchsize = 1
 const batchsize = 10
@@ -88,7 +89,8 @@ func main() {
 		utils.CheckError(err)
 	}
 
-	windows := ui.NewWindows("http://localhost", ":8080", "/index")
+	windows := ui.NewWindows(ipAddress, ":8080", "/index", false)
+
 	LossDataChan := make(chan []ui.LabelFloat, 2)
 	//lossplotlength := 100
 
@@ -140,20 +142,22 @@ func main() {
 
 			//	}
 			utils.CheckError(Encoder.ForwardProp(handles, nil, arabicnums[j], chokepoint[j]))
-
+			utils.CheckError(stream.Sync())
 			utils.CheckError(ToArabic.ForwardProp(handles, nil, chokepoint[j], arabicoutput[j]))
-
+			utils.CheckError(stream.Sync())
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
+			utils.CheckError(stream.Sync())
 			utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
 			utils.CheckError(stream.Sync())
 
 			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
+			utils.CheckError(stream.Sync())
 			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
-
+			utils.CheckError(stream.Sync())
 			utils.CheckError(ToArabic.BackPropFilterData(handles, nil, chokepoint[j], ArabicOutput))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(Encoder.BackPropFilterData(handles, nil, arabicnums[j], chokepoint[j]))
