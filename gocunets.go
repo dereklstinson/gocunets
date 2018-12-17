@@ -1,6 +1,26 @@
 package gocunets
 
-//TODO:  Take SoftMax out of here.  It should in another section for calculating the errors of the network.
+/*
+TODO:  1)  Take SoftMax out of here.  It should in another section for calculating the errors of the network.
+	   2)  Make a more "robust" hidden IO system.  With the inclusion of multiple sets of different sized inputs with hidden io equivilant.
+			   And also the ability for the neural network to dynamically change (at least the input layer). The slide and padding to help fit already existing sizes.
+
+
+			 		  --Thoughts while writing--
+			   		  **Probably need to make a new struct of ios that can be pooled with a flag of in use.
+					   eg  type hiddleio struct{
+						   io layers.IO
+						   inuse bool
+						   timesused int64
+					   }.
+					   **Put these in a pool to use.
+					  **Convolution will need a rotating set of descriptors.
+					  **Need to set a limit on the size of pool.
+					  **With this implementation will need to have multiple batch norm layers that can be swapped out due to the nature of it.
+
+
+
+*/
 
 import (
 	"errors"
@@ -265,6 +285,27 @@ func (m *Network) freehiddenios() error {
 
 	m.mem = nil
 	return nil
+}
+
+//ForwardInference handles the forward inference of a neural network
+func (m *Network) ForwardInference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+	_, _, xdims, err := x.Properties()
+	if err != nil {
+		return err
+	}
+	if comparedims(m.previousdims, xdims) == true {
+		return m.ForwardInference(handle, wspace, x, y)
+	}
+	m.previousdims = xdims
+	err = m.freehiddenios()
+	if err != nil {
+		return err
+	}
+	err = m.buildhiddenios(handle, x)
+	if err != nil {
+		return wraperror("dynamichiddenio", err)
+	}
+	return m.ForwardInference(handle, wspace, x, y)
 }
 
 //ForwardProp does the forward prop for a prebuilt Network
