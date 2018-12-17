@@ -13,7 +13,7 @@ type Trainer interface {
 	UpdateWeights(ctx *cudnn.Handler, weights *layers.IO, batch int) error
 	L1L2Loss() (float32, float32)
 	SetRate(rate float32)
-	//	Dims() []int32
+	SetDecays(l1, l2 float32)
 }
 
 //CreateTrainingMem creates trainingmem for the trainer

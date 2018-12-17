@@ -233,6 +233,59 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 
 }
 
+//ForwardInference is the forward prop used for testing and production
+func (o *Ops) ForwardInference(handle *cudnn.Handler,
+	alpha,
+	beta,
+
+	epsilon float64,
+	x,
+	scale *tensor.Volume,
+	bias *tensor.Volume,
+	y *tensor.Volume) error {
+	_, dtype, _, err := x.Properties()
+	if err != nil {
+		return err
+	}
+	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
+	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
+
+	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardInference(
+		handle.Cudnn(),
+		o.mode,
+		a,
+		b,
+		x.TD(),
+		x.Memer(),
+		y.TD(),
+		y.Memer(),
+		o.bnsbmvd,
+		scale.Memer(),
+		bias.Memer(),
+		o.rrm,
+		o.rrv,
+		epsilon,
+	)
+}
+
+/*
+	func (bnf batchNormFuncs) BatchNormalizationForwardInference(
+		handle *Handle,
+		mode BatchNormMode,
+		alpha CScalar, // alpha[0] = result blend factor
+		beta CScalar, //beta[0] = dest layer blend factor
+		xD *TensorD,
+		x *Malloced, //NxCxHxW
+		yD *TensorD,
+		y *Malloced, // NxCxHxW
+		bnScaleBiasMeanVarDesc *TensorD,
+		bnscale *Malloced,
+		bnBias *Malloced,
+		estimatedMean *Malloced, //same descriptor as bias and scale
+		estimatedVariance *Malloced, //same descriptor as bias and scale
+		epsilon float64,
+	}*/
+
 //BackwardProp is used for the forward training
 func (o *Ops) BackwardProp(handle *cudnn.Handler,
 	alphaparam,

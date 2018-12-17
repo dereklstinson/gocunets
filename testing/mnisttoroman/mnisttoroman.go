@@ -16,7 +16,7 @@ import (
 	"github.com/dereklstinson/GoCudnn"
 )
 
-const ipAddress = "http://192.168.137.27" //"http://localhost"
+const ipAddress = "http://192.168.12.101" //"http://localhost"
 const learningrates = .005
 const codingvector = int32(12)
 const numofneurons = int32(128)

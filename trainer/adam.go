@@ -220,6 +220,12 @@ func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Ada
 	}, nil
 }
 
+//SetDecays sets the decay rates for the trainer
+func (a *Adam) SetDecays(l1, l2 float32) {
+	a.regparams.SetDecay1(l1)
+	a.regparams.SetDecay2(l2)
+}
+
 //SetDecay1 sets decay1
 func (a *Adam) SetDecay1(decay1 float32) {
 	a.regparams.SetDecay1(decay1)

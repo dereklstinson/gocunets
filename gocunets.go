@@ -53,6 +53,8 @@ type Network struct {
 	l1losses          []float32
 	l2losses          []float32
 	totalionetsinit   bool
+	wtrainers         []trainer.Trainer
+	btrainers         []trainer.Trainer
 }
 
 func networkerrors(err <-chan error) {
@@ -145,10 +147,17 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 
 	for i := 0; i < len(m.layer); i++ {
 		if m.layer[i].needstrainer() == true {
+			m.wtrainers = append(m.wtrainers, trainerweights[counter])
+			m.btrainers = append(m.btrainers, trainerbias[counter])
 			m.err <- m.layer[i].loadtrainer(handle, trainerweights[counter], trainerbias[counter])
 			counter++
 		}
 	}
+}
+
+//GetTrainers returns the trainers for the network.  ...convienence function
+func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
+	return m.wtrainers, m.btrainers
 }
 
 //AddLayers will take a list of layers and shove them into the network
@@ -563,6 +572,8 @@ func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	}
 	return nil
 }
+
+//TotalL1L2Loss returns the total l1l2 loss of the network
 func (m *Network) TotalL1L2Loss() (L1, L2 float32) {
 	L1, L2 = 0, 0
 	for i := range m.l1losses {

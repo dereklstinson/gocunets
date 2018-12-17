@@ -16,6 +16,7 @@ const alphabackwarddefault = 1
 const betabackwarddefault = 0
 const alphabackwardparamdefault = 1
 const betabackwardparamdefault = 1
+const trainingfactoringlimit = 100
 
 //Layer the ops of a batch norm
 type Layer struct {
@@ -28,6 +29,7 @@ type Layer struct {
 	eps        float64
 	af         float64
 	counter    uint64
+	countermax uint64
 	mode       gocudnn.BatchNormMode
 	managed    bool
 	scaletrain trainer.Trainer
@@ -62,12 +64,13 @@ func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	}
 	return &Layer{
 
-		fw:      fw,
-		bwp:     bwp,
-		bwd:     bwd,
-		eps:     float64(1e-5),
-		mode:    flg.PerActivation(),
-		managed: managed,
+		fw:         fw,
+		bwp:        bwp,
+		bwd:        bwd,
+		eps:        float64(1e-5),
+		mode:       flg.PerActivation(),
+		managed:    managed,
+		countermax: trainingfactoringlimit,
 	}, nil
 }
 
@@ -89,12 +92,13 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	}
 	return &Layer{
 		//b:    b,
-		fw:      fw,
-		bwp:     bwp,
-		bwd:     bwd,
-		eps:     float64(1e-5),
-		mode:    flg.Spatial(),
-		managed: managed,
+		fw:         fw,
+		bwp:        bwp,
+		bwd:        bwd,
+		eps:        float64(1e-5),
+		mode:       flg.Spatial(),
+		managed:    managed,
+		countermax: trainingfactoringlimit,
 	}, nil
 
 }
@@ -116,13 +120,14 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 		b: betabackwardparamdefault,
 	}
 	return &Layer{
-		//	b:    b,
-		fw:      fw,
-		bwp:     bwp,
-		bwd:     bwd,
-		eps:     float64(2e-5),
-		mode:    flg.SpatialPersistent(),
-		managed: managed,
+
+		fw:         fw,
+		bwp:        bwp,
+		bwd:        bwd,
+		eps:        float64(2e-5),
+		mode:       flg.SpatialPersistent(),
+		managed:    managed,
+		countermax: trainingfactoringlimit,
 	}, nil
 
 }
@@ -163,7 +168,7 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 		fmt.Println("Creating Training Mem for bias")
 		return err
 	}
-	l.af = .1
+	l.af = 1
 	return err
 }
 
@@ -197,16 +202,30 @@ func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode,
 }
 */
 
+//ForwardInference Does the Testing Forward Prop and used for production
+func (l *Layer) ForwardInference(
+	handle *cudnn.Handler,
+	x,
+	y *layers.IO,
+) error {
+
+	err := l.b.ForwardInference(handle, l.fw.a, l.fw.b, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
+
+	return err
+}
+
 //ForwardProp Does the Training Forward Prop of batch norm layer
 func (l *Layer) ForwardProp(
 	handle *cudnn.Handler,
 	x,
 	y *layers.IO,
 ) error {
-	//	l.af = (1.0 / (1.0 + float64(l.counter)))
+	l.af = (1.0 / (1.0 + float64(l.counter)))
 
 	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
-	//	l.counter++
+	if l.counter < l.countermax {
+		l.counter++
+	}
 	return err
 }
 

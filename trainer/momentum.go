@@ -25,6 +25,11 @@ func (t *Momentum) L1L2Loss() (float32, float32) {
 	return float32(t.loss1), float32(t.loss2)
 }
 
+//SetDecays sets the decay rates for the trainer
+func (t *Momentum) SetDecays(l1, l2 float32) {
+	t.decay1, t.decay2 = float64(l1), float64(l2)
+}
+
 //SetupMomentum sets up the trainer for one and zero put the cscalar of 1 and 0 that matches the datatype there.
 //(example gocudnn.CFloat(1.0) and gocudnn.CFloat(0.0).  this is a hack, but it has to be done for sanity sake. (my sanity not yours :) )
 //I know of a way to fix this, but I am not able to do that right now.  That being said. Maybe the reflect package might help (idk maybe not).
