@@ -16,7 +16,6 @@ import (
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
-	freed     bool
 	tD        *gocudnn.TensorD
 	tDstrided *gocudnn.TensorD
 	fD        *gocudnn.FilterD
@@ -34,18 +33,19 @@ type Volume struct {
 	//scalar gocudnn.CScalar
 }
 
-//DeleteMem will free the mem the tensor has for the gpu. if the mem is already freed it will return nil
+//DeleteMem will free the mem the tensor has for the gpu.
 func (t *Volume) DeleteMem() error {
-	if t.freed != true {
-		return t.memgpu.Free()
-	}
-	return nil
+
+	return t.memgpu.Free()
+
 }
 
-//ReBuildMem will rebuild the gpu mem if ConncervedGPUmem was used. If mem wasn't freed then it will do nothing and return nil
+//ReBuildMem will rebuild the gpu mem if ConncervedGPUmem was used.
 func (t *Volume) ReBuildMem() error {
-	if t.freed == true {
-		return nil
+
+	err := t.memgpu.Free()
+	if err != nil {
+		return err
 	}
 	sizeT, err := t.tD.GetSizeInBytes()
 	if err != nil {
