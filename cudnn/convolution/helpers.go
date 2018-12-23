@@ -2,11 +2,44 @@ package convolution
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
+
+func FindConvolution2DParams(x, w, y *tensor.Volume) (pad, stride, dilation []int32) {
+	var (
+		maxpadh      int32
+		maxpadw      int32
+		maxstrideh   int32
+		maxstridew   int32
+		maxdilationh int32
+		maxdilationw int32
+	)
+	switch w.Format() {
+	case cudnn.TensorFormatFlag{}.NHWC():
+		wdims := w.Dims()
+		maxstrideh = wdims[1]
+		maxstridew = wdims[2]
+		maxpadh = wdims[1] - 1
+		maxpadw = wdims[2] - 1
+	default:
+
+	}
+	fmt.Println(maxpadh, maxpadw, maxstrideh, maxstridew, maxdilationh, maxdilationw)
+	w.Dims()
+	return
+}
+
+func findoutputdim(x, w, s, p, d int32) int32 {
+	return 1 + (x+2*p-(((w-1)*d)+1))/s
+}
+func findpadandstrideanddilation(x, y, w int32) (s, p, d int32) {
+
+	return
+}
 
 //AlgoLists Algo lists returns slices of performances for the fwd algos and bwd algos
 func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volume) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerformance, []gocudnn.ConvBwdFiltAlgoPerformance, error) {

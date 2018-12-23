@@ -23,6 +23,9 @@ type Ops struct {
 	dims        int
 	group       int
 	pwspacesize gocudnn.SizeT
+	pad         []int32
+	dilation    []int32
+	stride      []int32
 }
 
 //OpInfo is the contains the info to make the op
@@ -38,6 +41,21 @@ type OpInfo struct {
 	BwdDataAlgo gocudnn.ConvBwdDataAlgo `json:"BwdDataAlgo"`
 	BwdFiltAlgo gocudnn.ConvBwdFiltAlgo `json:"BwdFiltAlgo"`
 	Group       int                     `json:"Group"`
+}
+
+//Pad returns the padding per dim (usually H and W) for the convolution operation
+func (c *Ops) Pad() []int32 {
+	return c.pad
+}
+
+//Stride or slide returns the stride per dim for the operstion (usually H and W)
+func (c *Ops) Stride() []int32 {
+	return c.stride
+}
+
+//Dilation returns the dilation per dim for the operstion (usually H and W)
+func (c *Ops) Dilation() []int32 {
+	return c.dilation
 }
 
 //Stage stages/sets up an Ops and returns a pointer to it with the info stored in the info type
@@ -56,6 +74,9 @@ func (input OpInfo) Stage() (*Ops, error) {
 			bwddata:    input.BwdDataAlgo,
 			bwdfilt:    input.BwdFiltAlgo,
 			group:      input.Group,
+			stride:     input.Stride,
+			dilation:   input.Dilation,
+			pad:        input.Pad,
 		}, nil
 	}
 	desc, err := helper.NewConvolutionNdDescriptor(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
@@ -70,6 +91,9 @@ func (input OpInfo) Stage() (*Ops, error) {
 		bwddata:    input.BwdDataAlgo,
 		bwdfilt:    input.BwdFiltAlgo,
 		group:      input.Group,
+		stride:     input.Stride,
+		dilation:   input.Dilation,
+		pad:        input.Pad,
 	}, nil
 }
 
@@ -88,8 +112,11 @@ func StageOperation(mode gocudnn.ConvolutionMode, data cudnn.DataType, pad, stri
 			return nil, err
 		}
 		return &Ops{
-			desc: desc,
-			dims: len(pad),
+			desc:     desc,
+			dims:     len(pad),
+			stride:   stride,
+			dilation: dilation,
+			pad:      pad,
 		}, nil
 	}
 	desc, err := helper.NewConvolutionNdDescriptor(mode, data.Cu(), pad, stride, dilation)
@@ -97,8 +124,11 @@ func StageOperation(mode gocudnn.ConvolutionMode, data cudnn.DataType, pad, stri
 		return nil, err
 	}
 	return &Ops{
-		desc: desc,
-		dims: len(pad),
+		desc:     desc,
+		dims:     len(pad),
+		stride:   stride,
+		dilation: dilation,
+		pad:      pad,
 	}, nil
 
 }
