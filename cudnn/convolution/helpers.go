@@ -26,6 +26,11 @@ func FindConvolution2DParams(x, w, y *tensor.Volume) (pad, stride, dilation []in
 		maxpadh = wdims[1] - 1
 		maxpadw = wdims[2] - 1
 	default:
+		wdims := w.Dims()
+		maxstrideh = wdims[2]
+		maxstridew = wdims[3]
+		maxpadh = wdims[2] - 1
+		maxpadw = wdims[3] - 1
 
 	}
 	fmt.Println(maxpadh, maxpadw, maxstrideh, maxstridew, maxdilationh, maxdilationw)
@@ -36,8 +41,26 @@ func FindConvolution2DParams(x, w, y *tensor.Volume) (pad, stride, dilation []in
 func findoutputdim(x, w, s, p, d int32) int32 {
 	return 1 + (x+2*p-(((w-1)*d)+1))/s
 }
-func findpadandstrideanddilation(x, y, w int32) (s, p, d int32) {
+func findpad(x, w, s, d, y int32) int32 {
 
+	return (((y - 1) * s) - x + (((w - 1) * d) + 1)) / 2
+}
+func findslide(x, w, p, d, y int32) int32 {
+	return (x + 2*p - (((w - 1) * d) + 1)) / (y - 1)
+}
+func finddilation(x, w, p, s, y int32) int32 {
+	return -((s * (y - 1)) - x - (2 * p) + 1) / (w - 1)
+
+}
+func findpadandstrideanddilation(x, y, w int32) (s, p, d int32) {
+	//	output = 1+ (input + (2*padding) - (((filter-1)*dilation)+1))/slide
+
+	//first lets asume only slide of one and dilation of one we will see if the it fits inside the padding
+	minwithpad := findoutputdim(x, w, 1, 0, 1)
+	maxwithpad := findoutputdim(x, w, 1, w-1, 1)
+	if y >= minwithpad && y <= maxwithpad {
+		findpad()
+	}
 	return
 }
 
