@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-//Point interface is used to access the xy coordinate of a point
+//XYPoint interface is used to access the xy coordinate of a point
 type XYPoint interface {
 	XY() (float32, float32)
 }
@@ -155,7 +155,7 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []
 }
 
 //ShapeToBatchNHWC4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]float32, []int32, error) {
+func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) (arrangedvalues []float32, newdims []int32, err error) {
 	if len(dims) != 4 {
 		return nil, nil, errors.New("The Length of dims should equal 4")
 	}
@@ -169,8 +169,8 @@ func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]fl
 	oHW := dims[2]
 	n := n1 * n2
 	c := dims[3]
-	newdims := []int32{n, h, w, c}
-	v := make([]float32, n*h*w*c)
+	newdims = []int32{n, h, w, c}
+	arrangedvalues = make([]float32, n*h*w*c)
 	z := int32(0)
 
 	for i, sh := z, z; i < n1; i, sh = i+1, sh+h {
@@ -185,7 +185,7 @@ func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]fl
 							//oh can be thought of as l+(i*h)
 							//ow can be thought of as m+(j*w)
 							//		fmt.Println(i, j, l, m, oh, ow, k, values[(oh*oHW*c)+(ow*c)+k])
-							v[(i*n2*h*w*c)+(j*h*w*c)+(l*w*c)+(m*c)+k] = values[(oh*oHW*c)+(ow*c)+(k)]
+							arrangedvalues[(i*n2*h*w*c)+(j*h*w*c)+(l*w*c)+(m*c)+k] = values[(oh*oHW*c)+(ow*c)+(k)]
 
 							//
 
@@ -200,7 +200,7 @@ func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) ([]fl
 		}
 
 	}
-	return v, newdims, nil
+	return arrangedvalues, newdims, nil
 }
 
 //ShapeToBatchNHWC4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero

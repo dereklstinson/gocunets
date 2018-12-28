@@ -2,13 +2,13 @@ package convolution
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+/*
 func FindConvolution2DParams(x, w, y *tensor.Volume) (pad, stride, dilation []int32) {
 	var (
 		maxpadh      int32
@@ -63,7 +63,7 @@ func findpadandstrideanddilation(x, y, w int32) (s, p, d int32) {
 	}
 	return
 }
-
+*/
 //AlgoLists Algo lists returns slices of performances for the fwd algos and bwd algos
 func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volume) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerformance, []gocudnn.ConvBwdFiltAlgoPerformance, error) {
 	maxfwd, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle.Cudnn())

@@ -34,14 +34,14 @@ type Layer struct {
 	datatype   cudnn.DataType
 	train      trainer.Trainer
 	btrain     trainer.Trainer
-	//pad        []int32
-	//dilation   []int32
-	//stride     []int32
-	l1b float32
-	l2b float32
-	l1w float32
-	l2w float32
-	mux sync.Mutex
+	pad        []int32
+	dilation   []int32
+	stride     []int32
+	l1b        float32
+	l2b        float32
+	l1w        float32
+	l2w        float32
+	mux        sync.Mutex
 }
 
 //Params is a temporary struct for saving.  It will most likely be changed
