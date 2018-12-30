@@ -8,7 +8,7 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-func (l *layer) forwardinference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *layer) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	err := handle.Sync()
 	if err != nil {
 		return err
