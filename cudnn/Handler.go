@@ -41,7 +41,10 @@ func (h *Handler) DeviceSync() error {
 
 //CreateHandler creates a the handlers
 func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
-
+	err := dev.Set()
+	if err != nil {
+		panic(err)
+	}
 	x := gocudnn.NewHandle()
 	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
 	if err != nil {

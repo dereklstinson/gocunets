@@ -8,6 +8,8 @@ import (
 )
 
 //ReverseBuild sets up reverse version of cnn transpose
+//The output is determined by  -->  output = (slide *(input-1)) - (2*padding) + (((filter-1)*dilation)+1)
+
 func ReverseBuild(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,

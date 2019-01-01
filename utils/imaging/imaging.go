@@ -324,9 +324,9 @@ func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Ima
 			for i := 0; i < h; i++ {
 				for j := 0; j < w; j++ {
 					r1 := uint8(data[(0*h*w)+(i*w)+j])
-					g1 := uint8(data[(1*w*c)+(i*w)+j])
-					b1 := uint8(data[(2*w*c)+(i*w)+j])
-					a := uint8(data[(3*w*c)+(i*w)+j])
+					g1 := uint8(data[(1*h*w)+(i*w)+j])
+					b1 := uint8(data[(2*h*w)+(i*w)+j])
+					a := uint8(data[(3*h*w)+(i*w)+j])
 					img1.Set(j, i, color.RGBA{r1, g1, b1, a})
 				}
 			}
@@ -335,8 +335,8 @@ func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Ima
 			for i := 0; i < h; i++ {
 				for j := 0; j < w; j++ {
 					r1 := uint8(data[(0*h*w)+(i*w)+j])
-					g1 := uint8(data[(1*w*c)+(i*w)+j])
-					b1 := uint8(data[(2*w*c)+(i*w)+j])
+					g1 := uint8(data[(1*h*w)+(i*w)+j])
+					b1 := uint8(data[(2*h*w)+(i*w)+j])
 					img1.Set(j, i, color.RGBA{r1, g1, b1, a})
 				}
 			}
@@ -344,7 +344,7 @@ func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Ima
 			for i := 0; i < h; i++ {
 				for j := 0; j < w; j++ {
 					r1 := uint8(data[(0*h*w)+(i*w)+j])
-					g1 := uint8(data[(1*w*c)+(i*w)+j])
+					g1 := uint8(data[(1*h*w)+(i*w)+j])
 					b1 := (r1 + g1) / 2
 					img1.Set(j, i, color.RGBA{r1, g1, b1, a})
 				}
@@ -353,7 +353,7 @@ func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Ima
 		case 1:
 			for i := 0; i < h; i++ {
 				for j := 0; j < w; j++ {
-					r1 := uint8(data[(0*h*w)+(i*w)+j])
+					r1 := uint8(data[(i*w)+j])
 					img1.Set(j, i, color.RGBA{r1, r1, r1, a})
 				}
 			}

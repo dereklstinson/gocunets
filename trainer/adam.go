@@ -202,6 +202,18 @@ func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) 
 	return adam1, adam2, err
 }
 
+//SetupAdamWandB2 returns a trainer for both WandB and includes the learning rate
+func SetupAdamWandB2(handle *cudnn.Handler, rate, decay1, decay2 float32, batch int32) (*Adam, *Adam, error) {
+	adam1, err := SetupAdam(handle.XHandle(), decay1, decay2, batch)
+	adam1.SetRate(rate)
+	if err != nil {
+		return nil, nil, err
+	}
+	adam2, err := SetupAdam(handle.XHandle(), decay1, decay2, batch)
+	adam2.SetRate(rate)
+	return adam1, adam2, err
+}
+
 //SetupAdam sets up adam
 func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Adam, error) {
 
