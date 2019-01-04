@@ -13,6 +13,7 @@ type Layer struct {
 	op                        *reshapes.Ops
 	mode                      Mode
 	window                    []int32
+	stride                    []int32
 	networkinput              bool
 	defaultalpha, defaultbeta float64
 }
@@ -35,7 +36,7 @@ func Build(handle *cudnn.Handler, mode Mode, window []int32, networkinput bool) 
 //Window decides how it will shape with respect to h and w. Window must be a factor of the batch.
 //Example NCHW vector of [24,5,2,3].  If window of [4,3]. The vector output will be [2,5,8,9].
 //Placing batches is row dominant like in C.
-func SetupB2S(handle *cudnn.Handler, window []int32, networkinput bool) (*Layer, error) {
+func SetupB2S(handle *cudnn.Handler, window, stride []int32, networkinput bool) (*Layer, error) {
 	op, err := reshapes.Stage(handle)
 	var lmf ModeFlag
 	mode := lmf.B2S()
@@ -47,7 +48,7 @@ func SetupB2S(handle *cudnn.Handler, window []int32, networkinput bool) (*Layer,
 //Window decides how it will shape of the batches with h and w.  The window doesn't need to be a factor of the input values. The last values will be zero
 //Example NCHW vector of [2,5,8,8].  If window of [3,3]. The vector output will be [18,5,3,3].
 //Placing batches is row dominant like in C.
-func SetupS2B(handle *cudnn.Handler, window []int32, networkinput bool) (*Layer, error) {
+func SetupS2B(handle *cudnn.Handler, window, stride []int32, networkinput bool) (*Layer, error) {
 	op, err := reshapes.Stage(handle)
 	var lmf ModeFlag
 	mode := lmf.S2B()
@@ -61,13 +62,13 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.I
 	case lmf.Transpose():
 		return l.gettransposeIO(handle, x, l.networkinput)
 	case lmf.S2B():
-		return l.getshapetobatchio(handle, x, l.window[0], l.window[1], l.networkinput)
+		return l.getshapetobatchio(handle, x, l.networkinput)
 	case lmf.Resize():
 		return nil, errors.New("No output descriptor needed for resize")
 	case lmf.Transform():
 		return nil, errors.New("No output descriptor needed for transform")
 	case lmf.B2S():
-		return l.getbatchtoshapeio(handle, x, l.window[0], l.window[1], l.networkinput)
+		return l.getbatchtoshapeio(handle, x, l.networkinput)
 	}
 
 	return nil, errors.New("Layer doesn't support mode passed")
