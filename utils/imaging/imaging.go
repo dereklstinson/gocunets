@@ -121,9 +121,9 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 
 //TileBatchesXdX will take the batches and lay place them withing the HWC space like tiles.It will do both of the x and dx tensors in the layer.IO
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w int) (image.Image, image.Image, error) {
+func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int) (image.Image, image.Image, error) {
 
-	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)})
+	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -148,7 +148,7 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w int) 
 			}
 		}
 	}
-	err = im.shaper.S2BBackward(handle, im.cache, x.T())
+	err = im.shaper.S2BBackward(handle, im.cache, x.T(), []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -183,7 +183,7 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w int) 
 	if err != nil {
 		return nil, nil, err
 	}
-	err = im.shaper.S2BBackward(handle, im.cache, x.DeltaT())
+	err = im.shaper.S2BBackward(handle, im.cache, x.DeltaT(), []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -201,9 +201,9 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w int) 
 
 //TileBatches will take the batches and lay place them withing the HWC space like tiles.
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w int) (image.Image, error) {
+func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int) (image.Image, error) {
 
-	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)})
+	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w int) (im
 		}
 	}
 
-	err = im.shaper.S2BBackward(handle, im.cache, x.T())
+	err = im.shaper.S2BBackward(handle, im.cache, x.T(), []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, err
 	}
