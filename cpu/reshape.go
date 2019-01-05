@@ -18,7 +18,7 @@ type LabelAssesment struct {
 }
 
 //ShapeToBatchLabelAdjustForward is a way to seperate the labels by batch
-func ShapeToBatchLabelAdjustForward(dims []int32, h, w int32, pts []XYPoint) []LabelAssesment {
+func ShapeToBatchLabelAdjustForward(dims, window, stride []int32, pts []XYPoint) []LabelAssesment {
 	assess := make([]LabelAssesment, len(pts))
 	if len(dims) != 4 {
 		return nil
@@ -26,8 +26,12 @@ func ShapeToBatchLabelAdjustForward(dims []int32, h, w int32, pts []XYPoint) []L
 	if dims[0] != int32(1) {
 		return nil
 	}
-	n1 := intceiling(dims[2], h)
-	n2 := intceiling(dims[3], w)
+	h := window[0]
+	w := window[1]
+	hs := stride[0]
+	ws := stride[1]
+	n1 := intceiling(dims[2]-h, hs) + 1
+	n2 := intceiling(dims[3]-w, ws) + 1
 
 	oh := int32(0)
 	for i := int32(0); i < n1; i++ {
@@ -71,15 +75,19 @@ func ShapeToBatchLabelAdjustForward(dims []int32, h, w int32, pts []XYPoint) []L
 }
 
 //ShapeToBatchNCHW4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNCHW4DForward(values []float32, dims []int32, h, w int32) ([]float32, []int32, error) {
+func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) ([]float32, []int32, error) {
 	if len(dims) != 4 {
 		return nil, nil, errors.New("The Length of dims should equal 4")
 	}
 	if dims[0] != int32(1) {
 		return nil, nil, errors.New("N value needs to be 1")
 	}
-	n1 := intceiling(dims[2], h)
-	n2 := intceiling(dims[3], w)
+	h := window[0]
+	w := window[1]
+	hs := stride[0]
+	ws := stride[1]
+	n1 := intceiling(dims[2]-h, hs) + 1
+	n2 := intceiling(dims[3]-w, ws) + 1
 	oHH := dims[2]
 	oHW := dims[3]
 	n := n1 * n2
@@ -105,29 +113,32 @@ func ShapeToBatchNCHW4DForward(values []float32, dims []int32, h, w int32) ([]fl
 					}
 				}
 			}
-			striderw += w
+			striderw += ws
 		}
-		striderh += h
+		striderh += hs
 	}
 	return v, newdims, nil
 }
 
 //ShapeToBatchNCHW4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []float32, batchgeddims []int32) error {
+func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []float32, batchgeddims, stride []int32) error {
 	if len(dims) != 4 {
 		return errors.New("The Length of dims should equal 4")
 	}
 	if dims[0] != int32(1) {
 		return errors.New("N value needs to be 1")
 	}
-	n1 := intceiling(dims[2], batchgeddims[2])
-	n2 := intceiling(dims[3], batchgeddims[3])
+	n1 := intceiling(dims[2]-batchgeddims[2], stride[0]) + 1
+	n2 := intceiling(dims[3]-batchgeddims[3], stride[1]) + 1
 	oHH := dims[3]
 	oHW := dims[2]
 
 	c := dims[1]
 	h := batchgeddims[2]
 	w := batchgeddims[3]
+	for i := range values {
+		values[i] = 0
+	}
 	//testarray := make([]float32, oHH*oHW*c)
 	striderh := int32(0)
 	for i := int32(0); i < n1; i++ {
@@ -140,7 +151,7 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []
 						ow := striderw + m
 						if oh < oHH && ow < oHW {
 							//testarray[(k*oHW*oHH)+(oh*oHW)+(ow)] = batchedvalues[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m]
-							values[(k*oHW*oHH)+(oh*oHW)+(ow)] = batchedvalues[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m]
+							values[(k*oHW*oHH)+(oh*oHW)+(ow)] += batchedvalues[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m]
 						}
 
 					}
@@ -155,16 +166,20 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []
 }
 
 //ShapeToBatchNHWC4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) (arrangedvalues []float32, newdims []int32, err error) {
+func ShapeToBatchNHWC4DForward(values []float32, dims, window, stride []int32) (arrangedvalues []float32, newdims []int32, err error) {
 	if len(dims) != 4 {
 		return nil, nil, errors.New("The Length of dims should equal 4")
 	}
 	if dims[0] != int32(1) {
 		return nil, nil, errors.New("N value needs to be 1")
 	}
+	h := window[0]
+	w := window[1]
+	hs := stride[0]
+	ws := stride[1]
+	n1 := intceiling(dims[1]-h, hs) + 1
+	n2 := intceiling(dims[2]-w, ws) + 1
 
-	n1 := intceiling(dims[1], h)
-	n2 := intceiling(dims[2], w)
 	oHH := dims[1]
 	oHW := dims[2]
 	n := n1 * n2
@@ -173,8 +188,8 @@ func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) (arra
 	arrangedvalues = make([]float32, n*h*w*c)
 	z := int32(0)
 
-	for i, sh := z, z; i < n1; i, sh = i+1, sh+h {
-		for j, sw := z, z; j < n2; j, sw = j+1, sw+w {
+	for i, sh := z, z; i < n1; i, sh = i+1, sh+hs {
+		for j, sw := z, z; j < n2; j, sw = j+1, sw+ws {
 			for l := z; l < h; l++ {
 				oh := sh + l
 				for m := z; m < w; m++ {
@@ -204,19 +219,23 @@ func ShapeToBatchNHWC4DForward(values []float32, dims []int32, h, w int32) (arra
 }
 
 //ShapeToBatchNHWC4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNHWC4DBackward(values []float32, dims []int32, batchedvalues []float32, batcheddims []int32) error {
+func ShapeToBatchNHWC4DBackward(values []float32, dims []int32, batchedvalues []float32, batcheddims, stride []int32) error {
 	if len(dims) != 4 {
 		return errors.New("The Length of dims should equal 4")
 	}
 	if dims[0] != int32(1) {
 		return errors.New("N value needs to be 1")
 	}
-	n1 := intceiling(dims[1], batcheddims[1])
-	n2 := intceiling(dims[2], batcheddims[2])
-	oHH := dims[1]
-	oHW := dims[2]
 	h := batcheddims[1]
 	w := batcheddims[2]
+	hs := stride[0]
+	ws := stride[1]
+	n1 := intceiling(dims[1]-h, hs) + 1
+	n2 := intceiling(dims[2]-w, ws) + 1
+
+	oHH := dims[1]
+	oHW := dims[2]
+
 	c := dims[3]
 
 	striderh := int32(0)
@@ -235,9 +254,9 @@ func ShapeToBatchNHWC4DBackward(values []float32, dims []int32, batchedvalues []
 					}
 				}
 			}
-			striderw += w
+			striderw += ws
 		}
-		striderh += h
+		striderh += hs
 	}
 	return nil
 }

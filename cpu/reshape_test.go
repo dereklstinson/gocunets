@@ -16,7 +16,7 @@ func main(t *testing.T) {
 func TestReshapeCHW(t *testing.T) {
 	dims := []int32{1, 3, 16, 16}
 	tensor := helpertensor(dims)
-	newvals, newdims, err := cpu.ShapeToBatchNCHW4DForward(tensor, dims, 5, 5)
+	newvals, newdims, err := cpu.ShapeToBatchNCHW4DForward(tensor, dims, []int32{5, 5}, []int32{5, 5})
 	if err != nil {
 		t.Error(err)
 	}
@@ -24,7 +24,7 @@ func TestReshapeCHW(t *testing.T) {
 	toprint1 := sparator(newdims, newvals)
 	sectionalprint(toprint1)
 	zerotensor := make([]float32, len(tensor))
-	err = cpu.ShapeToBatchNCHW4DBackward(zerotensor, dims, newvals, newdims)
+	err = cpu.ShapeToBatchNCHW4DBackward(zerotensor, dims, newvals, newdims, []int32{5, 5})
 	for i := 0; i < len(zerotensor); i++ {
 		if tensor[i] != zerotensor[i] {
 			t.Error("New Tensor Doesn't match old")
@@ -42,7 +42,7 @@ func TestReshapeHWC(t *testing.T) {
 	runtime.LockOSThread()
 	dims := []int32{1, 16, 16, 3}
 	tensor := helpertensor(dims)
-	newvals, newdims, err := cpu.ShapeToBatchNHWC4DForward(tensor, dims, 5, 5)
+	newvals, newdims, err := cpu.ShapeToBatchNHWC4DForward(tensor, dims, []int32{5, 5}, []int32{5, 5})
 	if err != nil {
 		t.Error(err)
 	}
@@ -51,7 +51,7 @@ func TestReshapeHWC(t *testing.T) {
 	//fmt.Println(newvals)
 
 	zerotensor := make([]float32, len(tensor))
-	err = cpu.ShapeToBatchNHWC4DBackward(zerotensor, dims, newvals, newdims)
+	err = cpu.ShapeToBatchNHWC4DBackward(zerotensor, dims, newvals, newdims, []int32{5, 5})
 	var flag bool
 	for i := 0; i < len(zerotensor); i++ {
 		if tensor[i] != zerotensor[i] {
