@@ -9,7 +9,7 @@ import (
 )
 
 //ShapetoBatchIOBWDCPU takes the batched IO that was created from the fwd process and replaces the delta Tensor values
-func (i *IO) ShapetoBatchIOBWDCPU(batched *IO) error {
+func (i *IO) ShapetoBatchIOBWDCPU(batched *IO, stride []int32) error {
 	var fmtflag cudnn.TensorFormatFlag
 	frmt, _, dimsy, err := batched.Properties()
 
@@ -51,14 +51,14 @@ func (i *IO) ShapetoBatchIOBWDCPU(batched *IO) error {
 	}
 
 	if frmt == fmtflag.NCHW() {
-		err = cpu.ShapeToBatchNCHW4DBackward(dx, dimsx, dy, dimsy)
+		err = cpu.ShapeToBatchNCHW4DBackward(dx, dimsx, dy, dimsy, stride)
 		if err != nil {
 			return err
 		}
 		return i.LoadDeltaTValues(ptrdx)
 
 	} else if frmt == fmtflag.NHWC() {
-		err = cpu.ShapeToBatchNHWC4DBackward(dx, dimsx, dy, dimsy)
+		err = cpu.ShapeToBatchNHWC4DBackward(dx, dimsx, dy, dimsy, stride)
 		if err != nil {
 			return err
 		}
@@ -68,7 +68,7 @@ func (i *IO) ShapetoBatchIOBWDCPU(batched *IO) error {
 }
 
 //ShapetoBatchIOCopyFWDCPU reshapes the makes a reshaped copy of the IO
-func (i *IO) ShapetoBatchIOCopyFWDCPU(h, w int32) (*IO, error) {
+func (i *IO) ShapetoBatchIOCopyFWDCPU(window []int32, stride []int32) (*IO, error) {
 	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (i *IO) ShapetoBatchIOCopyFWDCPU(h, w int32) (*IO, error) {
 	i.T().Memer().FillSlice(slice)
 	var fmtflag cudnn.TensorFormatFlag
 	if frmt == fmtflag.NCHW() {
-		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, h, w)
+		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, window, stride)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +97,7 @@ func (i *IO) ShapetoBatchIOCopyFWDCPU(h, w int32) (*IO, error) {
 		return newIO, err
 	}
 
-	reshapedslice, rashapeddims, err := cpu.ShapeToBatchNHWC4DForward(slice, dims, h, w)
+	reshapedslice, rashapeddims, err := cpu.ShapeToBatchNHWC4DForward(slice, dims, window, stride)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (i *IO) ShapetoBatchIOCopyFWDCPU(h, w int32) (*IO, error) {
 }
 
 //ShapetoBatchIOCopyCPUWithSliceFloat32 reshapes the makes a reshaped copy of the IO
-func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(h, w int32) (*IO, []float32, error) {
+func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(window, stride []int32) (*IO, []float32, error) {
 	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
 		return nil, nil, err
@@ -127,7 +127,7 @@ func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(h, w int32) (*IO, []float32, 
 	i.T().Memer().FillSlice(slice)
 	var fmtflag cudnn.TensorFormatFlag
 	if frmt == fmtflag.NCHW() {
-		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, h, w)
+		reshapedslice, rashapeddims, err := cpu.ShapeToBatchNCHW4DForward(slice, dims, window, stride)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -143,7 +143,7 @@ func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(h, w int32) (*IO, []float32, 
 		return newIO, reshapedslice, err
 	}
 
-	reshapedslice, rashapeddims, err := cpu.ShapeToBatchNHWC4DForward(slice, dims, h, w)
+	reshapedslice, rashapeddims, err := cpu.ShapeToBatchNHWC4DForward(slice, dims, window, stride)
 	if err != nil {
 		return nil, nil, err
 	}
