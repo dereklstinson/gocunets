@@ -7,9 +7,24 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+//Info contains information to build a layer
+type Info struct {
+	ReverseInfo cnn.Info `json:"reverse_info,omitempty"`
+}
+
+//Info method returns an info struct used to save and stuff
+func (l *Layer) Info() (Info, error) {
+	info, err := l.conv.Info()
+	if err != nil {
+		return Info{}, err
+	}
+	return Info{
+		ReverseInfo: info,
+	}, nil
+}
+
 //ReverseBuild sets up reverse version of cnn transpose
 //The output is determined by  -->  output = (slide *(input-1)) - (2*padding) + (((filter-1)*dilation)+1)
-
 func ReverseBuild(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,

@@ -28,8 +28,8 @@ type Ops struct {
 	stride      []int32
 }
 
-//OpInfo is the contains the info to make the op
-type OpInfo struct {
+//Info is the contains the info to make the op
+type Info struct {
 	CMode       gocudnn.ConvolutionMode `json:"ConvolutionMode"`
 	Dtype       gocudnn.DataType        `json:"DataType"`
 	Pad         []int32                 `json:"Pad"`
@@ -59,7 +59,7 @@ func (c *Ops) Dilation() []int32 {
 }
 
 //Stage stages/sets up an Ops and returns a pointer to it with the info stored in the info type
-func (input OpInfo) Stage() (*Ops, error) {
+func (input Info) Stage() (*Ops, error) {
 	helper := gocudnn.Convolution{}
 	if len(input.Pad) == 2 {
 		desc, err := helper.NewConvolution2dDescriptor(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
@@ -134,9 +134,9 @@ func StageOperation(mode gocudnn.ConvolutionMode, data cudnn.DataType, pad, stri
 }
 
 //Info returns an info struct and error.  Info is usually used for saving the data to a json file.
-func (c *Ops) Info() (OpInfo, error) {
+func (c *Ops) Info() (Info, error) {
 	mode, dtype, pad, stride, dilation, err := c.desc.GetDescriptor()
-	return OpInfo{
+	return Info{
 		CMode:       mode,
 		Dtype:       dtype,
 		Pad:         pad,

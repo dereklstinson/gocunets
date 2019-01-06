@@ -27,13 +27,20 @@ func FindStridesInt(dims []int) (strides []int) {
 	return strides
 }
 
-//FindVolumeInt32 returns the total volume in int32
-func FindVolumeInt32(dims []int32) int32 {
+//FindVolumeInt32 returns the total volume in int32 if stride is nil it will find volume based purly on the dims
+func FindVolumeInt32(dims, stride []int32) int32 {
+
 	mult := int32(1)
+	if stride == nil {
+		for i := len(dims) - 1; i >= 0; i-- {
 
-	for i := len(dims) - 1; i >= 0; i-- {
+			mult *= dims[i]
+		}
+	} else {
 
-		mult *= dims[i]
+		for i := range dims {
+			mult += stride[i] * (dims[i] - 1)
+		}
 	}
 
 	return mult

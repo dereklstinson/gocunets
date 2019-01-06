@@ -40,6 +40,14 @@ type abscalars struct {
 	b float64
 }
 
+//Info contains saved info now like weights and stuff
+type Info struct {
+	Unified bool
+	BNInfo  batchnorm.Info
+	Bias    layers.Info
+	Scale   layers.Info
+}
+
 //Settings contains all the paramters needed to build a batchnorm layer
 type Settings struct {
 	Mode    gocudnn.BatchNormMode `json:"mode,omitempty"`

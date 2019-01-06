@@ -268,24 +268,6 @@ func (o *Ops) ForwardInference(handle *cudnn.Handler,
 	)
 }
 
-/*
-	func (bnf batchNormFuncs) BatchNormalizationForwardInference(
-		handle *Handle,
-		mode BatchNormMode,
-		alpha CScalar, // alpha[0] = result blend factor
-		beta CScalar, //beta[0] = dest layer blend factor
-		xD *TensorD,
-		x *Malloced, //NxCxHxW
-		yD *TensorD,
-		y *Malloced, // NxCxHxW
-		bnScaleBiasMeanVarDesc *TensorD,
-		bnscale *Malloced,
-		bnBias *Malloced,
-		estimatedMean *Malloced, //same descriptor as bias and scale
-		estimatedVariance *Malloced, //same descriptor as bias and scale
-		epsilon float64,
-	}*/
-
 //BackwardProp is used for the forward training
 func (o *Ops) BackwardProp(handle *cudnn.Handler,
 	alphaparam,

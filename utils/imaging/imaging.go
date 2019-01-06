@@ -205,6 +205,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 
 	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
 	if err != nil {
+
 		return nil, err
 	}
 	if im.cache == nil {

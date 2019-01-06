@@ -133,7 +133,7 @@ func (t *Volume) SetRandomNormal(min, max float32) error {
 
 		return prependerror("SetRandomNormal", err)
 	}
-	vol := utils.FindVolumeInt32(dims)
+	vol := utils.FindVolumeInt32(dims, nil)
 	vol1 := int(vol)
 
 	if err != nil {
@@ -174,7 +174,7 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 
 		return prependerror("SetRandom", err)
 	}
-	vol := utils.FindVolumeInt32(dims)
+	vol := utils.FindVolumeInt32(dims, nil)
 	vol1 := int(vol)
 	size, err := t.Size()
 	if err != nil {

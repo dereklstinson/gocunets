@@ -14,7 +14,7 @@ type Info struct {
 	Nan      gocudnn.PropagationNAN `json:"Nan"`
 	Dims     []int32                `json:"Dims"`
 	Unified  bool                   `json:"Unified"`
-	Values   interface{}            `json:"Values"`
+	Values   []float64              `json:"Values"`
 }
 
 //MakeInfo makes an info struct
@@ -35,33 +35,60 @@ func (t *Volume) Info() (Info, error) {
 		return Info{}, err
 	}
 	dflgs := t.thelp.Flgs.Data
-	var values interface{}
-	size := utils.FindVolumeInt32(dims)
+
+	size := utils.FindVolumeInt32(dims, nil)
 
 	//I don't like this switch type stuff.  I am probably going to make something in the gocudnn package to get rid of this. I just haven't thought of a really easy way to implement this.
+	vals := make([]float64, size)
 	switch dtype.Cu() {
 	case dflgs.Double():
-		values = make([]float64, size)
+
+		values := make([]float64, size)
+		err = t.memgpu.FillSlice(values)
+		if err != nil {
+			return Info{}, err
+		}
+		for i := range values {
+			vals[i] = float64(values[i])
+		}
 	case dflgs.Float():
-		values = make([]float32, size)
+		values := make([]float32, size)
+		err = t.memgpu.FillSlice(values)
+		if err != nil {
+			return Info{}, err
+		}
+		for i := range values {
+			vals[i] = float64(values[i])
+		}
 	case dflgs.Int32():
-		values = make([]int32, size)
+		values := make([]int32, size)
+		err = t.memgpu.FillSlice(values)
+		if err != nil {
+			return Info{}, err
+		}
+		for i := range values {
+			vals[i] = float64(values[i])
+		}
 	case dflgs.Int8():
-		values = make([]float64, size)
+		values := make([]float64, size)
+		err = t.memgpu.FillSlice(values)
+		if err != nil {
+			return Info{}, err
+		}
+		for i := range values {
+			vals[i] = float64(values[i])
+		}
 
 	default:
 		return Info{}, errors.New("Unsupported Format : Most likely internal error. Contact Code Writer")
 	}
-	err = t.memgpu.FillSlice(values)
-	if err != nil {
-		return Info{}, err
-	}
+
 	return Info{
 		Format:   frmt.Cu(),
 		DataType: dtype.Cu(),
 		Dims:     dims,
 		Unified:  t.managed,
-		Values:   values,
+		Values:   vals,
 	}, nil
 }
 
