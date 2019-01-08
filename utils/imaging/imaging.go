@@ -80,7 +80,7 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 		return nil, err
 	}
 	var dflg cudnn.DataTypeFlag
-	vol := utils.FindVolumeInt32(dims)
+	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
 	case dflg.Double():
@@ -104,7 +104,7 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 	}
 	x.T().Memer().FillSlice(z)
 	images := make([]image.Image, 0)
-	batchvol := int(utils.FindVolumeInt32(dims[1:]))
+	batchvol := int(utils.FindVolumeInt32(dims[1:], nil))
 	batchdims := []int32{1, dims[1], dims[2], dims[3]}
 	for i := 0; i < int(dims[0]); i++ {
 		bz := z[i*batchvol : (i+1)*batchvol]
@@ -153,7 +153,7 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 		return nil, nil, err
 	}
 	var dflg cudnn.DataTypeFlag
-	vol := utils.FindVolumeInt32(dims)
+	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
 	case dflg.Double():
@@ -235,7 +235,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 		return nil, err
 	}
 	var dflg cudnn.DataTypeFlag
-	vol := utils.FindVolumeInt32(dims)
+	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
 	case dflg.Double():
@@ -304,7 +304,7 @@ func converttofloat32(input interface{}) []float32 {
 
 func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Image, error) {
 	unNormalize(data)
-	if len(data) != int(utils.FindVolumeInt32(dims)) {
+	if len(data) != int(utils.FindVolumeInt32(dims, nil)) {
 		return nil, errors.New("Volume Size doesn't Match intput size")
 	}
 	var fflag cudnn.TensorFormatFlag

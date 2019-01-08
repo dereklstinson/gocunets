@@ -26,6 +26,7 @@ type Volume struct {
 	thelp     gocudnn.Tensor
 	fhelp     gocudnn.Filter
 	ophelp    gocudnn.OpTensor
+	randgen   *gocudnn.CuRandGenerator
 	min, max  float32
 	dims      []int32
 	strides   []int32
@@ -99,6 +100,41 @@ func BuildFromTensorD(desc *gocudnn.TensorD, managed bool) (*Volume, error) {
 //Build creates a tensor and mallocs the memory for the tensor
 func Build(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*Volume, error) {
 	return build(frmt.Cu(), dtype.Cu(), dims, managed)
+}
+
+//NormalRand sets the values in the volume to some Normalized Noise
+func (t *Volume) NormalRand(mean, std float32) error {
+	if t.randgen == nil {
+		return errors.New("Need to build a random volume using BuildRandNorm")
+	}
+	//The mem might need to be set to zero. Maybe
+	return t.randgen.NormalFloat32(t.memgpu, mean, std)
+}
+
+//BuildRandNorm sets a randomnorm volume that can have its values set to random values over and over again
+func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool) (*Volume, error) {
+	vol, err := build(frmt.Cu(), dtype.Cu(), dims, managed)
+	if err != nil {
+		return nil, err
+	}
+
+	vol.randgen = gocudnn.CreateCuRandGenerator(gocudnn.CuRandRngTypeFlag{}.PseudoDefault())
+
+	err = vol.randgen.SetPsuedoSeed(seed)
+	if err != nil {
+		return nil, err
+	}
+	stream, err := handle.Cudnn().GetStream()
+	if err != nil {
+		return nil, err
+	}
+	err = vol.randgen.SetStream(stream)
+	if err != nil {
+		return nil, err
+	}
+	err = vol.randgen.NormalFloat32(vol.memgpu, mean, std)
+	//vol.memgpu
+	return vol, err
 }
 
 //Build creates a tensor and mallocs the memory for the tensor

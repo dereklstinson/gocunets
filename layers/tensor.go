@@ -325,6 +325,52 @@ func BuildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, manage
 	return buildIO(frmt, dtype, dims, managed, false)
 }
 
+//BuildNormRandIO builds a regular IO with both a T tensor and a DeltaT tensor.  But the T tensor is randomized
+func BuildNormRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool) (*IO, error) {
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, managed, false)
+
+}
+
+//BuildNormRandInputIO builds a regular IO but the input is set to nil
+func BuildNormRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool) (*IO, error) {
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, managed, true)
+
+}
+func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool, input bool) (*IO, error) {
+	if input == true {
+
+		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, managed)
+		if err != nil {
+			return nil, err
+		}
+
+		return &IO{
+
+			x:       x,
+			dx:      nil,
+			input:   true,
+			managed: managed,
+		}, nil
+
+	}
+	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, managed)
+	if err != nil {
+
+		return nil, err
+	}
+	dx, err := tensor.Build(frmt, dtype, dims, managed)
+	if err != nil {
+
+		return nil, err
+	}
+	return &IO{
+		x:       x,
+		dx:      dx,
+		managed: managed,
+	}, nil
+
+}
+
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
 func BuildNetworkInputIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {

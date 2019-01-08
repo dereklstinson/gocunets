@@ -82,8 +82,12 @@ func (l *VSLossHandler) runchannel(LossData <-chan []LabelFloat) {
 		for i := range array {
 			wg.Add(1)
 			go func(i int) {
+				if array[i].Data > l.ceiling {
+					placeandshiftback(l.data[i], l.ceiling)
+				} else {
+					placeandshiftback(l.data[i], array[i].Data)
+				}
 
-				placeandshiftback(l.data[i], array[i].Data)
 				wg.Done()
 			}(i)
 
