@@ -24,6 +24,27 @@ If the input tensor B is the same tensor as the destination tensor C, then the i
 
 //OpAdd does addition Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
 //Or vol= op(alpha1 *A, alpha2 *B)+(beta *vol)
+type tensops struct {
+	add  optensorop
+	mult optensorop
+	min  optensorop
+	max  optensorop
+	sqrt optensorop
+	not  optensorop
+}
+type optensorop struct {
+	mode gocudnn.OpTensorOp
+	desc *gocudnn.OPTensorD
+}
+
+func (o *optensorop) isset() bool {
+	if o.desc == nil {
+		return false
+	}
+	return true
+}
+
+//OpAdd adds the op
 func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	_, dtypet, _, err := t.Properties()
@@ -41,21 +62,25 @@ func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 	if dtypeA != dtypeB || dtypeA != dtypet {
 		return errors.New("Data Types don't match")
 	}
+
 	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
 	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
 	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
 	if a == nil || b == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet.Cu(), t.propnan)
-	defer opdesc.DestroyDescriptor()
-	if err != nil {
-		return errorappend("NewOpTensorDescriptor: ", err)
+	if t.op.add.isset() == false {
+
+		desc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet.Cu(), t.propnan)
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		t.op.add.desc = desc
+
+		return t.op.add.desc.OpTensor(h.Cudnn(), a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
 	}
-	//fmt.Println(t.propnan, A.propnan, B.propnan)
-	//fmt.Println(fmtt, fmtA, fmtB)
-	//fmt.Println(t.mem.Ptr())
-	return opdesc.OpTensor(h.Cudnn(), a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
+
+	return t.op.add.desc.OpTensor(h.Cudnn(), a, A.tD, A.memgpu, b, B.tD, B.memgpu, c, t.tD, t.memgpu)
 }
 func errorappend(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())

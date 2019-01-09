@@ -14,15 +14,10 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-type optensorop struct {
-	mode gocudnn.OpTensor
-	desc *gocudnn.OPTensorD
-}
-
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
 	tD        *gocudnn.TensorD
-	op        optensorop
+	op        tensops
 	tDstrided *gocudnn.TensorD
 	fD        *gocudnn.FilterD
 	dtype     gocudnn.DataType

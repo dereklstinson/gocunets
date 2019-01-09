@@ -139,6 +139,9 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 	}, nil
 
 }
+func (l *Layer) Trainers() (scale, bias trainer.Trainer) {
+	return l.scaletrain, l.biastrain
+}
 
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
 func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
