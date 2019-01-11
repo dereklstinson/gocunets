@@ -16,7 +16,7 @@ import (
 	"github.com/dereklstinson/GoCudnn"
 )
 
-const ipAddress = "http://192.168.12.101" //"http://localhost"
+const ipAddress = "http://10.42.0.1" //"http://localhost"
 const learningrates = .005
 const codingvector = int32(12)
 const numofneurons = int32(128)
@@ -198,7 +198,7 @@ func main() {
 				if imagebuffer > w {
 					utils.CheckError(handles.Sync())
 					imagerlayer[k].LoadTValues(outputs[k].T().Memer())
-					outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5)
+					outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5, 28, 28)
 					utils.CheckError(err)
 					imagehandlers[k].Image(outputimage)
 
