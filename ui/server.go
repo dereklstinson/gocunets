@@ -42,13 +42,11 @@ type IndexTemplate struct {
 }
 
 //NewWindows creates allows the user to create a bunch of windows to access the neural network
-func NewWindows(ipaddress, port, page string, openbrowser bool) Windows {
-
-	if openbrowser {
-
+//if "localhost" is passed in ipaddress called then it will open a browser for you automatically.
+func NewWindows(ipaddress, port, page string) Windows {
+	if ipaddress == "localhost" {
 		browser.OpenURL(ipaddress + port + page)
 	}
-
 	x := Windows{
 		port:             port,
 		ipaddressandport: ipaddress + port,

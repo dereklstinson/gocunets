@@ -237,7 +237,6 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 func (o *Ops) ForwardInference(handle *cudnn.Handler,
 	alpha,
 	beta,
-
 	epsilon float64,
 	x,
 	scale *tensor.Volume,

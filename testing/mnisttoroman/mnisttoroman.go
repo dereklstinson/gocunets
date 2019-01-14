@@ -16,7 +16,7 @@ import (
 	"github.com/dereklstinson/GoCudnn"
 )
 
-const ipAddress = "http://10.42.0.1" //"http://localhost"
+const ipAddress = "http://localhost" //"http://localhost"
 const learningrates = .005
 const codingvector = int32(12)
 const numofneurons = int32(128)
@@ -89,7 +89,7 @@ func main() {
 		utils.CheckError(err)
 	}
 
-	windows := ui.NewWindows(ipAddress, ":8080", "/index", false)
+	windows := ui.NewWindows(ipAddress, ":8080", "/index")
 
 	LossDataChan := make(chan []ui.LabelFloat, 2)
 	//lossplotlength := 100
@@ -206,6 +206,7 @@ func main() {
 			}
 
 		}
+
 		for j := range networkstats {
 			var w int
 			select {

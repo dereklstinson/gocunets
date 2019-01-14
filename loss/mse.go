@@ -35,6 +35,13 @@ func (m *MSE) ErrorGPU(h *cudnn.Handler, x, y *layers.IO) error {
 	}
 	*/
 	err := m.op.Error(h.XHandle(), x.DeltaT(), y.T(), y.DeltaT())
+	if err != nil {
+		return err
+	}
+	err = h.Sync()
+	if err != nil {
+		return err
+	}
 	m.loss = m.op.Loss()
 	return err
 }

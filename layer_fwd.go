@@ -9,6 +9,7 @@ import (
 )
 
 func (l *layer) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+
 	err := handle.Sync()
 	if err != nil {
 		return err
