@@ -220,9 +220,7 @@ func (l *Layer) ForwardInference(
 	y *layers.IO,
 ) error {
 
-	err := l.b.ForwardInference(handle, l.fw.a, l.fw.b, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
-
-	return err
+	return l.b.ForwardInference(handle, l.fw.a, l.fw.b, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
 }
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
