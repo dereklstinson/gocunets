@@ -1,4 +1,4 @@
-package cudnn
+package swapper
 
 import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
@@ -28,10 +28,11 @@ func (s *Swapper) EveryOther(handle *cudnn.Handler, A, B *tensor.Volume, even bo
 }
 
 //UpperLower swaps either the upper or lower half of the batches between to tensors
-func (s *Swapper) UpperLower(handle *cudnn.Handler, A, B *tensor.Volume, upper bool) error {
-	return s.swap.UpperLower(handle.XHandle(), A.TD(), A.Memer(), B.TD(), B.Memer(), upper)
+func (s *Swapper) UpperLower(handle *cudnn.Handler, A, B *tensor.Volume, Aupper, Bupper, inverse bool) error {
+	return s.swap.UpperLower(handle.XHandle(), A.TD(), A.Memer(), B.TD(), B.Memer(), Aupper, Bupper, inverse)
 }
 
+/*
 //InnerUpperLower swaps either the upper and lower batches of a single tensor inverse will start at top and bottom to do a swap.
 //not inverse it will start at top and middle of batches to do the sap
 func (s *Swapper) InnerUpperLower(handle *cudnn.Handler, A *tensor.Volume, inverse bool) error {
@@ -42,3 +43,4 @@ func (s *Swapper) InnerUpperLower(handle *cudnn.Handler, A *tensor.Volume, inver
 func (s *Swapper) InnerBatch(handle *cudnn.Handler, A *tensor.Volume, batcha, batchb int32) error {
 	return s.swap.InnerBatch(handle.XHandle(), A.TD(), A.Memer(), batcha, batchb)
 }
+*/

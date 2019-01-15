@@ -122,7 +122,7 @@ func network() {
 				utils.CheckError(AutoEncoder.ForwardProp(handle, workspace, arabicnums[0], arabicoutput[0]))
 				imagerlayer.LoadTValues(arabicoutput[0].T().Memer())
 				stream.Sync()
-				outputimage, err := imager.TileBatches(handle, imagerlayer, 2, 5)
+				outputimage, err := imager.TileBatches(handle, imagerlayer, 2, 5, 28, 28)
 				utils.CheckError(err)
 				images = append(images, outputimage)
 				//	fmt.Println("Grabbing Image:", j)

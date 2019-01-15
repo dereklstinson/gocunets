@@ -289,7 +289,8 @@ func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias tra
 
 	l.scaletrain = trainerscale
 	l.biastrain = trainerbias
-
+	l.scaletrain.SetDecays(0.0, 0.0)
+	l.biastrain.SetDecays(0.0, 0.0)
 	return nil
 }
 

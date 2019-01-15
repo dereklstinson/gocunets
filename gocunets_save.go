@@ -6,13 +6,15 @@ import (
 	"io"
 	"strings"
 
+	"github.com/dereklstinson/GoCudnn"
+
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/utils"
 )
 
-//Weights are the weights that are used to save and load data to a layer
-type Weights struct {
+//Tensor are the Tensor that are used to save and load data to a layer
+type Tensor struct {
 	Layer    string    `json:"layer,omitempty"`
 	Format   string    `json:"format,omitempty"`
 	Datatype string    `json:"datatype,omitempty"`
@@ -21,29 +23,42 @@ type Weights struct {
 	Values   []float64 `json:"values,omitempty"`
 }
 
-//NetworkSavedWeights is a bunch of saved weights
-type NetworkSavedWeights struct {
-	Weights []Weights `json:"weights,omitempty"`
+//Params are a layers paramters or weights
+type Params struct {
+	Weight *Tensor `json:"weight,omitempty"`
+	Bias   *Tensor `json:"bias,omitempty"`
 }
 
-//GetWeightsJSON gets the weights from data
-func GetWeightsJSON(data []byte) (*Weights, error) {
-	x := new(Weights)
+//NetworkSavedTensor is a bunch of saved Tensor
+type NetworkSavedTensor struct {
+	Tensor []Params `json:"Tensor,omitempty"`
+}
+
+//GetTensorJSON gets the Tensor from data
+func GetTensorJSON(data []byte) (*Tensor, error) {
+	x := new(Tensor)
 	err := json.Unmarshal(data, x)
 
 	return x, err
 }
 
-//GetNetworkSavedWeightsJSON takes data and converts it to a NetworkSavedWeights
-func GetNetworkSavedWeightsJSON(data []byte) (*NetworkSavedWeights, error) {
-	x := new(NetworkSavedWeights)
+/*
+func (n *Network) SaveNetworkTensorParams(w io.writer) error {
+	bnlayers := n.BatchNorms()
+
+}
+*/
+
+//GetNetworkSavedTensorJSON takes data and converts it to a NetworkSavedTensor
+func GetNetworkSavedTensorJSON(data []byte) (*NetworkSavedTensor, error) {
+	x := new(NetworkSavedTensor)
 	err := json.Unmarshal(data, x)
 
 	return x, err
 }
 
-//WriteTo takes a writer and writes the NetworkSavedWeights in json format
-func (val *NetworkSavedWeights) WriteTo(w io.Writer) (n int64, err error) {
+//WriteTo takes a writer and writes the NetworkSavedTensor in json format
+func (val *NetworkSavedTensor) WriteTo(w io.Writer) (n int64, err error) {
 	bytes, err := json.Marshal(val)
 	if err != nil {
 		return 0, err
@@ -52,8 +67,8 @@ func (val *NetworkSavedWeights) WriteTo(w io.Writer) (n int64, err error) {
 	return int64(x), err
 }
 
-//WriteTo takes a writer and writes the weights in json format
-func (val *Weights) WriteTo(w io.Writer) (n int64, err error) {
+//WriteTo takes a writer and writes the Tensor in json format
+func (val *Tensor) WriteTo(w io.Writer) (n int64, err error) {
 	bytes, err := json.Marshal(val)
 	if err != nil {
 		return 0, err
@@ -62,15 +77,15 @@ func (val *Weights) WriteTo(w io.Writer) (n int64, err error) {
 	return int64(x), err
 }
 
-//GetWeights gets the weight info from a tensor.Volume
-func GetWeights(tensor *tensor.Volume, layer string) (Weights, error) {
+//GetTensor gets the weight info from a tensor.Volume
+func getTensor(tensor *tensor.Volume, layer string) (Tensor, error) {
 	frmt, err := formattostring(tensor.Format())
 	if err != nil {
-		return Weights{}, err
+		return Tensor{}, err
 	}
 	dtype, err := datatypetostring(tensor.DataType())
 	if err != nil {
-		return Weights{}, err
+		return Tensor{}, err
 	}
 	dims := tensor.Dims()
 	numofelements := utils.FindVolumeInt32(dims, nil)
@@ -103,7 +118,7 @@ func GetWeights(tensor *tensor.Volume, layer string) (Weights, error) {
 	}
 	//	tensor.Memer().FillSlice()
 
-	return Weights{
+	return Tensor{
 		Layer:    layer,
 		Format:   frmt,
 		Datatype: dtype,
@@ -146,6 +161,61 @@ func stringtodatatype(dtype string) (cudnn.DataType, error) {
 	default:
 		return cudnn.DataType(9999999), errors.New("Unsupported String")
 	}
+}
+
+//LoadTensor will load the Tensor into a tensor.
+// Dims don't need to be the same, but the volume does need to be the same
+// Also Datatype Needs to be the same
+func (val *Tensor) LoadTensor(t *tensor.Volume) error {
+	var flg cudnn.DataTypeFlag
+	tdtype, err := stringtodatatype(val.Datatype)
+	if err != nil {
+		return err
+	}
+	if tdtype != t.DataType() {
+		return errors.New("Datatype Not the same")
+	}
+	if utils.FindVolumeInt32(t.Dims(), nil) != utils.FindVolumeInt32(val.Dims, nil) {
+		return errors.New("LoadTensor-Volumes Don't Match")
+	}
+	switch tdtype {
+	case flg.Double():
+		x := utils.ToFLoat64Slice(val.Values)
+		gptr, err := gocudnn.MakeGoPointer(x)
+		if err != nil {
+			return err
+		}
+		return t.LoadMem(gptr)
+	case flg.Float():
+		x := utils.ToFloat32Slice(val.Values)
+		gptr, err := gocudnn.MakeGoPointer(x)
+		if err != nil {
+			return err
+		}
+		return t.LoadMem(gptr)
+	case flg.Int32():
+		x := utils.ToInt32Slice(val.Values)
+		gptr, err := gocudnn.MakeGoPointer(x)
+		if err != nil {
+			return err
+		}
+		return t.LoadMem(gptr)
+	case flg.Int8():
+		x := utils.ToInt8Slice(val.Values)
+		gptr, err := gocudnn.MakeGoPointer(x)
+		if err != nil {
+			return err
+		}
+		return t.LoadMem(gptr)
+	case flg.UInt8():
+		x := utils.ToUint8Slice(val.Values)
+		gptr, err := gocudnn.MakeGoPointer(x)
+		if err != nil {
+			return err
+		}
+		return t.LoadMem(gptr)
+	}
+	return errors.New("Unsupported Type")
 }
 func stringtoformat(frmt string) (cudnn.TensorFormat, error) {
 	var flgs cudnn.TensorFormatFlag

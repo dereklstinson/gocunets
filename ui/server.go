@@ -61,6 +61,8 @@ func NewWindows(ipaddress, port, page string) Windows {
 
 func colstring(columns int) string {
 	switch columns {
+	case 10:
+		return "column10"
 	case 6:
 		return "column16_66"
 	case 5:

@@ -68,6 +68,11 @@ body {
 }
 
 /* Create three equal columns that floats next to each other */
+.column10{
+	float: left;
+	width: 10%;
+	padding: 4px;
+}
 .column16_66 {
 	float: left;
 	width: 16.66%;
