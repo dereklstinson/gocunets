@@ -371,6 +371,21 @@ func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.Dat
 
 }
 
+//BuildNetworkInputHost build the input tensor to paged memory on host ram
+func BuildNetworkInputHost(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
+	x, err := tensor.BuildtoCudaHost(frmt, dtype, dims, managed)
+	if err != nil {
+		return nil, err
+	}
+
+	return &IO{
+		x:       x,
+		dx:      nil,
+		input:   true,
+		managed: managed,
+	}, nil
+}
+
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
 func BuildNetworkInputIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
@@ -399,12 +414,14 @@ func BuildNetworkOutputIOFromSlice(frmt cudnn.TensorFormat, dtype cudnn.DataType
 	err = newio.LoadDeltaTValues(sptr)
 	return newio, err
 }
+
 func buildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
 
 	if input == true {
 
 		x, err := tensor.Build(frmt, dtype, dims, managed)
 		if err != nil {
+
 			return nil, err
 		}
 

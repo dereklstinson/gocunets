@@ -98,6 +98,113 @@ func BuildFromTensorD(desc *gocudnn.TensorD, managed bool) (*Volume, error) {
 	return build(frmt, dtype, dims, managed)
 }
 
+//BuildtoCudaHost stores the tensor memory to paged memory
+func BuildtoCudaHost(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*Volume, error) {
+	var thelper gocudnn.Tensor
+	var fhelper gocudnn.Filter
+	if len(dims) < 4 {
+		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
+	}
+
+	if len(dims) > 4 {
+		var newmemer *gocudnn.Malloced
+		tens, err := thelper.NewTensorNdDescriptorEx(frmt.Cu(), dtype.Cu(), dims)
+		if err != nil {
+			return nil, err
+		}
+		filts, err := fhelper.NewFilterNdDescriptor(dtype.Cu(), frmt.Cu(), dims)
+		if err != nil {
+			return nil, err
+		}
+		tensstrided, err := thelper.NewTensorNdDescriptor(dtype.Cu(), dims, utils.FindStridesInt32(dims))
+		if err != nil {
+			return nil, err
+		}
+		size, err := tens.GetSizeInBytes()
+		if err != nil {
+			return nil, err
+		}
+		if managed == true {
+			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Host())
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			newmemer, err = gocudnn.MallocHost(size)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		err = newmemer.Set(0)
+		if err != nil {
+			newmemer.Free()
+			return nil, err
+		}
+
+		return &Volume{
+			tD:        tens,
+			tDstrided: tensstrided,
+			fD:        filts,
+			memgpu:    newmemer,
+			frmt:      frmt.Cu(),
+			dtype:     dtype.Cu(),
+			dims:      dims,
+			strides:   utils.FindStridesInt32(dims),
+		}, nil
+
+	}
+	var newmemer *gocudnn.Malloced
+	//	var tens *gocudnn.TensorD
+	//var filts *gocudnn.FilterD
+	//var tensstrided *gocudnn.TensorD
+	//var err error
+	tens, err := thelper.NewTensor4dDescriptor(dtype.Cu(), frmt.Cu(), dims)
+	if err != nil {
+		return nil, err
+	}
+	tensstrided, err := thelper.NewTensor4dDescriptorEx(dtype.Cu(), dims, utils.FindStridesInt32(dims))
+	if err != nil {
+		return nil, err
+	}
+	filts, err := fhelper.NewFilter4dDescriptor(dtype.Cu(), frmt.Cu(), dims)
+	if err != nil {
+		return nil, err
+	}
+	size, err := tens.GetSizeInBytes()
+	if err != nil {
+		return nil, err
+	}
+	if managed == true {
+
+		newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Host())
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		newmemer, err = gocudnn.MallocHost(size)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = newmemer.Set(0)
+	if err != nil {
+		newmemer.Free()
+		return nil, err
+	}
+	return &Volume{
+		tD:        tens,
+		tDstrided: tensstrided,
+		fD:        filts,
+		memgpu:    newmemer,
+		frmt:      frmt.Cu(),
+		dtype:     dtype.Cu(),
+		dims:      dims,
+		strides:   utils.FindStridesInt32(dims),
+	}, nil
+}
+
 //Build creates a tensor and mallocs the memory for the tensor
 func Build(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*Volume, error) {
 	return build(frmt.Cu(), dtype.Cu(), dims, managed)
@@ -175,11 +282,13 @@ func build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 				return nil, err
 			}
 		}
+
 		err = newmemer.Set(0)
 		if err != nil {
 			newmemer.Free()
 			return nil, err
 		}
+
 		return &Volume{
 			tD:        tens,
 			tDstrided: tensstrided,
@@ -217,18 +326,22 @@ func build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mana
 
 		newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
 		if err != nil {
+			fmt.Println("Error: Memsize -", size, ",Dims-", dims, "Dims * 4 = ", utils.FindVolumeInt32(dims, nil)*4)
 			return nil, err
 		}
 
 	} else {
 		newmemer, err = gocudnn.Malloc(size)
 		if err != nil {
+			fmt.Println("Error: Memsize -", size, ",Dims-", dims, "Dims * 4 = ", utils.FindVolumeInt32(dims, nil)*4)
 			return nil, err
 		}
 	}
 	err = newmemer.Set(0)
 	if err != nil {
-		newmemer.Free()
+		newmemer.ByteSize()
+		fmt.Println("Error: Memsize -", size, ",Dims-", dims, "Dims * 4 = ", utils.FindVolumeInt32(dims, nil)*4)
+		fmt.Println("NewMemer Bytesize says", newmemer.ByteSize())
 		return nil, err
 	}
 	return &Volume{
