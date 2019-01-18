@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"strings"
 
 	"github.com/dereklstinson/GoCudnn"
@@ -32,7 +33,7 @@ type Params struct {
 
 //NetworkSavedTensor is a bunch of saved Tensor
 type NetworkSavedTensor struct {
-	Tensor []*Params `json:"Tensor,omitempty"`
+	Layers []*Params `json:"Layers,omitempty"`
 }
 
 //GetTensorJSON gets the Tensor from data
@@ -43,12 +44,62 @@ func GetTensorJSON(data []byte) (*Tensor, error) {
 	return x, err
 }
 
-/*
-func (n *Network) SaveNetworkTensorParams(w io.writer) error {
-	bnlayers := n.BatchNorms()
-
+//LoadWeightsFromFile loads the weights from file
+func (n *Network) LoadWeightsFromFile(file string) error {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	netparams, err := GetNetworkSavedTensorJSON(data)
+	if err != nil {
+		return err
+	}
+	return n.LoadNetworkTensorparams(netparams)
 }
-*/
+
+//LoadNetworkTensorparams - Loads the weights from Networksavedtensor
+func (n *Network) LoadNetworkTensorparams(netsavedparams *NetworkSavedTensor) error {
+	if netsavedparams == nil {
+		return errors.New("netsavedparams is nil")
+	}
+	paramcounter := 0
+
+	var err error
+	for i := range n.layer {
+		if n.layer[i].hasweights() {
+			err = n.layer[i].loadparams(netsavedparams.Layers[paramcounter])
+			if err != nil {
+				return err
+			}
+			paramcounter++
+
+		}
+	}
+	if paramcounter == 0 {
+		return errors.New("LoadNetworkTensorparams loaded nothing because n.layer[i].hasweights() didn't return true on anything")
+	}
+	return nil
+}
+
+//SaveNetworkTensorParams saves network params to the writer
+func (n *Network) SaveNetworkTensorParams(w io.Writer) (int64, error) {
+	layers := make([]*layer, 0)
+	for i := range n.layer {
+		if n.layer[i].hasweights() {
+			layers = append(layers, n.layer[i])
+		}
+	}
+	netparams := make([]*Params, len(layers))
+	var err error
+	for i := range layers {
+		netparams[i], err = layers[i].params()
+		if err != nil {
+			return 0, err
+		}
+	}
+	x := NetworkSavedTensor{Layers: netparams}
+	return x.WriteTo(w)
+}
 
 //GetNetworkSavedTensorJSON takes data and converts it to a NetworkSavedTensor
 func GetNetworkSavedTensorJSON(data []byte) (*NetworkSavedTensor, error) {

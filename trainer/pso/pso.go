@@ -9,28 +9,35 @@ package pso
 
 import (
 	"errors"
+	"math"
 	"math/rand"
 )
 
 type particle struct {
 	rng      *rand.Rand
+	mflg     ModeFlag
 	source   rand.Source
 	loss     float32
 	position []float32
 	indvbest []float32
 	velocity []float32
+	inertia  float32
+	alpha    float32
+	vmax     float32
 }
 
 //Swarm contains the particles and meta values
 type Swarm struct {
-	k, kmax                                 int
-	loss                                    float32
-	alpha, inertia, cognative, social, vmax float32
-	particles                               []particle
-	globalposition                          []float32
-	bestbool                                []bool
-	mode                                    Mode
+	k, kmax                               int
+	loss                                  float32
+	cognative, social, vmax, constriction float32
+	particles                             []particle
+	globalposition                        []float32
+	bestbool                              []bool
+	mode                                  Mode
 }
+
+const testingvmax = true
 
 //Mode is the mode flag for the swarm
 type Mode int32
@@ -53,33 +60,36 @@ func (m ModeFlag) Constriction() Mode {
 func (m ModeFlag) DynamicInertiaMaxVelReduction() Mode {
 	return Mode(5)
 }
+
+/*
 func (m ModeFlag) SocialPressure() Mode {
 	return Mode(6)
 }
-
+*/
 //CreateSwarm creates a particle swarm
-func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, alpha, inertia float32) Swarm {
+func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, alphamax, inertiamax float32) Swarm {
 	rand.Seed(int64(seed))
 
 	particles := make([]particle, numofparticles)
 	for i := range particles {
-		particles[i] = createparticle(vmax, dims, rand.Int63())
+		particles[i] = createparticle(vmax, alphamax, inertiamax, dims, rand.Int63())
 
 	}
+	gamma := float64(social + cognative)
+	constriction := 2 / (2 - gamma - math.Sqrt((gamma*gamma)-4*gamma))
 	return Swarm{
-		k:         1,
-		cognative: cognative,
-		social:    social,
-		kmax:      kmax,
-		vmax:      vmax,
-		loss:      9999999999,
-		particles: particles,
-		alpha:     alpha,
-		inertia:   inertia,
+		k:            1,
+		cognative:    cognative,
+		social:       social,
+		kmax:         kmax,
+		vmax:         vmax,
+		loss:         9999999999,
+		particles:    particles,
+		constriction: float32(constriction),
 	}
 }
 
-func createparticle(maxv float32, dims int, seed int64) particle {
+func createparticle(maxv, maxalpha, maxinertia float32, dims int, seed int64) particle {
 	source := rand.NewSource(seed)
 	rng := rand.New(source)
 	position := make([]float32, dims)
@@ -98,6 +108,8 @@ func createparticle(maxv float32, dims int, seed int64) particle {
 		position: position,
 		indvbest: indvbest,
 		velocity: velocity,
+		inertia:  rng.Float32() * maxinertia,
+		alpha:    rng.Float32() * maxalpha,
 	}
 }
 
@@ -111,7 +123,7 @@ func (s *Swarm) AsyncUpdate(index int, loss float32) error {
 		s.loss = loss
 		s.globalposition = s.particles[index].position
 	}
-	s.particles[index].update(s.mode, s.cognative, s.social, s.vmax, s.alpha, s.inertia, s.globalposition)
+	s.particles[index].update(s.mode, s.cognative, s.social, s.vmax, s.constriction, s.globalposition)
 	return nil
 }
 
@@ -129,7 +141,7 @@ func (s *Swarm) SyncUpdate(losses []float32) error {
 		}
 	}
 	for i := range s.particles {
-		s.particles[i].update(s.mode, s.cognative, s.social, s.vmax, s.alpha, s.inertia, s.globalposition)
+		s.particles[i].update(s.mode, s.cognative, s.social, s.vmax, s.constriction, s.globalposition)
 	}
 	s.k++
 	return nil
@@ -142,27 +154,84 @@ func (p *particle) isbest(loss float32) {
 }
 
 //Update will update velocities,and position
-func (p *particle) update(mode Mode, cognative, social, vmax, alpha, inertia float32, globalbest []float32) {
-	if alpha == inertia && alpha == 1.0 {
-		for i := range p.velocity {
-			p.velocity[i] = p.velocity[i] + cognative*p.rng.Float32()*(p.indvbest[i]-p.position[i]) + social*p.rng.Float32()*(globalbest[i]-p.position[i])
-
-			if p.velocity[i] > vmax {
-				p.velocity[i] = vmax
-			}
-
-			p.position[i] += p.velocity[i]
-		}
-	} else {
-		for i := range p.velocity {
-			p.velocity[i] = alpha*inertia*p.velocity[i] + cognative*p.rng.Float32()*(p.indvbest[i]-p.position[i]) + social*p.rng.Float32()*(globalbest[i]-p.position[i])
-
-			if p.velocity[i] > vmax {
-				p.velocity[i] = vmax
-			}
-
-			p.position[i] += p.velocity[i]
-		}
+func (p *particle) update(mode Mode, cognative, social, vmax, constriction float32, globalbest []float32) {
+	switch mode {
+	case p.mflg.Vanilla():
+		p.vanilla(cognative, social, vmax, globalbest)
+	case p.mflg.ConstantInertia():
+		p.constant(cognative, social, vmax, globalbest)
+	case p.mflg.InertiaReduction():
+		p.linearinertiareduce(cognative, social, vmax, globalbest)
+	case p.mflg.Constriction():
+		p.constriction(cognative, social, vmax, constriction, globalbest)
+	case p.mflg.DynamicInertiaMaxVelReduction():
+		p.dimvr(cognative, social, vmax, globalbest)
+		//case p.mflg.SocialPressure():
 	}
 
+}
+func (p *particle) dimvr(cognative, social, vmaxgamma float32, globalbest []float32) {
+	min := float32(999999999)
+	max := float32(-99999999)
+	for i := range p.velocity {
+		p.velocity[i] = p.inertia*p.velocity[i] + cognative*p.rng.Float32()*(p.indvbest[i]-p.position[i]) + social*p.rng.Float32()*(globalbest[i]-p.position[i])
+		if p.position[i] < min {
+			min = p.position[i]
+		}
+		if p.position[i] > max {
+			max = p.position[i]
+		}
+
+	}
+	vmax := vmaxgamma * (max - min)
+	for i := range p.velocity {
+
+		if p.velocity[i] > vmax && testingvmax {
+			p.velocity[i] = vmax
+		}
+
+		p.position[i] += p.velocity[i]
+	}
+}
+func (p *particle) linearinertiareduce(cognative, social, vmax float32, globalbest []float32) {
+	for i := range p.velocity {
+		p.velocity[i] = (p.alpha * p.inertia * p.velocity[i]) + cognative*p.rng.Float32()*(p.indvbest[i]-p.position[i]) + social*p.rng.Float32()*(globalbest[i]-p.position[i])
+
+		if p.velocity[i] > vmax && testingvmax {
+			p.velocity[i] = vmax
+		}
+		p.inertia *= p.alpha
+		p.position[i] += p.velocity[i]
+	}
+}
+func (p *particle) vanilla(cognative, social, vmax float32, globalbest []float32) {
+	for i := range p.velocity {
+		p.velocity[i] += +cognative*p.rng.Float32()*(p.indvbest[i]-p.position[i]) + social*p.rng.Float32()*(globalbest[i]-p.position[i])
+
+		if p.velocity[i] > vmax && testingvmax {
+			p.velocity[i] = vmax
+		}
+
+		p.position[i] += p.velocity[i]
+	}
+}
+func (p *particle) constant(cognative, social, vmax float32, globalbest []float32) {
+	for i := range p.velocity {
+		p.velocity[i] = (p.inertia * p.velocity[i]) + (cognative * p.rng.Float32() * (p.indvbest[i] - p.position[i])) + (social * p.rng.Float32() * (globalbest[i] - p.position[i]))
+
+		if p.velocity[i] > vmax && testingvmax {
+			p.velocity[i] = vmax
+		}
+		p.position[i] += p.velocity[i]
+	}
+}
+func (p *particle) constriction(cognative, social, vmax, constriction float32, globalbest []float32) {
+	for i := range p.velocity {
+		p.velocity[i] = constriction * (p.velocity[i] + cognative*p.rng.Float32()*(p.indvbest[i]-p.position[i]) + social*p.rng.Float32()*(globalbest[i]-p.position[i]))
+
+		if p.velocity[i] > vmax && testingvmax {
+			p.velocity[i] = vmax
+		}
+		p.position[i] += p.velocity[i]
+	}
 }
