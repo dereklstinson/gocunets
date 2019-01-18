@@ -46,6 +46,11 @@ func (l *Layer) Weights() *layers.IO {
 	return l.conv.Weights()
 }
 
+//Bias returns the bias of the cnn tranpose
+func (l *Layer) Bias() *layers.IO {
+	return l.conv.Bias()
+}
+
 //ForwardProp does the forward propagation of convolution transpose
 func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch l.mode {

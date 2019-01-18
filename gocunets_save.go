@@ -15,7 +15,6 @@ import (
 
 //Tensor are the Tensor that are used to save and load data to a layer
 type Tensor struct {
-	Layer    string    `json:"layer,omitempty"`
 	Format   string    `json:"format,omitempty"`
 	Datatype string    `json:"datatype,omitempty"`
 	Dims     []int32   `json:"dims,omitempty"`
@@ -25,13 +24,15 @@ type Tensor struct {
 
 //Params are a layers paramters or weights
 type Params struct {
-	Weight *Tensor `json:"weight,omitempty"`
-	Bias   *Tensor `json:"bias,omitempty"`
+	Layer  string `json:"layer,omitempty"`
+	Weight Tensor `json:"weight,omitempty"`
+	Bias   Tensor `json:"bias,omitempty"`
+	Xtra   Tensor `json:"xtra,omitempty"`
 }
 
 //NetworkSavedTensor is a bunch of saved Tensor
 type NetworkSavedTensor struct {
-	Tensor []Params `json:"Tensor,omitempty"`
+	Tensor []*Params `json:"Tensor,omitempty"`
 }
 
 //GetTensorJSON gets the Tensor from data
@@ -78,7 +79,10 @@ func (val *Tensor) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 //GetTensor gets the weight info from a tensor.Volume
-func getTensor(tensor *tensor.Volume, layer string) (Tensor, error) {
+func getTensor(tensor *tensor.Volume) (Tensor, error) {
+	if tensor == nil {
+		return Tensor{}, errors.New("Tensor is ni")
+	}
 	frmt, err := formattostring(tensor.Format())
 	if err != nil {
 		return Tensor{}, err
@@ -119,7 +123,6 @@ func getTensor(tensor *tensor.Volume, layer string) (Tensor, error) {
 	//	tensor.Memer().FillSlice()
 
 	return Tensor{
-		Layer:    layer,
 		Format:   frmt,
 		Datatype: dtype,
 		Dims:     dims,
@@ -163,7 +166,7 @@ func stringtodatatype(dtype string) (cudnn.DataType, error) {
 	}
 }
 
-//LoadTensor will load the Tensor into a tensor.
+//LoadTensor will load the Tensor into a tensor.Volume passed.
 // Dims don't need to be the same, but the volume does need to be the same
 // Also Datatype Needs to be the same
 func (val *Tensor) LoadTensor(t *tensor.Volume) error {

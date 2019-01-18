@@ -28,7 +28,7 @@ func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*
 	var mflg ModeFlag
 	var hlp gocudnn.Activation
 	switch mode {
-	case mflg.AdvancedThreshRandRelu():
+	case mflg.Threshhold():
 		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
 		if err != nil {
 			return nil, err
@@ -103,6 +103,11 @@ func (act *Ops) Info() (OpInfo, error) {
 	}, err
 }
 
+//Mode returns the activation Mode
+func (act *Ops) Mode() Mode {
+	return act.mode
+}
+
 //Properties returns the values that were used to Create the Activation struct
 func (act *Ops) Properties() (Mode, cudnn.NanMode, float64, error) {
 	a, b, c, err := act.desc.GetDescriptor()
@@ -117,8 +122,9 @@ func (act *Ops) FwdProp(
 	x *tensor.Volume,
 	beta float64,
 	y *tensor.Volume,
-	alphas *tensor.Volume,
-	betas *tensor.Volume) error {
+	negcoef *tensor.Volume,
+	thresh *tensor.Volume,
+	poscoef *tensor.Volume) error {
 	_, dtypex, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -138,13 +144,12 @@ func (act *Ops) FwdProp(
 	}
 	var mflg ModeFlag
 	switch act.mode {
-	case mflg.AdvancedThreshRandRelu():
-		return act.xdesc.ForwardProp(handle.XHandle(), a, b, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), betas.Memer())
+	case mflg.Threshhold():
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), thresh.Memer(), poscoef.Memer())
 	case mflg.Leaky():
-
-		return act.xdesc.ForwardProp(handle.XHandle(), a, b, x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil, nil)
 	case mflg.PRelu():
-		return act.xdesc.ForwardProp(handle.XHandle(), a, b, x.TD(), x.Memer(), y.TD(), y.Memer(), alphas.Memer(), nil)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), nil, nil)
 	case mflg.ClippedRelu():
 		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 	case mflg.Elu():
@@ -169,9 +174,11 @@ func (act *Ops) BwdProp(
 	x *tensor.Volume,
 	beta float64,
 	dx *tensor.Volume,
-	alphas *tensor.Volume,
-	betas *tensor.Volume,
-) error {
+	negcoef *tensor.Volume,
+	dnegcoef *tensor.Volume,
+	thresh *tensor.Volume,
+	poscoef *tensor.Volume,
+	dposcoef *tensor.Volume) error {
 	_, dtypedx, _, err := dx.Properties()
 	if err != nil {
 		return err
@@ -198,12 +205,12 @@ func (act *Ops) BwdProp(
 	}
 	var mflg ModeFlag
 	switch act.mode {
-	case mflg.AdvancedThreshRandRelu():
-		return act.xdesc.BackProp(handle.XHandle(), a, b, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), betas.Memer())
+	case mflg.Threshhold():
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), poscoef.Memer(), dposcoef.Memer())
 	case mflg.Leaky():
-		return act.xdesc.BackProp(handle.XHandle(), a, b, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil, nil)
 	case mflg.PRelu():
-		return act.xdesc.BackProp(handle.XHandle(), a, b, x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), alphas.Memer(), betas.Memer())
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), nil, nil, nil)
 	case mflg.ClippedRelu():
 		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 	case mflg.Elu():

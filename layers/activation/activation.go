@@ -10,15 +10,20 @@ import (
 
 //Layer is an activation layer
 type Layer struct {
-	act    *activation.Ops
-	reduce *reduce.Ops
-
-	fwd         Scalars
-	bwd         Scalars
-	memmanaged  bool
-	updatable   bool
-	nanproped   gocudnn.PropagationNAN
-	alphasbetas *layers.IO
+	act                  *activation.Ops
+	reduce               *reduce.Ops
+	fwd                  Scalars
+	bwd                  Scalars
+	memmanaged           bool
+	updatable            bool
+	nanproped            gocudnn.PropagationNAN
+	threshandpreludims   []int32
+	posmin, posmax       float32
+	negmin, negmax       float32
+	threshmin, threshmax float32
+	posCoefs             *layers.IO
+	negCoefs             *layers.IO
+	threshold            *layers.IO
 }
 
 //Info is a struct that contains the info that is needed to build the activation layer
@@ -51,7 +56,9 @@ func setup(handle *cudnn.Handler, mode activation.Mode, nanproped cudnn.NanMode,
 	if err != nil {
 		return nil, err
 	}
+
 	return &Layer{
+
 		act: act,
 		fwd: Scalars{
 			Alpha: af,
@@ -132,38 +139,49 @@ func (a *Layer) UpDateBwdCScalars(alpha, beta float64) {
 
 //ForwardProp does the forward propigation of the activation layer
 func (a *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	//fmt.Println(a.fwd.alpha, a.fwd.beta)
-	if a.alphasbetas == nil {
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil)
-	} /*
-		if a.alphasbetas.DeltaT() == nil && a.alphasbetas.T() != nil {
-			return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.alphasbetas.T(), nil)
-		}
-		if a.alphasbetas.DeltaT() != nil && a.alphasbetas.T() == nil {
-			return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, a.alphasbetas.DeltaT())
-		}
-	*/
-	return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.alphasbetas.T(), a.alphasbetas.DeltaT())
+	var flg activation.ModeFlag
+	switch a.act.Mode() {
+	case flg.Leaky():
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
+	case flg.Threshhold():
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.negCoefs.T(), a.threshold.T(), a.posCoefs.T())
+	case flg.PRelu():
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.negCoefs.T(), nil, nil)
+	default:
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
+	}
+	//	return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
 }
 
 //BackProp does the backward propigation of the activation layer
 func (a *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	//fmt.Println(a.fwd.alpha, a.fwd.beta)
-	if a.alphasbetas == nil {
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil)
+	var flg activation.ModeFlag
+	switch a.act.Mode() {
+	case flg.Leaky():
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil)
+	case flg.Threshhold():
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), a.threshold.T(), a.posCoefs.T(), a.posCoefs.DeltaT())
+	case flg.PRelu():
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), nil, nil, nil)
+	default:
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil)
 	}
-	/*
-		if a.alphasbetas.DeltaT() == nil && a.alphasbetas.T() != nil {
-			return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.alphasbetas.T(), nil)
 
-		}
-		if a.alphasbetas.DeltaT() != nil && a.alphasbetas.T() == nil {
-			return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, a.alphasbetas.DeltaT())
+}
 
-		}
-	*/
-	return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.alphasbetas.T(), a.alphasbetas.DeltaT())
+//PosCoefs If activation layer has pos coefs for threshhold activation this would be it
+func (a *Layer) PosCoefs() *layers.IO {
+	return a.posCoefs
+}
 
+//NegCoefs - If activation has neg coefs for prelu or threshould activation this would be it
+func (a *Layer) NegCoefs() *layers.IO {
+	return a.negCoefs
+}
+
+//Threshhold - If activation  threshold values for threshould activation this would be it
+func (a *Layer) Threshhold() *layers.IO {
+	return a.threshold
 }
 
 //Destroy destroys the cuda allocated memory for activation

@@ -49,16 +49,16 @@ func (m ModeFlag) Leaky() Mode {
 	return Mode(m.x.Leaky())
 }
 
-//AdvancedThreshRandRelu passes a AdvancedThreshRandRelu mode flag.
+//Threshhold passes a Threshhold mode flag.
 //It is an experimental function.
-func (m ModeFlag) AdvancedThreshRandRelu() Mode {
-	return Mode(m.x.AdvanceThreshRandomRelu())
+func (m ModeFlag) Threshhold() Mode {
+	return Mode(m.x.Threshhold())
 }
 
 //PRelu is the Parametric activation function.
 //This is an experimental function
 func (m ModeFlag) PRelu() Mode {
-	return Mode(m.x.ParaChan())
+	return Mode(m.x.Prelu())
 }
 
 //Flag is a helper struct used to pass flags

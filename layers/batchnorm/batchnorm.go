@@ -139,6 +139,16 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 	}, nil
 
 }
+
+//Bias returns the bias of the batch norm
+func (l *Layer) Bias() *layers.IO {
+	return l.bias
+}
+
+//Scale returns the scale fo the batch norm
+func (l *Layer) Scale() *layers.IO {
+	return l.scale
+}
 func (l *Layer) Trainers() (scale, bias trainer.Trainer) {
 	return l.scaletrain, l.biastrain
 }
