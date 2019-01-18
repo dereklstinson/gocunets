@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
@@ -33,7 +33,8 @@ type Params struct {
 
 //NetworkSavedTensor is a bunch of saved Tensor
 type NetworkSavedTensor struct {
-	Layers []*Params `json:"Layers,omitempty"`
+	TestLoss float32   `json:"test_loss,omitempty"`
+	Layers   []*Params `json:"Layers,omitempty"`
 }
 
 //GetTensorJSON gets the Tensor from data
