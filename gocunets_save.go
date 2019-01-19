@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -45,23 +44,25 @@ func GetTensorJSON(data []byte) (*Tensor, error) {
 	return x, err
 }
 
-//LoadWeightsFromFile loads the weights from file
-func (n *Network) LoadWeightsFromFile(file string) error {
-	data, err := ioutil.ReadFile(file)
+//LoadWeights loads the weights from file returns the previous Loss for the weights.  It none was saved or an error then it will return 999999999
+func (n *Network) LoadWeights(r io.Reader, size int64) (float32, error) {
+	var err error
+	data := make([]byte, size)
+	_, err = r.Read(data)
 	if err != nil {
-		return err
+		return 999999999, err
 	}
 	netparams, err := GetNetworkSavedTensorJSON(data)
 	if err != nil {
-		return err
+		return 999999999, err
 	}
 	return n.LoadNetworkTensorparams(netparams)
 }
 
 //LoadNetworkTensorparams - Loads the weights from Networksavedtensor
-func (n *Network) LoadNetworkTensorparams(netsavedparams *NetworkSavedTensor) error {
+func (n *Network) LoadNetworkTensorparams(netsavedparams *NetworkSavedTensor) (float32, error) {
 	if netsavedparams == nil {
-		return errors.New("netsavedparams is nil")
+		return 99999999, errors.New("netsavedparams is nil")
 	}
 	paramcounter := 0
 
@@ -70,16 +71,16 @@ func (n *Network) LoadNetworkTensorparams(netsavedparams *NetworkSavedTensor) er
 		if n.layer[i].hasweights() {
 			err = n.layer[i].loadparams(netsavedparams.Layers[paramcounter])
 			if err != nil {
-				return err
+				return 0, err
 			}
 			paramcounter++
 
 		}
 	}
 	if paramcounter == 0 {
-		return errors.New("LoadNetworkTensorparams loaded nothing because n.layer[i].hasweights() didn't return true on anything")
+		return 9999999, errors.New("LoadNetworkTensorparams loaded nothing because n.layer[i].hasweights() didn't return true on anything")
 	}
-	return nil
+	return netsavedparams.TestLoss, nil
 }
 
 //SaveNetworkTensorParams saves network params to the writer
