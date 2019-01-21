@@ -20,7 +20,7 @@ type xtras struct {
 }
 
 //MakeOutputLayer will make the outputlayer for you
-func (l *Layer) MakeOutputLayer(input *layers.IO) (*layers.IO, error) {
+func (l *Layer) MakeOutputLayer(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	frmt, dtype, _, err := input.Properties()
 	if err != nil {
 
@@ -30,8 +30,8 @@ func (l *Layer) MakeOutputLayer(input *layers.IO) (*layers.IO, error) {
 	if err != nil {
 		return nil, err
 	}
-	mngd := input.IsManaged()
-	return layers.BuildIO(frmt, dtype, dims, mngd)
+
+	return layers.BuildIO(handle, frmt, dtype, dims)
 
 }
 
@@ -78,7 +78,7 @@ func SetupDims(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, numbofinput
 }
 
 //Setup setsup the pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
-func Setup(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, *layers.IO, error) {
+func Setup(handle *cudnn.Handler, mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32) (*Layer, *layers.IO, error) {
 	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
 
 	if err != nil {
@@ -92,7 +92,7 @@ func Setup(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.I
 	if err != nil {
 		return nil, nil, err
 	}
-	output, err := layers.BuildIO(fmt, dtype, dims, managedmem)
+	output, err := layers.BuildIO(handle, fmt, dtype, dims)
 	if err != nil {
 		return nil, nil, err
 	}

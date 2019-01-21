@@ -7,15 +7,15 @@ import (
 
 //GetTransposeIO will return an IO that can be used with the transpose function of this layer.
 func (l *Layer) gettransposeIO(handle *cudnn.Handler, x *layers.IO, input bool) (*layers.IO, error) {
-	yfrmt, ydtype, dims, _, managed, err := l.op.GetTransposeOutputProperties(handle, x.T())
+	yfrmt, ydtype, dims, _, err := l.op.GetTransposeOutputProperties(handle, x.T())
 	if err != nil {
 		return nil, err
 	}
 
 	if input == false {
-		return layers.BuildIO(yfrmt, ydtype, dims, managed)
+		return layers.BuildIO(handle, yfrmt, ydtype, dims)
 	}
-	return layers.BuildNetworkInputIO(yfrmt, ydtype, dims, managed)
+	return layers.BuildNetworkInputIO(handle, yfrmt, ydtype, dims)
 }
 
 //TransposeForward does a transpose allong the channel dim. Will find transpose of x and put it in y

@@ -16,8 +16,8 @@ func (c *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 	if err != nil {
 		return nil, err
 	}
-	managedmem := c.w.IsManaged()
-	output, err := layers.BuildIO(frmt, dtype, dims, managedmem)
+
+	output, err := layers.BuildIO(handle, frmt, dtype, dims)
 	if err != nil {
 		return nil, err
 	}

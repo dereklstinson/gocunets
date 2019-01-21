@@ -149,35 +149,38 @@ func (l *Layer) Bias() *layers.IO {
 func (l *Layer) Scale() *layers.IO {
 	return l.scale
 }
+
+//Trainers returns the trainers
 func (l *Layer) Trainers() (scale, bias trainer.Trainer) {
 	return l.scaletrain, l.biastrain
 }
 
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
 func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
+
 	var err error
 
-	l.b, err = batchnorm.Stage(handle, x.T(), l.mode, l.managed)
+	l.b, err = batchnorm.Stage(handle, x.T(), l.mode)
 	if err != nil {
 		return err
 	}
 
-	frmt, dtype, dims, managed := l.b.BiasScaleProperties()
-	l.bias, err = layers.BuildIO(frmt, dtype, dims, managed)
+	frmt, dtype, dims := l.b.BiasScaleProperties()
+	l.bias, err = layers.BuildIO(handle, frmt, dtype, dims)
 	if err != nil {
 		fmt.Println("Creating Bias mem...Dims are:", dims)
 		return err
 	}
-	l.scale, err = layers.BuildIO(frmt, dtype, dims, managed)
+	l.scale, err = layers.BuildIO(handle, frmt, dtype, dims)
 	if err != nil {
 		fmt.Println("Creating scale mem...Dims are:", dims)
 		return err
 	}
-	err = l.scale.T().SetRandomNormal(.7, 1)
+	err = l.scale.T().SetRandomNormal(handle, .7, 1)
 	if err != nil {
 		return err
 	}
-	err = l.bias.T().SetRandomNormal(.01, .1)
+	err = l.bias.T().SetRandomNormal(handle, .01, .1)
 	err = trainer.CreateTrainingMem(handle, l.scaletrain, l.scale)
 	if err != nil {
 		fmt.Println("Creating Training Mem for scale")

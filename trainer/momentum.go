@@ -52,7 +52,7 @@ func (t *Momentum) SetRate(rate float32) {
 func (t *Momentum) SetTrainingMem(handle *cudnn.Handler, weights *layers.IO) error {
 
 	var err error
-	t.gsum, err = weights.T().ZeroClone()
+	t.gsum, err = weights.T().ZeroClone(handle)
 	return err
 }
 func errorappender(comment string, err error) error {

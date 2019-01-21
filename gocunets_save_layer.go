@@ -3,20 +3,22 @@ package gocunets
 import (
 	"errors"
 	"strings"
+
+	"github.com/dereklstinson/GoCuNets/cudnn"
 )
 
-func (l *layer) loadparams(params *Params) error {
+func (l *layer) loadparams(handle *cudnn.Handler, params *Params) error {
 	var err error
 	if l.cnn != nil {
 		params.Layer = strings.ToUpper(params.Layer)
 		if params.Layer != "CNN" {
 			return errors.New("not a " + params.Layer + " layer")
 		}
-		err = params.Weight.LoadTensor(l.cnn.Weights().T())
+		err = params.Weight.LoadTensor(handle, l.cnn.Weights().T())
 		if err != nil {
 			return err
 		}
-		return params.Bias.LoadTensor(l.cnn.Bias().T())
+		return params.Bias.LoadTensor(handle, l.cnn.Bias().T())
 
 	}
 	if l.batch != nil {
@@ -24,11 +26,11 @@ func (l *layer) loadparams(params *Params) error {
 		if params.Layer != "BATCH" {
 			return errors.New("not a " + params.Layer + " layer")
 		}
-		err = params.Weight.LoadTensor(l.batch.Scale().T())
+		err = params.Weight.LoadTensor(handle, l.batch.Scale().T())
 		if err != nil {
 			return err
 		}
-		return params.Bias.LoadTensor(l.batch.Bias().T())
+		return params.Bias.LoadTensor(handle, l.batch.Bias().T())
 	}
 	if l.cnntranspose != nil {
 
@@ -36,11 +38,11 @@ func (l *layer) loadparams(params *Params) error {
 		if params.Layer != "CNNTRANSPOSE" {
 			return errors.New("not a " + params.Layer + " layer")
 		}
-		err = params.Weight.LoadTensor(l.cnntranspose.Weights().T())
+		err = params.Weight.LoadTensor(handle, l.cnntranspose.Weights().T())
 		if err != nil {
 			return err
 		}
-		return params.Bias.LoadTensor(l.cnntranspose.Bias().T())
+		return params.Bias.LoadTensor(handle, l.cnntranspose.Bias().T())
 	}
 	if l.activation != nil {
 
@@ -51,18 +53,18 @@ func (l *layer) loadparams(params *Params) error {
 		if l.activation.NegCoefs() == nil {
 			return errors.New("Activation doesn't have weights")
 		}
-		err = params.Weight.LoadTensor(l.activation.NegCoefs().T())
+		err = params.Weight.LoadTensor(handle, l.activation.NegCoefs().T())
 		if err != nil {
 			return err
 		}
 		if l.activation.PosCoefs() == nil {
 			return nil
 		}
-		err = params.Bias.LoadTensor(l.activation.PosCoefs().T())
+		err = params.Bias.LoadTensor(handle, l.activation.PosCoefs().T())
 		if err != nil {
 			return err
 		}
-		err = params.Xtra.LoadTensor(l.activation.Threshhold().T())
+		err = params.Xtra.LoadTensor(handle, l.activation.Threshhold().T())
 		if err != nil {
 			return err
 		}

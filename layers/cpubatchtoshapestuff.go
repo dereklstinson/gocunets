@@ -9,7 +9,7 @@ import (
 )
 
 //ShapetoBatchIOBWDCPU takes the batched IO that was created from the fwd process and replaces the delta Tensor values
-func (i *IO) ShapetoBatchIOBWDCPU(batched *IO, stride []int32) error {
+func (i *IO) ShapetoBatchIOBWDCPU(handle *cudnn.Handler, batched *IO, stride []int32) error {
 	var fmtflag cudnn.TensorFormatFlag
 	frmt, _, dimsy, err := batched.Properties()
 
@@ -40,14 +40,12 @@ func (i *IO) ShapetoBatchIOBWDCPU(batched *IO, stride []int32) error {
 	if err != nil {
 		return err
 	}
-	sizetdy, err := batched.DeltaT().Size()
-	if err != nil {
-		return err
-	}
-	if batched.managed == true {
-		gocudnn.CudaMemCopy(ptrdy, batched.dx.Memer(), sizetdy, gocudnn.MemcpyKindFlag{}.Default())
+	sizetdy := batched.DeltaT().CurrentSizeT()
+
+	if handle.Unified() == true {
+		gocudnn.CudaMemCopy(ptrdy, batched.dx.Memer(), sizetdy.Cu(), gocudnn.MemcpyKindFlag{}.Default())
 	} else {
-		gocudnn.CudaMemCopy(ptrdy, batched.dx.Memer(), sizetdy, gocudnn.MemcpyKindFlag{}.DeviceToHost())
+		gocudnn.CudaMemCopy(ptrdy, batched.dx.Memer(), sizetdy.Cu(), gocudnn.MemcpyKindFlag{}.DeviceToHost())
 	}
 
 	if frmt == fmtflag.NCHW() {
@@ -55,20 +53,21 @@ func (i *IO) ShapetoBatchIOBWDCPU(batched *IO, stride []int32) error {
 		if err != nil {
 			return err
 		}
-		return i.LoadDeltaTValues(ptrdx)
+		return i.LoadDeltaTValues(handle, ptrdx)
 
 	} else if frmt == fmtflag.NHWC() {
 		err = cpu.ShapeToBatchNHWC4DBackward(dx, dimsx, dy, dimsy, stride)
 		if err != nil {
 			return err
 		}
-		return i.LoadDeltaTValues(ptrdx)
+		return i.LoadDeltaTValues(handle, ptrdx)
 	}
 	return errors.New("Unsupported Format")
 }
 
+/*
 //ShapetoBatchIOCopyFWDCPU reshapes the makes a reshaped copy of the IO
-func (i *IO) ShapetoBatchIOCopyFWDCPU(window []int32, stride []int32) (*IO, error) {
+func (i *IO) ShapetoBatchIOCopyFWDCPU(handle *cudnn.Handler,window []int32, stride []int32) (*IO, error) {
 	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
 		return nil, err
@@ -112,7 +111,8 @@ func (i *IO) ShapetoBatchIOCopyFWDCPU(window []int32, stride []int32) (*IO, erro
 	err = newIO.LoadTValues(goptr)
 	return newIO, err
 }
-
+*/
+/*
 //ShapetoBatchIOCopyCPUWithSliceFloat32 reshapes the makes a reshaped copy of the IO
 func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(window, stride []int32) (*IO, []float32, error) {
 	frmt, dtype, dims, err := i.Properties()
@@ -158,6 +158,7 @@ func (i *IO) ShapetoBatchIOCopyCPUWithSliceFloat32(window, stride []int32) (*IO,
 	err = newIO.LoadTValues(goptr)
 	return newIO, reshapedslice, err
 }
+*/
 
 /*
 //LoadMem Replaces The memory on the device.

@@ -4,14 +4,12 @@ import (
 	"math"
 
 	"github.com/dereklstinson/GoCuNets/layers/activation"
-	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
 )
 
 //Classifier will take the outputs of a neural network and find the error of it.  To be passed back to the rest of the network.
 type Classifier struct {
 	sftmx *softmax.Layer
-	fcnn  *fcnn.Layer
 	act   *activation.Layer
 }
 

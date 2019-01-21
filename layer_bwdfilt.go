@@ -23,14 +23,6 @@ func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Malloc
 
 	}
 
-	if l.fcnn != nil {
-		err = l.fcnn.BackPropFilterData(handle, x, y)
-		if err != nil {
-			return err
-		}
-		return handle.Sync()
-	}
-
 	if l.activation != nil {
 		err = l.activation.BackProp(handle, x, y)
 		if err != nil {

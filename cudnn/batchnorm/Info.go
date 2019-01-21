@@ -18,7 +18,6 @@ type Info struct {
 	Nan               cudnn.NanMode         `json:"Nan"`
 	Dims              []int32               `json:"Dims"`
 	Stride            []int32               `json:"Stride"`
-	Unified           bool                  `json:"Unified"`
 	RRM               []float64             `json:"RRM"`
 	RRV               []float64             `json:"RRV"`
 	RSM               []float64             `json:"RSM"`
@@ -56,7 +55,6 @@ func (o *Ops) Info() (Info, error) {
 	return Info{
 		Epsilon:  o.epsilon,
 		Mode:     o.mode,
-		Unified:  o.managed,
 		DataType: cudnn.DataType(dtype),
 		Stride:   stride,
 		Dims:     dims,

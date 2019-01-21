@@ -37,7 +37,6 @@ type Layer struct {
 type convtransposemode int
 
 const (
-	convtransposetrans   = convtransposemode(1)
 	convtransposereverse = convtransposemode(2)
 )
 
@@ -55,9 +54,6 @@ func (l *Layer) Bias() *layers.IO {
 func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch l.mode {
 
-	case convtransposetrans:
-		return utils.ErrorWrapper("cnntranspose transform forward", l.tranformforward(handle, wspace, x, y))
-
 	case convtransposereverse:
 		return utils.ErrorWrapper("cnntranspose reverse forward", l.reverseForwardProp(handle, wspace, x, y))
 	}
@@ -67,9 +63,6 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 //BackPropData does the back propigation data of convolution transpose
 func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	switch l.mode {
-
-	case convtransposetrans:
-		return l.transformBackPropData(handle, wspace, x, y)
 
 	case convtransposereverse:
 		return utils.ErrorWrapper("cnntranspose reverse backdata", l.reverseBackPropData(handle, wspace, x, y))
@@ -83,9 +76,6 @@ func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 	if l.inputlayer == true {
 		switch l.mode {
 
-		case convtransposetrans:
-			return l.transformBackPropFilter(handle, wspace, x, y)
-
 		case convtransposereverse:
 			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
 		}
@@ -93,9 +83,6 @@ func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 	} else {
 
 		switch l.mode {
-
-		case convtransposetrans:
-			return l.transformBackPropFilterData(handle, wspace, x, y)
 
 		case convtransposereverse:
 			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspace, x, y))
@@ -124,19 +111,9 @@ func build(handle *cudnn.Handler,
 		return nil, err
 	}
 
-	vol, err := layers.BuildIO(frmt, dtype, upscaleddims, managedmem)
-	if err != nil {
-		return nil, err
-	}
-	reshaper, err := reshapes.Stage(handle)
-	if err != nil {
-		return nil, err
-	}
 	return &Layer{
 		conv:        conv,
 		mode:        mode,
-		trans:       reshaper,
-		hiddenmem:   vol,
 		resizeddims: upscaleddims,
 		inputlayer:  inputlayer,
 	}, nil
@@ -146,25 +123,15 @@ func build(handle *cudnn.Handler,
 func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	switch l.mode {
 
-	case convtransposetrans:
-		return l.resizeandTransformoutputdims(handle)
-
 	case convtransposereverse:
 		return l.reverseOutput(handle, input)
 	}
 	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
 
-func (l *Layer) resizeandTransformoutputdims(handle *cudnn.Handler) (*layers.IO, error) {
-	return l.conv.MakeOutputTensor(handle, l.hiddenmem)
-}
-
 //LoadTrainer loads a trainer into the layer
 func (l *Layer) LoadTrainer(handle *cudnn.Handler, wtrainer, btrainer trainer.Trainer) error {
-	if l.mode == convtransposereverse {
-		//wtrainer.SetRate(-.001)
-		//btrainer.SetRate(-.001)
-	}
+
 	return l.conv.LoadTrainer(handle, wtrainer, btrainer)
 }
 

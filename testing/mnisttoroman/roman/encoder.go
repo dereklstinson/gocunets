@@ -1,6 +1,8 @@
 package roman
 
 import (
+	"fmt"
+
 	"github.com/dereklstinson/GoCuNets/layers/batchnorm"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
@@ -148,9 +150,6 @@ func ArabicEncoder(handle *cudnn.Handler,
 	padding := utils.Dims
 	stride := utils.Dims
 	dilation := utils.Dims
-	//var tmdf gocudnn.TrainingModeFlag
-	//tmode := tmdf.Adam()
-	//var aflg gocudnn.ActivationModeFlag
 
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
@@ -158,13 +157,14 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E1  0
 	*/
-
+	fmt.Println("Add Layer 0")
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 1, 6, 6), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), memmanaged),
 	) //(28-6+4)/2 +1 = 14
 	/*
 		Activation Layer E2    1
 	*/
+	fmt.Println("Add Layer 1")
 	network.AddLayer(
 		activation.Leaky(handle),
 		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
@@ -179,9 +179,11 @@ func ArabicEncoder(handle *cudnn.Handler,
 		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
 		)
 	*/
+	fmt.Println("Add Layer 2")
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), memmanaged),
 	) //(14-6+4)/2 + 1 = 7
+	fmt.Println("Add Layer 3")
 	network.AddLayer(
 		batchnorm.PerActivationPreset(handle, memmanaged),
 		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
@@ -189,6 +191,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Activation Layer E4    3
 	*/
+	fmt.Println("Add Layer 4")
 	network.AddLayer(
 		activation.Leaky(handle),
 		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
@@ -197,10 +200,11 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Convoultion Layer E5    4
 	*/
-
+	fmt.Println("Add Layer 5")
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 5, 5), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), memmanaged),
 	) // (7 -5 +4)/2 + 1 =4
+	fmt.Println("Add Layer 6")
 	network.AddLayer(
 		batchnorm.PerActivationPreset(handle, memmanaged),
 		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
@@ -208,6 +212,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Activation Layer E6    5
 	*/
+	fmt.Println("Add Layer 7")
 	network.AddLayer(
 		activation.Leaky(handle),
 	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 7, 7}, true),
@@ -216,6 +221,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 		Convoultion Layer E7    6
 	*/
 
+	fmt.Println("Add Layer 8")
 	network.AddLayer(
 		cnn.SetupDynamic(handle, frmt, dtype, filter(codingvector, numofneurons, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
 	) // 1
@@ -223,6 +229,7 @@ func ArabicEncoder(handle *cudnn.Handler,
 	/*
 		Activation Layer MIDDLE    7
 	*/
+	fmt.Println("Add Layer 9")
 	network.AddLayer(
 
 		activation.Leaky(handle),

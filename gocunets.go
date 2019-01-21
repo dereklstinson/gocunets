@@ -63,18 +63,18 @@ type Network struct {
 	totalionetcounter int
 	err               chan error
 	position          int
-	hiomode           hiddenmode
-	resizecounter     int
-	hybridsize        int
-	reshaper          *reshape.Layer
-	resizeinput       *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
-	previousdims      []int32
-	descriminator     bool
-	l1losses          []float32
-	l2losses          []float32
-	totalionetsinit   bool
-	wtrainers         []trainer.Trainer
-	btrainers         []trainer.Trainer
+
+	resizecounter   int
+	hybridsize      int
+	reshaper        *reshape.Layer
+	resizeinput     *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
+	previousdims    []int32
+	descriminator   bool
+	l1losses        []float32
+	l2losses        []float32
+	totalionetsinit bool
+	wtrainers       []trainer.Trainer
+	btrainers       []trainer.Trainer
 }
 
 func networkerrors(err <-chan error) {
@@ -116,43 +116,6 @@ func (m *Network) TrainersNeeded() int {
 	}
 	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
 	return counter
-}
-
-type hiddenmode int
-
-const dynamichiddenio = hiddenmode(0)
-const statichiddenio = hiddenmode(1)
-const hibridhiddenio = hiddenmode(2)
-
-//DynamicHidden changes the hidden IO between layers to be dynamic  // Bad performance pretty flexable
-func (m *Network) DynamicHidden() error {
-	m.hiomode = hiddenmode(0)
-	return nil
-}
-
-//StaticHidden changes the IO between layers to be set in place //Good performance not as flexable
-func (m *Network) StaticHidden(handle *cudnn.Handler) error {
-	var flg reshape.ModeFlag
-	var err error
-	m.reshaper, err = reshape.Build(handle, flg.Resize(), nil, false)
-	if err != nil {
-		return err
-	}
-	m.hiomode = hiddenmode(1)
-	return nil
-}
-
-//HybridHidden does a static size for a certain count passed and will change the size maybe randomly (probably going to be to the first image it comes accross).
-func (m *Network) HybridHidden(handle *cudnn.Handler, hybridsize int) error {
-	var flg reshape.ModeFlag
-	var err error
-	m.reshaper, err = reshape.Build(handle, flg.Resize(), nil, false)
-	if err != nil {
-		return err
-	}
-	m.hybridsize = hybridsize
-	m.hiomode = hiddenmode(2)
-	return nil
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
@@ -246,9 +209,6 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 		}
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
-			for j := 0; j < len(m.mem); j++ {
-				m.mem[j].Destroy()
-			}
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
 		netiomem := wrapnetio(mem)
@@ -268,218 +228,46 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	}
 	return m.buildminmax(handle, false)
 }
-func (m *Network) freehiddenios() error {
-	var flag bool
-	if m.mem == nil {
-		return nil
-	}
+func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error {
+	var err error
 	for i := 0; i < len(m.mem); i++ {
-		err := m.mem[i].Destroy()
+		olddims := m.mem[i].T().Dims()
+		newdims := make([]int32, len(olddims))
+		copy(newdims, olddims)
+		newdims[0] = newinput[0]
+		//Since it should only be the batch changing we will just change the batch
+		err = m.mem[i].ResizeIO(handle, newdims)
 		if err != nil {
-			flag = true
+			return err
 		}
-	}
-	if flag == true {
-		return errors.New("Not all mem destroyed")
-	}
 
-	m.mem = nil
+	}
 	return nil
-}
-
-//Inference does the forward inference for a prebuilt Network
-func (m *Network) Inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-
-	/*
-		switch m.hiomode {
-		case dynamichiddenio:
-			_, _, xdims, err := x.Properties()
-			if err != nil {
-				return err
-			}
-			if comparedims(m.previousdims, xdims) == true {
-				return m.inference(handle, wspace, x, y)
-			}
-			m.previousdims = xdims
-			err = m.freehiddenios()
-			if err != nil {
-				return err
-			}
-			err = m.buildhiddenios(handle, x)
-			if err != nil {
-				return wraperror("dynamichiddenio", err)
-			}
-			return m.inference(handle, wspace, x, y)
-		case statichiddenio:
-			if m.resizecounter == 0 {
-				m.resizecounter++
-				err := m.freehiddenios()
-				if err != nil {
-					return wraperror("free in statichiddenio", err)
-				}
-				err = m.buildhiddenios(handle, x)
-				if err != nil {
-					return err
-				}
-
-				m.resizeinput, err = x.ZeroClone()
-				if err != nil {
-					m.resizeinput.Destroy()
-					return err
-				}
-				return m.inference(handle, wspace, x, y)
-			}
-			_, _, dimsx, err := x.Properties()
-			if err != nil {
-				return err
-			}
-			_, _, dimsre, err := m.resizeinput.Properties()
-			if err != nil {
-				return err
-			}
-			if comparedims(dimsx, dimsre) == true {
-				return m.inference(handle, wspace, x, y)
-			}
-			m.reshaper.ForwardProp(handle, x, m.resizeinput)
-			return m.inference(handle, wspace, m.resizeinput, y)
-		case hibridhiddenio:
-			m.resizecounter++
-			if m.resizecounter >= m.hybridsize {
-				m.resizecounter = 0
-				err := m.freehiddenios()
-				if err != nil {
-					return err
-				}
-				err = m.buildhiddenios(handle, x)
-				if err != nil {
-					return err
-				}
-				if m.resizeinput != nil {
-					err = m.resizeinput.Destroy()
-					if err != nil {
-						return err
-					}
-				}
-				m.resizeinput, err = x.ZeroClone()
-				if err != nil {
-					return err
-				}
-				return m.inference(handle, wspace, x, y)
-			}
-			_, _, dimsx, err := x.Properties()
-			if err != nil {
-				return err
-			}
-			_, _, dimsre, err := m.resizeinput.Properties()
-			if err != nil {
-				return err
-			}
-			if comparedims(dimsx, dimsre) == true {
-				return m.inference(handle, wspace, x, y)
-			}
-			m.reshaper.ForwardProp(handle, x, m.resizeinput)
-			return m.inference(handle, wspace, m.resizeinput, y)
-
-		}
-	*/
-	return m.inference(handle, wspace, x, y)
-	//	return errors.New("ForwardInference-Unsupported Hidden Mode")
-
 }
 
 //ForwardProp does the forward prop for a prebuilt Network
 func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	switch m.hiomode {
-	case dynamichiddenio:
-		_, _, xdims, err := x.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(m.previousdims, xdims) == true {
-			return m.forwardprop(handle, wspace, x, y)
-		}
-		m.previousdims = xdims
-		err = m.freehiddenios()
-		if err != nil {
-			return err
-		}
+	var err error
+	if m.mem == nil {
 		err = m.buildhiddenios(handle, x)
 		if err != nil {
-			return wraperror("dynamichiddenio", err)
-		}
-		return m.forwardprop(handle, wspace, x, y)
-	case statichiddenio:
-		if m.resizecounter == 0 {
-			m.resizecounter++
-			err := m.freehiddenios()
-			if err != nil {
-				return wraperror("free in statichiddenio", err)
-			}
-			err = m.buildhiddenios(handle, x)
-			if err != nil {
-				return err
-			}
-
-			m.resizeinput, err = x.ZeroClone()
-			if err != nil {
-				m.resizeinput.Destroy()
-				return err
-			}
-			return m.forwardprop(handle, wspace, x, y)
-		}
-		_, _, dimsx, err := x.Properties()
-		if err != nil {
 			return err
 		}
-		_, _, dimsre, err := m.resizeinput.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(dimsx, dimsre) == true {
-			return m.forwardprop(handle, wspace, x, y)
-		}
-		m.reshaper.ForwardProp(handle, x, m.resizeinput)
-		return m.forwardprop(handle, wspace, m.resizeinput, y)
-	case hibridhiddenio:
-		m.resizecounter++
-		if m.resizecounter >= m.hybridsize {
-			m.resizecounter = 0
-			err := m.freehiddenios()
-			if err != nil {
-				return err
-			}
-			err = m.buildhiddenios(handle, x)
-			if err != nil {
-				return err
-			}
-			if m.resizeinput != nil {
-				err = m.resizeinput.Destroy()
-				if err != nil {
-					return err
-				}
-			}
-			m.resizeinput, err = x.ZeroClone()
-			if err != nil {
-				return err
-			}
-			return m.forwardprop(handle, wspace, x, y)
-		}
-		_, _, dimsx, err := x.Properties()
-		if err != nil {
-			return err
-		}
-		_, _, dimsre, err := m.resizeinput.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(dimsx, dimsre) == true {
-			return m.forwardprop(handle, wspace, x, y)
-		}
-		m.reshaper.ForwardProp(handle, x, m.resizeinput)
-		return m.forwardprop(handle, wspace, m.resizeinput, y)
 
 	}
-	return errors.New("ForwardProp-Unsupported Hidden Mode")
+	_, _, xdims, err := x.Properties()
+	if err != nil {
+		return err
+	}
+	if comparedims(m.previousdims, xdims) == true {
+		return m.forwardprop(handle, wspace, x, y)
+	}
+	m.previousdims = xdims
+	err = m.resizehiddenios(handle, xdims)
+	if err != nil {
+		return err
+	}
+	return m.forwardprop(handle, wspace, x, y)
 
 }
 func comparedims(x, y []int32) bool {
@@ -496,97 +284,13 @@ func comparedims(x, y []int32) bool {
 
 //BackPropFilterData does the backprop of the hidden layers
 func (m *Network) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-
-	switch m.hiomode {
-	case dynamichiddenio:
-		return m.backpropfilterdata(handle, wspace, x, y)
-
-	case statichiddenio:
-		_, _, dimsx, err := x.Properties()
-		if err != nil {
-			return err
-		}
-		_, _, dimsre, err := m.resizeinput.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(dimsx, dimsre) == true {
-			return m.backpropfilterdata(handle, wspace, x, y)
-		}
-
-		err = m.backpropfilterdata(handle, wspace, m.resizeinput, y)
-		if err != nil {
-			return err
-		}
-		return m.reshaper.BackProp(handle, x, m.resizeinput)
-	case hibridhiddenio:
-		_, _, dimsx, err := x.Properties()
-		if err != nil {
-			return err
-		}
-		_, _, dimsre, err := m.resizeinput.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(dimsx, dimsre) == true {
-			return m.backpropfilterdata(handle, wspace, x, y)
-		}
-
-		err = m.backpropfilterdata(handle, wspace, m.resizeinput, y)
-		if err != nil {
-			return err
-		}
-		return m.reshaper.BackProp(handle, x, m.resizeinput)
-	}
-	return errors.New("BackProp-Unsupported Hidden Mode")
+	return m.backpropfilterdata(handle, wspace, x, y)
 
 }
 
 //BackPropData only does the data backprop
 func (m *Network) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-
-	switch m.hiomode {
-	case dynamichiddenio:
-		return m.backpropdata(handle, wspace, x, y)
-
-	case statichiddenio:
-		_, _, dimsx, err := x.Properties()
-		if err != nil {
-			return err
-		}
-		_, _, dimsre, err := m.resizeinput.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(dimsx, dimsre) == true {
-			return m.backpropdata(handle, wspace, x, y)
-		}
-
-		err = m.backpropdata(handle, wspace, m.resizeinput, y)
-		if err != nil {
-			return err
-		}
-		return m.reshaper.BackProp(handle, x, m.resizeinput)
-	case hibridhiddenio:
-		_, _, dimsx, err := x.Properties()
-		if err != nil {
-			return err
-		}
-		_, _, dimsre, err := m.resizeinput.Properties()
-		if err != nil {
-			return err
-		}
-		if comparedims(dimsx, dimsre) == true {
-			return m.backpropdata(handle, wspace, x, y)
-		}
-
-		err = m.backpropdata(handle, wspace, m.resizeinput, y)
-		if err != nil {
-			return err
-		}
-		return m.reshaper.BackProp(handle, x, m.resizeinput)
-	}
-	return errors.New("BackProp-Unsupported Hidden Mode")
+	return m.backpropdata(handle, wspace, x, y)
 
 }
 func wraperror(comment string, err error) error {

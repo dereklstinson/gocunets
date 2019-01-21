@@ -11,7 +11,6 @@ import (
 //Ops contains the operation of batchnorm.
 type Ops struct {
 	epsilon           float64
-	managed           bool
 	exponentialfactor uint
 	mode              gocudnn.BatchNormMode
 	bnsbmvd           *gocudnn.TensorD
@@ -21,7 +20,7 @@ type Ops struct {
 	rsv               *gocudnn.Malloced
 }
 
-func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD, managed bool) (*gocudnn.Malloced, error) {
+func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*gocudnn.Malloced, error) {
 	var tfuncs gocudnn.Tensor
 	dtype, _, _, err := desc.GetDescrptor()
 	if err != nil {
@@ -31,7 +30,7 @@ func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD, managed bool) (
 	if err != nil {
 		return nil, err
 	}
-	if managed == true {
+	if handle.Unified() {
 		gpumem, err := gocudnn.UnifiedMangedGlobal(sizet)
 		if err != nil {
 			return nil, err
@@ -65,6 +64,7 @@ func errorstacker(original, newerr error) error {
 	return errors.New(x + "..." + y)
 }
 
+/*
 //Free Frees the mem
 func (o *Ops) Free() error {
 	var err error
@@ -92,15 +92,15 @@ func (o *Ops) Free() error {
 	}
 	return errstack
 }
+*/
 
 //PreStageSpatial Normalization is performed over N+spatial dimensions.
 //This mode is intended for use after convolutional layers (where spatial invariance is desired).
 //In this mode the bnBias, bnScale tensor dimensions are 1xCx1x1.
-func PreStageSpatial(handle *cudnn.Handler, managed bool) (*Ops, error) {
+func PreStageSpatial(handle *cudnn.Handler) (*Ops, error) {
 	var x gocudnn.BatchNormModeFlag
 	return &Ops{
-		mode:    x.Spatial(),
-		managed: managed,
+		mode: x.Spatial(),
 	}, nil
 }
 
@@ -119,11 +119,10 @@ When Inf-s/NaN-s are present in the input data, the output in this mode is the s
 For finite but very large input values, the algorithm may encounter overflows more frequently due to a lower dynamic range and emit Inf-s/NaN-s while CUDNN_BATCHNORM_SPATIAL will produce finite results.
 The user can invoke cudnnQueryRuntimeError() to check if a numerical overflow occurred in this mode.
 */
-func PreStageSpatialPersistant(handle *cudnn.Handler, managed bool) (*Ops, error) {
+func PreStageSpatialPersistant(handle *cudnn.Handler) (*Ops, error) {
 	var x gocudnn.BatchNormModeFlag
 	return &Ops{
-		mode:    x.SpatialPersistent(),
-		managed: managed,
+		mode: x.SpatialPersistent(),
 	}, nil
 }
 
@@ -132,51 +131,49 @@ func PreStageSpatialPersistant(handle *cudnn.Handler, managed bool) (*Ops, error
 func PreStagePerActivation(handle *cudnn.Handler, managed bool) (*Ops, error) {
 	var x gocudnn.BatchNormModeFlag
 	return &Ops{
-		mode:    x.PerActivation(),
-		managed: managed,
+		mode: x.PerActivation(),
 	}, nil
 }
 
 //Stage will stage the o Ops from the prestaged function
 func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) error {
 
-	o, err := Stage(handle, x, o.mode, o.managed)
+	o, err := Stage(handle, x, o.mode)
 
 	return err
 
 }
 
 //BiasScaleProperties returns the bias and scale for the batch norm bias and scale forward and backprop
-func (o *Ops) BiasScaleProperties() (cudnn.TensorFormat, cudnn.DataType, []int32, bool) {
-	return cudnn.TensorFormat(o.bnsbmvd.Format()), cudnn.DataType(o.bnsbmvd.DataType()), o.bnsbmvd.Dims(), o.managed
+func (o *Ops) BiasScaleProperties() (cudnn.TensorFormat, cudnn.DataType, []int32) {
+	return cudnn.TensorFormat(o.bnsbmvd.Format()), cudnn.DataType(o.bnsbmvd.DataType()), o.bnsbmvd.Dims()
 }
 
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
 func Stage(handle *cudnn.Handler,
 	x *tensor.Volume,
-	mode gocudnn.BatchNormMode,
-	managed bool) (*Ops, error) {
+	mode gocudnn.BatchNormMode) (*Ops, error) {
 
 	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), mode)
 	if err != nil {
 		return nil, err
 	}
-	rrm, err := buildfromdesc(handle, bnd, managed)
+	rrm, err := buildfromdesc(handle, bnd)
 	if err != nil {
 
 		return nil, err
 	}
-	rrv, err := buildfromdesc(handle, bnd, managed)
+	rrv, err := buildfromdesc(handle, bnd)
 	if err != nil {
 
 		return nil, err
 	}
-	rsm, err := buildfromdesc(handle, bnd, managed)
+	rsm, err := buildfromdesc(handle, bnd)
 	if err != nil {
 
 		return nil, err
 	}
-	rsv, err := buildfromdesc(handle, bnd, managed)
+	rsv, err := buildfromdesc(handle, bnd)
 	if err != nil {
 
 		return nil, err
@@ -189,7 +186,6 @@ func Stage(handle *cudnn.Handler,
 		rrv:     rrv,
 		rsm:     rsm,
 		rsv:     rsv,
-		managed: managed,
 	}, nil
 
 }

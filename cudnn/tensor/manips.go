@@ -2,6 +2,7 @@ package tensor
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
@@ -11,22 +12,22 @@ import (
 
 //SetValues sets all the values in the tensor to whatever is passed. It does this by looking at the format that is held in the tensor descriptor and auto retypes it.
 func (t *Volume) SetValues(handle *cudnn.Handler, input float64) error {
-	dtype, _, _, err := t.tD.GetDescrptor()
+	dtype, _, _, err := t.current.tD.GetDescrptor()
 
 	if err != nil {
 		return err
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CDouble(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CDouble(input))
 	case t.thelp.Flgs.Data.Float():
-		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CFloat(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CFloat(input))
 	case t.thelp.Flgs.Data.Int32():
-		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CInt(input))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt8(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CInt8(input))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.SetTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CUInt8(input))
+		err = t.thelp.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CUInt8(input))
 	default:
 		return errors.New("Not supported Format to make Set All Values")
 	}
@@ -38,21 +39,21 @@ func (t *Volume) SetValues(handle *cudnn.Handler, input float64) error {
 
 //ScaleValues values will scale the values to the scalar passed
 func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
-	dtype, _, _, err := t.tD.GetDescrptor()
+	dtype, _, _, err := t.current.tD.GetDescrptor()
 	if err != nil {
 		return err
 	}
 	switch dtype {
 	case t.thelp.Flgs.Data.Double():
-		return t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CDouble(alpha))
+		return t.thelp.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CDouble(alpha))
 	case t.thelp.Flgs.Data.Float():
-		return t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CFloat(alpha))
+		return t.thelp.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CFloat(alpha))
 	case t.thelp.Flgs.Data.Int32():
-		return t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt(alpha))
+		return t.thelp.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CInt(alpha))
 	case t.thelp.Flgs.Data.Int8():
-		err = t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CInt8(alpha))
+		err = t.thelp.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CInt8(alpha))
 	case t.thelp.Flgs.Data.UInt8():
-		err = t.thelp.ScaleTensor(handle.Cudnn(), t.tD, t.memgpu, gocudnn.CUInt8(alpha))
+		err = t.thelp.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, gocudnn.CUInt8(alpha))
 
 	}
 	return errors.New("Not supported Format to make zero")
@@ -64,11 +65,11 @@ func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
 func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplier float64) error {
 	alpha := Amultiplier
 	beta := tmultiplier
-	dtype, _, _, err := t.tD.GetDescrptor()
+	dtype, _, _, err := t.current.tD.GetDescrptor()
 	if err != nil {
 		return err
 	}
-	dtypeA, _, _, err := A.tD.GetDescrptor()
+	dtypeA, _, _, err := A.current.tD.GetDescrptor()
 	if err != nil {
 		return err
 	}
@@ -98,13 +99,13 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplie
 		return errors.New("AddTo: Not supported Format to make zero")
 	}
 
-	return t.thelp.AddTensor(handle.Cudnn(), a, A.tD, A.memgpu, b, t.tD, t.memgpu)
+	return t.thelp.AddTensor(handle.Cudnn(), a, A.current.tD, A.memgpu, b, t.current.tD, t.memgpu)
 }
 
 //LoadMem will Load the mem with
-func (t *Volume) LoadMem(input gocudnn.Memer) error {
+func (t *Volume) LoadMem(handle *cudnn.Handler, input gocudnn.Memer) error {
 
-	if t.memgpu.ByteSize() != input.ByteSize() {
+	if t.CurrentSizeT() != cudnn.SizeT(input.ByteSize()) {
 		destsize := strconv.Itoa(int(t.memgpu.ByteSize()))
 		srcsize := strconv.Itoa(int(input.ByteSize()))
 		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + " " + srcsize)
@@ -114,7 +115,7 @@ func (t *Volume) LoadMem(input gocudnn.Memer) error {
 		return prependerror("LoadMem", err)
 	}
 
-	if t.managed == true {
+	if handle.Unified() {
 		return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
 
 	}
@@ -126,7 +127,7 @@ func prependerror(info string, input error) error {
 }
 
 //SetRandomNormal sets random numbers for values in volume
-func (t *Volume) SetRandomNormal(min, max float32) error {
+func (t *Volume) SetRandomNormal(handle *cudnn.Handler, min, max float32) error {
 
 	_, dtype, dims, err := t.Properties()
 	if err != nil {
@@ -151,7 +152,7 @@ func (t *Volume) SetRandomNormal(min, max float32) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return t.LoadMem(ptr)
+		return t.LoadMem(handle, ptr)
 	case t.thelp.Flgs.Data.Float():
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
@@ -161,14 +162,14 @@ func (t *Volume) SetRandomNormal(min, max float32) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return t.LoadMem(ptr)
+		return t.LoadMem(handle, ptr)
 
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")
 }
 
 //SetRandom sets Random Value to weights Double and Float datatype only supported
-func (t *Volume) SetRandom(mean, max, fanin float64) error {
+func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) error {
 	_, dtype, dims, err := t.Properties()
 	if err != nil {
 
@@ -176,10 +177,7 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 	}
 	vol := utils.FindVolumeInt32(dims, nil)
 	vol1 := int(vol)
-	size, err := t.Size()
-	if err != nil {
-		return prependerror("SetRandom", err)
-	}
+	size := t.CurrentSizeT()
 
 	switch dtype.Cu() {
 
@@ -196,7 +194,8 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
+		fmt.Println("memcopyflag-double")
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), memflag)
 	case t.thelp.Flgs.Data.Float():
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
@@ -206,12 +205,12 @@ func (t *Volume) SetRandom(mean, max, fanin float64) error {
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
+		//memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-
-		return gocudnn.CudaMemCopy(t.memgpu, ptr, size, memflag)
+		fmt.Println("memcopyflag")
+		return gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), gocudnn.MemcpyKindFlag{}.Default())
 
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")

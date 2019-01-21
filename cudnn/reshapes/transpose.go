@@ -5,7 +5,6 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //TransposeChannelForward will take a nchw and change it to a nhwc and vice-versa. Will find the transpose of x and put it in y
@@ -73,13 +72,13 @@ func (o *Ops) TransposeChannel(handle *cudnn.Handler, x *tensor.Volume) error {
 	switch xfrmt {
 	case fflg.NCHW():
 		err = o.trans.Transpose(handle.XHandle(), o.nCHWtonHWC, x.TD(), x.Memer(), y.TD(), y.Memer())
-		x.Destroy()
+		//	x.Destroy()
 		*x = *y
 		//y.Destroy()
 		return err
 	case fflg.NHWC():
 		err = o.trans.Transpose(handle.XHandle(), o.nHWCtonCHW, x.TD(), x.Memer(), y.TD(), y.Memer())
-		x.Destroy()
+		//	x.Destroy()
 		*x = *y
 		//y.Destroy()
 		return err
@@ -88,39 +87,21 @@ func (o *Ops) TransposeChannel(handle *cudnn.Handler, x *tensor.Volume) error {
 }
 
 //GetTransposeOutputProperties will get the volume of a transpose operation handled through this op
-func (o *Ops) GetTransposeOutputProperties(handle *cudnn.Handler, x *tensor.Volume) (cudnn.TensorFormat, cudnn.DataType, []int32, []int32, bool, error) {
-	xmal := x.Memer()
-	if xmal != nil {
-		var managed bool
-		var flgloc gocudnn.LocationFlag
-		if flgloc.Unified() == xmal.Stored() {
-			managed = true
-		}
-		frmt, dtype, dims, perm, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
+func (o *Ops) GetTransposeOutputProperties(handle *cudnn.Handler, x *tensor.Volume) (cudnn.TensorFormat, cudnn.DataType, []int32, []int32, error) {
 
-		return cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims, perm, managed, err
+	frmt, dtype, dims, perm, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
 
-	}
+	return cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims, perm, err
 
-	return 255, 255, nil, nil, false, errors.New("memory is nil")
 }
 
 func (o *Ops) gettransposevol(handle *cudnn.Handler, x *tensor.Volume) (*tensor.Volume, error) {
-	xmal := x.Memer()
-	if xmal != nil {
-		var managed bool
-		var flgloc gocudnn.LocationFlag
-		if flgloc.Unified() == xmal.Stored() {
-			managed = true
-		}
-		frmt, dtype, dims, _, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
-		if err != nil {
-			return nil, err
-		}
 
-		return tensor.Build(cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims, managed)
-
+	frmt, dtype, dims, _, err := o.trans.GetChannelTransposeOutputProperties(x.TD())
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errors.New("memory is nil")
+	return tensor.Build(handle, cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims)
+
 }

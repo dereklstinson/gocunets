@@ -13,7 +13,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/ui"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const ipAddress = "http://localhost" //"http://localhost"
@@ -55,21 +55,23 @@ func main() {
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
 	handles := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
+	handles.SetMaxBatch(12)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
 	handles.SetStream(stream)
 	var dataflag cudnn.DataTypeFlag
 	var convflag gocudnn.ConvolutionFlags
 	var fflag cudnn.TensorFormatFlag
+	fmt.Println("Making Encoder")
 	Encoder := roman.ArabicEncoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10, int32(metabatchsize*10), learningrates, codingvector, numofneurons, l1regularization, l2regularization)
-	utils.CheckError(Encoder.DynamicHidden())
+	fmt.Println("Making ToArabic")
 	ToArabic := roman.ArabicDecoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10, int32(metabatchsize*10), learningrates, codingvector, numofneurons, l1regularization, l2regularization)
-	utils.CheckError(ToArabic.DynamicHidden())
+	fmt.Println("Making ToRoman")
 	ToRoman := roman.RomanDecoder(handles, fflag.NCHW(), dataflag.Float(), convflag.Mode.CrossCorrelation(), true, 10, int32(metabatchsize*10), learningrates, codingvector, numofneurons, l1regularization, l2regularization)
-	utils.CheckError(ToRoman.DynamicHidden())
-	romanoutput := putintogpumemRoman(batchedoutput, []int32{10, 1, 28, 28}, fflag.NCHW(), dataflag.Float(), true)
+
+	romanoutput := putintogpumemRoman(handles, batchedoutput, []int32{10, 1, 28, 28}, fflag.NCHW(), dataflag.Float())
 	//Load the batches into gpu mem this is basically the Arabic numbers are place in arabicoutput.T() and arabicnums.DeltaT()
-	arabicoutput, arabicnums := putintogpumemArabic(batchesofinputbatches, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+	arabicoutput, arabicnums := putintogpumemArabic(handles, batchesofinputbatches, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28})
 
 	epocs := 200
 	///snapshotsize := 500
@@ -79,13 +81,13 @@ func main() {
 	utils.CheckError(err)
 
 	//Need this memory as an inbetween for the Autoencoder and Loss Function so that it can return the errors to the autoencoder
-	RomanOutput, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+	RomanOutput, err := layers.BuildIO(handles, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28})
 	utils.CheckError(err)
-	ArabicOutput, err := layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+	ArabicOutput, err := layers.BuildIO(handles, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28})
 	utils.CheckError(err)
 	chokepoint := make([]*layers.IO, len(arabicnums))
 	for i := range chokepoint {
-		chokepoint[i], err = layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, codingvector, 1, 1}, true)
+		chokepoint[i], err = layers.BuildIO(handles, fflag.NCHW(), dataflag.Float(), []int32{10, codingvector, 1, 1})
 		utils.CheckError(err)
 	}
 
@@ -106,7 +108,7 @@ func main() {
 		utils.CheckError(err)
 		//	parahandlers[i] = ui.MakeParagraphHandlerV2(imagebuffer)
 		imagehandlers[i] = ui.MakeImageHandlerV2(imagebuffer)
-		imagerlayer[i], err = layers.BuildIO(fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28}, true)
+		imagerlayer[i], err = layers.BuildIO(handles, fflag.NCHW(), dataflag.Float(), []int32{10, 1, 28, 28})
 		utils.CheckError(err)
 	}
 
@@ -147,14 +149,14 @@ func main() {
 			utils.CheckError(stream.Sync())
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
 			utils.CheckError(stream.Sync())
-			utils.CheckError(RomanOutput.LoadTValues(romanoutput.T().Memer()))
+			utils.CheckError(RomanOutput.LoadTValues(handles, romanoutput.T().Memer()))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
 			utils.CheckError(stream.Sync())
 
 			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
 			utils.CheckError(stream.Sync())
-			utils.CheckError(ArabicOutput.LoadTValues(arabicoutput[j].T().Memer()))
+			utils.CheckError(ArabicOutput.LoadTValues(handles, arabicoutput[j].T().Memer()))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
 			utils.CheckError(stream.Sync())
@@ -197,7 +199,7 @@ func main() {
 				}
 				if imagebuffer > w {
 					utils.CheckError(handles.Sync())
-					imagerlayer[k].LoadTValues(outputs[k].T().Memer())
+					imagerlayer[k].LoadTValues(handles, outputs[k].T().Memer())
 					outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5, 28, 28)
 					utils.CheckError(err)
 					imagehandlers[k].Image(outputimage)
@@ -232,25 +234,25 @@ func main() {
 
 }
 
-func putintogpumemArabic(arabic [][]float32, frmt cudnn.TensorFormat, dtype cudnn.DataType, dimsarabic []int32, memmanaged bool) (output, runs []*layers.IO) {
+func putintogpumemArabic(handles *cudnn.Handler, arabic [][]float32, frmt cudnn.TensorFormat, dtype cudnn.DataType, dimsarabic []int32) (output, runs []*layers.IO) {
 	var err error
 	runs = make([]*layers.IO, len(arabic))
 	output = make([]*layers.IO, len(arabic))
 	for i := range arabic {
-		runs[i], err = layers.BuildNetworkInputIO(frmt, dtype, dimsarabic, memmanaged)
+		runs[i], err = layers.BuildNetworkInputIO(handles, frmt, dtype, dimsarabic)
 		utils.CheckError(err)
 		ptr, err := gocudnn.MakeGoPointer(arabic[i])
 		utils.CheckError(err)
-		utils.CheckError(runs[i].LoadTValues(ptr))
-		output[i], err = layers.BuildIO(frmt, dtype, dimsarabic, memmanaged)
+		utils.CheckError(runs[i].LoadTValues(handles, ptr))
+		output[i], err = layers.BuildIO(handles, frmt, dtype, dimsarabic)
 		utils.CheckError(err)
-		utils.CheckError(output[i].LoadDeltaTValues(ptr))
+		utils.CheckError(output[i].LoadDeltaTValues(handles, ptr))
 	}
 	return output, runs
 }
-func putintogpumemRoman(romans []float32, dimsroman []int32, frmt cudnn.TensorFormat, dtype cudnn.DataType, memmanaged bool) (output *layers.IO) {
+func putintogpumemRoman(handles *cudnn.Handler, romans []float32, dimsroman []int32, frmt cudnn.TensorFormat, dtype cudnn.DataType) (output *layers.IO) {
 
-	output, err := layers.BuildNetworkOutputIOFromSlice(frmt, dtype, dimsroman, memmanaged, romans)
+	output, err := layers.BuildNetworkOutputIOFromSlice(handles, frmt, dtype, dimsroman, romans)
 	utils.CheckError(err)
 	return output
 }

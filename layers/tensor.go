@@ -3,7 +3,6 @@ package layers
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
@@ -19,8 +18,8 @@ type IO struct {
 	mindx, maxdx, avgdx, norm1dx, norm2dx *reduceop
 	input                                 bool
 	dims                                  []int32
-	managed                               bool
-	mux                                   sync.Mutex
+
+	mux sync.Mutex
 }
 
 //Settings contains the info that is needed to build an IO
@@ -41,10 +40,12 @@ type Info struct {
 	Dx           tensor.Info `json:"dX"`
 }
 
+/*
 //IsManaged returns if it is managed by cuda memory management system
 func (i *IO) IsManaged() bool {
 	return i.managed
 }
+*/
 
 //StoreDeltas will flip a flag to allow deltas to be stored on this IO.
 //Useful when training gans when you don't want the errors when training the descriminator to propigate through this.
@@ -162,44 +163,15 @@ func (i *IO) Info() (Info, error) {
 	return Info{
 		NetworkInput: i.input,
 		Dims:         i.dims,
-		Unified:      i.managed,
-		X:            x,
-		Dx:           dx,
+		//	Unified:      i.managed,
+		X:  x,
+		Dx: dx,
 	}, nil
 }
 
 //IsInput returns if it is an input
 func (i *IO) IsInput() bool {
 	return i.input
-}
-
-//CreateIOfromVolumes is a way to put a couple of volumes in there and have it fill the private properties of the IO.
-// if dx is nil then the IO will be considered a network input tensor and the backward data will not propagate through this tensor
-func CreateIOfromVolumes(x, dx *tensor.Volume) (*IO, error) {
-	if x == nil {
-		return nil, errors.New("createiofromvolumes x tensor.Volume can't be nil")
-	}
-	_, _, dims, err := x.Properties()
-	if err != nil {
-		return nil, err
-	}
-	var lcflg gocudnn.LocationFlag
-	var managed bool
-	if lcflg.Unified() == x.Memer().Stored() {
-		managed = true
-
-	}
-	var isinput bool
-	if dx == nil {
-		isinput = true
-	}
-	return &IO{
-		x:       x,
-		dx:      dx,
-		dims:    dims,
-		managed: managed,
-		input:   isinput,
-	}, nil
 }
 
 func findslide(dims []int32) []int {
@@ -292,6 +264,7 @@ func (i *IO) SetDXStatReducers(handle *cudnn.Handler) (err error) {
 	return err
 }
 
+/*
 //PlaceDeltaT will put a *tensor.Volume into the DeltaT and destroy the previous memory held in the spot
 func (i *IO) PlaceDeltaT(dT *tensor.Volume) {
 	if i.dx != nil {
@@ -308,92 +281,108 @@ func (i *IO) PlaceT(T *tensor.Volume) {
 	}
 	i.x = T
 }
+*/
 
 //ZeroClone Makes a zeroclone of the IO
-func (i *IO) ZeroClone() (*IO, error) {
+func (i *IO) ZeroClone(handle *cudnn.Handler) (*IO, error) {
 	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
 		return nil, err
 	}
 
-	return BuildIO(frmt, dtype, dims, i.IsManaged())
+	return buildIO(handle, frmt, dtype, dims, i.input)
 }
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
-func BuildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
+func BuildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
 
-	return buildIO(frmt, dtype, dims, managed, false)
+	return buildIO(handle, frmt, dtype, dims, false)
 }
 
 //BuildNormRandIO builds a regular IO with both a T tensor and a DeltaT tensor.  But the T tensor is randomized
-func BuildNormRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool) (*IO, error) {
-	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, managed, false)
+func BuildNormRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, false)
 
 }
 
 //BuildNormRandInputIO builds a regular IO but the input is set to nil
-func BuildNormRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool) (*IO, error) {
-	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, managed, true)
+func BuildNormRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true)
 
 }
-func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool, input bool) (*IO, error) {
+func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, input bool) (*IO, error) {
 	if input == true {
 
-		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, managed)
+		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed)
 		if err != nil {
 			return nil, err
 		}
 
 		return &IO{
-
-			x:       x,
-			dx:      nil,
-			input:   true,
-			managed: managed,
+			x:     x,
+			dx:    nil,
+			input: true,
 		}, nil
 
 	}
-	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, managed)
+	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed)
 	if err != nil {
 
 		return nil, err
 	}
-	dx, err := tensor.Build(frmt, dtype, dims, managed)
+	dx, err := tensor.Build(handle, frmt, dtype, dims)
 	if err != nil {
 
 		return nil, err
 	}
 	return &IO{
-		x:       x,
-		dx:      dx,
-		managed: managed,
+		x:  x,
+		dx: dx,
 	}, nil
 
 }
 
 //BuildNetworkInputHost build the input tensor to paged memory on host ram
-func BuildNetworkInputHost(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
-	x, err := tensor.BuildtoCudaHost(frmt, dtype, dims, managed)
+func BuildNetworkInputHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+	x, err := tensor.BuildtoCudaHost(handle, frmt, dtype, dims)
 	if err != nil {
 		return nil, err
 	}
 
 	return &IO{
-		x:       x,
-		dx:      nil,
-		input:   true,
-		managed: managed,
+		x:     x,
+		dx:    nil,
+		input: true,
 	}, nil
 }
 
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
-func BuildNetworkInputIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*IO, error) {
-	return buildIO(frmt, dtype, dims, managed, true)
+func BuildNetworkInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+	return buildIO(handle, frmt, dtype, dims, true)
+}
+
+//ResizeIO will resize the tensor descriptors for the volumes that reside in the IO
+func (i *IO) ResizeIO(handle *cudnn.Handler, dims []int32) error {
+	var err error
+	if i.x != nil {
+		err = i.x.ChangeDims(dims)
+		if err != nil {
+			return err
+		}
+	}
+	if i.dx != nil {
+		err = i.dx.ChangeDims(dims)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 //BuildNetworkOutputIOFromSlice will return IO with the slice put into the DeltaT() section of the IO
-func BuildNetworkOutputIOFromSlice(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool, slice []float32) (*IO, error) {
+func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, slice []float32) (*IO, error) {
 
 	chkr := int32(1)
 	for i := 0; i < len(dims); i++ {
@@ -406,20 +395,20 @@ func BuildNetworkOutputIOFromSlice(frmt cudnn.TensorFormat, dtype cudnn.DataType
 	if err != nil {
 		return nil, err
 	}
-	newio, err := BuildIO(frmt, dtype, dims, managed)
+	newio, err := BuildIO(handle, frmt, dtype, dims)
 	if err != nil {
 		return nil, err
 	}
 
-	err = newio.LoadDeltaTValues(sptr)
+	err = newio.LoadDeltaTValues(handle, sptr)
 	return newio, err
 }
 
-func buildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool, input bool) (*IO, error) {
+func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, input bool) (*IO, error) {
 
 	if input == true {
 
-		x, err := tensor.Build(frmt, dtype, dims, managed)
+		x, err := tensor.Build(handle, frmt, dtype, dims)
 		if err != nil {
 
 			return nil, err
@@ -427,34 +416,34 @@ func buildIO(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, manage
 
 		return &IO{
 
-			x:       x,
-			dx:      nil,
-			input:   true,
-			managed: managed,
+			x:     x,
+			dx:    nil,
+			input: true,
+			//	managed: managed,
 		}, nil
 
 	}
-	x, err := tensor.Build(frmt, dtype, dims, managed)
+	x, err := tensor.Build(handle, frmt, dtype, dims)
 	if err != nil {
 
 		return nil, err
 	}
-	dx, err := tensor.Build(frmt, dtype, dims, managed)
+	dx, err := tensor.Build(handle, frmt, dtype, dims)
 	if err != nil {
 
 		return nil, err
 	}
 	return &IO{
-		x:       x,
-		dx:      dx,
-		managed: managed,
+		x:  x,
+		dx: dx,
+		//managed: managed,
 	}, nil
 }
 
 //LoadTValues loads a piece of memory that was made in golang and loads into an already created tensor volume in cuda.
-func (i *IO) LoadTValues(input gocudnn.Memer) error {
+func (i *IO) LoadTValues(handle *cudnn.Handler, input gocudnn.Memer) error {
 
-	return i.x.LoadMem(input)
+	return i.x.LoadMem(handle, input)
 }
 
 //GetLength returns the length in int32
@@ -470,19 +459,15 @@ func (i *IO) GetLength() (int32, error) {
 	return mult, nil
 }
 
-//MemIsManaged will return return if the memory is handled by cuda unified memory
-func (i *IO) MemIsManaged() bool {
-	return i.managed
-}
-
 //LoadDeltaTValues loads a piece of memory that was made in golang and loads into a previously created delta tensor volume in cuda.
-func (i *IO) LoadDeltaTValues(input gocudnn.Memer) error {
+func (i *IO) LoadDeltaTValues(handle *cudnn.Handler, input gocudnn.Memer) error {
 	if i.input == true {
 		return errors.New("Can't Load any values into DeltaT because it is exclusivly an Input")
 	}
-	return i.dx.LoadMem(input)
+	return i.dx.LoadMem(handle, input)
 }
 
+/*
 //Destroy frees all the memory assaciated with the tensor inside of IO
 func (i *IO) Destroy() error {
 	var flag bool
@@ -508,3 +493,4 @@ func (i *IO) Destroy() error {
 	}
 	return nil
 }
+*/

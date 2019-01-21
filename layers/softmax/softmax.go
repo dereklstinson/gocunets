@@ -6,7 +6,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/softmax"
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is a layer that holds the algos for softmax

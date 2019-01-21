@@ -45,7 +45,7 @@ func GetTensorJSON(data []byte) (*Tensor, error) {
 }
 
 //LoadWeights loads the weights from file returns the previous Loss for the weights.  It none was saved or an error then it will return 999999999
-func (n *Network) LoadWeights(r io.Reader, size int64) (float32, error) {
+func (n *Network) LoadWeights(handle *cudnn.Handler, r io.Reader, size int64) (float32, error) {
 	var err error
 	data := make([]byte, size)
 	_, err = r.Read(data)
@@ -56,11 +56,11 @@ func (n *Network) LoadWeights(r io.Reader, size int64) (float32, error) {
 	if err != nil {
 		return 999999999, err
 	}
-	return n.LoadNetworkTensorparams(netparams)
+	return n.LoadNetworkTensorparams(handle, netparams)
 }
 
 //LoadNetworkTensorparams - Loads the weights from Networksavedtensor
-func (n *Network) LoadNetworkTensorparams(netsavedparams *NetworkSavedTensor) (float32, error) {
+func (n *Network) LoadNetworkTensorparams(handle *cudnn.Handler, netsavedparams *NetworkSavedTensor) (float32, error) {
 	if netsavedparams == nil {
 		return 99999999, errors.New("netsavedparams is nil")
 	}
@@ -69,7 +69,7 @@ func (n *Network) LoadNetworkTensorparams(netsavedparams *NetworkSavedTensor) (f
 	var err error
 	for i := range n.layer {
 		if n.layer[i].hasweights() {
-			err = n.layer[i].loadparams(netsavedparams.Layers[paramcounter])
+			err = n.layer[i].loadparams(handle, netsavedparams.Layers[paramcounter])
 			if err != nil {
 				return 0, err
 			}
@@ -222,7 +222,7 @@ func stringtodatatype(dtype string) (cudnn.DataType, error) {
 //LoadTensor will load the Tensor into a tensor.Volume passed.
 // Dims don't need to be the same, but the volume does need to be the same
 // Also Datatype Needs to be the same
-func (val *Tensor) LoadTensor(t *tensor.Volume) error {
+func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
 	var flg cudnn.DataTypeFlag
 	tdtype, err := stringtodatatype(val.Datatype)
 	if err != nil {
@@ -241,35 +241,35 @@ func (val *Tensor) LoadTensor(t *tensor.Volume) error {
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(gptr)
+		return t.LoadMem(handle, gptr)
 	case flg.Float():
 		x := utils.ToFloat32Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(gptr)
+		return t.LoadMem(handle, gptr)
 	case flg.Int32():
 		x := utils.ToInt32Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(gptr)
+		return t.LoadMem(handle, gptr)
 	case flg.Int8():
 		x := utils.ToInt8Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(gptr)
+		return t.LoadMem(handle, gptr)
 	case flg.UInt8():
 		x := utils.ToUint8Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(gptr)
+		return t.LoadMem(handle, gptr)
 	}
 	return errors.New("Unsupported Type")
 }

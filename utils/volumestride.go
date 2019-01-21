@@ -27,6 +27,25 @@ func FindStridesInt(dims []int) (strides []int) {
 	return strides
 }
 
+//FindMaxVolThroughMaxBatch through the max number of batches
+func FindMaxVolThroughMaxBatch(maxbatch int32, cdims []int32) (outmaxvol int32) {
+	maxdims := make([]int32, len(cdims))
+	copy(maxdims, cdims)
+	maxdims[0] = maxbatch
+
+	return FindVolumeInt32(maxdims, nil)
+}
+
+//FindMaxVolExtimate will return an extimated maxvol for any kind of reshape of a volume, and it will round it up to the batch size
+func FindMaxVolExtimate(pdims []int32, pmaxvol int32, cdims []int32) (outmaxvol int32) {
+	ratio := float32(pmaxvol) / float32(FindVolumeInt32(pdims, nil))
+	cvol := float32(FindVolumeInt32(cdims, nil))
+	cmaxvoldec := int32(ratio*cvol) + 1
+	batchvol := FindVolumeInt32(cdims[1:], nil)
+	cmaxvoldec += (cmaxvoldec % batchvol)
+	return cmaxvoldec
+}
+
 //FindVolumeInt32 returns the total volume in int32 if stride is nil it will find volume based purly on the dims
 func FindVolumeInt32(dims, stride []int32) int32 {
 

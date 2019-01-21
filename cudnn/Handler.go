@@ -1,14 +1,43 @@
 package cudnn
 
 import (
+	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Handler contains the handles used in gocudnn and also the xtra kernals.
 type Handler struct {
-	cudnn  *gocudnn.Handle
-	xtra   *gocudnn.XHandle
-	stream *gocudnn.Stream
+	cudnn    *gocudnn.Handle
+	xtra     *gocudnn.XHandle
+	stream   *gocudnn.Stream
+	unified  bool
+	maxbatch int32
+}
+
+//FindMaxVol will find the max vol for tensor.  This is going to hold two functions
+//pmax can be either the previous maxvol, or it could be
+func (h *Handler) FindMaxVol(outputdims []int32) int32 {
+	return utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims)
+}
+
+//SetMaxBatch sets the max batch used behind the scenes to allow dynamic resizing of tensors.
+func (h *Handler) SetMaxBatch(maxbatchsize int32) {
+	h.maxbatch = maxbatchsize
+}
+
+//FindMaxSizeT returns the max sizeT
+func (h *Handler) FindMaxSizeT(outputdims []int32) SizeT {
+	return SizeT(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims))
+}
+
+//Unified returns if the device the handler is using uses unified memory
+func (h *Handler) Unified() bool {
+	return h.unified
+}
+
+//MakeNotUnified sets unified flag for device the handler is using to false.
+func (h *Handler) MakeNotUnified() {
+	h.unified = false
 }
 
 //Cudnn returns a pointer to the cudnn handle
@@ -40,10 +69,16 @@ func (h *Handler) DeviceSync() error {
 }
 
 //CreateHandler creates a the handlers
+//The handler is used in managing memory for all the packages that use cudnn.Handler. This function will raise a flag that will tell the program
+//to use unified memory management.  If that is not wanted call MakeNotUnified immediately to turn this off.
 func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
 	err := dev.Set()
 	if err != nil {
 		panic(err)
+	}
+	var unified bool
+	if 6 < dev.Major() {
+		unified = true
 	}
 	x := gocudnn.NewHandle()
 	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
@@ -52,8 +87,9 @@ func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
 	}
 
 	return &Handler{
-		cudnn: x,
-		xtra:  y,
+		cudnn:   x,
+		xtra:    y,
+		unified: unified,
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 //WithLabels return trainingimages,traininglabels, testimages,testlabels
-func WithLabels(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
+func WithLabels(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
@@ -49,13 +49,13 @@ func WithLabels(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, me
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(handle, frmt, dtype, dims(batchsize, 1, 28, 28))
 		cherror(err)
-		err = inpt.LoadTValues(data)
+		err = inpt.LoadTValues(handle, data)
 		cherror(err)
-		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
+		ansr, err := layers.BuildIO(handle, frmt, dtype, dims(batchsize, 10, 1, 1))
 		cherror(err)
-		err = ansr.LoadDeltaTValues(label)
+		err = ansr.LoadDeltaTValues(handle, label)
 		cherror(err)
 		gputrainingdata = append(gputrainingdata, inpt)
 		gpuanswersdata = append(gpuanswersdata, ansr)
@@ -74,14 +74,14 @@ func WithLabels(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, me
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(handle, frmt, dtype, dims(batchsize, 1, 28, 28))
 		cherror(err)
-		err = inpt.LoadTValues(data)
+		err = inpt.LoadTValues(handle, data)
 		cherror(err)
 		gputestingdata = append(gputestingdata, inpt)
-		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
+		ansr, err := layers.BuildIO(handle, frmt, dtype, dims(batchsize, 10, 1, 1))
 		cherror(err)
-		err = ansr.LoadDeltaTValues(label)
+		err = ansr.LoadDeltaTValues(handle, label)
 		cherror(err)
 		gputestansdata = append(gputestansdata, ansr)
 
@@ -91,12 +91,13 @@ func WithLabels(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, me
 	return gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata
 }
 
+//Labelbatch contains the labels
 type Labelbatch struct {
 	labels [][]float32
 }
 
 //WithCPULabels return trainingimages,traininglabels, testimages,testlabels
-func WithCPULabels(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, memmanaged bool) ([]*layers.IO, []Labelbatch) {
+func WithCPULabels(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType) ([]*layers.IO, []Labelbatch) {
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
@@ -142,9 +143,9 @@ func WithCPULabels(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 		cherror(err)
 		//label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		//cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(handle, frmt, dtype, dims(batchsize, 1, 28, 28))
 		cherror(err)
-		err = inpt.LoadTValues(data)
+		err = inpt.LoadTValues(handle, data)
 		cherror(err)
 		//	ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 10, 1, 1), memmanaged)
 		//	cherror(err)

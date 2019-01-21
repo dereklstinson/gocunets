@@ -42,10 +42,11 @@ func buildnorm2reduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, e
 func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
 	frmt, dtype, dims, err := iomem.Properties()
-	managed := iomem.Unified()
 	if err != nil {
 		return nil, err
 	}
+	managed := handle.Unified()
+
 	reducedims := make([]int32, len(dims))
 
 	for i := 0; i < len(reducedims); i++ {
@@ -56,7 +57,7 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 	if err != nil {
 		return nil, err
 	}
-	mem, err := tensor.Build(frmt, dtype, reducedims, managed)
+	mem, err := tensor.Build(handle, frmt, dtype, reducedims)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +102,7 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 }
 func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume) (*reduceop, error) {
 	frmt, dtype, dims, err := iomem.Properties()
-	managed := iomem.Unified()
+	managed := handle.Unified()
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume) (*redu
 	if err != nil {
 		return nil, err
 	}
-	mem, err := tensor.Build(frmt, dtype, reducedims, managed)
+	mem, err := tensor.Build(handle, frmt, dtype, reducedims)
 	if err != nil {
 		return nil, err
 	}

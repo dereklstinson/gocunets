@@ -29,8 +29,8 @@ func Threshhold(handle *cudnn.Handler, dtype cudnn.DataType, minneg, maxneg, min
 }
 
 //MakeOutputTensor returns the output tensor, and it also builds the layer
-func (l *Layer) MakeOutputTensor(input *layers.IO) (*layers.IO, error) {
-	memmanaged := input.MemIsManaged()
+func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+	//	ratio := float32(input.T().MaxVol()) / float32(utils.FindVolumeInt32(input.T().Dims(), nil))
 	frmt, dtype, dims, err := input.Properties()
 	if err != nil {
 		return nil, err
@@ -45,21 +45,21 @@ func (l *Layer) MakeOutputTensor(input *layers.IO) (*layers.IO, error) {
 			copy(adims, dims)
 			adims[0] = 1
 			l.threshandpreludims = adims
-			l.negCoefs, err = layers.BuildIO(frmt, dtype, adims, memmanaged)
+			l.negCoefs, err = layers.BuildIO(handle, frmt, dtype, adims)
 			if err != nil {
 				return nil, err
 			}
-			l.negCoefs.T().SetRandomNormal(l.negmin, l.negmax)
-			l.posCoefs, err = layers.BuildIO(frmt, dtype, adims, memmanaged)
+			l.negCoefs.T().SetRandomNormal(handle, l.negmin, l.negmax)
+			l.posCoefs, err = layers.BuildIO(handle, frmt, dtype, adims)
 			if err != nil {
 				return nil, err
 			}
-			l.posCoefs.T().SetRandomNormal(l.posmin, l.posmax)
-			l.threshold, err = layers.BuildNetworkInputIO(frmt, dtype, adims, memmanaged)
+			l.posCoefs.T().SetRandomNormal(handle, l.posmin, l.posmax)
+			l.threshold, err = layers.BuildNetworkInputIO(handle, frmt, dtype, adims)
 			if err != nil {
 				return nil, err
 			}
-			l.threshold.T().SetRandomNormal(l.threshmin, l.threshmax)
+			l.threshold.T().SetRandomNormal(handle, l.threshmin, l.threshmax)
 		} else if utils.FindVolumeInt32(dims[1:], nil) != utils.FindVolumeInt32(l.threshandpreludims[1:], nil) {
 			return nil, errors.New("Threshhold and Prelu Function have set number of weights.  Not able to change have dynamic sizing input")
 		}
@@ -69,7 +69,7 @@ func (l *Layer) MakeOutputTensor(input *layers.IO) (*layers.IO, error) {
 		copy(adims, dims)
 		adims[0] = 1
 		if l.negCoefs == nil {
-			l.negCoefs, err = layers.BuildIO(frmt, dtype, adims, memmanaged)
+			l.negCoefs, err = layers.BuildIO(handle, frmt, dtype, adims)
 			if err != nil {
 				return nil, err
 			}
@@ -77,6 +77,6 @@ func (l *Layer) MakeOutputTensor(input *layers.IO) (*layers.IO, error) {
 			return nil, errors.New("Threshhold and Prelu Function have set number of weights.  Not able to change have dynamic sizing input")
 		}
 	}
-	return layers.BuildIO(frmt, dtype, dims, memmanaged)
+	return layers.BuildIO(handle, frmt, dtype, dims)
 
 }

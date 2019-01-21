@@ -21,14 +21,7 @@ func (l *layer) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y 
 		}
 		return handle.Sync()
 	}
-	if l.fcnn != nil {
-		err = l.fcnn.ForwardProp(handle, x, y)
 
-		if err != nil {
-			return err
-		}
-		return handle.Sync()
-	}
 	if l.drop != nil {
 		err = l.drop.ForwardProp(handle, x, y)
 		if err != nil {
@@ -98,14 +91,7 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 		}
 		return handle.Sync()
 	}
-	if l.fcnn != nil {
-		err = l.fcnn.ForwardProp(handle, x, y)
 
-		if err != nil {
-			return err
-		}
-		return handle.Sync()
-	}
 	if l.drop != nil {
 		err = l.drop.ForwardProp(handle, x, y)
 		if err != nil {

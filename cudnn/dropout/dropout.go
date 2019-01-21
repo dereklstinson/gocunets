@@ -5,7 +5,7 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Ops does the operation.  It also holds the memory to run the tensor op

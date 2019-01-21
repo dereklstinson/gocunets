@@ -4,6 +4,7 @@ package cnn
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"io"
 	"sync"
@@ -23,10 +24,10 @@ const beta2default = 1.0
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
-	conv       *convolution.Ops
-	w          *layers.IO
-	bias       *layers.IO
-	size       gocudnn.SizeT
+	conv *convolution.Ops
+	w    *layers.IO
+	bias *layers.IO
+	//size       gocudnn.SizeT
 	wspacesize gocudnn.SizeT
 	fwd        xtras
 	bwdd       xtras
@@ -60,6 +61,7 @@ func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
+//PNGimage holds an image.image
 type PNGimage struct {
 	im image.Image
 }
@@ -73,6 +75,8 @@ func (t *Params) WriteTo(w io.Writer) (int64, error) {
 	x, err := w.Write(marshed)
 	return int64(x), err
 }
+
+//PNGW returns the layers PNGimage
 func (c *Layer) PNGW() *PNGimage {
 	return &PNGimage{}
 }
@@ -143,77 +147,6 @@ func (c *Layer) Weights() *layers.IO {
 	return c.w
 }
 
-//LoadLayerStatic sets up a default layer with the weights already been made
-func LoadLayerStatic(
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
-	handle *cudnn.Handler,
-	inputdims []int32,
-	filterdims []int32,
-	convmode gocudnn.ConvolutionMode,
-	pad,
-	stride,
-	dilation []int32,
-	managedmem bool,
-	fastest bool,
-	wspacesize int,
-	weights interface{},
-	bias interface{},
-) (*Layer, error) {
-
-	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
-	if err != nil {
-		return nil, err
-	}
-	err = layer.LoadWValues(weights)
-	if err != nil {
-		return nil, err
-	}
-	err = layer.LoadBiasValues(bias)
-
-	if err != nil {
-		return nil, err
-	}
-	_, _, wdims, err := layer.w.Properties()
-	if err != nil {
-		return nil, err
-	}
-	outputdims := find4doutputdims(inputdims, wdims, pad, stride, dilation, frmt)
-	layer.wspacesize, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, wdims, wspacesize, fastest)
-	if err != nil {
-		return nil, err
-	}
-	return layer, nil
-}
-
-//LoadLayerDynamic sets up a default layer with the weights already been made
-func LoadLayerDynamic(
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
-	handle *gocudnn.Handle,
-	filterdims []int32,
-	convmode gocudnn.ConvolutionMode,
-	pad,
-	stride,
-	dilation []int32,
-	managedmem bool,
-	weights interface{},
-	bias interface{},
-) (*Layer, error) {
-
-	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
-	if err != nil {
-		return nil, err
-	}
-	err = layer.LoadWValues(weights)
-	if err != nil {
-		return nil, err
-	}
-	err = layer.LoadBiasValues(bias)
-	return layer, nil
-
-}
-
 //OutputDims will return the dims for the output
 func (c *Layer) OutputDims(inputdims []int32) []int32 {
 	if len(inputdims) != 4 {
@@ -238,17 +171,20 @@ func SetupDynamic(handle *cudnn.Handler,
 	stride,
 	dilation []int32,
 	managedmem bool) (*Layer, error) {
-	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
+		fmt.Println("Error in layer setup")
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(filterdims)
+	err = layer.MakeRandomFromFaninDims(handle, filterdims)
 	if err != nil {
+		fmt.Println("Error in randomfan int")
 		return nil, err
 	}
 
 	err = layer.bias.T().SetValues(handle, 0.0001)
 	if err != nil {
+		fmt.Println("Error in setvals")
 		return nil, err
 	}
 
@@ -270,11 +206,11 @@ func SetUpStatic(handle *cudnn.Handler,
 	fastest bool,
 	managedmem bool) (*Layer, error) {
 
-	layer, err := layersetup(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(inputdims)
+	err = layer.MakeRandomFromFaninDims(handle, inputdims)
 	if err != nil {
 		return nil, err
 	}
@@ -294,12 +230,13 @@ func SetUpStatic(handle *cudnn.Handler,
 }
 
 //MakeRandomFromFaninDims does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandomFromFaninDims(dims []int32) error {
+func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32) error {
 
 	if len(dims) < 5 {
 		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().SetRandom(0, 1.0, fanin)
+		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
+			fmt.Println("Error in set random")
 			return err
 		}
 
@@ -312,14 +249,14 @@ func (c *Layer) MakeRandomFromFaninDims(dims []int32) error {
 }
 
 //MakeRandomFromFanin does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandomFromFanin(input *layers.IO) error {
+func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO) error {
 	_, _, dims, err := input.Properties()
 	if err != nil {
 		return err
 	}
 	if len(dims) < 5 {
 		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().SetRandom(0, 1.0, fanin)
+		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
 			return err
 		}
@@ -334,6 +271,7 @@ func (c *Layer) MakeRandomFromFanin(input *layers.IO) error {
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetup(
+	handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
 	filterdims []int32,
@@ -341,28 +279,28 @@ func layersetup(
 	pad,
 	stride,
 	dialation []int32,
-	managedmem bool,
 ) (*Layer, error) {
 	conv, err := convolution.StageOperation(convmode, dtype, pad, stride, dialation)
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(frmt, dtype, filterdims, managedmem)
+	w, err := layers.BuildIO(handle, frmt, dtype, filterdims)
 	if err != nil {
 		return nil, err
 	}
-
-	sizeinbytes, err := w.T().Size()
-	if err != nil {
-		return nil, err
-	}
-	bias, err := buildbias(w, managedmem)
+	/*
+		sizeinbytes, err := w.T().Size()
+		if err != nil {
+			return nil, err
+		}
+	*/
+	bias, err := buildbias(handle, w)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Layer{
-		size: sizeinbytes,
+		//	size: sizeinbytes,
 		conv: conv,
 
 		w:    w,
@@ -441,7 +379,7 @@ for NHWC filter is KRSC
 func findoutputdim(x, w, s, p, d int32) int32 {
 	return 1 + (x+2*p-(((w-1)*d)+1))/s
 }
-func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
+func buildbias(handle *cudnn.Handler, weights *layers.IO) (*layers.IO, error) {
 	frmt, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return nil, err
@@ -452,5 +390,5 @@ func buildbias(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 		dims[i] = int32(1)
 	}
 	dims[1] = outputmaps
-	return layers.BuildIO(frmt, dtype, dims, managedmem)
+	return layers.BuildIO(handle, frmt, dtype, dims)
 }

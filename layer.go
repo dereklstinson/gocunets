@@ -10,7 +10,6 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
 	"github.com/dereklstinson/GoCuNets/layers/dropout"
-	"github.com/dereklstinson/GoCuNets/layers/fcnn"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
@@ -21,7 +20,6 @@ type layer struct {
 	name         string
 	activation   *activation.Layer
 	cnn          *cnn.Layer
-	fcnn         *fcnn.Layer
 	softmax      *softmax.Layer
 	pool         *pooling.Layer
 	drop         *dropout.Layer
@@ -34,10 +32,7 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias t
 	if l.cnn != nil {
 		return l.cnn.LoadTrainer(handle, trainerweights, trainerbias)
 	}
-	if l.fcnn != nil {
-		return l.fcnn.LoadTrainer(handle, trainerweights, trainerbias)
 
-	}
 	if l.batch != nil {
 		return l.batch.LoadTrainer(handle, trainerweights, trainerbias)
 	}
@@ -51,9 +46,7 @@ func (l *layer) needstrainer() bool {
 
 		return true
 	}
-	if l.fcnn != nil {
-		return true
-	}
+
 	if l.cnntranspose != nil {
 		return true
 	}
@@ -76,11 +69,7 @@ func wraplayer(input interface{}) (*layer, bool) { //the bool is for a counter t
 			cnn:  l,
 			name: "CNN",
 		}, true
-	case *fcnn.Layer:
-		return &layer{
-			fcnn: l,
-			name: "FCNN",
-		}, true
+
 	case *softmax.Layer:
 		return &layer{
 			softmax: l,
@@ -123,16 +112,9 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 		x, err := l.cnn.MakeOutputTensor(handle, input)
 		return x, "CNN-Output", err
 	}
-	if l.fcnn != nil {
-		_, _, dims, err := input.Properties()
-		if err != nil {
-			return nil, "", err
-		}
-		x, err := l.fcnn.MakeOutputTensor(int(dims[0]))
-		return x, "FCNN-Output", err
-	}
+
 	if l.pool != nil {
-		x, err := l.pool.MakeOutputLayer(input)
+		x, err := l.pool.MakeOutputLayer(handle, input)
 		return x, "Pooling-Output", err
 	}
 	if l.drop != nil {
@@ -142,11 +124,11 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 
 			return nil, "", err
 		}
-		x, err := input.ZeroClone()
+		x, err := input.ZeroClone(handle)
 		return x, "DropOut-Output", err
 	}
 	if l.activation != nil {
-		x, err := input.ZeroClone()
+		x, err := input.ZeroClone(handle)
 		return x, "Activation-Output", err
 	}
 	if l.batch != nil {
@@ -154,12 +136,12 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 		if err != nil {
 			return nil, "", err
 		}
-		x, err := input.ZeroClone()
+		x, err := input.ZeroClone(handle)
 		return x, "BatchNorm-Output", err
 	}
 
 	if l.softmax != nil {
-		x, err := input.ZeroClone()
+		x, err := input.ZeroClone(handle)
 		return x, "SoftMax-Output", err
 	}
 	if l.reshape != nil {
@@ -177,15 +159,9 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 	if l.cnn != nil {
 		return l.cnn.MakeOutputTensor(handle, input)
 	}
-	if l.fcnn != nil {
-		_, _, dims, err := input.Properties()
-		if err != nil {
-			return nil, err
-		}
-		return l.fcnn.MakeOutputTensor(int(dims[0]))
-	}
+
 	if l.pool != nil {
-		return l.pool.MakeOutputLayer(input)
+		return l.pool.MakeOutputLayer(handle, input)
 	}
 	if l.drop != nil {
 
@@ -194,11 +170,11 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 
 			return nil, err
 		}
-		return input.ZeroClone()
+		return input.ZeroClone(handle)
 	}
 	if l.activation != nil {
 
-		return input.ZeroClone()
+		return input.ZeroClone(handle)
 	}
 	if l.batch != nil {
 
@@ -206,11 +182,11 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 		if err != nil {
 			return nil, err
 		}
-		return input.ZeroClone()
+		return input.ZeroClone(handle)
 	}
 
 	if l.softmax != nil {
-		return input.ZeroClone()
+		return input.ZeroClone(handle)
 	}
 	if l.reshape != nil {
 		return l.reshape.MakeOutputTensor(handle, input)
@@ -227,9 +203,7 @@ func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
 	if l.cnn != nil {
 		err = l.cnn.UpdateWeights(handle, batch)
 	}
-	if l.fcnn != nil {
-		err = l.fcnn.UpdateWeights(handle, batch)
-	}
+
 	if l.cnntranspose != nil {
 		err = l.cnntranspose.UpdateWeights(handle, batch)
 
@@ -244,9 +218,7 @@ func (l *layer) l1l2loss() (l1, l2 float32) {
 	if l.cnn != nil {
 		return l.cnn.L1L2Loss()
 	}
-	if l.fcnn != nil {
-		return l.fcnn.L1L2Loss()
-	}
+
 	if l.cnntranspose != nil {
 		return l.cnntranspose.L1L2Loss()
 

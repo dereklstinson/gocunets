@@ -123,12 +123,12 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
 func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int) (image.Image, image.Image, error) {
 
-	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
+	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, nil, err
 	}
 	if im.cache == nil {
-		im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+		im.cache, err = tensor.Build(handle, frmt, dtype, dims)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -138,11 +138,8 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 			return nil, nil, err
 		}
 		if frmt != cfrmt || dtype != cdtype || utils.CompareInt32(dims, cdims) == false {
-			err = im.cache.Destroy()
-			if err != nil {
-				return nil, nil, err
-			}
-			im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+
+			im.cache, err = tensor.Build(handle, frmt, dtype, dims)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -203,13 +200,13 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
 func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int) (image.Image, error) {
 
-	frmt, dtype, dims, managed, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
+	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 
 		return nil, err
 	}
 	if im.cache == nil {
-		im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+		im.cache, err = tensor.Build(handle, frmt, dtype, dims)
 		if err != nil {
 			return nil, err
 		}
@@ -219,11 +216,8 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 			return nil, err
 		}
 		if frmt != cfrmt || dtype != cdtype || utils.CompareInt32(dims, cdims) == false {
-			err = im.cache.Destroy()
-			if err != nil {
-				return nil, err
-			}
-			im.cache, err = tensor.Build(frmt, dtype, dims, managed)
+
+			im.cache, err = tensor.Build(handle, frmt, dtype, dims)
 			if err != nil {
 				return nil, err
 			}
@@ -419,11 +413,6 @@ func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Ima
 
 	}
 
-}
-
-//Destroy destroys the cache in the imager
-func (im *Imager) Destroy() error {
-	return im.cache.Destroy()
 }
 
 func minvalue(data []float32) float32 {

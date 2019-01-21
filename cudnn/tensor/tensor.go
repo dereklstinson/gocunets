@@ -16,59 +16,34 @@ import (
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
-	tD        *gocudnn.TensorD
-	op        tensops
-	tDstrided *gocudnn.TensorD
-	fD        *gocudnn.FilterD
-	dtype     gocudnn.DataType
-	propnan   gocudnn.PropagationNAN
-	memgpu    *gocudnn.Malloced
-	frmt      gocudnn.TensorFormat
-	thelp     gocudnn.Tensor
-	fhelp     gocudnn.Filter
-	ophelp    gocudnn.OpTensor
-	randgen   *gocudnn.CuRandGenerator
-	min, max  float32
-	dims      []int32
-	strides   []int32
-	managed   bool
+	current  *tensordescriptor
+	previous []*tensordescriptor
+	memgpu   *gocudnn.Malloced
+	thelp    gocudnn.Tensor
+	fhelp    gocudnn.Filter
+	ophelp   gocudnn.OpTensor
+	randgen  *gocudnn.CuRandGenerator
+	op       tensops
+	dtype    cudnn.DataType
+	propnan  cudnn.NanMode
+	frmt     cudnn.TensorFormat
+	min, max float32
+	maxsizet cudnn.SizeT
+	maxvol   int32
+	ongpu    bool
+	//	ongpu    bool
+
 	//scalar gocudnn.CScalar
-}
-
-//DeleteMem will free the mem the tensor has for the gpu.
-func (t *Volume) DeleteMem() error {
-
-	return t.memgpu.Free()
-
-}
-
-//ReBuildMem will rebuild the gpu mem if ConncervedGPUmem was used.
-func (t *Volume) ReBuildMem() error {
-
-	err := t.memgpu.Free()
-	if err != nil {
-		return err
-	}
-	sizeT, err := t.tD.GetSizeInBytes()
-	if err != nil {
-		return err
-	}
-	if t.managed == true {
-		t.memgpu, err = gocudnn.MallocManaged(sizeT, gocudnn.ManagedMemFlag{}.Global())
-		return err
-	}
-	t.memgpu, err = gocudnn.Malloc(sizeT)
-	return err
 }
 
 //SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN
 func (t *Volume) SetPropNan() {
-	t.propnan = t.thelp.Flgs.NaN.PropagateNan()
+	t.propnan = cudnn.NanMode(t.thelp.Flgs.NaN.PropagateNan())
 }
 
 //SetNotPropNan will set the nan propigation flag to NotPropigationNan (NotPropigationNan is default)
 func (t *Volume) SetNotPropNan() {
-	t.propnan = t.thelp.Flgs.NaN.NotPropagateNan()
+	t.propnan = cudnn.NanMode(t.thelp.Flgs.NaN.NotPropagateNan())
 
 }
 
@@ -77,137 +52,78 @@ func Flags() gocudnn.TensorFlags {
 	return gocudnn.TensorFlags{}
 }
 
-//Unified returns if the memory is under the unified memory system
-func (t *Volume) Unified() bool {
-	return t.managed
-}
-
-//BuildFromTensorD will take a TensorD and the volume
-func BuildFromTensorD(desc *gocudnn.TensorD, managed bool) (*Volume, error) {
-	dtype, dims, _, err := desc.GetDescrptor()
-	if err != nil {
-		return nil, err
+//ChangeDims will change the dims of the volume. As long as they are within the max volume of the maxdims size.
+// There is also a fifo queue that this will check first of size 10 that this will check first, and move it to the front.
+func (t *Volume) ChangeDims(dims []int32) error {
+	if (utils.FindVolumeInt32(dims, nil)) > t.maxvol {
+		return errors.New("volume of dims passed are larger than the max volume for this Volume")
 	}
-	frmt, err := desc.GetFormat()
-	if err != nil {
-		return nil, err
+	var err error
+	for i := range t.previous {
+		if utils.CompareInt32(dims, t.previous[i].dims) {
+			t.current = t.previous[i]
+			firstinfirstout(t.current, t.previous[:i+1])
+			return nil
+		}
 	}
-
-	desc.DestroyDescriptor()
-
-	return build(frmt, dtype, dims, managed)
+	t.current, err = maketensordescriptor(t.frmt, t.dtype, dims)
+	if err != nil {
+		return err
+	}
+	firstinfirstout(t.current, t.previous)
+	return nil
 }
 
 //BuildtoCudaHost stores the tensor memory to paged memory
-func BuildtoCudaHost(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*Volume, error) {
-	var thelper gocudnn.Tensor
-	var fhelper gocudnn.Filter
-	if len(dims) < 4 {
-		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
+func BuildtoCudaHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, startdims []int32) (*Volume, error) {
+	previous := make([]*tensordescriptor, 10)
+	current, err := maketensordescriptor(frmt, dtype, startdims)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(dims) > 4 {
-		var newmemer *gocudnn.Malloced
-		tens, err := thelper.NewTensorNdDescriptorEx(frmt.Cu(), dtype.Cu(), dims)
+	previous[0] = current
+	sizet := handle.FindMaxSizeT(startdims)
+	maxvol := handle.FindMaxVol(startdims)
+	if handle.Unified() {
+		newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Host())
 		if err != nil {
 			return nil, err
 		}
-		filts, err := fhelper.NewFilterNdDescriptor(dtype.Cu(), frmt.Cu(), dims)
-		if err != nil {
-			return nil, err
-		}
-		tensstrided, err := thelper.NewTensorNdDescriptor(dtype.Cu(), dims, utils.FindStridesInt32(dims))
-		if err != nil {
-			return nil, err
-		}
-		size, err := tens.GetSizeInBytes()
-		if err != nil {
-			return nil, err
-		}
-		if managed == true {
-			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Host())
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			newmemer, err = gocudnn.MallocHost(size)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		err = newmemer.Set(0)
-		if err != nil {
-			newmemer.Free()
-			return nil, err
-		}
-
 		return &Volume{
-			tD:        tens,
-			tDstrided: tensstrided,
-			fD:        filts,
-			memgpu:    newmemer,
-			frmt:      frmt.Cu(),
-			dtype:     dtype.Cu(),
-			dims:      dims,
-			strides:   utils.FindStridesInt32(dims),
+			current:  current,
+			previous: previous,
+			frmt:     frmt,
+			dtype:    dtype,
+			memgpu:   newmemer,
+			maxsizet: sizet,
+			maxvol:   maxvol,
+			ongpu:    false,
 		}, nil
-
 	}
-	var newmemer *gocudnn.Malloced
-	//	var tens *gocudnn.TensorD
-	//var filts *gocudnn.FilterD
-	//var tensstrided *gocudnn.TensorD
-	//var err error
-	tens, err := thelper.NewTensor4dDescriptor(dtype.Cu(), frmt.Cu(), dims)
+	newmemer, err := gocudnn.MallocHost(sizet.Cu())
 	if err != nil {
-		return nil, err
-	}
-	tensstrided, err := thelper.NewTensor4dDescriptorEx(dtype.Cu(), dims, utils.FindStridesInt32(dims))
-	if err != nil {
-		return nil, err
-	}
-	filts, err := fhelper.NewFilter4dDescriptor(dtype.Cu(), frmt.Cu(), dims)
-	if err != nil {
-		return nil, err
-	}
-	size, err := tens.GetSizeInBytes()
-	if err != nil {
-		return nil, err
-	}
-	if managed == true {
-
-		newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Host())
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-		newmemer, err = gocudnn.MallocHost(size)
-		if err != nil {
-			return nil, err
-		}
-	}
-	err = newmemer.Set(0)
-	if err != nil {
-		newmemer.Free()
 		return nil, err
 	}
 	return &Volume{
-		tD:        tens,
-		tDstrided: tensstrided,
-		fD:        filts,
-		memgpu:    newmemer,
-		frmt:      frmt.Cu(),
-		dtype:     dtype.Cu(),
-		dims:      dims,
-		strides:   utils.FindStridesInt32(dims),
+		current:  current,
+		previous: previous,
+		frmt:     frmt,
+		dtype:    dtype,
+		memgpu:   newmemer,
+		maxsizet: sizet,
+		maxvol:   maxvol,
+		ongpu:    false,
 	}, nil
+
 }
 
-//Build creates a tensor and mallocs the memory for the tensor
-func Build(frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, managed bool) (*Volume, error) {
-	return build(frmt.Cu(), dtype.Cu(), dims, managed)
+//Build creates a tensor and mallocs the memory for the tensor. Max dims will change the amount of memory allocated to it.
+//  Technically, these are not the max dims. As long as the new dim volume is <= max dim volume.
+//If maxvol is zero or negative it will chose the max volume to be the size of the currentdims
+func Build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32) (*Volume, error) {
+
+	return build(handle, frmt, dtype, currentdims)
 }
 
 //NormalRand sets the values in the volume to some Normalized Noise
@@ -220,8 +136,8 @@ func (t *Volume) NormalRand(mean, std float32) error {
 }
 
 //BuildRandNorm sets a randomnorm volume that can have its values set to random values over and over again
-func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, managed bool) (*Volume, error) {
-	vol, err := build(frmt.Cu(), dtype.Cu(), dims, managed)
+func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32, mean, std float32, seed uint64) (*Volume, error) {
+	vol, err := build(handle, frmt, dtype, currentdims)
 	if err != nil {
 		return nil, err
 	}
@@ -244,147 +160,99 @@ func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.D
 	//vol.memgpu
 	return vol, err
 }
+func firstinfirstout(new *tensordescriptor, previous []*tensordescriptor) {
+
+	for i := len(previous) - 1; i > 0; i-- {
+		previous[i] = previous[i-1]
+
+	}
+	previous[0] = new
+
+}
 
 //Build creates a tensor and mallocs the memory for the tensor
-func build(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, managed bool) (*Volume, error) {
-	var thelper gocudnn.Tensor
-	var fhelper gocudnn.Filter
-	if len(dims) < 4 {
-		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
+func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, startdims []int32) (*Volume, error) {
+
+	previous := make([]*tensordescriptor, 10)
+	current, err := maketensordescriptor(frmt, dtype, startdims)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(dims) > 4 {
-		var newmemer *gocudnn.Malloced
-		tens, err := thelper.NewTensorNdDescriptorEx(frmt, dtype, dims)
+	previous[0] = current
+	sizet := handle.FindMaxSizeT(startdims)
+	maxvol := handle.FindMaxVol(startdims)
+	if handle.Unified() {
+		newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Global())
 		if err != nil {
 			return nil, err
 		}
-		filts, err := fhelper.NewFilterNdDescriptor(dtype, frmt, dims)
-		if err != nil {
-			return nil, err
-		}
-		tensstrided, err := thelper.NewTensorNdDescriptor(dtype, dims, utils.FindStridesInt32(dims))
-		if err != nil {
-			return nil, err
-		}
-		size, err := tens.GetSizeInBytes()
-		if err != nil {
-			return nil, err
-		}
-		if managed == true {
-			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			newmemer, err = gocudnn.Malloc(size)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		err = newmemer.Set(0)
-		if err != nil {
-			newmemer.Free()
-			return nil, err
-		}
-
 		return &Volume{
-			tD:        tens,
-			tDstrided: tensstrided,
-			fD:        filts,
-			memgpu:    newmemer,
-			frmt:      frmt,
-			dtype:     dtype,
-			dims:      dims,
-			strides:   utils.FindStridesInt32(dims),
+			current:  current,
+			previous: previous,
+			frmt:     frmt,
+			dtype:    dtype,
+			memgpu:   newmemer,
+			maxsizet: sizet,
+			maxvol:   maxvol,
+			ongpu:    true,
 		}, nil
-
 	}
-	var newmemer *gocudnn.Malloced
-	//	var tens *gocudnn.TensorD
-	//var filts *gocudnn.FilterD
-	//var tensstrided *gocudnn.TensorD
-	//var err error
-	tens, err := thelper.NewTensor4dDescriptor(dtype, frmt, dims)
+	newmemer, err := gocudnn.Malloc(sizet.Cu())
 	if err != nil {
-		return nil, err
-	}
-	tensstrided, err := thelper.NewTensor4dDescriptorEx(dtype, dims, utils.FindStridesInt32(dims))
-	if err != nil {
-		return nil, err
-	}
-	filts, err := fhelper.NewFilter4dDescriptor(dtype, frmt, dims)
-	if err != nil {
-		return nil, err
-	}
-	size, err := tens.GetSizeInBytes()
-	if err != nil {
-		return nil, err
-	}
-	if managed == true {
-
-		newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			fmt.Println("Error: Memsize -", size, ",Dims-", dims, "Dims * 4 = ", utils.FindVolumeInt32(dims, nil)*4)
-			return nil, err
-		}
-
-	} else {
-		newmemer, err = gocudnn.Malloc(size)
-		if err != nil {
-			fmt.Println("Error: Memsize -", size, ",Dims-", dims, "Dims * 4 = ", utils.FindVolumeInt32(dims, nil)*4)
-			return nil, err
-		}
-	}
-	err = newmemer.Set(0)
-	if err != nil {
-		newmemer.ByteSize()
-		fmt.Println("Error: Memsize -", size, ",Dims-", dims, "Dims * 4 = ", utils.FindVolumeInt32(dims, nil)*4)
-		fmt.Println("NewMemer Bytesize says", newmemer.ByteSize())
 		return nil, err
 	}
 	return &Volume{
-		tD:        tens,
-		tDstrided: tensstrided,
-		fD:        filts,
-		memgpu:    newmemer,
-		frmt:      frmt,
-		dtype:     dtype,
-		dims:      dims,
-		strides:   utils.FindStridesInt32(dims),
+		current:  current,
+		previous: previous,
+		frmt:     frmt,
+		dtype:    dtype,
+		memgpu:   newmemer,
+		maxsizet: sizet,
+		maxvol:   maxvol,
+		ongpu:    true,
 	}, nil
 
 }
 
 //DataType returns the datatype of the volume
 func (t *Volume) DataType() cudnn.DataType {
-	return cudnn.DataType(t.dtype)
+	return t.dtype
 }
 
 //Format returns the format of the volume
 func (t *Volume) Format() cudnn.TensorFormat {
-	return cudnn.TensorFormat(t.frmt)
+	return t.frmt
 }
 
 //TDStrided is a function that returns the strided tensor descriptor.
 func (t *Volume) TDStrided() *gocudnn.TensorD {
-	return t.tDstrided
+	return t.current.tDstrided
 }
 
 //TD returns the tensor descriptor for Tensor
 func (t *Volume) TD() *gocudnn.TensorD {
-	return t.tD
+	return t.current.tD
 }
 
 //FD returns the filter descriptor for Tensor
 func (t *Volume) FD() *gocudnn.FilterD {
-	return t.fD
+	return t.current.fD
 }
 
 //Dims returns the dims of the tensor
 func (t *Volume) Dims() []int32 {
-	return t.dims
+	return t.current.dims
+}
+
+//MaxVol Returns the MaxVol that the tensor can be built to given the memory saved to it
+func (t *Volume) MaxVol() int32 {
+	return t.maxvol
+}
+
+//MaxSizeT will return the max size in bytes that this tensor can build with
+func (t *Volume) MaxSizeT() cudnn.SizeT {
+	return t.maxsizet
 }
 
 //Memer returns the Memer for Tensor
@@ -392,106 +260,33 @@ func (t *Volume) Memer() *gocudnn.Malloced {
 	return t.memgpu
 }
 
-//Size returns the size in bytes in type gocudnn.SizeT
-func (t *Volume) Size() (gocudnn.SizeT, error) {
-	return t.tD.GetSizeInBytes()
+//CurrentSizeT returns the size in bytes for the current tensor
+func (t *Volume) CurrentSizeT() cudnn.SizeT {
+	return cudnn.SizeT(gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu()))
 }
 
 //Properties returns the properties of the tensor
 func (t *Volume) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
-	a, b, _, err := t.tD.GetDescrptor()
-	return cudnn.TensorFormat(t.frmt), cudnn.DataType(a), b, err
+	a, b, _, err := t.current.tD.GetDescrptor()
+	return t.frmt, cudnn.DataType(a), b, err
 
 }
 
 //ZeroClone returns a zero clone of the the memory
-func (t *Volume) ZeroClone() (*Volume, error) {
+func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 
-	if t.tD == nil || t.fD == nil || t.memgpu == nil {
+	if t.current.tD == nil || t.current.fD == nil || t.memgpu == nil {
 		return nil, errors.New("Tensor is nil")
 	}
-	dtype, dims, strides, err := t.tD.GetDescrptor()
-	if err != nil {
-		return nil, err
-	}
-	var strided *gocudnn.TensorD
-	var filt *gocudnn.FilterD
-	var tens *gocudnn.TensorD
-	if len(dims) > 4 {
-		tens, err = t.thelp.NewTensorNdDescriptor(dtype, dims, strides)
-		strided, err = t.thelp.NewTensorNdDescriptorEx(t.frmt, dtype, dims)
-	} else {
-		tens, err = t.thelp.NewTensor4dDescriptorEx(dtype, dims, strides)
-		strided, err = t.thelp.NewTensor4dDescriptor(dtype, t.frmt, dims)
-	}
 
-	if err != nil {
-		return nil, err
-	}
-	if len(dims) > 4 {
-		filt, err = t.fhelp.NewFilterNdDescriptor(dtype, t.frmt, dims)
-	} else {
-		filt, err = t.fhelp.NewFilter4dDescriptor(dtype, t.frmt, dims)
-	}
-	if err != nil {
-		return nil, err
-	}
-	var newmem *gocudnn.Malloced
-	if t.managed == true {
-		newmem, err = gocudnn.MallocManaged(t.memgpu.ByteSize(), gocudnn.ManagedMemFlag{}.Global())
-	} else {
-		newmem, err = gocudnn.Malloc(t.memgpu.ByteSize())
-	}
-
-	if err != nil {
-		return nil, err
-
-	}
-	err = newmem.Set(0)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Volume{tD: tens,
-		fD:        filt,
-		tDstrided: strided,
-		propnan:   t.propnan,
-		strides:   utils.FindStridesInt32(dims),
-		memgpu:    newmem,
-		dtype:     dtype,
-		dims:      dims,
-		managed:   t.managed,
-		frmt:      t.frmt}, nil
-}
-
-func destroy(t *Volume) error {
-	var flag bool
-
-	err1 := t.tD.DestroyDescriptor()
-	if err1 != nil {
-		flag = true
-	}
-	err2 := t.fD.DestroyDescriptor()
-	if err2 != nil {
-		flag = true
-	}
-	err3 := t.memgpu.Free()
-	if err3 != nil {
-		flag = true
-	}
-	err4 := t.tDstrided.DestroyDescriptor()
-
-	if flag == true {
-		return fmt.Errorf("error::TensorD: %s, FilterD: %s, TensorDstrided: %s, Memory: %s", err1, err2, err4, err3)
-	}
-	return nil
+	return build(handle, t.frmt, t.dtype, t.current.dims)
 }
 
 //arraysize will return the size of the array and will return 0 if unsupported type is used.
-func arraysize(dtype gocudnn.DataType, size gocudnn.SizeT) int {
+func arraysize(dtype cudnn.DataType, size gocudnn.SizeT) int {
 	var flg gocudnn.DataTypeFlag
 	x := int(size)
-	switch dtype {
+	switch dtype.Cu() {
 	case flg.Double():
 		return x / 8
 	case flg.Float():
@@ -507,18 +302,21 @@ func arraysize(dtype gocudnn.DataType, size gocudnn.SizeT) int {
 	}
 }
 
-//PrintUnifiedMem prints the unified Memory
-func (t *Volume) PrintUnifiedMem(comment string) error {
-	kind := gocudnn.MemcpyKindFlag{}.Default()
-	return t.printmem(comment, kind)
-}
-
-func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
+func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) error {
 	var flg gocudnn.DataTypeFlag
-	sib := t.memgpu.ByteSize()
-	as := arraysize(t.dtype, sib)
+	var sib gocudnn.SizeT
 
-	switch t.dtype {
+	var as int
+
+	if max {
+		sib = t.memgpu.ByteSize()
+		as = arraysize(t.dtype, sib)
+	} else {
+		sib = gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu())
+		as = int(utils.FindVolumeInt32(t.current.dims, t.current.dims))
+	}
+
+	switch t.dtype.Cu() {
 	case flg.Double():
 
 		array := make([]float64, as)
@@ -601,18 +399,28 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind) error {
 	return nil
 }
 
-//PrintDeviceMem Kind of a shortcut function. I would like to build a more extensive function in the future where it would just know what to do without much user input.
-func (t *Volume) PrintDeviceMem(comment string) error {
-	kind := gocudnn.MemcpyKindFlag{}.DeviceToHost()
-	return t.printmem(comment, kind)
+//PrintCurrentTensor - Prints the memory that the current tensor is using
+func (t *Volume) PrintCurrentTensor(handle *cudnn.Handler, comment string) error {
+	var kflg gocudnn.MemcpyKindFlag
+	if handle.Unified() {
+
+		return t.printmem(comment, kflg.Default(), false)
+	}
+	if t.ongpu {
+		return t.printmem(comment, kflg.DeviceToHost(), false)
+	}
+	return t.printmem(comment, kflg.HostToHost(), false)
 }
 
-//Destroy will release the memory of the tensor
-func (t *Volume) Destroy() error {
-	err := destroy(t)
-	if err != nil {
-		return err
+//PrintMaxMem prints the unified Memory
+func (t *Volume) PrintMaxMem(handle *cudnn.Handler, comment string) error {
+
+	var kflg gocudnn.MemcpyKindFlag
+	if handle.Unified() {
+		return t.printmem(comment, kflg.Default(), true)
 	}
-	t = nil
-	return nil
+	if t.ongpu {
+		return t.printmem(comment, kflg.DeviceToHost(), true)
+	}
+	return t.printmem(comment, kflg.HostToHost(), true)
 }

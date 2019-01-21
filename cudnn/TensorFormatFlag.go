@@ -1,7 +1,7 @@
 package cudnn
 
 import (
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //TensorFormat holds the tensor format flag
@@ -17,7 +17,7 @@ type TensorFormatFlag struct {
 	c gocudnn.TensorFormatFlag
 }
 
-//NCWH dictates the layout of the tensor into NCHW format
+//NCHW dictates the layout of the tensor into NCHW format
 func (t TensorFormatFlag) NCHW() TensorFormat {
 	return TensorFormat(t.c.NCHW())
 }

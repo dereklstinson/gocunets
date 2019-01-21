@@ -23,11 +23,11 @@ func SetupDynamicReverse(handle *cudnn.Handler,
 	stride,
 	dilation []int32,
 	managedmem bool) (*Layer, error) {
-	layer, err := layersetupreverse(frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	layer, err := layersetupreverse(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(filterdims)
+	err = layer.MakeRandomFromFaninDims(handle, filterdims)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,8 @@ func (c *Layer) ReverseBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Mal
 //MakeReverseOutputTensor makes the output tensor of the reverse convolution layer
 func (c *Layer) MakeReverseOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	xdims := input.T().TD().Dims()
-
+	//cvol := float32(utils.FindVolumeInt32(xdims, nil))
+	//ratio := float32(input.T().MaxVol()) / cvol
 	frmt, dtype, wdims, err := c.w.Properties()
 	if err != nil {
 		return nil, err
@@ -147,8 +148,7 @@ func (c *Layer) MakeReverseOutputTensor(handle *cudnn.Handler, input *layers.IO)
 		return nil, err
 	}
 
-	managedmem := c.w.IsManaged()
-	output, err := layers.BuildIO(frmt, dtype, dims, managedmem)
+	output, err := layers.BuildIO(handle, frmt, dtype, dims)
 	if err != nil {
 		return nil, err
 	}
@@ -191,6 +191,7 @@ func findreverseoutputdim(x, w, s, p, d int32) int32 {
 
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetupreverse(
+	handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
 	filterdims []int32,
@@ -198,22 +199,23 @@ func layersetupreverse(
 	pad,
 	stride,
 	dialation []int32,
-	managedmem bool,
+
 ) (*Layer, error) {
 	conv, err := convolution.StageOperation(convmode, dtype, pad, stride, dialation)
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(frmt, dtype, filterdims, managedmem)
+	w, err := layers.BuildIO(handle, frmt, dtype, filterdims)
 	if err != nil {
 		return nil, err
 	}
-
-	sizeinbytes, err := w.T().Size()
-	if err != nil {
-		return nil, err
-	}
-	bias, err := buildbiasreverse(w, managedmem)
+	/*
+		sizeinbytes, err := w.T().Size()
+		if err != nil {
+			return nil, err
+		}
+	*/
+	bias, err := buildbiasreverse(handle, w)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +225,7 @@ func layersetupreverse(
 	beta := 0.0
 	beta2 := 0.0
 	return &Layer{
-		size: sizeinbytes,
+		//size: sizeinbytes,
 		conv: conv,
 
 		w:    w,
@@ -246,7 +248,7 @@ func layersetupreverse(
 		datatype: dtype,
 	}, nil
 }
-func buildbiasreverse(weights *layers.IO, managedmem bool) (*layers.IO, error) {
+func buildbiasreverse(handle *cudnn.Handler, weights *layers.IO) (*layers.IO, error) {
 	frmt, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return nil, err
@@ -257,5 +259,5 @@ func buildbiasreverse(weights *layers.IO, managedmem bool) (*layers.IO, error) {
 		dims[i] = int32(1)
 	}
 	dims[1] = outputmaps
-	return layers.BuildIO(frmt, dtype, dims, managedmem)
+	return layers.BuildIO(handle, frmt, dtype, dims)
 }

@@ -18,30 +18,30 @@ func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
 */
 
 //LoadWValues will load a slice into cuda memory for the Weights.
-func (c *Layer) LoadWValues(slice interface{}) error {
+func (c *Layer) LoadWValues(handle *cudnn.Handler, slice interface{}) error {
 	ptr, err := gocudnn.MakeGoPointer(slice)
 	if err != nil {
 		return err
 	}
-	return c.w.LoadTValues(ptr)
+	return c.w.LoadTValues(handle, ptr)
 }
 
 //LoadBiasValues will load a slice into cuda memory for the Weights.
-func (c *Layer) LoadBiasValues(slice interface{}) error {
+func (c *Layer) LoadBiasValues(handle *cudnn.Handler, slice interface{}) error {
 	ptr, err := gocudnn.MakeGoPointer(slice)
 	if err != nil {
 		return err
 	}
-	return c.bias.LoadTValues(ptr)
+	return c.bias.LoadTValues(handle, ptr)
 }
 
 //LoaddWValues will load a slice into cuda memory for the delta Weights.
-func (c *Layer) LoaddWValues(slice interface{}) error {
+func (c *Layer) LoaddWValues(handle *cudnn.Handler, slice interface{}) error {
 	ptr, err := gocudnn.MakeGoPointer(slice)
 	if err != nil {
 		return err
 	}
-	return c.w.LoadDeltaTValues(ptr)
+	return c.w.LoadDeltaTValues(handle, ptr)
 }
 
 /*
@@ -95,6 +95,7 @@ func (c *Layer) SetupDWStatReducers(handle *cudnn.Handler) (err error) {
 Weights
 
 */
+
 //WMax returns the Max weight value for the layer.
 func (c *Layer) WMax(handle *cudnn.Handler) (float32, error) {
 	return c.w.MaxX(handle)

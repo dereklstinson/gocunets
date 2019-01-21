@@ -10,7 +10,7 @@ import (
 )
 
 //WithLabels11Gan return trainingimages,traininglabels, testimages,testlabels
-func WithLabels11Gan(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
+func WithLabels11Gan(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType, memmanaged bool) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
 	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST11gan(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
@@ -49,13 +49,13 @@ func WithLabels11Gan(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(handle, frmt, dtype, dims(batchsize, 1, 28, 28))
 		cherror(err)
-		err = inpt.LoadTValues(data)
+		err = inpt.LoadTValues(handle, data)
 		cherror(err)
-		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 11, 1, 1), memmanaged)
+		ansr, err := layers.BuildIO(handle, frmt, dtype, dims(batchsize, 11, 1, 1))
 		cherror(err)
-		err = ansr.LoadDeltaTValues(label)
+		err = ansr.LoadDeltaTValues(handle, label)
 		cherror(err)
 		gputrainingdata = append(gputrainingdata, inpt)
 		gpuanswersdata = append(gpuanswersdata, ansr)
@@ -74,14 +74,14 @@ func WithLabels11Gan(batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 		cherror(err)
 		label, err := gocudnn.MakeGoPointer(batchlabelslice)
 		cherror(err)
-		inpt, err := layers.BuildNetworkInputIO(frmt, dtype, dims(batchsize, 1, 28, 28), memmanaged)
+		inpt, err := layers.BuildNetworkInputIO(handle, frmt, dtype, dims(batchsize, 1, 28, 28))
 		cherror(err)
-		err = inpt.LoadTValues(data)
+		err = inpt.LoadTValues(handle, data)
 		cherror(err)
 		gputestingdata = append(gputestingdata, inpt)
-		ansr, err := layers.BuildIO(frmt, dtype, dims(batchsize, 11, 1, 1), memmanaged)
+		ansr, err := layers.BuildIO(handle, frmt, dtype, dims(batchsize, 11, 1, 1))
 		cherror(err)
-		err = ansr.LoadDeltaTValues(label)
+		err = ansr.LoadDeltaTValues(handle, label)
 		cherror(err)
 		gputestansdata = append(gputestansdata, ansr)
 

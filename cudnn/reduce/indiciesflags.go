@@ -1,7 +1,7 @@
 package reduce
 
 import (
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //IndiciesMode ris used for glags

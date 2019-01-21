@@ -5,7 +5,7 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.

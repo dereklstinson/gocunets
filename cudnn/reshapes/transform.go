@@ -4,7 +4,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //TransformForward fills tensor y with x to the best of its ability.
