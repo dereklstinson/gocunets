@@ -233,7 +233,7 @@ func SetUpStatic(handle *cudnn.Handler,
 func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32) error {
 
 	if len(dims) < 5 {
-		fmt.Println(dims)
+
 		fanin := float64(dims[1] * dims[2] * dims[3])
 		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {

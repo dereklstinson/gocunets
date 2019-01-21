@@ -55,7 +55,7 @@ func main() {
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
 	handles := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
-	handles.SetMaxBatch(10)
+	handles.SetMaxBatch(11)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
 	handles.SetStream(stream)
@@ -200,8 +200,10 @@ func main() {
 				if imagebuffer > w {
 					utils.CheckError(handles.Sync())
 					imagerlayer[k].LoadTValues(handles, outputs[k].T().Memer())
+					utils.CheckError(handles.Sync())
 					outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5, 28, 28)
 					utils.CheckError(err)
+					utils.CheckError(handles.Sync())
 					imagehandlers[k].Image(outputimage)
 
 				}

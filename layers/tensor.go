@@ -400,7 +400,9 @@ func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt cudnn.TensorForma
 	if chkr != int32(len(slice)) {
 		return nil, errors.New("Slice passed length don't match dim volume")
 	}
-	sptr, err := gocudnn.MakeGoPointer(slice)
+	slice2 := make([]float32, handle.FindMaxVol(dims))
+	copy(slice2, slice)
+	sptr, err := gocudnn.MakeGoPointer(slice2)
 	if err != nil {
 		return nil, err
 	}

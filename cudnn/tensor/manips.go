@@ -105,10 +105,13 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplie
 //LoadMem will Load the mem with
 func (t *Volume) LoadMem(handle *cudnn.Handler, input gocudnn.Memer) error {
 
-	if t.CurrentSizeT() != cudnn.SizeT(input.ByteSize()) {
+	if t.memgpu.ByteSize() < (input.ByteSize()) {
+
 		destsize := strconv.Itoa(int(t.memgpu.ByteSize()))
 		srcsize := strconv.Itoa(int(input.ByteSize()))
-		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + " " + srcsize)
+		currentsize := strconv.Itoa(int(t.CurrentSizeT()))
+
+		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + " " + srcsize + "  " + currentsize)
 	}
 	kind, err := gocudnn.MemCpyDeterminer(input, t.memgpu)
 	if err != nil {
@@ -116,10 +119,10 @@ func (t *Volume) LoadMem(handle *cudnn.Handler, input gocudnn.Memer) error {
 	}
 
 	if handle.Unified() {
-		return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
+		return gocudnn.CudaMemCopy(t.memgpu, input, t.CurrentSizeT().Cu(), gocudnn.MemcpyKindFlag{}.Default())
 
 	}
-	return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), kind)
+	return gocudnn.CudaMemCopy(t.memgpu, input, t.CurrentSizeT().Cu(), kind)
 
 }
 func prependerror(info string, input error) error {
@@ -197,13 +200,13 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 		fmt.Println("memcopyflag-double")
 		return gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), memflag)
 	case t.thelp.Flgs.Data.Float():
-		fmt.Println("Going Into Float")
+
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
 
 			randomizedvol[i] = float32(utils.RandWeightSet(mean, max, fanin))
 		}
-		fmt.Println("Making Go Pointer")
+
 		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
 		if err != nil {
 			fmt.Println("GOPOINTER ERROR")
