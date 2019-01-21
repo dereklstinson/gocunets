@@ -166,12 +166,12 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 	}
 
 	frmt, dtype, dims := l.b.BiasScaleProperties()
-	l.bias, err = layers.BuildIO(handle, frmt, dtype, dims)
+	l.bias, err = layers.BuildIOWeights(handle, frmt, dtype, dims)
 	if err != nil {
 		fmt.Println("Creating Bias mem...Dims are:", dims)
 		return err
 	}
-	l.scale, err = layers.BuildIO(handle, frmt, dtype, dims)
+	l.scale, err = layers.BuildIOWeights(handle, frmt, dtype, dims)
 	if err != nil {
 		fmt.Println("Creating scale mem...Dims are:", dims)
 		return err

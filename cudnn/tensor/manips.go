@@ -197,20 +197,31 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 		fmt.Println("memcopyflag-double")
 		return gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), memflag)
 	case t.thelp.Flgs.Data.Float():
+		fmt.Println("Going Into Float")
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
+
 			randomizedvol[i] = float32(utils.RandWeightSet(mean, max, fanin))
 		}
+		fmt.Println("Making Go Pointer")
 		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
 		if err != nil {
+			fmt.Println("GOPOINTER ERROR")
 			return prependerror("SetRandom", err)
 		}
 		//memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		fmt.Println("memcopyflag")
-		return gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), gocudnn.MemcpyKindFlag{}.Default())
+		err = gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), gocudnn.MemcpyKindFlag{}.Default())
+		if err != nil {
+			fmt.Println("Size Value is ", size)
+			fmt.Println("Size of vol is ", vol)
+			fmt.Println("Vol * 4 is ", vol*4)
+			fmt.Println("t.memgpu is", t.memgpu)
+			return err
+		}
+		return nil
 
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")

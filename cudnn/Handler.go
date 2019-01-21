@@ -27,7 +27,7 @@ func (h *Handler) SetMaxBatch(maxbatchsize int32) {
 
 //FindMaxSizeT returns the max sizeT
 func (h *Handler) FindMaxSizeT(outputdims []int32) SizeT {
-	return SizeT(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims))
+	return SizeT(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims) * 4)
 }
 
 //Unified returns if the device the handler is using uses unified memory

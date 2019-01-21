@@ -233,9 +233,12 @@ func SetUpStatic(handle *cudnn.Handler,
 func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32) error {
 
 	if len(dims) < 5 {
+		fmt.Println(dims)
 		fanin := float64(dims[1] * dims[2] * dims[3])
 		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
+			fmt.Println("dims are", dims)
+			fmt.Println("fanin is:", fanin)
 			fmt.Println("Error in set random")
 			return err
 		}
@@ -284,7 +287,7 @@ func layersetup(
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(handle, frmt, dtype, filterdims)
+	w, err := layers.BuildIOWeights(handle, frmt, dtype, filterdims)
 	if err != nil {
 		return nil, err
 	}
@@ -390,5 +393,5 @@ func buildbias(handle *cudnn.Handler, weights *layers.IO) (*layers.IO, error) {
 		dims[i] = int32(1)
 	}
 	dims[1] = outputmaps
-	return layers.BuildIO(handle, frmt, dtype, dims)
+	return layers.BuildIOWeights(handle, frmt, dtype, dims)
 }

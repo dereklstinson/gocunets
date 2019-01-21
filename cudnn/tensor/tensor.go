@@ -31,6 +31,7 @@ type Volume struct {
 	maxsizet cudnn.SizeT
 	maxvol   int32
 	ongpu    bool
+	weights  bool
 	//	ongpu    bool
 
 	//scalar gocudnn.CScalar
@@ -123,7 +124,12 @@ func BuildtoCudaHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn
 //If maxvol is zero or negative it will chose the max volume to be the size of the currentdims
 func Build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32) (*Volume, error) {
 
-	return build(handle, frmt, dtype, currentdims)
+	return build(handle, frmt, dtype, currentdims, false)
+}
+
+//BuildWeights builds the weights
+func BuildWeights(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32) (*Volume, error) {
+	return build(handle, frmt, dtype, currentdims, true)
 }
 
 //NormalRand sets the values in the volume to some Normalized Noise
@@ -137,7 +143,7 @@ func (t *Volume) NormalRand(mean, std float32) error {
 
 //BuildRandNorm sets a randomnorm volume that can have its values set to random values over and over again
 func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32, mean, std float32, seed uint64) (*Volume, error) {
-	vol, err := build(handle, frmt, dtype, currentdims)
+	vol, err := build(handle, frmt, dtype, currentdims, false)
 	if err != nil {
 		return nil, err
 	}
@@ -171,8 +177,93 @@ func firstinfirstout(new *tensordescriptor, previous []*tensordescriptor) {
 }
 
 //Build creates a tensor and mallocs the memory for the tensor
-func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, startdims []int32) (*Volume, error) {
+func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, startdims []int32, weights bool) (*Volume, error) {
+	switch weights {
+	case true:
+		previous := make([]*tensordescriptor, 10)
+		current, err := maketensordescriptor(frmt, dtype, startdims)
+		if err != nil {
+			return nil, err
+		}
 
+		previous[0] = current
+
+		sizet := gocudnn.FindSizeTfromVol(startdims, dtype.Cu())
+		if handle.Unified() {
+			newmemer, err := gocudnn.MallocManaged(sizet, gocudnn.ManagedMemFlag{}.Global())
+			if err != nil {
+				return nil, err
+			}
+			return &Volume{
+				current:  current,
+				previous: previous,
+				frmt:     frmt,
+				dtype:    dtype,
+				memgpu:   newmemer,
+				maxsizet: cudnn.SizeT(sizet),
+				maxvol:   utils.FindVolumeInt32(startdims, nil),
+				ongpu:    true,
+				weights:  weights,
+			}, nil
+		}
+		newmemer, err := gocudnn.Malloc(sizet)
+		if err != nil {
+			return nil, err
+		}
+		return &Volume{
+			current:  current,
+			previous: previous,
+			frmt:     frmt,
+			dtype:    dtype,
+			memgpu:   newmemer,
+			maxsizet: cudnn.SizeT(sizet),
+			maxvol:   utils.FindVolumeInt32(startdims, nil),
+			ongpu:    true,
+			weights:  weights,
+		}, nil
+	case false:
+		previous := make([]*tensordescriptor, 10)
+		current, err := maketensordescriptor(frmt, dtype, startdims)
+		if err != nil {
+			return nil, err
+		}
+
+		previous[0] = current
+		sizet := handle.FindMaxSizeT(startdims)
+		maxvol := handle.FindMaxVol(startdims)
+		if handle.Unified() {
+			newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Global())
+			if err != nil {
+				return nil, err
+			}
+			return &Volume{
+				current:  current,
+				previous: previous,
+				frmt:     frmt,
+				dtype:    dtype,
+				memgpu:   newmemer,
+				maxsizet: sizet,
+				maxvol:   maxvol,
+				ongpu:    true,
+				weights:  weights,
+			}, nil
+		}
+		newmemer, err := gocudnn.Malloc(sizet.Cu())
+		if err != nil {
+			return nil, err
+		}
+		return &Volume{
+			current:  current,
+			previous: previous,
+			frmt:     frmt,
+			dtype:    dtype,
+			memgpu:   newmemer,
+			maxsizet: sizet,
+			maxvol:   maxvol,
+			ongpu:    true,
+			weights:  weights,
+		}, nil
+	}
 	previous := make([]*tensordescriptor, 10)
 	current, err := maketensordescriptor(frmt, dtype, startdims)
 	if err != nil {
@@ -196,6 +287,7 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 			maxsizet: sizet,
 			maxvol:   maxvol,
 			ongpu:    true,
+			weights:  weights,
 		}, nil
 	}
 	newmemer, err := gocudnn.Malloc(sizet.Cu())
@@ -211,6 +303,7 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 		maxsizet: sizet,
 		maxvol:   maxvol,
 		ongpu:    true,
+		weights:  weights,
 	}, nil
 
 }
@@ -279,7 +372,7 @@ func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 		return nil, errors.New("Tensor is nil")
 	}
 
-	return build(handle, t.frmt, t.dtype, t.current.dims)
+	return build(handle, t.frmt, t.dtype, t.current.dims, t.weights)
 }
 
 //arraysize will return the size of the array and will return 0 if unsupported type is used.

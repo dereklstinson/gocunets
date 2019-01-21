@@ -205,7 +205,7 @@ func layersetupreverse(
 	if err != nil {
 		return nil, err
 	}
-	w, err := layers.BuildIO(handle, frmt, dtype, filterdims)
+	w, err := layers.BuildIOWeights(handle, frmt, dtype, filterdims)
 	if err != nil {
 		return nil, err
 	}
@@ -259,5 +259,5 @@ func buildbiasreverse(handle *cudnn.Handler, weights *layers.IO) (*layers.IO, er
 		dims[i] = int32(1)
 	}
 	dims[1] = outputmaps
-	return layers.BuildIO(handle, frmt, dtype, dims)
+	return layers.BuildIOWeights(handle, frmt, dtype, dims)
 }

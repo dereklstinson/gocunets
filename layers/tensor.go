@@ -18,8 +18,8 @@ type IO struct {
 	mindx, maxdx, avgdx, norm1dx, norm2dx *reduceop
 	input                                 bool
 	dims                                  []int32
-
-	mux sync.Mutex
+	weights                               bool
+	mux                                   sync.Mutex
 }
 
 //Settings contains the info that is needed to build an IO
@@ -290,13 +290,22 @@ func (i *IO) ZeroClone(handle *cudnn.Handler) (*IO, error) {
 		return nil, err
 	}
 
-	return buildIO(handle, frmt, dtype, dims, i.input)
+	return buildIO(handle, frmt, dtype, dims, i.input, i.weights)
+}
+
+func BuildIOWeightsT(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+	return buildIO(handle, frmt, dtype, dims, true, true)
+}
+
+//BuildIOWeights builds the weights for the IO
+func BuildIOWeights(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+	return buildIO(handle, frmt, dtype, dims, false, true)
 }
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
 func BuildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
 
-	return buildIO(handle, frmt, dtype, dims, false)
+	return buildIO(handle, frmt, dtype, dims, false, false)
 }
 
 //BuildNormRandIO builds a regular IO with both a T tensor and a DeltaT tensor.  But the T tensor is randomized
@@ -359,7 +368,7 @@ func BuildNetworkInputHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
 func BuildNetworkInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
-	return buildIO(handle, frmt, dtype, dims, true)
+	return buildIO(handle, frmt, dtype, dims, true, false)
 }
 
 //ResizeIO will resize the tensor descriptors for the volumes that reside in the IO
@@ -404,10 +413,21 @@ func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt cudnn.TensorForma
 	return newio, err
 }
 
-func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, input bool) (*IO, error) {
+func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, input, weights bool) (*IO, error) {
 
-	if input == true {
+	if input {
+		if weights {
+			x, err := tensor.BuildWeights(handle, frmt, dtype, dims)
+			if err != nil {
 
+				return nil, err
+			}
+
+			return &IO{
+				x: x,
+				//managed: managed,
+			}, nil
+		}
 		x, err := tensor.Build(handle, frmt, dtype, dims)
 		if err != nil {
 
@@ -422,6 +442,23 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 			//	managed: managed,
 		}, nil
 
+	}
+	if weights {
+		x, err := tensor.BuildWeights(handle, frmt, dtype, dims)
+		if err != nil {
+
+			return nil, err
+		}
+		dx, err := tensor.BuildWeights(handle, frmt, dtype, dims)
+		if err != nil {
+
+			return nil, err
+		}
+		return &IO{
+			x:  x,
+			dx: dx,
+			//managed: managed,
+		}, nil
 	}
 	x, err := tensor.Build(handle, frmt, dtype, dims)
 	if err != nil {
