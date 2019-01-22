@@ -55,7 +55,7 @@ func main() {
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
 	handles := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
-	handles.SetMaxBatch(11)
+	handles.SetMaxBatch(20)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
 	handles.SetStream(stream)

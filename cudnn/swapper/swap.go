@@ -22,12 +22,12 @@ func CreateSwapper(handle *cudnn.Handler) (*Swapper, error) {
 	}, nil
 }
 
-//EveryOther swaps either the even or odd of every other batch between two tensors
-func (s *Swapper) EveryOther(handle *cudnn.Handler, A, B *tensor.Volume, even bool) error {
-	return s.swap.EveryOther(handle.XHandle(), A.TD(), A.Memer(), B.TD(), B.Memer(), even)
+//EveryOther swaps either the even or odd of every other batch between two tensors supports float and int8
+func (s *Swapper) EveryOther(handle *cudnn.Handler, A, B *tensor.Volume, start, stride int32) error {
+	return s.swap.EveryOther(handle.XHandle(), A.TD(), A.Memer(), B.TD(), B.Memer(), start, stride)
 }
 
-//UpperLower swaps either the upper or lower half of the batches between to tensors
+//UpperLower swaps either the upper or lower half of the batches between to tensors  supports float and int8
 func (s *Swapper) UpperLower(handle *cudnn.Handler, A, B *tensor.Volume, Aupper, Bupper, inverse bool) error {
 	return s.swap.UpperLower(handle.XHandle(), A.TD(), A.Memer(), B.TD(), B.Memer(), Aupper, Bupper, inverse)
 }

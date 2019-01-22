@@ -215,7 +215,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 		if err != nil {
 			return nil, err
 		}
-		if frmt != cfrmt || dtype != cdtype || utils.CompareInt32(dims, cdims) == false {
+		if frmt != cfrmt || dtype != cdtype || !utils.CompareInt32(dims, cdims) {
 
 			im.cache, err = tensor.Build(handle, frmt, dtype, dims)
 			if err != nil {

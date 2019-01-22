@@ -249,27 +249,43 @@ func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error
 func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	if m.mem == nil {
+		fmt.Println("Mem is nil")
 		err = m.buildhiddenios(handle, x)
 		if err != nil {
+			fmt.Println("Error in building hidden os")
 			return err
 		}
+		return m.forwardprop(handle, wspace, x, y)
 
 	}
 	_, _, xdims, err := x.Properties()
 	if err != nil {
 		return err
 	}
-	if comparedims(m.previousdims, xdims) == true {
-		return m.forwardprop(handle, wspace, x, y)
+	if comparedims(m.previousdims, xdims) {
+		err = m.forwardprop(handle, wspace, x, y)
+		if err != nil {
+			fmt.Println("Error in doing the forward prop after compair dims")
+			return err
+		}
+		return nil
 	}
+
 	m.previousdims = xdims
 	err = m.resizehiddenios(handle, xdims)
 	if err != nil {
+		fmt.Println("Error in resize hiddenios")
 		return err
 	}
-	return m.forwardprop(handle, wspace, x, y)
+	err = m.forwardprop(handle, wspace, x, y)
+	if err != nil {
+		fmt.Println("Error in doing the forward prop after resize")
+	}
+
+	return nil
 
 }
+
 func comparedims(x, y []int32) bool {
 	if len(x) != len(y) {
 		return false

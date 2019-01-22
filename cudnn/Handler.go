@@ -17,6 +17,9 @@ type Handler struct {
 //FindMaxVol will find the max vol for tensor.  This is going to hold two functions
 //pmax can be either the previous maxvol, or it could be
 func (h *Handler) FindMaxVol(outputdims []int32) int32 {
+	if h.maxbatch <= 0 {
+		utils.FindVolumeInt32(outputdims, nil)
+	}
 	return utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims)
 }
 
@@ -27,6 +30,9 @@ func (h *Handler) SetMaxBatch(maxbatchsize int32) {
 
 //FindMaxSizeT returns the max sizeT
 func (h *Handler) FindMaxSizeT(outputdims []int32) SizeT {
+	if h.maxbatch <= 0 {
+		return SizeT(utils.FindVolumeInt32(outputdims, nil) * 4)
+	}
 	return SizeT(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims) * 4)
 }
 
@@ -87,9 +93,10 @@ func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
 	}
 
 	return &Handler{
-		cudnn:   x,
-		xtra:    y,
-		unified: unified,
+		cudnn:    x,
+		xtra:     y,
+		unified:  unified,
+		maxbatch: 0,
 	}
 }
 
