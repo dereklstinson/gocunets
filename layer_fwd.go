@@ -158,8 +158,9 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 	}
 	if l.batch != nil {
 		err = l.batch.ForwardProp(handle, x, y)
-		fmt.Println("Error in Transpose ForwardProp ")
+
 		if err != nil {
+			fmt.Println("Error In Batch ")
 			return err
 		}
 		err = handle.Sync()
@@ -177,6 +178,7 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 		err = handle.Sync()
 		if err != nil {
 			fmt.Println("Sync Error in CnnTranspose")
+			return err
 		}
 		return nil
 	}

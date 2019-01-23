@@ -378,6 +378,14 @@ func (t *Volume) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, erro
 
 }
 
+//FillSlice will fill the slice
+func (t *Volume) FillSlice(input interface{}, length int32) error {
+	if utils.FindVolumeInt32(t.current.dims, nil) != length {
+		return errors.New("Slice Doesn't Match Length of input")
+	}
+	return t.memgpu.FillSlice(input)
+}
+
 //ZeroClone returns a zero clone of the the memory
 func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 

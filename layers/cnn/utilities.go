@@ -2,7 +2,6 @@ package cnn
 
 import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 /*
@@ -18,22 +17,25 @@ func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
 */
 
 //LoadWValues will load a slice into cuda memory for the Weights.
-func (c *Layer) LoadWValues(handle *cudnn.Handler, slice interface{}) error {
-	ptr, err := gocudnn.MakeGoPointer(slice)
-	if err != nil {
-		return err
-	}
-	return c.w.LoadTValues(handle, ptr)
+func (c *Layer) LoadWValues(handle *cudnn.Handler, slice interface{}, length int) error {
+	/*	ptr, err := gocudnn.MakeGoPointer(slice)
+		if err != nil {
+			return err
+		}
+	*/
+	return c.w.LoadTValuesFromGoSlice(handle, slice, int32(length))
 }
 
 //LoadBiasValues will load a slice into cuda memory for the Weights.
-func (c *Layer) LoadBiasValues(handle *cudnn.Handler, slice interface{}) error {
-	ptr, err := gocudnn.MakeGoPointer(slice)
+func (c *Layer) LoadBiasValues(handle *cudnn.Handler, slice interface{}, length int) error {
+	/*ptr, err := gocudnn.MakeGoPointer(slice)
 	if err != nil {
 		return err
-	}
-	return c.bias.LoadTValues(handle, ptr)
+	}*/
+	return c.bias.LoadTValuesFromGoSlice(handle, slice, int32(length))
 }
+
+/*
 
 //LoaddWValues will load a slice into cuda memory for the delta Weights.
 func (c *Layer) LoaddWValues(handle *cudnn.Handler, slice interface{}) error {
@@ -49,17 +51,20 @@ func (c *Layer) LoaddWValues(handle *cudnn.Handler, slice interface{}) error {
 func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
 	return c.bias.Images()
 }
+
 */
 
 //WeightsFillSlice will fill a slice with the weight values
-func (c *Layer) WeightsFillSlice(input interface{}) error {
-	return c.w.T().Memer().FillSlice(input)
+func (c *Layer) WeightsFillSlice(input interface{}, length int) error {
+	return c.w.T().FillSlice(input, int32(length))
+	//	return c.w.T().Memer().FillSlice(input)
 
 }
 
 //DeltaWeightsFillSlice will fill the weights with values
-func (c *Layer) DeltaWeightsFillSlice(input interface{}) error {
-	return c.w.DeltaT().Memer().FillSlice(input)
+func (c *Layer) DeltaWeightsFillSlice(input interface{}, length int) error {
+	return c.w.DeltaT().FillSlice(input, int32(length))
+	//	return c.w.DeltaT().Memer().FillSlice(input)
 }
 
 //SetupWStatReducers builds the statistic reducers for the w part of the Weights and bias

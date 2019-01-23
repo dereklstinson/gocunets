@@ -105,7 +105,7 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplie
 //LoadMem will Load the mem with
 func (t *Volume) LoadMem(handle *cudnn.Handler, input gocudnn.Memer) error {
 
-	if t.memgpu.ByteSize() < (input.ByteSize()) {
+	if t.CurrentSizeT().Cu() != input.ByteSize() {
 
 		destsize := strconv.Itoa(int(t.memgpu.ByteSize()))
 		srcsize := strconv.Itoa(int(input.ByteSize()))
@@ -119,10 +119,10 @@ func (t *Volume) LoadMem(handle *cudnn.Handler, input gocudnn.Memer) error {
 	}
 
 	if handle.Unified() {
-		return gocudnn.CudaMemCopy(t.memgpu, input, t.CurrentSizeT().Cu(), gocudnn.MemcpyKindFlag{}.Default())
+		return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), gocudnn.MemcpyKindFlag{}.Default())
 
 	}
-	return gocudnn.CudaMemCopy(t.memgpu, input, t.CurrentSizeT().Cu(), kind)
+	return gocudnn.CudaMemCopy(t.memgpu, input, input.ByteSize(), kind)
 
 }
 func prependerror(info string, input error) error {

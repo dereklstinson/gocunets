@@ -1,13 +1,6 @@
 package layers
 
-import (
-	"errors"
-
-	"github.com/dereklstinson/GoCuNets/cpu"
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-)
-
+/*
 //ShapetoBatchIOBWDCPU takes the batched IO that was created from the fwd process and replaces the delta Tensor values
 func (i *IO) ShapetoBatchIOBWDCPU(handle *cudnn.Handler, batched *IO, stride []int32) error {
 	var fmtflag cudnn.TensorFormatFlag
@@ -64,7 +57,7 @@ func (i *IO) ShapetoBatchIOBWDCPU(handle *cudnn.Handler, batched *IO, stride []i
 	}
 	return errors.New("Unsupported Format")
 }
-
+*/
 /*
 //ShapetoBatchIOCopyFWDCPU reshapes the makes a reshaped copy of the IO
 func (i *IO) ShapetoBatchIOCopyFWDCPU(handle *cudnn.Handler,window []int32, stride []int32) (*IO, error) {

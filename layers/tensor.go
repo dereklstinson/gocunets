@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/dereklstinson/GoCuNets/utils"
+
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -20,6 +22,8 @@ type IO struct {
 	dims                                  []int32
 	weights                               bool
 	mux                                   sync.Mutex
+	gxptr                                 *gocudnn.GoPointer
+	gdxptr                                *gocudnn.GoPointer
 }
 
 //Settings contains the info that is needed to build an IO
@@ -400,18 +404,19 @@ func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt cudnn.TensorForma
 	if chkr != int32(len(slice)) {
 		return nil, errors.New("Slice passed length don't match dim volume")
 	}
+
 	slice2 := make([]float32, handle.FindMaxVol(dims))
 	copy(slice2, slice)
-	sptr, err := gocudnn.MakeGoPointer(slice2)
-	if err != nil {
-		return nil, err
-	}
+
 	newio, err := BuildIO(handle, frmt, dtype, dims)
 	if err != nil {
 		return nil, err
 	}
 
-	err = newio.LoadDeltaTValues(handle, sptr)
+	err = newio.LoadDeltaTValuesFromGoSlice(handle, slice, int32(len(slice)))
+	if err != nil {
+		return nil, err
+	}
 	return newio, err
 }
 
@@ -432,7 +437,6 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 		}
 		x, err := tensor.Build(handle, frmt, dtype, dims)
 		if err != nil {
-
 			return nil, err
 		}
 
@@ -480,9 +484,24 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 }
 
 //LoadTValues loads a piece of memory that was made in golang and loads into an already created tensor volume in cuda.
-func (i *IO) LoadTValues(handle *cudnn.Handler, input gocudnn.Memer) error {
+func (i *IO) LoadTValues(handle *cudnn.Handler, input *tensor.Volume) error {
+	if utils.FindVolumeInt32(i.x.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
+		return errors.New("InputCurrent dims not matching IO current dims")
+	}
+	return i.x.LoadMem(handle, input.Memer())
+}
 
-	return i.x.LoadMem(handle, input)
+//LoadTValuesFromGoSlice takes a go slice and fills it into the tensor sitting in the gpu.  If the length of goslice doesn't fit the input it will return an error
+func (i *IO) LoadTValuesFromGoSlice(handle *cudnn.Handler, input interface{}, length int32) error {
+	if utils.FindVolumeInt32(i.x.Dims(), nil) != length {
+		return errors.New("InputCurrent length not matching IO dims volume")
+	}
+	var err error
+	i.gxptr, err = gocudnn.MakeGoPointer(input)
+	if err != nil {
+		return err
+	}
+	return i.x.LoadMem(handle, i.gxptr)
 }
 
 //GetLength returns the length in int32
@@ -498,12 +517,31 @@ func (i *IO) GetLength() (int32, error) {
 	return mult, nil
 }
 
-//LoadDeltaTValues loads a piece of memory that was made in golang and loads into a previously created delta tensor volume in cuda.
-func (i *IO) LoadDeltaTValues(handle *cudnn.Handler, input gocudnn.Memer) error {
+//LoadDeltaTValuesFromGoSlice takes a go slice and fills it into the tensor sitting in the gpu.  If the length of goslice doesn't fit the input it will return an error
+func (i *IO) LoadDeltaTValuesFromGoSlice(handle *cudnn.Handler, input interface{}, length int32) error {
 	if i.input == true {
 		return errors.New("Can't Load any values into DeltaT because it is exclusivly an Input")
 	}
-	return i.dx.LoadMem(handle, input)
+	if utils.FindVolumeInt32(i.dx.Dims(), nil) != length {
+		return errors.New("InputCurrent length not matching IO dims volume")
+	}
+	var err error
+	i.gdxptr, err = gocudnn.MakeGoPointer(input)
+	if err != nil {
+		return err
+	}
+	return i.dx.LoadMem(handle, i.gdxptr)
+}
+
+//LoadDeltaTValues loads a piece of memory that was made in golang and loads into a previously created delta tensor volume in cuda.
+func (i *IO) LoadDeltaTValues(handle *cudnn.Handler, input *tensor.Volume) error {
+	if i.input == true {
+		return errors.New("Can't Load any values into DeltaT because it is exclusivly an Input")
+	}
+	if utils.FindVolumeInt32(i.dx.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
+		return errors.New("InputCurrent dims not matching IO current dims")
+	}
+	return i.dx.LoadMem(handle, input.Memer())
 }
 
 /*

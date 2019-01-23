@@ -32,9 +32,9 @@ func (h *Handler) SetMaxBatch(maxbatchsize int32) {
 func (h *Handler) GetMaxBatch() int32 {
 	if h.maxbatch < 1 {
 		return 1
-	} else {
-		return h.maxbatch
 	}
+	return h.maxbatch
+
 }
 
 //FindMaxSizeT returns the max sizeT
