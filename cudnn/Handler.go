@@ -28,6 +28,15 @@ func (h *Handler) SetMaxBatch(maxbatchsize int32) {
 	h.maxbatch = maxbatchsize
 }
 
+//GetMaxBatch returns the max batch
+func (h *Handler) GetMaxBatch() int32 {
+	if h.maxbatch < 1 {
+		return 1
+	} else {
+		return h.maxbatch
+	}
+}
+
 //FindMaxSizeT returns the max sizeT
 func (h *Handler) FindMaxSizeT(outputdims []int32) SizeT {
 	if h.maxbatch <= 0 {

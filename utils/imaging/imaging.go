@@ -128,18 +128,24 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 		return nil, nil, err
 	}
 	if im.cache == nil {
-		im.cache, err = tensor.Build(handle, frmt, dtype, dims)
+		_, _, xdims, err := x.Properties()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		xdims[0] = handle.GetMaxBatch()
+		im.cache, err = tensor.BuildWithMaxDims(handle, frmt, dtype, dims, xdims)
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
-		cfrmt, cdtype, cdims, err := im.cache.Properties()
+		_, _, cdims, err := im.cache.Properties()
 		if err != nil {
 			return nil, nil, err
 		}
-		if frmt != cfrmt || dtype != cdtype || utils.CompareInt32(dims, cdims) == false {
+		if utils.CompareInt32(dims, cdims) == false {
 
-			im.cache, err = tensor.Build(handle, frmt, dtype, dims)
+			err = im.cache.ChangeDims(dims)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -206,18 +212,24 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 		return nil, err
 	}
 	if im.cache == nil {
-		im.cache, err = tensor.Build(handle, frmt, dtype, dims)
+		_, _, xdims, err := x.Properties()
+		if err != nil {
+			return nil, err
+		}
+
+		xdims[0] = handle.GetMaxBatch()
+		im.cache, err = tensor.BuildWithMaxDims(handle, frmt, dtype, dims, xdims)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		cfrmt, cdtype, cdims, err := im.cache.Properties()
+		_, _, cdims, err := im.cache.Properties()
 		if err != nil {
 			return nil, err
 		}
-		if frmt != cfrmt || dtype != cdtype || !utils.CompareInt32(dims, cdims) {
+		if utils.CompareInt32(dims, cdims) == false {
 
-			im.cache, err = tensor.Build(handle, frmt, dtype, dims)
+			err = im.cache.ChangeDims(dims)
 			if err != nil {
 				return nil, err
 			}
