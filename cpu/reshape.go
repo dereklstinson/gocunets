@@ -75,12 +75,13 @@ func ShapeToBatchLabelAdjustForward(dims, window, stride []int32, pts []XYPoint)
 }
 
 //ShapeToBatchNCHW4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
-func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) ([]float32, []int32, error) {
+//Function returns data, dims, ratio (h and w used for remaping values), error
+func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) ([]float32, []int32, []int32, error) {
 	if len(dims) != 4 {
-		return nil, nil, errors.New("The Length of dims should equal 4")
+		return nil, nil, nil, errors.New("The Length of dims should equal 4")
 	}
 	if dims[0] != int32(1) {
-		return nil, nil, errors.New("N value needs to be 1")
+		return nil, nil, nil, errors.New("N value needs to be 1")
 	}
 	h := window[0]
 	w := window[1]
@@ -117,7 +118,7 @@ func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) (
 		}
 		striderh += hs
 	}
-	return v, newdims, nil
+	return v, newdims, []int32{n1, n2}, nil
 }
 
 //ShapeToBatchNCHW4DBackward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
