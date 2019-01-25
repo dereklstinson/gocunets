@@ -204,9 +204,9 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 
 //TileBatches will take the batches and lay place them withing the HWC space like tiles.
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int) (image.Image, error) {
+func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int32) (image.Image, error) {
 
-	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
+	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{(h), (w)}, []int32{(hstride), (wstride)})
 	if err != nil {
 
 		return nil, err

@@ -75,6 +75,8 @@ type Network struct {
 	totalionetsinit bool
 	wtrainers       []trainer.Trainer
 	btrainers       []trainer.Trainer
+	savedparams     *NetworkSavedTensor
+	loadedsaved     bool
 }
 
 func networkerrors(err <-chan error) {
@@ -226,7 +228,15 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 		panic("len(m.totalionets)!= m.totalionetcounter-1  please fix")
 
 	}
-	return m.buildminmax(handle, false)
+	if m.savedparams != nil && !m.loadedsaved {
+		err := m.LoadNetworkTensorparams(handle, m.savedparams)
+		if err != nil {
+			return err
+		}
+		m.loadedsaved = true
+	}
+
+	return m.buildminmax(handle)
 }
 func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error {
 	var err error

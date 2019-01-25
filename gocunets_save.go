@@ -52,17 +52,17 @@ func (n *Network) LoadWeights(handle *cudnn.Handler, r io.Reader, size int64) (f
 	if err != nil {
 		return 999999999, err
 	}
-	netparams, err := GetNetworkSavedTensorJSON(data)
+	n.savedparams, err = GetNetworkSavedTensorJSON(data)
 	if err != nil {
 		return 999999999, err
 	}
-	return n.LoadNetworkTensorparams(handle, netparams)
+	return n.savedparams.TestLoss, nil
 }
 
 //LoadNetworkTensorparams - Loads the weights from Networksavedtensor
-func (n *Network) LoadNetworkTensorparams(handle *cudnn.Handler, netsavedparams *NetworkSavedTensor) (float32, error) {
+func (n *Network) LoadNetworkTensorparams(handle *cudnn.Handler, netsavedparams *NetworkSavedTensor) error {
 	if netsavedparams == nil {
-		return 99999999, errors.New("netsavedparams is nil")
+		return errors.New("netsavedparams is nil")
 	}
 	paramcounter := 0
 
@@ -71,16 +71,16 @@ func (n *Network) LoadNetworkTensorparams(handle *cudnn.Handler, netsavedparams 
 		if n.layer[i].hasweights() {
 			err = n.layer[i].loadparams(handle, netsavedparams.Layers[paramcounter])
 			if err != nil {
-				return 0, err
+				return err
 			}
 			paramcounter++
 
 		}
 	}
 	if paramcounter == 0 {
-		return 9999999, errors.New("LoadNetworkTensorparams loaded nothing because n.layer[i].hasweights() didn't return true on anything")
+		return errors.New("LoadNetworkTensorparams loaded nothing because n.layer[i].hasweights() didn't return true on anything")
 	}
-	return netsavedparams.TestLoss, nil
+	return nil
 }
 
 //SaveNetworkTensorParams saves network params to the writer

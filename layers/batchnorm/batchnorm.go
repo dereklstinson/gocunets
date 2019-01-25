@@ -20,20 +20,21 @@ const trainingfactoringlimit = 100
 
 //Layer the ops of a batch norm
 type Layer struct {
-	b          *batchnorm.Ops
-	fw         abscalars
-	bwp        abscalars
-	bwd        abscalars
-	bias       *layers.IO
-	scale      *layers.IO
-	eps        float64
-	af         float64
-	counter    uint64
-	countermax uint64
-	mode       gocudnn.BatchNormMode
-	managed    bool
-	scaletrain trainer.Trainer
-	biastrain  trainer.Trainer
+	b                      *batchnorm.Ops
+	fw                     abscalars
+	bwp                    abscalars
+	bwd                    abscalars
+	bias                   *layers.IO
+	scale                  *layers.IO
+	eps                    float64
+	af                     float64
+	counter                uint64
+	countermax             uint64
+	mode                   gocudnn.BatchNormMode
+	managed                bool
+	scaletrain             trainer.Trainer
+	biastrain              trainer.Trainer
+	premadeweightsfromfile bool
 }
 type abscalars struct {
 	a float64

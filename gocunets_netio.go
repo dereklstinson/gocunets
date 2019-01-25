@@ -169,7 +169,7 @@ func (n *netios) buildminmax(handle *cudnn.Handler) error {
 	}
 }
 
-func (m *Network) buildminmax(handle *cudnn.Handler, batches bool) error {
+func (m *Network) buildminmax(handle *cudnn.Handler) error {
 	switch {
 	case !m.totalionetsinit:
 		for i := range m.totalionets {
