@@ -11,21 +11,27 @@ import (
 
 //Ops is a struct
 type Ops struct {
-	desc        *gocudnn.ConvolutionD
-	helper      gocudnn.Convolution
-	stagedalgo  bool
-	fwdalgo     gocudnn.ConvFwdAlgo
-	setfwd      bool
-	bwddata     gocudnn.ConvBwdDataAlgo
-	setbwd      bool
-	bwdfilt     gocudnn.ConvBwdFiltAlgo
-	setfilt     bool
-	dims        int
-	group       int
-	pwspacesize gocudnn.SizeT
-	pad         []int32
-	dilation    []int32
-	stride      []int32
+	desc         *gocudnn.ConvolutionD
+	helper       gocudnn.Convolution
+	stagedalgo   bool
+	fwdalgo      gocudnn.ConvFwdAlgo
+	setfwd       bool
+	bwddata      gocudnn.ConvBwdDataAlgo
+	setbwd       bool
+	bwdfilt      gocudnn.ConvBwdFiltAlgo
+	setfilt      bool
+	dims         int
+	group        int
+	pwspacesize  gocudnn.SizeT
+	mathtypefwd  gocudnn.MathType
+	mathtypebwdd gocudnn.MathType
+	mathtpyebwdf gocudnn.MathType
+	perfforward  ForwardPerformance
+	perfbackdata BackDataPerformance
+	perfbackfilt BackFilterPerformance
+	pad          []int32
+	dilation     []int32
+	stride       []int32
 }
 
 //Info is the contains the info to make the op
@@ -183,32 +189,6 @@ func (c *Ops) SetMathType(math gocudnn.MathType) error {
 //WorkSizeFwd returns the worksize for the forward algo
 func (c *Ops) WorkSizeFwd(handle *cudnn.Handler, x, w, y tensor.Volume) (gocudnn.SizeT, error) {
 	return c.helper.Funcs.Fwd.GetConvolutionForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), c.desc, y.TD(), c.fwdalgo)
-}
-
-//SetFwdAlgo sets fwd algo
-func (c *Ops) SetFwdAlgo(algo gocudnn.ConvFwdAlgo) {
-	c.stagedalgo = true
-	c.fwdalgo = algo
-}
-
-//SetBwdDataAlgo sets the backward data algo
-func (c *Ops) SetBwdDataAlgo(algo gocudnn.ConvBwdDataAlgo) {
-	c.stagedalgo = true
-	c.bwddata = algo
-}
-
-//SetBwdFiltAlgo sets the backward filters
-func (c *Ops) SetBwdFiltAlgo(algo gocudnn.ConvBwdFiltAlgo) {
-	c.stagedalgo = true
-	c.bwdfilt = algo
-}
-
-//SetAlgos sets all the algos
-func (c *Ops) SetAlgos(fwd gocudnn.ConvFwdAlgo, bwdd gocudnn.ConvBwdDataAlgo, bwdf gocudnn.ConvBwdFiltAlgo) {
-	c.stagedalgo = true
-	c.fwdalgo = fwd
-	c.bwddata = bwdd
-	c.bwdfilt = bwdf
 }
 
 //BwdPropData dx = alpha * BwdPropData(w,dy)+beta*dx

@@ -39,6 +39,11 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias t
 	if l.cnntranspose != nil {
 		return l.cnntranspose.LoadTrainer(handle, trainerweights, trainerbias)
 	}
+	if l.activation != nil {
+		if l.activation.Updateable() {
+			return l.activation.LoadTrainer(handle)
+		}
+	}
 	return errors.New("inbedded error doesn't support trainers")
 }
 func (l *layer) needstrainer() bool {
@@ -52,6 +57,9 @@ func (l *layer) needstrainer() bool {
 	}
 	if l.batch != nil {
 		return true
+	}
+	if l.activation != nil {
+		return l.activation.Updateable()
 	}
 	return false
 }

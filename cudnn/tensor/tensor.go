@@ -137,10 +137,30 @@ func BuildWeights(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.Da
 	return build(handle, frmt, dtype, currentdims, nil, true)
 }
 
+//AddRandNormalGenerator will add a random normal generator to the volume
+func (t *Volume) AddRandNormalGenerator(handle *cudnn.Handler, seed uint64) error {
+	t.randgen = gocudnn.CreateCuRandGenerator((gocudnn.CuRandRngTypeFlag{}.PseudoDefault()))
+	err := t.randgen.SetPsuedoSeed(seed)
+	if err != nil {
+		return err
+	}
+	stream, err := handle.Cudnn().GetStream()
+	if err != nil {
+		return err
+	}
+	if stream != nil {
+		return t.randgen.SetStream(stream)
+	}
+	fmt.Println("No Stream in handle")
+	return nil
+
+}
+
 //NormalRand sets the values in the volume to some Normalized Noise
 func (t *Volume) NormalRand(mean, std float32) error {
 	if t.randgen == nil {
 		return errors.New("Need to build a random volume using BuildRandNorm")
+
 	}
 	//The mem might need to be set to zero. Maybe
 	return t.randgen.NormalFloat32(t.memgpu, mean, std)

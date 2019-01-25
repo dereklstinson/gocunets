@@ -2,16 +2,12 @@
 package cnn
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"image"
-	"io"
 	"sync"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -45,12 +41,6 @@ type Layer struct {
 	mux        sync.Mutex
 }
 
-//Params is a temporary struct for saving.  It will most likely be changed
-type Params struct {
-	Layer   string      `json:"Layer"`
-	Weights tensor.Info `json:"Weights"`
-	Bias    tensor.Info `json:"Bias"`
-}
 type xtras struct {
 	alpha  float64
 	alpha2 float64
@@ -59,45 +49,6 @@ type xtras struct {
 
 func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
-}
-
-//PNGimage holds an image.image
-type PNGimage struct {
-	im image.Image
-}
-
-//WriteTo allows the json to be saved
-func (t *Params) WriteTo(w io.Writer) (int64, error) {
-	marshed, err := json.Marshal(t)
-	if err != nil {
-		return 0, err
-	}
-	x, err := w.Write(marshed)
-	return int64(x), err
-}
-
-//PNGW returns the layers PNGimage
-func (c *Layer) PNGW() *PNGimage {
-	return &PNGimage{}
-}
-
-//SaveParams converts the weights a params struct so it can be written
-func (c *Layer) SaveParams() *Params {
-
-	var save Params
-	save.Layer = "CNN"
-	weights, err := c.w.T().Info()
-	if err != nil {
-		return nil
-	}
-	b, err := c.bias.T().Info()
-	if err != nil {
-		return nil
-	}
-	save.Bias = b
-	save.Weights = weights
-
-	return &save
 }
 
 //UpdateWeights does the weight update
@@ -169,8 +120,7 @@ func SetupDynamic(handle *cudnn.Handler,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
-	dilation []int32,
-	managedmem bool) (*Layer, error) {
+	dilation []int32) (*Layer, error) {
 	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
 		fmt.Println("Error in layer setup")
@@ -203,8 +153,7 @@ func SetUpStatic(handle *cudnn.Handler,
 	stride,
 	dilation []int32,
 	workspace int,
-	fastest bool,
-	managedmem bool) (*Layer, error) {
+	fastest bool) (*Layer, error) {
 
 	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
@@ -235,6 +184,9 @@ func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32) err
 	if len(dims) < 5 {
 
 		fanin := float64(dims[1] * dims[2] * dims[3])
+		err := c.w.T().AddRandNormGenerator()
+		err := c.w.T().NormalRand(0, 1.0*float32(fanin))
+
 		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
 			fmt.Println("dims are", dims)

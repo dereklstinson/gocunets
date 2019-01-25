@@ -64,8 +64,73 @@ func findpadandstrideanddilation(x, y, w int32) (s, p, d int32) {
 	return
 }
 */
+
+/*
+ForwardPerformance is wrapper for gocudnn.ConvFwdAlgoPerformance with its exported Values
+
+type ConvFwdAlgoPerformance struct{
+	Algo        ConvFwdAlgo --Algo is the flag for the cudnn algorithm
+	Status      Status    -- error occurance while running test
+	Time        float32  -- time it takes to do the algo
+	Memory      SizeT  --size of workspace memory to be passed
+	Determinism Determinism  --flag
+	MathType    MathType -- flag
+}
+*/
+type ForwardPerformance gocudnn.ConvFwdAlgoPerformance
+
+//Print will print the forward performance to console
+func (f ForwardPerformance) Print() {
+	f.Print()
+}
+
+/*
+BackDataPerformance is a wrapper for gocudnn.ConvBwdDataAlgoPerformance
+
+type ConvBwdDataAlgoPerformance struct {
+	Algo        ConvFwdAlgo --flag --- Algo is the flag for the cudnn algorithm
+	Status      Status    -- error occurance while running test
+	Time        float32  -- time it takes to do the algo
+	Memory      SizeT  --size of workspace memory to be passed
+	Determinism Determinism  --flag determins if the algo is deterministic
+	MathType    MathType -- flag chooses the mathtype - tensorcores?
+}
+*/
+type BackDataPerformance gocudnn.ConvBwdDataAlgoPerformance
+
+//Print will print forward performance to console
+func (b BackDataPerformance) Print() {
+	b.Print()
+}
+
+/*
+BackFilterPerformance is a wrapper for gocudnn.ConvBwdFiltAlgoPerformance
+type ConvBwdFiltAlgoPerformance struct {
+	Algo        ConvFwdAlgo --flag --- Algo is the flag for the cudnn algorithm
+	Status      Status    -- error occurance while running test
+	Time        float32  -- time it takes to do the algo
+	Memory      SizeT  --size of workspace memory to be passed
+	Determinism Determinism  --flag determins if the algo is deterministic
+	MathType    MathType -- flag chooses the mathtype - tensorcores?
+}
+*/
+type BackFilterPerformance gocudnn.ConvBwdFiltAlgoPerformance
+
+func (c *Ops) SetPerformances(h *cudnn.Handler, fwd ForwardPerformance, bwddata BackDataPerformance, bwdfilt BackFilterPerformance) {
+
+	c.fwdalgo = fwd.Algo
+
+	c.setfwd = true
+
+	c.bwddata = bwddata.Algo
+	c.setbwd = true
+	c.bwdfilt = bwdfilt.Algo
+	c.setfilt = true
+
+}
+
 //AlgoLists Algo lists returns slices of performances for the fwd algos and bwd algos
-func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volume) ([]gocudnn.ConvFwdAlgoPerformance, []gocudnn.ConvBwdDataAlgoPerformance, []gocudnn.ConvBwdFiltAlgoPerformance, error) {
+func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volume) ([]ForwardPerformance, []BackDataPerformance, []BackFilterPerformance, error) {
 	maxfwd, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle.Cudnn())
 	if err != nil {
 		return nil, nil, nil, err
@@ -90,7 +155,40 @@ func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volum
 	if bwdfilt != nil {
 		return nil, nil, nil, err
 	}
-	return fwdlist, bwddata, bwdfilt, nil
+	fwper := make([]ForwardPerformance, 0)
+	for i := range fwdlist {
+
+		err = fwdlist[i].Status.Error("Not Available")
+		if err != nil {
+
+		} else {
+			fwper = append(fwper, ForwardPerformance(fwdlist[i]))
+		}
+
+	}
+	bwdper := make([]BackDataPerformance, 0)
+	for i := range bwddata {
+
+		err = bwddata[i].Status.Error("Not Available")
+		if err != nil {
+
+		} else {
+			bwdper = append(bwdper, BackDataPerformance(bwddata[i]))
+		}
+
+	}
+	bwfper := make([]BackFilterPerformance, 0)
+	for i := range bwdfilt {
+
+		err = bwdfilt[i].Status.Error("Not Available")
+		if err != nil {
+
+		} else {
+			bwfper = append(bwfper, BackFilterPerformance(bwdfilt[i]))
+		}
+
+	}
+	return fwper, bwdper, bwfper, nil
 }
 
 //OutputDim will return the dims of what the output tensor should be

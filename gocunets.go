@@ -63,20 +63,18 @@ type Network struct {
 	totalionetcounter int
 	err               chan error
 	position          int
-
-	resizecounter   int
-	hybridsize      int
-	reshaper        *reshape.Layer
-	resizeinput     *layers.IO //resized input that will be used to forward propagate.  It will have to be deleted after back propigation
-	previousdims    []int32
-	descriminator   bool
-	l1losses        []float32
-	l2losses        []float32
-	totalionetsinit bool
-	wtrainers       []trainer.Trainer
-	btrainers       []trainer.Trainer
-	savedparams     *NetworkSavedTensor
-	loadedsaved     bool
+	resizecounter     int
+	hybridsize        int
+	reshaper          *reshape.Layer
+	previousdims      []int32
+	descriminator     bool
+	l1losses          []float32
+	l2losses          []float32
+	totalionetsinit   bool
+	wtrainers         []trainer.Trainer
+	btrainers         []trainer.Trainer
+	savedparams       *NetworkSavedTensor
+	loadedsaved       bool
 }
 
 func networkerrors(err <-chan error) {

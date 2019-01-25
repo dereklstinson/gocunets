@@ -5,6 +5,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/cudnn/activation"
 	"github.com/dereklstinson/GoCuNets/cudnn/reduce"
 	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -21,6 +22,9 @@ type Layer struct {
 	posmin, posmax       float32
 	negmin, negmax       float32
 	threshmin, threshmax float32
+	negcotrain           trainer.Trainer
+	poscotrain           trainer.Trainer
+	l1n, l2n, l1p, l2p   float32
 	posCoefs             *layers.IO
 	negCoefs             *layers.IO
 	threshold            *layers.IO
