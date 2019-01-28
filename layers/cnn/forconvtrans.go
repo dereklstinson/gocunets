@@ -12,22 +12,21 @@ import (
 
 //This stuff is experimental and it is just easier to set it up this way than to make a whole new package.  This is only for the convtranspose layer.
 
-//SetupDynamicReverse sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
-func SetupDynamicReverse(handle *cudnn.Handler,
+//SetupReverse sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
+func SetupReverse(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
-	//	guessinputdims []int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
 	dilation []int32,
-	managedmem bool) (*Layer, error) {
+	seed uint64) (*Layer, error) {
 	layer, err := layersetupreverse(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(handle, filterdims)
+	err = layer.MakeRandomFromFaninDims(handle, filterdims, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +131,18 @@ func (c *Layer) ReverseBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Mal
 	}
 	return nil
 
+}
+
+//FindReverseOutputDims returns the outputdims considering the input recieved
+func (c *Layer) FindReverseOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
+	xdims := input.T().TD().Dims()
+	//cvol := float32(utils.FindVolumeInt32(xdims, nil))
+	//ratio := float32(input.T().MaxVol()) / cvol
+	frmt, _, wdims, err := c.w.Properties()
+	if err != nil {
+		return nil, err
+	}
+	return findreverse4doutputdims(xdims, wdims, c.pad, c.stride, c.dilation, frmt), nil
 }
 
 //MakeReverseOutputTensor makes the output tensor of the reverse convolution layer

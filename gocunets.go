@@ -34,6 +34,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+const debuggingmaingocunets = true
+
 //Settings are the setttings for the topology of the network
 type Settings struct {
 	Format gocudnn.TensorFormat `json:"format,omitempty"`
@@ -95,6 +97,16 @@ func CreateNetwork() *Network {
 	}
 }
 
+//Initialize initializes the IO between the hidden layers. It also returns some performance meterics that you can choose to increase the speed of the network at the cost of memory.
+func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO) ([]ConvolutionPerformance, error) {
+	m.previousdims = input.T().Dims()
+	err := m.buildhiddenios(handle, input)
+	if err != nil {
+		return nil, err
+	}
+	return m.performance(handle, input, output)
+}
+
 //SetDescriminatorFlag - Sets the network up as a descriminator network
 //This will require the network to have two outputs if using the softmax output
 func (m *Network) SetDescriminatorFlag() {
@@ -119,23 +131,35 @@ func (m *Network) TrainersNeeded() int {
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
-func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbias []trainer.Trainer) {
+func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbias []trainer.Trainer) error {
 	if len(trainerweights) != len(trainerbias) {
-		m.err <- errors.New("(*Network)LoadTrainers -- Sizes Don't Match with trainers and bias")
+		return errors.New("(*Network)LoadTrainers -- Sizes Don't Match with trainers and bias")
 	}
 	if len(trainerweights) != m.TrainersNeeded() {
-		m.err <- errors.New("(*Network)LoadTrainers -- TrainersNeeded don't match the length of trainers passed")
+		return errors.New("(*Network)LoadTrainers -- TrainersNeeded don't match the length of trainers passed")
 	}
 	counter := 0
-
+	var err error
 	for i := 0; i < len(m.layer); i++ {
+		if debuggingmaingocunets {
+			fmt.Println("Going Through Layer at Index", i)
+		}
 		if m.layer[i].needstrainer() == true {
+
+			if debuggingmaingocunets {
+				fmt.Println("Loading Trainer at Index", i)
+			}
 			m.wtrainers = append(m.wtrainers, trainerweights[counter])
 			m.btrainers = append(m.btrainers, trainerbias[counter])
-			m.err <- m.layer[i].loadtrainer(handle, trainerweights[counter], trainerbias[counter])
+
+			err = m.layer[i].loadtrainer(handle, trainerweights[counter], trainerbias[counter])
+			if err != nil {
+				panic(err)
+			}
 			counter++
 		}
 	}
+	return nil
 }
 
 //GetTrainers returns the trainers for the network.  ...convienence function
@@ -263,6 +287,7 @@ func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 			fmt.Println("Error in building hidden os")
 			return err
 		}
+		m.previousdims = x.T().Dims()
 		return m.forwardprop(handle, wspace, x, y)
 
 	}

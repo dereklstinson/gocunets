@@ -34,8 +34,8 @@ func ReverseBuild(handle *cudnn.Handler,
 	stride, //largestgains with more stride
 	dilation []int32, //largest gains with dilation
 	inputlayer bool,
-	managedmem bool) (*Layer, error) {
-	conv, err := cnn.SetupDynamicReverse(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	seed uint64) (*Layer, error) {
+	conv, err := cnn.SetupReverse(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, seed)
 	if err != nil {
 		return nil, err
 	}

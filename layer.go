@@ -41,11 +41,12 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias t
 	}
 	if l.activation != nil {
 		if l.activation.Updateable() {
-			return l.activation.LoadTrainer(handle)
+			return l.activation.LoadTrainer(handle, trainerweights, trainerbias)
 		}
 	}
 	return errors.New("inbedded error doesn't support trainers")
 }
+
 func (l *layer) needstrainer() bool {
 	if l.cnn != nil {
 
@@ -62,6 +63,7 @@ func (l *layer) needstrainer() bool {
 		return l.activation.Updateable()
 	}
 	return false
+
 }
 
 func wraplayer(input interface{}) (*layer, bool) { //the bool is for a counter to count the layers that contain weights
@@ -162,6 +164,12 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 	}
 	return nil, "", errors.New("Layer Needs Support")
 }
+
+/*
+func (l *layer) getoutputdims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
+
+}
+*/
 func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 
 	if l.cnn != nil {

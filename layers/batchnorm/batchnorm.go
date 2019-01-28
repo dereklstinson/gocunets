@@ -56,7 +56,7 @@ type Settings struct {
 }
 
 //PerActivationPreset will presetup some values for the batch norm PerActivation
-func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
+func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 	//	b, err := batchnorm.PreStagePerActivation(handle, managed)
 	var flg gocudnn.BatchNormModeFlag
 	fw := abscalars{
@@ -78,7 +78,6 @@ func PerActivationPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		bwd:        bwd,
 		eps:        float64(1e-5),
 		mode:       flg.PerActivation(),
-		managed:    managed,
 		countermax: trainingfactoringlimit,
 	}, nil
 }

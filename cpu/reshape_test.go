@@ -16,10 +16,11 @@ func main(t *testing.T) {
 func TestReshapeCHW(t *testing.T) {
 	dims := []int32{1, 3, 16, 16}
 	tensor := helpertensor(dims)
-	newvals, newdims, err := cpu.ShapeToBatchNCHW4DForward(tensor, dims, []int32{5, 5}, []int32{5, 5})
+	newvals, newdims, hwratio, err := cpu.ShapeToBatchNCHW4DForward(tensor, dims, []int32{5, 5}, []int32{5, 5})
 	if err != nil {
 		t.Error(err)
 	}
+	fmt.Println(hwratio)
 	//	toprint1 := sparator(dims, tensor)
 	toprint1 := sparator(newdims, newvals)
 	sectionalprint(toprint1)

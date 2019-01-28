@@ -8,6 +8,8 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+const debuggingadam = true
+
 //Adam is a struct that does the holds the params for adam optimization
 type Adam struct {
 	loss1     []float32
@@ -31,9 +33,12 @@ const defaultadamrate = .001
 
 //SetTrainingMem creates the training mem for the adam trainer
 func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
-	a.freememer()
+	// /a.freememer()
 	_, dtype, dims, err := weights.Properties()
 	if err != nil {
+		if debuggingadam {
+			panic(err)
+		}
 		return err
 	}
 	a.dims = dims
@@ -47,44 +52,74 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 		a.loss2 = make([]float32, 1)
 		a.goptr1, err = gocudnn.MakeGoPointer(a.loss1)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		a.goptr2, err = gocudnn.MakeGoPointer(a.loss2)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		asize := dimsize(dims)
 		x := make([]float32, asize)
 		sizet, err := gocudnn.FindSizeT(x)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		xp, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
-		a.gsum, err = gocudnn.MallocManaged(sizet, Global)
+		a.gsum, err = gocudnn.UnifiedMangedGlobal(sizet)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
-		a.xsum, err = gocudnn.MallocManaged(sizet, Global)
+		a.xsum, err = gocudnn.UnifiedMangedGlobal(sizet)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		err = gocudnn.CudaMemCopy(a.gsum, xp, sizet, DeFault)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		err = gocudnn.CudaMemCopy(a.xsum, xp, sizet, DeFault)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		a.gpuloss1, err = gocudnn.MallocManaged(gocudnn.SizeT(4), Global)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 		a.gpuloss2, err = gocudnn.MallocManaged(gocudnn.SizeT(4), Global)
 		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
 			return err
 		}
 
@@ -95,6 +130,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 	return nil
 }
 
+/*
 func (a *Adam) freememer() error {
 	memerrorstrings := "FreeingMem"
 	flag := false
@@ -128,7 +164,7 @@ func (a *Adam) freememer() error {
 	}
 	return nil
 }
-
+*/
 //Dims returns the dims of the training parameter holders
 func (a *Adam) Dims() []int32 {
 	return a.dims

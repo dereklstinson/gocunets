@@ -2,6 +2,7 @@ package cnn
 
 import (
 	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -22,6 +23,12 @@ func (c *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 		return nil, err
 	}
 	return output, nil
+}
+
+//FindOutputDims finds the outputdims fo the cnn
+func (c *Layer) FindOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
+	return c.conv.OutputDim(input.T(), c.w.T())
+
 }
 
 //SetBestAlgosConsidering this method will set the best algos for the fwd, bwddata, and bwdfilter algos. and return the workspace size along with an error
@@ -51,4 +58,74 @@ func (c *Layer) SetBestAlgosConsideringDims4d(handle *cudnn.Handler, x, y, w []i
 //FilterProps returns the filter properties of the Convolution Layer
 func (c *Layer) FilterProps() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
 	return c.w.Properties()
+}
+
+//GetFwdAlgoPerfList gets a list of forward performance algos
+func (c *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.ForwardPerformance, error) {
+	return c.conv.GetFwdAlgoPerfList(handle, x.T(), c.w.T(), y.T())
+}
+
+//GetBwdDataAlgoPerfList gets a list of backward performance algos
+func (c *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackDataPerformance, error) {
+	return c.conv.GetBwdDataAlgoPerfList(handle, x.DeltaT(), c.w.T(), y.DeltaT())
+}
+
+//GetBwdFiltAlgoPerfList gets a list of forward performance algos
+func (c *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackFilterPerformance, error) {
+	return c.conv.GetBwdFiltAlgoPerfList(handle, x.T(), c.w.DeltaT(), y.DeltaT())
+}
+
+//SetFwdAlgoPerformance sets the Performance Values
+func (c *Layer) SetFwdAlgoPerformance(handle *cudnn.Handler,
+	fwd convolution.ForwardPerformance) {
+	c.conv.SetFwdPerformanceAlgo(fwd)
+}
+
+//SetBwdFiltAlgoPerformance sets the Performance Values
+func (c *Layer) SetBwdFiltAlgoPerformance(handle *cudnn.Handler,
+	bwdfilt convolution.BackFilterPerformance) {
+	c.conv.SetBwdFiltPerformanceAlgo(bwdfilt)
+}
+
+//SetBwdDataAlgoPerformance sets the Performance Values
+func (c *Layer) SetBwdDataAlgoPerformance(handle *cudnn.Handler,
+	bwddata convolution.BackDataPerformance) {
+	c.conv.SetBwdDataPerformanceAlgo(bwddata)
+}
+
+/*
+For the Reverse algos used for cnntranspose
+*/
+
+//GetReverseBwdDataAlgoPerfList gets a list of forward performance algos used for the back propagation data
+func (c *Layer) GetReverseBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.ForwardPerformance, error) {
+	return c.conv.GetFwdAlgoPerfList(handle, y.DeltaT(), c.w.T(), x.DeltaT())
+}
+
+//GetReverseFwdAlgoPerfList gets a list of backward performance algos used for the forward propagation
+func (c *Layer) GetReverseFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackDataPerformance, error) {
+	return c.conv.GetBwdDataAlgoPerfList(handle, y.T(), c.w.T(), x.T())
+}
+
+//GetReverseBwdFiltAlgoPerfList gets a list of back prop filter performance algos
+func (c *Layer) GetReverseBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackFilterPerformance, error) {
+	return c.conv.GetBwdFiltAlgoPerfList(handle, y.DeltaT(), c.w.DeltaT(), x.T())
+}
+
+//SetReverseBwdDataAlgoPerformance sets the Performance Values
+func (c *Layer) SetReverseBwdDataAlgoPerformance(handle *cudnn.Handler,
+	fwd convolution.ForwardPerformance) {
+	c.conv.SetFwdPerformanceAlgo(fwd)
+}
+
+//SetReverseBwdFiltAlgoPerformance sets the Performance Values
+func (c *Layer) SetReverseBwdFiltAlgoPerformance(handle *cudnn.Handler,
+	bwdfilt convolution.BackFilterPerformance) {
+	c.conv.SetBwdFiltPerformanceAlgo(bwdfilt)
+}
+
+//SetReverseFwdAlgoPerformance sets the Performance Values
+func (c *Layer) SetReverseFwdAlgoPerformance(handle *cudnn.Handler,
+	bwddata convolution.BackDataPerformance) {
+	c.conv.SetBwdDataPerformanceAlgo(bwddata)
 }

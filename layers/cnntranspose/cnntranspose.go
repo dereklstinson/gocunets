@@ -105,8 +105,8 @@ func build(handle *cudnn.Handler,
 	dilation []int32,
 	mode convtransposemode,
 	inputlayer bool,
-	managedmem bool) (*Layer, error) {
-	conv, err := cnn.SetupDynamic(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, managedmem)
+	seed uint64) (*Layer, error) {
+	conv, err := cnn.Setup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +117,15 @@ func build(handle *cudnn.Handler,
 		resizeddims: upscaleddims,
 		inputlayer:  inputlayer,
 	}, nil
+}
+
+//FindOutputDims will return the output dims of the reverse convolution
+func (l *Layer) FindOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
+	switch l.mode {
+	case convtransposereverse:
+		return l.conv.FindReverseOutputDims(handle, input)
+	}
+	return nil, errors.New("Unsupported Mode")
 }
 
 //MakeOutputTensor makes the output tensor

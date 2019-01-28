@@ -20,10 +20,10 @@ const beta2default = 1.0
 //Layer is a struct that holds  filter, bias and convolution descriptors.
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
-	conv *convolution.Ops
-	w    *layers.IO
-	bias *layers.IO
-	//size       gocudnn.SizeT
+	conv       *convolution.Ops
+	w          *layers.IO
+	bias       *layers.IO
+	pindims    []int32
 	wspacesize gocudnn.SizeT
 	fwd        xtras
 	bwdd       xtras
@@ -112,27 +112,28 @@ func (c *Layer) OutputDims(inputdims []int32) []int32 {
 
 }
 
-//SetupDynamic sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
-func SetupDynamic(handle *cudnn.Handler,
+//Setup sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
+func Setup(handle *cudnn.Handler,
 	frmt cudnn.TensorFormat,
 	dtype cudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
-	dilation []int32) (*Layer, error) {
+	dilation []int32,
+	seed uint64) (*Layer, error) {
 	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
 		fmt.Println("Error in layer setup")
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(handle, filterdims)
+	err = layer.MakeRandomFromFaninDims(handle, filterdims, seed)
 	if err != nil {
 		fmt.Println("Error in randomfan int")
 		return nil, err
 	}
 
-	err = layer.bias.T().SetValues(handle, 0.0001)
+	err = layer.bias.T().SetValues(handle, 0.00001)
 	if err != nil {
 		fmt.Println("Error in setvals")
 		return nil, err
@@ -142,56 +143,18 @@ func SetupDynamic(handle *cudnn.Handler,
 	return layer, nil
 }
 
-//SetUpStatic sets up the layer and decides on the layers fwd and bwd algos on first build. Good for static sized inputs.
-func SetUpStatic(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
-	inputdims []int32,
-	filterdims []int32,
-	convmode gocudnn.ConvolutionMode,
-	pad,
-	stride,
-	dilation []int32,
-	workspace int,
-	fastest bool) (*Layer, error) {
-
-	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
-	if err != nil {
-		return nil, err
-	}
-	err = layer.MakeRandomFromFaninDims(handle, inputdims)
-	if err != nil {
-		return nil, err
-	}
-
-	err = layer.bias.T().SetValues(handle, 0.0)
-	if err != nil {
-		return nil, err
-	}
-	outputdims := find4doutputdims(inputdims, filterdims, pad, stride, dilation, frmt)
-
-	_, err = layer.SetBestAlgosConsideringDims4d(handle, inputdims, outputdims, filterdims, workspace, fastest)
-	if err != nil {
-		return nil, err
-	}
-	layer.pad, layer.stride, layer.dilation = pad, stride, dilation
-	return layer, nil
-}
-
 //MakeRandomFromFaninDims does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32) error {
+func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32, seed uint64) error {
 
 	if len(dims) < 5 {
 
 		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().AddRandNormGenerator()
-		err := c.w.T().NormalRand(0, 1.0*float32(fanin))
-
-		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
+		err := c.w.T().AddRandNormalGenerator(handle, seed)
 		if err != nil {
-			fmt.Println("dims are", dims)
-			fmt.Println("fanin is:", fanin)
-			fmt.Println("Error in set random")
+			return err
+		}
+		err = c.w.T().NormalRand(0, 1.0*float32(fanin))
+		if err != nil {
 			return err
 		}
 
@@ -204,14 +167,19 @@ func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32) err
 }
 
 //MakeRandomFromFanin does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO) error {
+func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, seed uint64) error {
 	_, _, dims, err := input.Properties()
 	if err != nil {
 		return err
 	}
 	if len(dims) < 5 {
+
 		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
+		err := c.w.T().AddRandNormalGenerator(handle, seed)
+		if err != nil {
+			return err
+		}
+		err = c.w.T().NormalRand(0, 1.0*float32(fanin))
 		if err != nil {
 			return err
 		}
@@ -255,9 +223,7 @@ func layersetup(
 	}
 
 	return &Layer{
-		//	size: sizeinbytes,
 		conv: conv,
-
 		w:    w,
 		bias: bias,
 		fwd: xtras{

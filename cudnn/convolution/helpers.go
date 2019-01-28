@@ -116,44 +116,33 @@ type ConvBwdFiltAlgoPerformance struct {
 */
 type BackFilterPerformance gocudnn.ConvBwdFiltAlgoPerformance
 
-func (c *Ops) SetPerformances(h *cudnn.Handler, fwd ForwardPerformance, bwddata BackDataPerformance, bwdfilt BackFilterPerformance) {
-
-	c.fwdalgo = fwd.Algo
-
-	c.setfwd = true
-
-	c.bwddata = bwddata.Algo
-	c.setbwd = true
-	c.bwdfilt = bwdfilt.Algo
-	c.setfilt = true
-
+//SetFwdPerformanceAlgo will sets the convolution algorithm
+func (c *Ops) SetFwdPerformanceAlgo(fwd ForwardPerformance) {
+	c.perfforward = fwd
+	c.fwddesc.SetMathType(fwd.MathType)
 }
 
-//AlgoLists Algo lists returns slices of performances for the fwd algos and bwd algos
-func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volume) ([]ForwardPerformance, []BackDataPerformance, []BackFilterPerformance, error) {
+//SetBwdDataPerformanceAlgo will sets the convolution algorithm
+func (c *Ops) SetBwdDataPerformanceAlgo(bwddata BackDataPerformance) {
+	c.perfbackdata = bwddata
+	c.bwdddesc.SetMathType(bwddata.MathType)
+}
+
+//SetBwdFiltPerformanceAlgo will sets the convolution algorithm
+func (c *Ops) SetBwdFiltPerformanceAlgo(bwdfilt BackFilterPerformance) {
+	c.perfbackfilt = bwdfilt
+	c.bwdfdesc.SetMathType(bwdfilt.MathType)
+}
+
+//GetFwdAlgoPerfList gets a list of forward performance stats
+func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume) ([]ForwardPerformance, error) {
 	maxfwd, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle.Cudnn())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	fwdlist, err := c.helper.Funcs.Fwd.FindConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.desc, y.TD(), maxfwd)
+	fwdlist, err := c.helper.Funcs.Fwd.FindConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.fwddesc, y.TD(), maxfwd)
 	if err != nil {
-		return nil, nil, nil, err
-	}
-	maxbwddata, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithmMaxCount(handle.Cudnn())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	bwddata, err := c.helper.Funcs.Bwd.FindConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.desc, dx.TD(), maxbwddata)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	maxbwdfilt, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithmMaxCount(handle.Cudnn())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	bwdfilt, err := c.helper.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), dy.TD(), c.desc, dw.FD(), maxbwdfilt)
-	if bwdfilt != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	fwper := make([]ForwardPerformance, 0)
 	for i := range fwdlist {
@@ -166,16 +155,42 @@ func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volum
 		}
 
 	}
-	bwdper := make([]BackDataPerformance, 0)
+	return fwper, nil
+}
+
+//GetBwdDataAlgoPerfList gets a list of backward data performance stats to set the convolution algo
+func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Volume) ([]BackDataPerformance, error) {
+	maxbwddata, err := c.helper.Funcs.Bwd.GetConvolutionBackwardDataAlgorithmMaxCount(handle.Cudnn())
+	if err != nil {
+		return nil, err
+	}
+	bwddata, err := c.helper.Funcs.Bwd.FindConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.bwdddesc, dx.TD(), maxbwddata)
+	if err != nil {
+		return nil, err
+	}
+	bwper := make([]BackDataPerformance, 0)
 	for i := range bwddata {
 
 		err = bwddata[i].Status.Error("Not Available")
 		if err != nil {
 
 		} else {
-			bwdper = append(bwdper, BackDataPerformance(bwddata[i]))
+			bwper = append(bwper, BackDataPerformance(bwddata[i]))
 		}
 
+	}
+	return bwper, nil
+}
+
+//GetBwdFiltAlgoPerfList gets a list of backward filter stats
+func (c *Ops) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, dw, dy *tensor.Volume) ([]BackFilterPerformance, error) {
+	maxbwdfilt, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithmMaxCount(handle.Cudnn())
+	if err != nil {
+		return nil, err
+	}
+	bwdfilt, err := c.helper.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), dy.TD(), c.bwdfdesc, dw.FD(), maxbwdfilt)
+	if bwdfilt != nil {
+		return nil, err
 	}
 	bwfper := make([]BackFilterPerformance, 0)
 	for i := range bwdfilt {
@@ -188,7 +203,7 @@ func (c *Ops) AlgoLists(handle *cudnn.Handler, x, dx, w, dw, y, dy *tensor.Volum
 		}
 
 	}
-	return fwper, bwdper, bwfper, nil
+	return bwfper, nil
 }
 
 //OutputDim will return the dims of what the output tensor should be
@@ -207,8 +222,8 @@ func (c *Ops) OutputDim(input *tensor.Volume, filter *tensor.Volume) ([]int32, e
 		return nil, errors.New("length of dims not same")
 	}
 	if len(dims) == 4 {
-		return c.desc.GetConvolution2dForwardOutputDim(input.TD(), filter.FD())
+		return c.fwddesc.GetConvolution2dForwardOutputDim(input.TD(), filter.FD())
 	}
-	return c.desc.GetConvolutionNdForwardOutputDim(input.TD(), filter.FD())
+	return c.fwddesc.GetConvolutionNdForwardOutputDim(input.TD(), filter.FD())
 
 }
