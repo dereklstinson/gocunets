@@ -129,7 +129,7 @@ func Setup(handle *cudnn.Handler,
 	}
 	err = layer.MakeRandomFromFaninDims(handle, filterdims, seed)
 	if err != nil {
-		fmt.Println("Error in randomfan int")
+		fmt.Println("Error in randomfanindims")
 		return nil, err
 	}
 
@@ -149,15 +149,22 @@ func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32, see
 	if len(dims) < 5 {
 
 		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().AddRandNormalGenerator(handle, seed)
+		err := c.w.T().SetRandomNormal(handle, 0, float32(fanin))
 		if err != nil {
 			return err
-		}
-		err = c.w.T().NormalRand(0, 1.0*float32(fanin))
-		if err != nil {
-			return err
-		}
+		} /*
+			err := c.w.T().AddRandNormalGenerator(handle, seed)
+			if err != nil {
 
+				fmt.Println("RandomFaninDims Making GErator")
+				return err
+			}
+			err = c.w.T().NormalRand(0, 1.0*float32(fanin))
+			if err != nil {
+				fmt.Println("RandomFaninDims Trying Random")
+				return err
+			}
+		*/
 	}
 	if len(dims) > 4 {
 		return errors.New("Not Available yet")
@@ -174,16 +181,20 @@ func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, see
 	}
 	if len(dims) < 5 {
 
-		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().AddRandNormalGenerator(handle, seed)
+		fanin := float64(dims[1] * dims[2] * dims[3]) /*
+			err := c.w.T().AddRandNormalGenerator(handle, seed)
+			if err != nil {
+				return err
+			}
+			err = c.w.T().NormalRand(0, 1.0*float32(fanin))
+			if err != nil {
+				return err
+			}
+		*/
+		err := c.w.T().SetRandomNormal(handle, 0, float32(fanin))
 		if err != nil {
 			return err
 		}
-		err = c.w.T().NormalRand(0, 1.0*float32(fanin))
-		if err != nil {
-			return err
-		}
-
 	}
 	if len(dims) > 4 {
 		return errors.New("Not Available yet")

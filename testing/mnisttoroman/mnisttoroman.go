@@ -58,7 +58,7 @@ func main() {
 	handles.SetMaxBatch(20)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
-	handles.SetStream(stream)
+	utils.CheckError(handles.SetStream(stream))
 	var dataflag cudnn.DataTypeFlag
 	var convflag gocudnn.ConvolutionFlags
 	var fflag cudnn.TensorFormatFlag
@@ -149,14 +149,14 @@ func main() {
 			utils.CheckError(stream.Sync())
 			utils.CheckError(ToRoman.ForwardProp(handles, nil, chokepoint[j], romanoutput))
 			utils.CheckError(stream.Sync())
-			utils.CheckError(RomanOutput.LoadTValues(handles, romanoutput.T().Memer()))
+			utils.CheckError(RomanOutput.LoadTValues(handles, romanoutput.T()))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(MSERoman.ErrorGPU(handles, RomanOutput, romanoutput))
 			utils.CheckError(stream.Sync())
 
 			utils.CheckError(ToRoman.BackPropFilterData(handles, nil, chokepoint[j], RomanOutput))
 			utils.CheckError(stream.Sync())
-			utils.CheckError(ArabicOutput.LoadTValues(handles, arabicoutput[j].T().Memer()))
+			utils.CheckError(ArabicOutput.LoadTValues(handles, arabicoutput[j].T()))
 			utils.CheckError(stream.Sync())
 			utils.CheckError(MSEArabic.ErrorGPU(handles, ArabicOutput, arabicoutput[j]))
 			utils.CheckError(stream.Sync())
@@ -199,7 +199,7 @@ func main() {
 				}
 				if imagebuffer > w {
 					utils.CheckError(handles.Sync())
-					imagerlayer[k].LoadTValues(handles, outputs[k].T().Memer())
+					imagerlayer[k].LoadTValues(handles, outputs[k].T())
 					utils.CheckError(handles.Sync())
 					outputimage, err := imager[k].TileBatches(handles, imagerlayer[k], 2, 5, 28, 28)
 					utils.CheckError(err)
@@ -243,12 +243,12 @@ func putintogpumemArabic(handles *cudnn.Handler, arabic [][]float32, frmt cudnn.
 	for i := range arabic {
 		runs[i], err = layers.BuildNetworkInputIO(handles, frmt, dtype, dimsarabic)
 		utils.CheckError(err)
-		ptr, err := gocudnn.MakeGoPointer(arabic[i])
-		utils.CheckError(err)
-		utils.CheckError(runs[i].LoadTValues(handles, ptr))
+		//ptr, err := gocudnn.MakeGoPointer(arabic[i])
+		//utils.CheckError(err)
+		utils.CheckError(runs[i].LoadTValuesFromGoSlice(handles, arabic[i], int32(len(arabic[i]))))
 		output[i], err = layers.BuildIO(handles, frmt, dtype, dimsarabic)
 		utils.CheckError(err)
-		utils.CheckError(output[i].LoadDeltaTValues(handles, ptr))
+		utils.CheckError(output[i].LoadDeltaTValuesFromGoSlice(handles, arabic[i], int32(len(arabic[i]))))
 	}
 	return output, runs
 }

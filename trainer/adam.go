@@ -2,6 +2,7 @@ package trainer
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -42,7 +43,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 		return err
 	}
 	a.dims = dims
-	DeFault := gocudnn.MemcpyKindFlag{}.Default()
+	//DeFault := gocudnn.MemcpyKindFlag{}.Default()
 	Global := gocudnn.ManagedMemFlag{}.Global()
 	var dflg cudnn.DataTypeFlag
 	switch dtype {
@@ -64,22 +65,27 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			}
 			return err
 		}
-		asize := dimsize(dims)
-		x := make([]float32, asize)
-		sizet, err := gocudnn.FindSizeT(x)
-		if err != nil {
-			if debuggingadam {
-				panic(err)
+		//asize := dimsize()
+		sizet := gocudnn.FindSizeTfromVol(dims, dtype.Cu())
+		/*
+			x := make([]float32, asize)
+			sizet, err := gocudnn.FindSizeT(x)
+			if err != nil {
+				if debuggingadam {
+					panic(err)
+				}
+				return err
 			}
-			return err
-		}
-		xp, err := gocudnn.MakeGoPointer(x)
-		if err != nil {
-			if debuggingadam {
-				panic(err)
+
+			xp, err := gocudnn.MakeGoPointer(x)
+			if err != nil {
+				if debuggingadam {
+					panic(err)
+				}
+				return err
 			}
-			return err
-		}
+
+		*/
 		a.gsum, err = gocudnn.UnifiedMangedGlobal(sizet)
 		if err != nil {
 			if debuggingadam {
@@ -94,20 +100,42 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			}
 			return err
 		}
-		err = gocudnn.CudaMemCopy(a.gsum, xp, sizet, DeFault)
+		err = a.xsum.Set(0)
 		if err != nil {
 			if debuggingadam {
+				fmt.Println("Dims are", dims)
+				fmt.Println("Adress for a.xsum,and a.gsum", a.xsum, a.gsum)
+				fmt.Println("a.xsum Cudasize", a.gsum.ByteSize())
 				panic(err)
 			}
-			return err
 		}
-		err = gocudnn.CudaMemCopy(a.xsum, xp, sizet, DeFault)
+		err = a.gsum.Set(0)
 		if err != nil {
 			if debuggingadam {
+				fmt.Println("a.gsum Cudasize", a.gsum.ByteSize())
 				panic(err)
 			}
-			return err
 		}
+
+		/*
+				err = a.gsum.CudaMemCopy(a.gsum, xp, sizet, DeFault)
+				if err != nil {
+					if debuggingadam {
+
+						fmt.Println("SizeT is ", sizet)
+						//Bug Was Here
+						panic(err)
+					}
+					return err
+				}
+			err = gocudnn.CudaMemCopy(a.xsum, xp, sizet, DeFault)
+			if err != nil {
+				if debuggingadam {
+					panic(err)
+				}
+				return err
+			}
+		*/
 		a.gpuloss1, err = gocudnn.MallocManaged(gocudnn.SizeT(4), Global)
 		if err != nil {
 			if debuggingadam {

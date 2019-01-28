@@ -196,7 +196,8 @@ func (m *Network) AddLayers(layer ...interface{}) {
 //AddLayer adds a layer without setting the mem
 func (m *Network) AddLayer(layer interface{}, err error) {
 	if err != nil {
-		m.err <- err
+		panic(err)
+		//	m.err <- err
 	}
 	l, hasweights := wraplayer(layer)
 	if l != nil {
