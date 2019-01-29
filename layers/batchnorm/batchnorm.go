@@ -3,8 +3,8 @@ package batchnorm
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/batchnorm"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/batchnorm"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"

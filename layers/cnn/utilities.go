@@ -1,8 +1,6 @@
 package cnn
 
-import (
-	"github.com/dereklstinson/GoCuNets/cudnn"
-)
+import "github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 
 /*
 //SaveImagesToFile saves images do file

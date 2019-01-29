@@ -1,8 +1,8 @@
 package activation
 
 import (
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/activation"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/activation"
 )
 
 //Updateable returns a true if the layer contains parameters that are updateable

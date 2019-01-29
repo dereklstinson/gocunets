@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -102,6 +102,7 @@ func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO) ([
 	m.previousdims = input.T().Dims()
 	err := m.buildhiddenios(handle, input)
 	if err != nil {
+		fmt.Println("Error in buildinghiddenios")
 		return nil, err
 	}
 	return m.performance(handle, input, output)
@@ -142,12 +143,12 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 	var err error
 	for i := 0; i < len(m.layer); i++ {
 		if debuggingmaingocunets {
-			fmt.Println("Going Through Layer at Index", i)
+			//	fmt.Println("Going Through Layer at Index", i)
 		}
 		if m.layer[i].needstrainer() == true {
 
 			if debuggingmaingocunets {
-				fmt.Println("Loading Trainer at Index", i)
+				//	fmt.Println("Loading Trainer at Index", i)
 			}
 			m.wtrainers = append(m.wtrainers, trainerweights[counter])
 			m.btrainers = append(m.btrainers, trainerbias[counter])

@@ -3,8 +3,7 @@ package cnntranspose
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/reshapes"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -22,17 +21,13 @@ There is a few ways to test..
 
 //Layer contains the ops need for ConvTranspose
 type Layer struct {
-	conv         *cnn.Layer
-	trans        *reshapes.Ops
-	hiddenmem    *layers.IO
-	hiddenmem2   *layers.IO
-	mode         convtransposemode
-	resizeddims  []int32
-	previouss2b  []int32
-	s2bwindow    []int32
-	thelper      *reshapes.TransFormHelper
-	s2bbatchmult int32
-	inputlayer   bool
+	conv        *cnn.Layer
+	mode        convtransposemode
+	resizeddims []int32
+	previouss2b []int32
+	s2bwindow   []int32
+
+	inputlayer bool
 }
 type convtransposemode int
 

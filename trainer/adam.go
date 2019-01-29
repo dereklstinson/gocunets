@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-const debuggingadam = true
+const debuggingadam = false
 
 //Adam is a struct that does the holds the params for adam optimization
 type Adam struct {

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -149,7 +149,7 @@ func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32, see
 	if len(dims) < 5 {
 
 		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().SetRandomNormal(handle, 0, float32(fanin))
+		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
 			return err
 		} /*
@@ -191,7 +191,8 @@ func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, see
 				return err
 			}
 		*/
-		err := c.w.T().SetRandomNormal(handle, 0, float32(fanin))
+		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
+		//err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
 			return err
 		}

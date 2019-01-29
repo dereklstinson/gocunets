@@ -8,8 +8,9 @@ import (
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
+
 	"github.com/dereklstinson/GoCuNets/utils"
 )
 
@@ -241,35 +242,35 @@ func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr)
+		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
 	case flg.Float():
 		x := utils.ToFloat32Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr)
+		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
 	case flg.Int32():
 		x := utils.ToInt32Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr)
+		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
 	case flg.Int8():
 		x := utils.ToInt8Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr)
+		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
 	case flg.UInt8():
 		x := utils.ToUint8Slice(val.Values)
 		gptr, err := gocudnn.MakeGoPointer(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr)
+		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
 	}
 	return errors.New("Unsupported Type")
 }

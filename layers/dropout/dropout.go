@@ -3,8 +3,8 @@ package dropout
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/dropout"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/dropout"
 	"github.com/dereklstinson/GoCuNets/layers"
 )
 
@@ -13,19 +13,17 @@ type Layer struct {
 	op      *dropout.Ops
 	dropout float32
 	seed    uint64
-	managed bool
 }
 
 //Settings is the settings for drop out layer
 type Settings struct {
 	Dropout float32 `json:"dropout,omitempty"`
 	Seed    uint64  `json:"seed,omitempty"`
-	Managed bool    `json:"managed,omitempty"`
 }
 
 //Setup sets up the layer
-func Setup(handle *cudnn.Handler, x *layers.IO, drpout float32, seed uint64, managed bool) (*Layer, error) {
-	op, err := dropout.Stage(handle, x.T(), drpout, seed, managed)
+func Setup(handle *cudnn.Handler, x *layers.IO, drpout float32, seed uint64) (*Layer, error) {
+	op, err := dropout.Stage(handle, x.T(), drpout, seed)
 	return &Layer{
 		op: op,
 	}, err
@@ -33,14 +31,13 @@ func Setup(handle *cudnn.Handler, x *layers.IO, drpout float32, seed uint64, man
 
 //Preset presets the layer, but doesn't build it. Useful if you want to set up the network before the tensor descriptors for the input
 //are made. handle can be nil.  I just wanted to keep it consistant.
-func Preset(handle *cudnn.Handler, dropout float32, seed uint64, managed bool) (*Layer, error) {
+func Preset(handle *cudnn.Handler, dropout float32, seed uint64) (*Layer, error) {
 	if dropout >= 1 {
 		return nil, errors.New("Dropout can't be greater than or equal to 1")
 	}
 	return &Layer{
 		dropout: dropout,
 		seed:    seed,
-		managed: managed,
 	}, nil
 }
 
@@ -55,7 +52,7 @@ func (l *Layer) BuildFromPreset(handle *cudnn.Handler, input *layers.IO) error {
 			}
 		}
 	*/
-	l.op, err = dropout.Stage(handle, input.T(), l.dropout, l.seed, l.managed)
+	l.op, err = dropout.Stage(handle, input.T(), l.dropout, l.seed)
 	return err
 }
 

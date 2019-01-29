@@ -1,10 +1,12 @@
 package gocunets
 
 import (
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 )
+
+const debuglayerperformance = false
 
 func (l *layer) setcudnnperformancefwd(handle *cudnn.Handler, fwd convolution.ForwardPerformance) {
 	if l.cnn != nil {
@@ -41,6 +43,9 @@ func (l *layer) setcudnnperformancebwdf(handle *cudnn.Handler, bwdf convolution.
 func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
 
 	if l.cnn != nil {
+		if debuglayerperformance {
+
+		}
 		fwd, err = l.cnn.GetFwdAlgoPerfList(handle, x, y)
 		if err != nil {
 			return nil, nil, nil, err

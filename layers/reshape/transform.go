@@ -1,8 +1,8 @@
 package reshape
 
 import (
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/reshapes"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/custom/reshapes"
 	"github.com/dereklstinson/GoCuNets/layers"
 )
 

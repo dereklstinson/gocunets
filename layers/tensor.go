@@ -5,10 +5,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/utils"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -488,7 +488,7 @@ func (i *IO) LoadTValues(handle *cudnn.Handler, input *tensor.Volume) error {
 	if utils.FindVolumeInt32(i.x.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
 		return errors.New("InputCurrent dims not matching IO current dims")
 	}
-	return i.x.LoadMem(handle, input.Memer())
+	return i.x.LoadMem(handle, input.Memer(), input.CurrentSizeT())
 }
 
 //LoadTValuesFromGoSlice takes a go slice and fills it into the tensor sitting in the gpu.  If the length of goslice doesn't fit the input it will return an error
@@ -501,7 +501,8 @@ func (i *IO) LoadTValuesFromGoSlice(handle *cudnn.Handler, input interface{}, le
 	if err != nil {
 		return err
 	}
-	return i.x.LoadMem(handle, i.gxptr)
+
+	return i.x.LoadMem(handle, i.gxptr, cudnn.SizeT(i.gxptr.ByteSize()))
 }
 
 //GetLength returns the length in int32
@@ -530,7 +531,7 @@ func (i *IO) LoadDeltaTValuesFromGoSlice(handle *cudnn.Handler, input interface{
 	if err != nil {
 		return err
 	}
-	return i.dx.LoadMem(handle, i.gdxptr)
+	return i.dx.LoadMem(handle, i.gdxptr, cudnn.SizeT(i.gdxptr.ByteSize()))
 }
 
 //LoadDeltaTValues loads a piece of memory that was made in golang and loads into a previously created delta tensor volume in cuda.
@@ -541,7 +542,7 @@ func (i *IO) LoadDeltaTValues(handle *cudnn.Handler, input *tensor.Volume) error
 	if utils.FindVolumeInt32(i.dx.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
 		return errors.New("InputCurrent dims not matching IO current dims")
 	}
-	return i.dx.LoadMem(handle, input.Memer())
+	return i.dx.LoadMem(handle, input.Memer(), input.CurrentSizeT())
 }
 
 /*

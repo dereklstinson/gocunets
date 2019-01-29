@@ -1,9 +1,9 @@
 package layers
 
 import (
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/reduce"
-	"github.com/dereklstinson/GoCuNets/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/reduce"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 

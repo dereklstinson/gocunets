@@ -1,12 +1,15 @@
 package gocunets
 
 import (
+	"fmt"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 )
+
+const debugconvolutionperformance = false
 
 //ConvolutionPerformance contains all the performance stats for different convolution algos
 type ConvolutionPerformance struct {
@@ -86,10 +89,14 @@ func (c *ConvolutionPerformance) FindFastestWspace() (wspacesize cudnn.SizeT) {
 	return wspacesize
 }
 func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]ConvolutionPerformance, error) {
+
 	//	var err error
 	performers := make([]ConvolutionPerformance, 0)
 	fwd, bwdd, bwdf, err := m.layer[0].getcudnnperformance(handle, x, m.mem[0])
 	if err != nil {
+		if debugconvolutionperformance {
+			dbprt("(m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]ConvolutionPerformance, error)")
+		}
 		return nil, wraperror("cudnn performance index:"+strconv.Itoa(0), err)
 	}
 	if bwdf != nil {
@@ -102,7 +109,9 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]Convolu
 	}
 	lnum := len(m.layer)
 	for i := 1; i < lnum-1; i++ {
-
+		if debugconvolutionperformance {
+			fmt.Println("index " + strconv.Itoa(i))
+		}
 		fwd1, bwdd1, bwdf1, err := m.layer[i].getcudnnperformance(handle, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return nil, wraperror("cudnn performance index:"+strconv.Itoa(i), err)
@@ -116,7 +125,9 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]Convolu
 			})
 		}
 	}
-
+	if debugconvolutionperformance {
+		fmt.Println("index " + strconv.Itoa(lnum-1))
+	}
 	fwd1, bwdd1, bwdf1, err := m.layer[lnum-1].getcudnnperformance(handle, m.mem[lnum-2], y)
 	if err != nil {
 		return nil, wraperror("cudnn performance index:"+strconv.Itoa(lnum-1), err)
@@ -131,4 +142,13 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]Convolu
 	}
 	return performers, nil
 
+}
+
+func dbprt(comment string) {
+	fmt.Sprint()
+	fmt.Printf("Dubbing:{\n"+
+		"File: gocunets_performance.go{\n"+
+		"%s\n"+
+		"}\n"+
+		"})\n", comment)
 }

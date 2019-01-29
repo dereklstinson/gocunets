@@ -5,7 +5,8 @@ import (
 	"math/rand"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/cudnn"
+
+	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
@@ -55,7 +56,7 @@ func main() {
 	devs, err := gocudnn.Cuda{}.GetDeviceList()
 	utils.CheckError(err)
 	handles := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
-	handles.SetMaxBatch(20)
+	handles.SetMaxBatch(10)
 	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 	utils.CheckError(err)
 	utils.CheckError(handles.SetStream(stream))
