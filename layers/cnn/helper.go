@@ -67,12 +67,12 @@ func (c *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]co
 
 //GetBwdDataAlgoPerfList gets a list of backward performance algos
 func (c *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackDataPerformance, error) {
-	return c.conv.GetBwdDataAlgoPerfList(handle, x.DeltaT(), c.w.T(), y.DeltaT())
+	return c.conv.GetBwdDataAlgoPerfList(handle, x.T(), c.w.T(), y.T())
 }
 
 //GetBwdFiltAlgoPerfList gets a list of forward performance algos
 func (c *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackFilterPerformance, error) {
-	return c.conv.GetBwdFiltAlgoPerfList(handle, x.T(), c.w.DeltaT(), y.DeltaT())
+	return c.conv.GetBwdFiltAlgoPerfList(handle, x.T(), c.w.T(), y.T())
 }
 
 //SetFwdAlgoPerformance sets the Performance Values

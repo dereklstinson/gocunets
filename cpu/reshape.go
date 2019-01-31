@@ -74,6 +74,74 @@ func ShapeToBatchLabelAdjustForward(dims, window, stride []int32, pts []XYPoint)
 
 }
 
+//ShapeToBatchNHWC4DForwardbyte does the shape to batch in byte format
+func ShapeToBatchNHWC4DForwardbyte(values []byte, dims, window, stride []int32) ([]byte, []int32, []int32, error) {
+	if len(dims) != 4 {
+		return nil, nil, nil, errors.New("The Length of dims should equal 4")
+	}
+	if dims[0] != int32(1) {
+		return nil, nil, nil, errors.New("N value needs to be 1")
+	}
+
+	h := window[0]
+	w := window[1]
+	hs := stride[0]
+	ws := stride[1]
+	var n1 int32
+	var n2 int32
+	var hoverscan bool
+	var woverscan bool
+	if h == hs {
+		n1 = intceiling(dims[2]-h, hs) + 1
+		hoverscan = true
+	} else {
+		intceiling(dims[2]-h, hs)
+	}
+	if w == ws {
+		n2 = intceiling(dims[3]-w, ws) + 1
+		woverscan = true
+	} else {
+		n2 = intceiling(dims[3]-w, ws)
+	}
+
+	oHH := dims[2]
+	oHW := dims[3]
+	n := n1 * n2
+	c := dims[1]
+	newdims := []int32{n, c, h, w}
+	//	totalvol := Volume(dims)
+	v := make([]byte, n*c*h*w)
+	striderh := int32(0)
+	for i := int32(0); i < n1; i++ {
+		striderw := int32(0)
+		for j := int32(0); j < n2; j++ {
+			for k := int32(0); k < c; k++ {
+				for l := int32(0); l < h; l++ {
+					oh := striderh + l
+					for m := int32(0); m < w; m++ {
+						ow := striderw + m
+						if oh < oHH && ow < oHW {
+							v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = values[(k*oHW*oHH)+(oh*oHW)+(ow)]
+						} else {
+							if hoverscan && ow < oHW {
+								v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = 0
+							}
+							if woverscan && oh < oHH {
+								v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = 0
+							}
+
+						}
+
+					}
+				}
+			}
+			striderw += ws
+		}
+		striderh += hs
+	}
+	return v, newdims, []int32{n1, n2}, nil
+}
+
 //ShapeToBatchNCHW4DForward Takes a Volume and Segments it into Batches to the size h,w given. and rounds up by one.  Values not used in new tensor will be zero
 //Function returns data, dims, ratio (h and w used for remaping values), error
 func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) ([]float32, []int32, []int32, error) {
@@ -87,8 +155,23 @@ func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) (
 	w := window[1]
 	hs := stride[0]
 	ws := stride[1]
-	n1 := intceiling(dims[2]-h, hs) + 1
-	n2 := intceiling(dims[3]-w, ws) + 1
+	var n1 int32
+	var n2 int32
+	var hoverscan bool
+	var woverscan bool
+	if h == hs {
+		n1 = intceiling(dims[2]-h, hs) + 1
+		hoverscan = true
+	} else {
+		intceiling(dims[2]-h, hs)
+	}
+	if w == ws {
+		n2 = intceiling(dims[3]-w, ws) + 1
+		woverscan = true
+	} else {
+		n2 = intceiling(dims[3]-w, ws)
+	}
+
 	oHH := dims[2]
 	oHW := dims[3]
 	n := n1 * n2
@@ -108,7 +191,12 @@ func ShapeToBatchNCHW4DForward(values []float32, dims, window, stride []int32) (
 						if oh < oHH && ow < oHW {
 							v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = values[(k*oHW*oHH)+(oh*oHW)+(ow)]
 						} else {
-							v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = 0
+							if hoverscan && ow < oHW {
+								v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = 0
+							}
+							if woverscan && oh < oHH {
+								v[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m] = 0
+							}
 						}
 
 					}
@@ -129,14 +217,31 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []
 	if dims[0] != int32(1) {
 		return errors.New("N value needs to be 1")
 	}
-	n1 := intceiling(dims[2]-batchgeddims[2], stride[0]) + 1
-	n2 := intceiling(dims[3]-batchgeddims[3], stride[1]) + 1
+	h := batchgeddims[0]
+	w := batchgeddims[1]
+	hs := stride[0]
+	ws := stride[1]
+	var n1 int32
+	var n2 int32
+
+	if h == hs {
+		n1 = intceiling(dims[2]-h, hs) + 1
+
+	} else {
+		intceiling(dims[2]-h, hs)
+	}
+	if w == ws {
+		n2 = intceiling(dims[3]-w, ws) + 1
+
+	} else {
+		n2 = intceiling(dims[3]-w, ws)
+	}
+
 	oHH := dims[3]
 	oHW := dims[2]
 
 	c := dims[1]
-	h := batchgeddims[2]
-	w := batchgeddims[3]
+
 	for i := range values {
 		values[i] = 0
 	}
@@ -151,7 +256,7 @@ func ShapeToBatchNCHW4DBackward(values []float32, dims []int32, batchedvalues []
 					for m := int32(0); m < w; m++ {
 						ow := striderw + m
 						if oh < oHH && ow < oHW {
-							//testarray[(k*oHW*oHH)+(oh*oHW)+(ow)] = batchedvalues[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m]
+
 							values[(k*oHW*oHH)+(oh*oHW)+(ow)] += batchedvalues[(i*n2*c*h*w)+(j*c*h*w)+(k*h*w)+(l*h)+m]
 						}
 
@@ -178,9 +283,23 @@ func ShapeToBatchNHWC4DForward(values []float32, dims, window, stride []int32) (
 	w := window[1]
 	hs := stride[0]
 	ws := stride[1]
-	n1 := intceiling(dims[1]-h, hs) + 1
-	n2 := intceiling(dims[2]-w, ws) + 1
 
+	var n1 int32
+	var n2 int32
+	var hoverscan bool
+	var woverscan bool
+	if h == hs {
+		n1 = intceiling(dims[1]-h, hs) + 1
+		hoverscan = true
+	} else {
+		intceiling(dims[1]-h, hs)
+	}
+	if w == ws {
+		n2 = intceiling(dims[2]-w, ws) + 1
+		woverscan = true
+	} else {
+		n2 = intceiling(dims[2]-w, ws)
+	}
 	oHH := dims[1]
 	oHW := dims[2]
 	n := n1 * n2
@@ -207,6 +326,17 @@ func ShapeToBatchNHWC4DForward(values []float32, dims, window, stride []int32) (
 
 						}
 
+					} else {
+						if hoverscan && ow < oHW {
+							for k := z; k < c; k++ {
+								arrangedvalues[(i*n2*h*w*c)+(j*h*w*c)+(l*w*c)+(m*c)+k] = 0
+							}
+						}
+						if woverscan && oh < oHH {
+							for k := z; k < c; k++ {
+								arrangedvalues[(i*n2*h*w*c)+(j*h*w*c)+(l*w*c)+(m*c)+k] = 0
+							}
+						}
 					}
 
 				}
@@ -231,8 +361,21 @@ func ShapeToBatchNHWC4DBackward(values []float32, dims []int32, batchedvalues []
 	w := batcheddims[2]
 	hs := stride[0]
 	ws := stride[1]
-	n1 := intceiling(dims[1]-h, hs) + 1
-	n2 := intceiling(dims[2]-w, ws) + 1
+	var n1 int32
+	var n2 int32
+
+	if h == hs {
+		n1 = intceiling(dims[1]-h, hs) + 1
+
+	} else {
+		intceiling(dims[1]-h, hs)
+	}
+	if w == ws {
+		n2 = intceiling(dims[2]-w, ws) + 1
+
+	} else {
+		n2 = intceiling(dims[2]-w, ws)
+	}
 
 	oHH := dims[1]
 	oHW := dims[2]

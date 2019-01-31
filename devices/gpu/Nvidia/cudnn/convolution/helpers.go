@@ -150,10 +150,17 @@ func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume) 
 
 		err = fwdlist[i].Status.Error("Not Available")
 		if err != nil {
-
+			/*	fwdlist[i].Print()
+				fmt.Println("Index is: ", i, "Error Message: ", err)
+			*/
 		} else {
+			fwdlist[i].Print()
+			fmt.Println("")
 			fwper = append(fwper, ForwardPerformance(fwdlist[i]))
 		}
+
+	}
+	for {
 
 	}
 	return fwper, nil
