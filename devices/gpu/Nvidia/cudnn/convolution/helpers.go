@@ -84,6 +84,16 @@ type ForwardPerformance gocudnn.ConvFwdAlgoPerformance
 func (f ForwardPerformance) Print() {
 	f.Print()
 }
+func tofwrdperf(x gocudnn.ConvFwdAlgoPerformance) ForwardPerformance {
+	return ForwardPerformance{
+		Algo:        x.Algo,
+		Status:      x.Status,
+		Time:        x.Time,
+		Memory:      x.Memory,
+		Determinism: x.Determinism,
+		MathType:    x.MathType,
+	}
+}
 
 /*
 BackDataPerformance is a wrapper for gocudnn.ConvBwdDataAlgoPerformance
@@ -104,6 +114,17 @@ func (b BackDataPerformance) Print() {
 	b.Print()
 }
 
+func tobwddperf(x gocudnn.ConvBwdDataAlgoPerformance) BackDataPerformance {
+	return BackDataPerformance{
+		Algo:        x.Algo,
+		Status:      x.Status,
+		Time:        x.Time,
+		Memory:      x.Memory,
+		Determinism: x.Determinism,
+		MathType:    x.MathType,
+	}
+}
+
 /*
 BackFilterPerformance is a wrapper for gocudnn.ConvBwdFiltAlgoPerformance
 type ConvBwdFiltAlgoPerformance struct {
@@ -116,6 +137,17 @@ type ConvBwdFiltAlgoPerformance struct {
 }
 */
 type BackFilterPerformance gocudnn.ConvBwdFiltAlgoPerformance
+
+func tobwdfperf(x gocudnn.ConvBwdFiltAlgoPerformance) BackFilterPerformance {
+	return BackFilterPerformance{
+		Algo:        x.Algo,
+		Status:      x.Status,
+		Time:        x.Time,
+		Memory:      x.Memory,
+		Determinism: x.Determinism,
+		MathType:    x.MathType,
+	}
+}
 
 //SetFwdPerformanceAlgo will sets the convolution algorithm
 func (c *Ops) SetFwdPerformanceAlgo(fwd ForwardPerformance) {
@@ -148,16 +180,18 @@ func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume) 
 	fwper := make([]ForwardPerformance, 0)
 	for i := range fwdlist {
 
-		err = fwdlist[i].Status.Error("Not Available")
-		if err != nil {
-			/*	fwdlist[i].Print()
-				fmt.Println("Index is: ", i, "Error Message: ", err)
-			*/
-		} else {
-			fwdlist[i].Print()
-			fmt.Println("")
-			fwper = append(fwper, ForwardPerformance(fwdlist[i]))
-		}
+		fwper = append(fwper, tofwrdperf(fwdlist[i]))
+
+		/*
+			err = fwdlist[i].Status.Error("Not Available")
+			if err != nil {
+					fwdlist[i].Print()
+					fmt.Println("Index is: ", i, "Error Message: ", err)
+
+			} else {
+
+			}
+		*/
 
 	}
 
@@ -181,13 +215,15 @@ func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Vo
 	}
 	bwper := make([]BackDataPerformance, 0)
 	for i := range bwddata {
+		bwper = append(bwper, tobwddperf(bwddata[i]))
+		/*
+			err = bwddata[i].Status.Error("Not Available")
+			if err != nil {
 
-		err = bwddata[i].Status.Error("Not Available")
-		if err != nil {
+			} else {
 
-		} else {
-			bwper = append(bwper, BackDataPerformance(bwddata[i]))
-		}
+			}
+		*/
 
 	}
 	return bwper, nil
@@ -205,14 +241,14 @@ func (c *Ops) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, dw, dy *tensor.Vo
 	}
 	bwfper := make([]BackFilterPerformance, 0)
 	for i := range bwdfilt {
+		bwfper = append(bwfper, tobwdfperf(bwdfilt[i]))
+		/*
+			err = bwdfilt[i].Status.Error("Not Available")
+			if err != nil {
 
-		err = bwdfilt[i].Status.Error("Not Available")
-		if err != nil {
-
-		} else {
-			bwfper = append(bwfper, BackFilterPerformance(bwdfilt[i]))
-		}
-
+			} else {
+			}
+		*/
 	}
 	return bwfper, nil
 }
