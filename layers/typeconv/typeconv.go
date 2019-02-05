@@ -1,4 +1,4 @@
-package input
+package typeconv
 
 import (
 	"errors"
@@ -40,7 +40,12 @@ func (l *Layer) GetOutputIO(handle *cudnn.Handler, input *layers.IO) (*layers.IO
 	return layers.BuildNetworkInputIO(handle, frmt, dflg.Float(), dims)
 }
 
-//Convert converts the values of x into float32 in y
-func (l *Layer) Convert(handle *cudnn.Handler, x, y *layers.IO) error {
+//ConvertT converts the values of x into float32 in y
+func (l *Layer) ConvertT(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.t.Int8ToFloat(handle, x.T(), y.T(), l.normalized)
+}
+
+//ConvertDeltaT converts the values of x into float32 in y
+func (l *Layer) ConvertDeltaT(handle *cudnn.Handler, x, y *layers.IO) error {
+	return l.t.Int8ToFloat(handle, x.DeltaT(), y.DeltaT(), l.normalized)
 }

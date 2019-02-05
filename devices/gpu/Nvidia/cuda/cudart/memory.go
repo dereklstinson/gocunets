@@ -22,7 +22,7 @@ type CudaSlice struct {
 
 //MallocDevice allocates memory to set device
 func mallocdevice(dtype devices.Type, length, capacity uint) (*CudaSlice, error) {
-	mem, err := gocudnn.Malloc(gocudnn.SizeT(capacity * uint(dtype)))
+	mem, err := gocudnn.Malloc(gocudnn.SizeT(capacity * dtype.SizeOf().Uint()))
 	if err != nil {
 		return nil, err
 	}
@@ -43,61 +43,52 @@ func mallochost(dtype devices.Type, length, capacity uint) (*CudaSlice, error) {
 		return nil, err
 	}
 	return &CudaSlice{
-
-		mem: mem,
+		length:   length,
+		capacity: capacity,
+		dtype:    dtype,
+		mem:      mem,
 	}, nil
 
 }
 
-func makesice() (*CudaSlice, error) {
-	return Make([]int{}, 20)
-}
-
 //Append appends the slice
-func (c *CudaSlice) Append(val interface{}) {
+func (c *CudaSlice) Append(val interface{}) (*CudaSlice, error) {
 	if devices.Len(val) <= c.capacity-c.length {
 		offset := c.length
 		c.length += devices.Len(val)
 		c.Set(val, offset)
-		return
+		return c, nil
 	}
-	if devices.Len(val) > c.capacity-c.length {
-		newsize := c.length + devices.Len(val)
-		newcudaslice, err := mallocdevice(c.dtype, c.length, newsize)
-		if err != nil {
-			panic(err)
-		}
+	newsize := c.length + devices.Len(val)
+	newcudaslice, err := mallocdevice(c.dtype, c.length, newsize)
+	if err != nil {
+		return c, err
+	}
 
-		err = gocudnn.CudaMemCopyUnsafe(newcudaslice.mem.Ptr(), c.mem.Ptr(), gocudnn.SizeT(c.length*c.dtype.SizeOf().Uint()), c.memcpyflg.DeviceToDevice())
-		if err != nil {
-			panic(err)
-		}
-		c = newcudaslice
-		c.Append(val)
-		return
+	err = gocudnn.CudaMemCopyUnsafe(newcudaslice.mem.Ptr(), c.mem.Ptr(), gocudnn.SizeT(c.length*c.dtype.SizeOf().Uint()), c.memcpyflg.Default())
+	if err != nil {
+		return c, err
 	}
+	c = newcudaslice
+	return newcudaslice.Append(val)
 
 }
 
 //Get will get values of a cudaslice and fill the slice
-func (c *CudaSlice) Get(val interface{}, offset uint) {
+func (c *CudaSlice) Get(val interface{}, offset uint) error {
 	length := devices.Len(val)
 	if offset+length > c.length {
 
-		panic(
-			fmt.Sprintf("Illegal Access SliceLength: %d, Offset: %d, ValLength: %d", c.length, offset, offset+length),
-		)
+		return fmt.Errorf("Illegal Access SliceLength: %d, Offset: %d, ValLength: %d", c.length, offset, offset+length)
+
 	}
 
 	gptr, err := gocudnn.MakeGoPointer(val)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	destloc := c.mem.Offset(offset + c.dtype.SizeOf().Uint())
-	err = gocudnn.CudaMemCopyUnsafe(gptr.Ptr(), destloc, gptr.ByteSize(), c.memcpyflg.HostToDevice())
-	if err != nil {
-		panic(err)
-	}
+	destloc := c.mem.Offset(offset, c.dtype.SizeOf().Uint())
+	return gocudnn.CudaMemCopyUnsafe(gptr.Ptr(), destloc, gptr.ByteSize(), c.memcpyflg.DeviceToHost())
 
 }
 
@@ -112,25 +103,20 @@ func (c *CudaSlice) Length() uint {
 }
 
 //Set is an experimental function that will set a value or slice of values from host into cuda mem
-func (c *CudaSlice) Set(val interface{}, offset uint) {
+func (c *CudaSlice) Set(val interface{}, offset uint) error {
 	length := devices.Len(val)
 	if offset+length > c.length {
+		return fmt.Errorf("Illegal Access SliceLength: %d, Offset: %d, ValLength: %d", c.length, offset, offset+length)
 
-		panic(
-			fmt.Sprintf("Illegal Access SliceLength: %d, Offset: %d, ValLength: %d", c.length, offset, offset+length),
-		)
 	}
 
 	gptr, err := gocudnn.MakeGoPointer(val)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	destloc := c.mem.Offset(offset + c.dtype.SizeOf().Uint())
-	err = gocudnn.CudaMemCopyUnsafe(destloc, gptr.Ptr(), gptr.ByteSize(), c.memcpyflg.HostToDevice())
-	if err != nil {
-		panic(err)
-	}
+	destloc := c.mem.Offset(offset, c.dtype.SizeOf().Uint())
+	return gocudnn.CudaMemCopyUnsafe(destloc, gptr.Ptr(), gptr.ByteSize(), c.memcpyflg.HostToDevice())
 
 }
 
@@ -172,8 +158,7 @@ func make1(x interface{}, args ...uint) (*CudaSlice, error) {
 		return mallocdevice(devices.Uint, args[0], args[0])
 	case []int:
 		return mallocdevice(devices.Int, args[0], args[0])
-	case []devices.Float16:
-		return mallocdevice(devices.Float16H, args[0], args[0])
+
 	case []half.Float16:
 		return mallocdevice(devices.Float16H, args[0], args[0])
 	case []float32:
@@ -211,8 +196,7 @@ func make2(x interface{}, args ...uint) (*CudaSlice, error) {
 		return mallocdevice(devices.Uint, args[0], args[1])
 	case []int:
 		return mallocdevice(devices.Int, args[0], args[1])
-	case []devices.Float16:
-		return mallocdevice(devices.Float16H, args[0], args[1])
+
 	case []half.Float16:
 		return mallocdevice(devices.Float16H, args[0], args[1])
 	case []float32:

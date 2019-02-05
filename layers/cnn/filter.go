@@ -217,10 +217,13 @@ func layersetup(
 ) (*Layer, error) {
 	conv, err := convolution.StageOperation(convmode, dtype, pad, stride, dialation)
 	if err != nil {
+		fmt.Println("Error in Stage Operation")
 		return nil, err
 	}
 	w, err := layers.BuildIOWeights(handle, frmt, dtype, filterdims)
 	if err != nil {
+		fmt.Println("FilterDims ", filterdims)
+		fmt.Println("error in building IO Weights")
 		return nil, err
 	}
 	/*
@@ -231,6 +234,7 @@ func layersetup(
 	*/
 	bias, err := buildbias(handle, w)
 	if err != nil {
+		fmt.Println("Error in building bias")
 		return nil, err
 	}
 

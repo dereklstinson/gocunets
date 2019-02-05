@@ -18,8 +18,14 @@ func (s SizeT) Uint() uint {
 	return uint(s)
 }
 
-//Float16 is half precision float
-type Float16 half.Float16
+//MakeFloat16Slice makes slice of float16 from a slice of float32
+func MakeFloat16Slice(vals []float32) []half.Float16 {
+	x := make([]half.Float16, len(vals))
+	for i := range vals {
+		x[i] = half.NewFloat16(vals[i])
+	}
+	return x
+}
 
 //Slice interfaces with device memory similarly to go slices
 type Slice interface {

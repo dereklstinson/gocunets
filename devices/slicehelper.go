@@ -25,8 +25,7 @@ func Len(slice interface{}) uint {
 		return uint(len(x))
 	case []int:
 		return uint(len(x))
-	case []Float16:
-		return uint(len(x))
+
 	case []half.Float16:
 		return uint(len(x))
 	case []float32:
@@ -52,8 +51,6 @@ func Len(slice interface{}) uint {
 	case uint:
 		return 1
 	case int:
-		return 1
-	case Float16:
 		return 1
 	case half.Float16:
 		return 1

@@ -432,7 +432,6 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 
 			return &IO{
 				x: x,
-				//managed: managed,
 			}, nil
 		}
 		x, err := tensor.Build(handle, frmt, dtype, dims)
@@ -445,7 +444,6 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 			x:     x,
 			dx:    nil,
 			input: true,
-			//	managed: managed,
 		}, nil
 
 	}
@@ -463,7 +461,6 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 		return &IO{
 			x:  x,
 			dx: dx,
-			//managed: managed,
 		}, nil
 	}
 	x, err := tensor.Build(handle, frmt, dtype, dims)
@@ -479,7 +476,6 @@ func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 	return &IO{
 		x:  x,
 		dx: dx,
-		//managed: managed,
 	}, nil
 }
 
