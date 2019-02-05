@@ -160,9 +160,7 @@ func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume) 
 		}
 
 	}
-	for {
 
-	}
 	return fwper, nil
 }
 
