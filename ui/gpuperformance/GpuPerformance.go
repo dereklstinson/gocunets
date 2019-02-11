@@ -20,12 +20,13 @@ func CreateGPUPerformanceHandlers(refreshms, sampleamount int) (*Memory /**CoreC
 	if err != nil {
 		panic(err)
 	}
+	refreshseconds := refreshms / 1000
 	go runchannel(devs, refreshms, mem /* clockmem, clockcore,*/, temps, pow)
-	m /*cc, mc,*/, t, p := makeMemory(mem, len(devs), sampleamount),
+	m /*cc, mc,*/, t, p := makeMemory(mem, len(devs), sampleamount, refreshseconds),
 		//	makeCoreClock(clockcore, len(devs), Lengthoftime),
 		//makeMemClock(clockmem, len(devs), Lengthoftime),
-		makeTemp(temps, len(devs), sampleamount),
-		makePower(pow, len(devs), sampleamount)
+		makeTemp(temps, len(devs), sampleamount, refreshseconds),
+		makePower(pow, len(devs), sampleamount, refreshseconds)
 
 	return m /*cc, mc,*/, t, p
 }
@@ -64,10 +65,12 @@ func runchannel(device []*hwperf.Device, refreshms int, mem /*clockcore,clockmem
 func placeandshiftback(a plot.LabeledData, in int) {
 	b := 0.0
 	input := float64(in)
-
+	var backwards int
 	for i := a.Data.Len() - 1; i >= 0; i-- {
 		b = a.Data[i].Y
 		a.Data[i].Y = input
+		a.Data[i].X = float64(backwards)
 		input = b
+		backwards--
 	}
 }

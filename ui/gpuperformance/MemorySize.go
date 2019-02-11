@@ -1,6 +1,7 @@
 package gpuperformance
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -20,11 +21,11 @@ type Memory struct {
 	mux   sync.Mutex
 }
 
-func makeMemory(values <-chan []int, numberofplots, plotlengths int) *Memory {
+func makeMemory(values <-chan []int, numberofplots, plotlengths, refreshseconds int) *Memory {
 
 	x := &Memory{
 		title: "DeviceMem",
-		xaxis: "Time",
+		xaxis: fmt.Sprintf("Per %d Seconds", refreshseconds),
 		yaxis: "MB (used)",
 		h:     6,
 		w:     15,

@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/ui/gpuperformance"
 	"github.com/pkg/browser"
@@ -52,10 +53,13 @@ func NewWindows(ipaddress, port, page string) Windows {
 		ipaddressandport: ipaddress + port,
 		page:             page,
 	}
-	mem, t, p := gpuperformance.CreateGPUPerformanceHandlers(3000, 120)
-	x.AddHardwareCharts("Gpu Mem Used (MB)", "500", "/gpumem/", mem, 3, true, false)
-	x.AddHardwareCharts("Temp (C) ", "500", "/gputemp/", t, 3, false, false)
-	x.AddHardwareCharts("Power (Watts)", "500", "/gpupower/", p, 3, false, true)
+	hardwarerefresh := 3000
+	hardwarerefreshstring := strconv.Itoa(hardwarerefresh)
+	mem, t, p := gpuperformance.CreateGPUPerformanceHandlers(hardwarerefresh, 120)
+
+	x.AddHardwareCharts("Gpu Mem Used (MB)", hardwarerefreshstring, "/gpumem/", mem, 3, true, false)
+	x.AddHardwareCharts("Temp (C) ", hardwarerefreshstring, "/gputemp/", t, 3, false, false)
+	x.AddHardwareCharts("Power (Watts)", hardwarerefreshstring, "/gpupower/", p, 3, false, true)
 	return x
 }
 

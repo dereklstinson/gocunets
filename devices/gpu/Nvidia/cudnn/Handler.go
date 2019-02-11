@@ -65,6 +65,11 @@ func (h *Handler) Cudnn() *gocudnn.Handle {
 	return h.cudnn
 }
 
+//Stream returns the stream
+func (h *Handler) Stream() *gocudnn.Stream {
+	return h.stream
+}
+
 //XHandle returns a pointer to the XHandle
 func (h *Handler) XHandle() *gocudnn.XHandle {
 	return h.xtra

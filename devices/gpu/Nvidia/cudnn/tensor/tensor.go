@@ -167,8 +167,8 @@ func (t *Volume) NormalRand(mean, std float32) error {
 }
 
 //BuildRandNorm sets a randomnorm volume that can have its values set to random values over and over again
-func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32, mean, std float32, seed uint64) (*Volume, error) {
-	vol, err := build(handle, frmt, dtype, currentdims, nil, false)
+func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32, mean, std float32, seed uint64, static bool) (*Volume, error) {
+	vol, err := build(handle, frmt, dtype, currentdims, nil, static)
 	if err != nil {
 		return nil, err
 	}
@@ -179,11 +179,8 @@ func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.D
 	if err != nil {
 		return nil, err
 	}
-	stream, err := handle.Cudnn().GetStream()
-	if err != nil {
-		return nil, err
-	}
-	err = vol.randgen.SetStream(stream)
+
+	err = vol.randgen.SetStream(handle.Stream())
 	if err != nil {
 		return nil, err
 	}
@@ -302,10 +299,17 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 	if err != nil {
 		return nil, err
 	}
-
 	previous[0] = current
-	sizet := handle.FindMaxSizeT(startdims)
-	maxvol := handle.FindMaxVol(startdims)
+	var maxvol int32
+	var sizet cudnn.SizeT
+	if maxdims == nil {
+		sizet = handle.FindMaxSizeT(startdims)
+		maxvol = handle.FindMaxVol(startdims)
+	} else {
+		maxvol = utils.FindVolumeInt32(maxdims, nil)
+		sizet = cudnn.SizeT(gocudnn.FindSizeTfromVol(maxdims, dtype.Cu()))
+	}
+
 	if handle.Unified() {
 		newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Global())
 		if err != nil {

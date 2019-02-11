@@ -1,6 +1,7 @@
 package gpuperformance
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -19,11 +20,11 @@ type Temp struct {
 	mux   sync.Mutex
 }
 
-func makeTemp(values <-chan []int, numberofplots, plotlengths int) *Temp {
+func makeTemp(values <-chan []int, numberofplots, plotlengths, refreshseconds int) *Temp {
 
 	x := &Temp{
 		title: "Device Temperature",
-		xaxis: "Time",
+		xaxis: fmt.Sprintf("Per %d Seconds", refreshseconds),
 		yaxis: "C",
 		h:     6,
 		w:     15,

@@ -1,6 +1,7 @@
 package gpuperformance
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -18,11 +19,11 @@ type Power struct {
 	mux   sync.Mutex
 }
 
-func makePower(values <-chan []int, numberofplots, plotlengths int) *Power {
+func makePower(values <-chan []int, numberofplots, plotlengths, refreshseconds int) *Power {
 
 	x := &Power{
 		title: "Power Used",
-		xaxis: "Time",
+		xaxis: fmt.Sprintf("Per %d Seconds", refreshseconds),
 		yaxis: "Watts",
 		h:     6,
 		w:     15,

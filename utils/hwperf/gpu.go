@@ -64,11 +64,17 @@ func (d *Device) Memory() (Used, Free uint) {
 
 //Temp returns the device temp
 func (d *Device) Temp() (Celcius uint) {
+	if d.s.Temperature == nil {
+		return 0
+	}
 	return *d.s.Temperature
 }
 
 //Power returns the device power
 func (d *Device) Power() (Watts uint) {
+	if d.s.Power == nil {
+		return 0
+	}
 	return *d.s.Power
 }
 func check(err error) {

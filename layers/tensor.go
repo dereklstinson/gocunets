@@ -297,6 +297,7 @@ func (i *IO) ZeroClone(handle *cudnn.Handler) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, i.input, i.weights)
 }
 
+//BuildIOWeightsT builds The IOweights
 func BuildIOWeightsT(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, true, true)
 }
@@ -314,19 +315,25 @@ func BuildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataTyp
 
 //BuildNormRandIO builds a regular IO with both a T tensor and a DeltaT tensor.  But the T tensor is randomized
 func BuildNormRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
-	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, false)
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, false, false)
+
+}
+
+//BuildStaticRandInputIO builds a fix sized input
+func BuildStaticRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true, true)
 
 }
 
 //BuildNormRandInputIO builds a regular IO but the input is set to nil
 func BuildNormRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
-	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true)
+	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true, false)
 
 }
-func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, input bool) (*IO, error) {
-	if input == true {
+func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, input, static bool) (*IO, error) {
+	if input {
 
-		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed)
+		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, static)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +345,7 @@ func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.Dat
 		}, nil
 
 	}
-	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed)
+	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, static)
 	if err != nil {
 
 		return nil, err
