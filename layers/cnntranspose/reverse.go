@@ -53,8 +53,8 @@ func ReverseBuild(handle *cudnn.Handler,
 func (l *Layer) reverseForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseForwardProp(handle, wspace, x, y)
 }
-func (l *Layer) reverseBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	return l.conv.ReverseBackPropFilterData(handle, wspace, x, y)
+func (l *Layer) reverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
+	return l.conv.ReverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y)
 }
 func (l *Layer) reverseBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseBackPropData(handle, wspace, x, y)

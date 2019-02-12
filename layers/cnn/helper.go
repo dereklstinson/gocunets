@@ -61,18 +61,18 @@ func (c *Layer) FilterProps() (cudnn.TensorFormat, cudnn.DataType, []int32, erro
 }
 
 //GetFwdAlgoPerfList gets a list of forward performance algos
-func (c *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.ForwardPerformance, error) {
-	return c.conv.GetFwdAlgoPerfList(handle, x.T(), c.w.T(), y.T())
+func (c *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.ForwardPerformance, error) {
+	return c.conv.GetFwdAlgoPerfList(handle, x.T(), c.w.T(), y.T(), workspace)
 }
 
 //GetBwdDataAlgoPerfList gets a list of backward performance algos
-func (c *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackDataPerformance, error) {
-	return c.conv.GetBwdDataAlgoPerfList(handle, x.T(), c.w.T(), y.T())
+func (c *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackDataPerformance, error) {
+	return c.conv.GetBwdDataAlgoPerfList(handle, x.T(), c.w.T(), y.T(), workspace)
 }
 
 //GetBwdFiltAlgoPerfList gets a list of forward performance algos
-func (c *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackFilterPerformance, error) {
-	return c.conv.GetBwdFiltAlgoPerfList(handle, x.T(), c.w.T(), y.T())
+func (c *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackFilterPerformance, error) {
+	return c.conv.GetBwdFiltAlgoPerfList(handle, x.T(), c.w.T(), y.T(), workspace)
 }
 
 //SetFwdAlgoPerformance sets the Performance Values
@@ -98,19 +98,19 @@ For the Reverse algos used for cnntranspose
 */
 
 //GetReverseBwdDataAlgoPerfList gets a list of forward performance algos used for the back propagation data
-func (c *Layer) GetReverseBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.ForwardPerformance, error) {
+func (c *Layer) GetReverseBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.ForwardPerformance, error) {
 
-	return c.conv.GetFwdAlgoPerfList(handle, y.T(), c.w.T(), x.T())
+	return c.conv.GetFwdAlgoPerfList(handle, y.T(), c.w.T(), x.T(), workspace)
 }
 
 //GetReverseFwdAlgoPerfList gets a list of backward performance algos used for the forward propagation
-func (c *Layer) GetReverseFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackDataPerformance, error) {
-	return c.conv.GetBwdDataAlgoPerfList(handle, y.T(), c.w.T(), x.T())
+func (c *Layer) GetReverseFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackDataPerformance, error) {
+	return c.conv.GetBwdDataAlgoPerfList(handle, y.T(), c.w.T(), x.T(), workspace)
 }
 
 //GetReverseBwdFiltAlgoPerfList gets a list of back prop filter performance algos
-func (c *Layer) GetReverseBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackFilterPerformance, error) {
-	return c.conv.GetBwdFiltAlgoPerfList(handle, y.T(), c.w.T(), x.T())
+func (c *Layer) GetReverseBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackFilterPerformance, error) {
+	return c.conv.GetBwdFiltAlgoPerfList(handle, y.T(), c.w.T(), x.T(), workspace)
 }
 
 //SetReverseBwdDataAlgoPerformance sets the Performance Values

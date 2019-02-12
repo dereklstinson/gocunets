@@ -67,12 +67,12 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 }
 
 //BackPropFilterData does the back propigation filter and data of convolution transpose
-func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
 	if l.inputlayer == true {
 		switch l.mode {
 
 		case convtransposereverse:
-			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
+			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspacefilter, x, y))
 		}
 
 	} else {
@@ -80,7 +80,7 @@ func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloc
 		switch l.mode {
 
 		case convtransposereverse:
-			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspace, x, y))
+			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y))
 		}
 
 	}

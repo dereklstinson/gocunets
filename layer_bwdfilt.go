@@ -9,13 +9,13 @@ import (
 )
 
 //BackProp does the backprop of a layer
-func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
 	err := handle.Sync()
 	if err != nil {
 		return err
 	}
 	if l.cnn != nil {
-		err = l.cnn.BackPropFilterData(handle, wspace, x, y)
+		err = l.cnn.BackPropFilterData(handle, wspacedata, wspacefilter, x, y)
 		if err != nil {
 			return err
 		}
@@ -70,7 +70,7 @@ func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Malloc
 		return handle.Sync()
 	}
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.BackPropFilterData(handle, wspace, x, y)
+		err = l.cnntranspose.BackPropFilterData(handle, wspacedata, wspacefilter, x, y)
 		if err != nil {
 			return err
 		}

@@ -98,14 +98,18 @@ func CreateNetwork() *Network {
 }
 
 //Initialize initializes the IO between the hidden layers. It also returns some performance meterics that you can choose to increase the speed of the network at the cost of memory.
-func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO) ([]ConvolutionPerformance, error) {
+func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO, workspace *gocudnn.Malloced) ([]ConvolutionPerformance, error) {
 	m.previousdims = input.T().Dims()
 	err := m.buildhiddenios(handle, input)
 	if err != nil {
 		fmt.Println("Error in buildinghiddenios")
 		return nil, err
 	}
-	return m.performance(handle, input, output)
+	err = handle.DeviceSync()
+	if err != nil {
+		return nil, err
+	}
+	return m.performance(handle, input, output, workspace)
 }
 
 //SetDescriminatorFlag - Sets the network up as a descriminator network
@@ -335,8 +339,8 @@ func comparedims(x, y []int32) bool {
 }
 
 //BackPropFilterData does the backprop of the hidden layers
-func (m *Network) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
-	return m.backpropfilterdata(handle, wspace, x, y)
+func (m *Network) BackPropFilterData(handle *cudnn.Handler, datawspace, filterwspace *gocudnn.Malloced, x, y *layers.IO) error {
+	return m.backpropfilterdata(handle, datawspace, filterwspace, x, y)
 
 }
 
@@ -422,14 +426,14 @@ func (m *Network) backpropdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, 
 }
 
 //BackProp does the backprop of a Network
-func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	//	err := handle.stream.Sync()
 	if err != nil {
 		return err
 	}
 	lnum := len(m.layer)
-	err = m.layer[lnum-1].backpropfilterdata(handle, wspace, m.mem[lnum-2], y)
+	err = m.layer[lnum-1].backpropfilterdata(handle, wspacedata, wspacefilter, m.mem[lnum-2], y)
 
 	if err != nil {
 		return err
@@ -437,13 +441,13 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspace *gocudnn.Mall
 
 	for i := lnum - 2; i > 0; i-- {
 
-		err = m.layer[i].backpropfilterdata(handle, wspace, m.mem[i-1], m.mem[i])
+		err = m.layer[i].backpropfilterdata(handle, wspacedata, wspacefilter, m.mem[i-1], m.mem[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	err = m.layer[0].backpropfilterdata(handle, wspace, x, m.mem[0])
+	err = m.layer[0].backpropfilterdata(handle, wspacedata, wspacefilter, x, m.mem[0])
 	if err != nil {
 		return err
 	}

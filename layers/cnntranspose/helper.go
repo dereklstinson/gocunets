@@ -4,21 +4,22 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //GetBwdDataAlgoPerfList gets a list of forward performance algos
-func (l *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.ForwardPerformance, error) {
-	return l.conv.GetReverseBwdDataAlgoPerfList(handle, x, y)
+func (l *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.ForwardPerformance, error) {
+	return l.conv.GetReverseBwdDataAlgoPerfList(handle, x, y, workspace)
 }
 
 //GetFwdAlgoPerfList gets a list of backward performance algos
-func (l *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackDataPerformance, error) {
-	return l.conv.GetReverseFwdAlgoPerfList(handle, x, y)
+func (l *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackDataPerformance, error) {
+	return l.conv.GetReverseFwdAlgoPerfList(handle, x, y, workspace)
 }
 
 //GetBwdFiltAlgoPerfList gets a list of forward performance algos
-func (l *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO) ([]convolution.BackFilterPerformance, error) {
-	return l.conv.GetReverseBwdFiltAlgoPerfList(handle, x, y)
+func (l *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackFilterPerformance, error) {
+	return l.conv.GetReverseBwdFiltAlgoPerfList(handle, x, y, workspace)
 }
 
 //SetBwdDataAlgoPerformance sets the Performance Values

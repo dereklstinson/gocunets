@@ -4,6 +4,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const debuglayerperformance = false
@@ -40,38 +41,38 @@ func (l *layer) setcudnnperformancebwdf(handle *cudnn.Handler, bwdf convolution.
 		return
 	}
 }
-func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
+func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
 
 	if l.cnn != nil {
 		if debuglayerperformance {
 
 		}
-		fwd, err = l.cnn.GetFwdAlgoPerfList(handle, x, y)
+		fwd, err = l.cnn.GetFwdAlgoPerfList(handle, x, y, workspace)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
-		bwddata, err = l.cnn.GetBwdDataAlgoPerfList(handle, x, y)
+		bwddata, err = l.cnn.GetBwdDataAlgoPerfList(handle, x, y, workspace)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		bwdfilt, err = l.cnn.GetBwdFiltAlgoPerfList(handle, x, y)
+		bwdfilt, err = l.cnn.GetBwdFiltAlgoPerfList(handle, x, y, workspace)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		return fwd, bwddata, bwdfilt, nil
 	}
 	if l.cnntranspose != nil {
-		bwddata, err = l.cnntranspose.GetFwdAlgoPerfList(handle, x, y)
+		bwddata, err = l.cnntranspose.GetFwdAlgoPerfList(handle, x, y, workspace)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
-		fwd, err = l.cnntranspose.GetBwdDataAlgoPerfList(handle, x, y)
+		fwd, err = l.cnntranspose.GetBwdDataAlgoPerfList(handle, x, y, workspace)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		bwdfilt, err = l.cnntranspose.GetBwdFiltAlgoPerfList(handle, x, y)
+		bwdfilt, err = l.cnntranspose.GetBwdFiltAlgoPerfList(handle, x, y, workspace)
 		if err != nil {
 			return nil, nil, nil, err
 		}

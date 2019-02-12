@@ -23,17 +23,20 @@ func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 }
 
 //BackPropFilterData does the backprop for the data and the filter
-func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	if x.IsInput() == true {
-		return c.BackPropFilter(handle, wspace, x, y)
+		return c.BackPropFilter(handle, wspacefilter, x, y)
 	}
-	err = c.BackPropData(handle, wspace, x, y)
+	err = c.BackPropData(handle, wspacedata, x, y)
 	if err != nil {
 		return err
 	}
-
-	return c.BackPropFilter(handle, wspace, x, y)
+	err = handle.Stream().Sync()
+	if err != nil {
+		return err
+	}
+	return c.BackPropFilter(handle, wspacefilter, x, y)
 }
 
 //BackPropData performs the BackPropData

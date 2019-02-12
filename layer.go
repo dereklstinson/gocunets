@@ -215,20 +215,28 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 
 //UpdateWeights updates the weights of layer
 func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
-	var err error
+
 	if l.cnn != nil {
-		err = l.cnn.UpdateWeights(handle, batch)
+		return l.cnn.UpdateWeights(handle, batch)
 	}
 
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.UpdateWeights(handle, batch)
+		return l.cnntranspose.UpdateWeights(handle, batch)
 
 	}
 	if l.batch != nil {
-		err = l.batch.UpdateWeights(handle, batch)
+		return l.batch.UpdateWeights(handle, batch)
 	}
-	return err
+	if l.activation != nil {
+		if l.activation.Updateable() {
+			return l.activation.UpdateWeights(handle, batch)
+
+		}
+
+	}
+	return nil
 }
+
 func (l *layer) l1l2loss() (l1, l2 float32) {
 
 	if l.cnn != nil {

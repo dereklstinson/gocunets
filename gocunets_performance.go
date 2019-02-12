@@ -7,6 +7,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const debugconvolutionperformance = false
@@ -19,16 +20,26 @@ type ConvolutionPerformance struct {
 	BwdF  []convolution.BackFilterPerformance
 }
 
-//GetFastestWSpaceSize will return the largest workspace size of the whole network.  I am thinking that this could be used for the entire network.  I haven't used it yet though.
-func GetFastestWSpaceSize(perfs []ConvolutionPerformance) (wspacesize cudnn.SizeT) {
-	var size cudnn.SizeT
+//GetFastestWSpaceSizes will return the largest workspace size of the whole network.  I am thinking that this could be used for the entire network.  I haven't used it yet though.
+func GetFastestWSpaceSizes(perfs []ConvolutionPerformance) (fwd, bwdd, bwdf cudnn.SizeT) {
+	var (
+		fsize  cudnn.SizeT
+		bdsize cudnn.SizeT
+		bfsize cudnn.SizeT
+	)
 	for i := range perfs {
-		size = perfs[i].FindFastestWspace()
-		if wspacesize < size {
-			wspacesize = size
+		fsize, bdsize, bfsize = perfs[i].FindFastestWspace()
+		if fwd < fsize {
+			fwd = fsize
+		}
+		if bwdd < bdsize {
+			bwdd = bdsize
+		}
+		if bwdf < bfsize {
+			bwdf = bfsize
 		}
 	}
-	return wspacesize
+	return fwd, bwdd, bwdf
 
 }
 
@@ -69,30 +80,31 @@ func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wsp
 }
 
 //FindFastestWspace retunrs the wspace of the fastest algorithm
-func (c *ConvolutionPerformance) FindFastestWspace() (wspacesize cudnn.SizeT) {
+func (c *ConvolutionPerformance) FindFastestWspace() (fwdwspace, bwddwspace, bwdfwspace cudnn.SizeT) {
 
 	if c.Fwd != nil {
-		if wspacesize < cudnn.SizeT(c.Fwd[0].Memory) {
-			wspacesize = cudnn.SizeT(c.Fwd[0].Memory)
+
+		if fwdwspace < cudnn.SizeT(c.Fwd[0].Memory) {
+			fwdwspace = cudnn.SizeT(c.Fwd[0].Memory)
 		}
 	}
 	if c.BwdD != nil {
-		if wspacesize < cudnn.SizeT(c.BwdD[0].Memory) {
-			wspacesize = cudnn.SizeT(c.BwdD[0].Memory)
+		if bwddwspace < cudnn.SizeT(c.BwdD[0].Memory) {
+			bwddwspace = cudnn.SizeT(c.BwdD[0].Memory)
 		}
 	}
 	if c.BwdF != nil {
-		if wspacesize < cudnn.SizeT(c.BwdF[0].Memory) {
-			wspacesize = cudnn.SizeT(c.BwdF[0].Memory)
+		if bwdfwspace < cudnn.SizeT(c.BwdF[0].Memory) {
+			bwdfwspace = cudnn.SizeT(c.BwdF[0].Memory)
 		}
 	}
-	return wspacesize
+	return fwdwspace, bwddwspace, bwdfwspace
 }
-func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]ConvolutionPerformance, error) {
+func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]ConvolutionPerformance, error) {
 
 	//	var err error
 	performers := make([]ConvolutionPerformance, 0)
-	fwd, bwdd, bwdf, err := m.layer[0].getcudnnperformance(handle, x, m.mem[0])
+	fwd, bwdd, bwdf, err := m.layer[0].getcudnnperformance(handle, x, m.mem[0], workspace)
 	if err != nil {
 		if debugconvolutionperformance {
 			dbprt("(m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]ConvolutionPerformance, error)")
@@ -112,7 +124,7 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]Convolu
 		if debugconvolutionperformance {
 			fmt.Println("index " + strconv.Itoa(i))
 		}
-		fwd1, bwdd1, bwdf1, err := m.layer[i].getcudnnperformance(handle, m.mem[i-1], m.mem[i])
+		fwd1, bwdd1, bwdf1, err := m.layer[i].getcudnnperformance(handle, m.mem[i-1], m.mem[i], workspace)
 		if err != nil {
 			return nil, wraperror("cudnn performance index:"+strconv.Itoa(i), err)
 		}
@@ -128,7 +140,7 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]Convolu
 	if debugconvolutionperformance {
 		fmt.Println("index " + strconv.Itoa(lnum-1))
 	}
-	fwd1, bwdd1, bwdf1, err := m.layer[lnum-1].getcudnnperformance(handle, m.mem[lnum-2], y)
+	fwd1, bwdd1, bwdf1, err := m.layer[lnum-1].getcudnnperformance(handle, m.mem[lnum-2], y, workspace)
 	if err != nil {
 		return nil, wraperror("cudnn performance index:"+strconv.Itoa(lnum-1), err)
 	}

@@ -67,17 +67,17 @@ func (c *Layer) ReverseForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloc
 }
 
 //ReverseBackPropFilterData does the backprop for the data and the filter
-func (c *Layer) ReverseBackPropFilterData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) ReverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
 	var err error
 	if x.IsInput() == true {
-		return c.ReverseBackPropFilter(handle, wspace, x, y)
+		return c.ReverseBackPropFilter(handle, wspacefilter, x, y)
 	}
-	err = utils.ErrorWrapper("ReverseBackPropData: ", c.ReverseBackPropData(handle, wspace, x, y))
+	err = utils.ErrorWrapper("ReverseBackPropData: ", c.ReverseBackPropData(handle, wspacedata, x, y))
 
 	if err != nil {
 		return err
 	}
-	err = utils.ErrorWrapper("ReverseBackPropFilter: ", c.ReverseBackPropFilter(handle, wspace, x, y))
+	err = utils.ErrorWrapper("ReverseBackPropFilter: ", c.ReverseBackPropFilter(handle, wspacefilter, x, y))
 
 	if err != nil {
 		return err
