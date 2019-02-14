@@ -31,6 +31,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
+	"github.com/dereklstinson/GoCuNets/trainer/pso"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -172,6 +173,42 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 	return m.wtrainers, m.btrainers
 }
 
+type MetaOptimizer struct {
+	trainers []trainer.Trainer
+	pso      pso.Swarm
+	index int
+	numofparticles int
+}
+func (m *MetaOptimizer)AsyncUpdating(fitness float32)error {
+	err:=m.pso.AsyncUpdate(m.index,fitness)
+if err !=nil{
+	return err
+}
+outsidecounter:=0
+if m.index<m.numofparticles-1{
+	m.index++
+}else{
+	m.index = 0
+}
+position:=m.pso.GetParticlePosition(m.index)
+for i:=range m.trainers{
+	m.trainers[i].
+}
+}
+func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
+
+	trainers := make([]trainer.Trainer, 0)
+	for i := range x {
+		trainers = append(trainers, x[i]...)
+	}
+	totaldims := len(trainers) * 3
+
+	return MetaOptimizer{
+		trainers: trainers,
+		pso:      pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, alphamax, inertiamax),
+	}
+}
+
 //AddLayers will take a list of layers and shove them into the network
 func (m *Network) AddLayers(layer ...interface{}) {
 	for i := range layer {
@@ -306,6 +343,7 @@ func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 		if err != nil {
 
 			fmt.Println("Error in doing the forward prop after compair dims")
+
 			return err
 		}
 		return nil
@@ -370,6 +408,7 @@ func (m *Network) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 
 	err = m.layer[lnum-1].forwardprop(handle, wspace, m.mem[lnum-2], y)
 	if err != nil {
+
 		return wraperror("forward index:"+strconv.Itoa(lnum-1), err)
 	}
 	return nil

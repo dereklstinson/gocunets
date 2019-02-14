@@ -127,6 +127,12 @@ func (s *Swarm) AsyncUpdate(index int, loss float32) error {
 	return nil
 }
 
+//GetParticlePosition returns the particle position of the index passed
+func (s *Swarm) GetParticlePosition(index int) []float32 {
+	return s.particles[index].position
+
+}
+
 //SyncUpdate updates the particle swarm after all particles tested
 func (s *Swarm) SyncUpdate(losses []float32) error {
 	if len(losses) != len(s.particles) {
