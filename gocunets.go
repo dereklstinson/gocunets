@@ -174,27 +174,34 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 }
 
 type MetaOptimizer struct {
-	trainers []trainer.Trainer
-	pso      pso.Swarm
-	index int
+	trainers       []trainer.Trainer
+	pso            pso.Swarm
+	index          int
 	numofparticles int
 }
-func (m *MetaOptimizer)AsyncUpdating(fitness float32)error {
-	err:=m.pso.AsyncUpdate(m.index,fitness)
-if err !=nil{
-	return err
+
+func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
+	err := m.pso.AsyncUpdate(m.index, fitness)
+	if err != nil {
+		return err
+	}
+	if m.index < m.numofparticles-1 {
+		m.index++
+	} else {
+		m.index = 0
+	}
+
+	pctr := 0
+	position := m.pso.GetParticlePosition(m.index)
+	for i := range m.trainers {
+		m.trainers[i].SetRate(position[pctr])
+		m.trainers[i].SetDecays(position[pctr+1], position[pctr+2])
+		pctr = pctr + 3
+	}
+	return nil
 }
-outsidecounter:=0
-if m.index<m.numofparticles-1{
-	m.index++
-}else{
-	m.index = 0
-}
-position:=m.pso.GetParticlePosition(m.index)
-for i:=range m.trainers{
-	m.trainers[i].
-}
-}
+
+//SetUpPSO will set up the pso
 func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
 
 	trainers := make([]trainer.Trainer, 0)
@@ -202,10 +209,17 @@ func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, 
 		trainers = append(trainers, x[i]...)
 	}
 	totaldims := len(trainers) * 3
-
+	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, alphamax, inertiamax)
+	position := swarm.GetParticlePosition(0)
+	pctr := 0
+	for i := range trainers {
+		trainers[i].SetRate(position[pctr])
+		trainers[i].SetDecays(position[pctr+1], position[pctr+2])
+		pctr = pctr + 3
+	}
 	return MetaOptimizer{
 		trainers: trainers,
-		pso:      pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, alphamax, inertiamax),
+		pso:      swarm,
 	}
 }
 

@@ -66,6 +66,7 @@ func (m ModeFlag) SocialPressure() Mode {
 	return Mode(6)
 }
 */
+
 //CreateSwarm creates a particle swarm
 func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, alphamax, inertiamax float32) Swarm {
 	rand.Seed(int64(seed))
