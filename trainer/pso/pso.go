@@ -68,12 +68,12 @@ func (m ModeFlag) SocialPressure() Mode {
 */
 
 //CreateSwarm creates a particle swarm
-func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, alphamax, inertiamax float32) Swarm {
+func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, xmaxstart, alphamax, inertiamax float32) Swarm {
 	rand.Seed(int64(seed))
 
 	particles := make([]particle, numofparticles)
 	for i := range particles {
-		particles[i] = createparticle(vmax, alphamax, inertiamax, dims, rand.Int63())
+		particles[i] = createparticle(vmax, xmaxstart, alphamax, inertiamax, dims, rand.Int63())
 
 	}
 	gamma := float64(social + cognative)
@@ -90,14 +90,14 @@ func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, soc
 	}
 }
 
-func createparticle(maxv, maxalpha, maxinertia float32, dims int, seed int64) particle {
+func createparticle(maxv, maxxstart, maxalpha, maxinertia float32, dims int, seed int64) particle {
 	source := rand.NewSource(seed)
 	rng := rand.New(source)
 	position := make([]float32, dims)
 	indvbest := make([]float32, dims)
 	velocity := make([]float32, dims)
 	for i := range position {
-		val := rng.Float32()
+		val := rng.Float32() * maxxstart
 		position[i] = val
 		indvbest[i] = val
 		velocity[i] = rng.Float32() * maxv
@@ -122,7 +122,7 @@ func (s *Swarm) AsyncUpdate(index int, loss float32) error {
 	s.particles[index].isbest(loss)
 	if loss < s.loss {
 		s.loss = loss
-		s.globalposition = s.particles[index].position
+		copy(s.globalposition, s.particles[index].position)
 	}
 	s.particles[index].update(s.mode, s.cognative, s.social, s.vmax, s.constriction, s.globalposition)
 	return nil
@@ -144,7 +144,8 @@ func (s *Swarm) SyncUpdate(losses []float32) error {
 		s.particles[i].isbest(losses[i])
 		if losses[i] < s.loss {
 			s.loss = losses[i]
-			s.globalposition = s.particles[i].position
+			copy(s.globalposition, s.particles[i].position)
+
 		}
 	}
 	for i := range s.particles {

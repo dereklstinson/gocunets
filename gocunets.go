@@ -202,14 +202,14 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 }
 
 //SetUpPSO will set up the pso
-func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
+func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, maxstartposition, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
 
 	trainers := make([]trainer.Trainer, 0)
 	for i := range x {
 		trainers = append(trainers, x[i]...)
 	}
 	totaldims := len(trainers) * 3
-	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, alphamax, inertiamax)
+	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, maxstartposition, alphamax, inertiamax)
 	position := swarm.GetParticlePosition(0)
 	pctr := 0
 	for i := range trainers {
