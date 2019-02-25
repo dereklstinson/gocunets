@@ -12,6 +12,13 @@ type Info struct {
 	ReverseInfo cnn.Info `json:"reverse_info,omitempty"`
 }
 
+//SetAllScalars sets all the scalars.  This is going to be used for a PSO.
+//Order to put scalars each operation has 3 scalars in each there will be alaph, alpha2, beta
+//the order the array will need to be is fwd, bwd-data,and bwd-filter
+func (l *Layer) SetAllScalars(fwd3bwdd3bwdf3 []float64) error {
+	return l.conv.SetAllScalars(fwd3bwdd3bwdf3)
+}
+
 //Info method returns an info struct used to save and stuff
 func (l *Layer) Info() (Info, error) {
 	info, err := l.conv.Info()

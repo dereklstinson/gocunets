@@ -261,6 +261,20 @@ func layersetup(
 	}, nil
 }
 
+//SetAllScalars sets all the scalars.  This is going to be used for a PSO.
+//Order to put scalars each operation has 3 scalars in each there will be alaph, alpha2, beta
+//the order the array will need to be is fwd, bwd-data,and bwd-filter
+func (c *Layer) SetAllScalars(fwd3bwdd3bwdf3 []float64) error {
+	if len(fwd3bwdd3bwdf3) != 9 {
+		return errors.New("Scalar length needs to be 9")
+	}
+
+	c.SetFwdScalars(fwd3bwdd3bwdf3[0], fwd3bwdd3bwdf3[1], fwd3bwdd3bwdf3[2])
+	c.SetBwdDataScalars(fwd3bwdd3bwdf3[3], fwd3bwdd3bwdf3[4], fwd3bwdd3bwdf3[5])
+	c.SetBwdFilterScalars(fwd3bwdd3bwdf3[6], fwd3bwdd3bwdf3[7], fwd3bwdd3bwdf3[8])
+	return nil
+}
+
 //SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
 func (c *Layer) SetFwdScalars(alpha, alpha2, beta float64) {
 	c.fwd.alpha, c.fwd.alpha2, c.fwd.beta = alpha, alpha2, beta

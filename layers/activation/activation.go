@@ -1,6 +1,8 @@
 package activation
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/activation"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/reduce"
@@ -129,6 +131,18 @@ func (a *Layer) Info() (Info, error) {
 		},
 		OutputMemManaged: a.memmanaged,
 	}, nil
+}
+
+//SetAllScalars sets all the scalars for the fwd and bwd.
+//both get 2 scalaras alpha and beta and will be stored in that order.
+//and will be stored in order of fwd then bwd.
+func (a *Layer) SetAllScalars(fwd2bwd2 []float64) error {
+	if len(fwd2bwd2) != 4 {
+		return errors.New("SetAllScalars needs to have the size of 2")
+	}
+	a.UpDateFwdCScalars(fwd2bwd2[0], fwd2bwd2[1])
+	a.UpDateBwdCScalars(fwd2bwd2[2], fwd2bwd2[3])
+	return nil
 }
 
 //UpDateFwdCScalars updates the alpha and beta scalars

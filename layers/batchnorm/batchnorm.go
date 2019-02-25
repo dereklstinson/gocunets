@@ -1,6 +1,7 @@
 package batchnorm
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
@@ -307,9 +308,28 @@ func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias tra
 	return nil
 }
 
+//SetAllScalars sets all the scalars in this order eps 1 fwd 2, bwd 2, bwp 2.
+//Each of the scalars with 2 have an alpha and beta. and they will be put in the order of alpha then beta
+func (l *Layer) SetAllScalars(eps1fwd2bwd2bwp2 []float64) error {
+	if len(eps1fwd2bwd2bwp2) != 7 {
+		return errors.New("Length of scalars needs to be 5")
+	}
+	l.SetEps(eps1fwd2bwd2bwp2[0])
+	l.SetFWAlpha(eps1fwd2bwd2bwp2[1])
+	l.SetFWBeta(eps1fwd2bwd2bwp2[2])
+	l.SetBWDAlpha(eps1fwd2bwd2bwp2[3])
+	l.SetBWDBeta(eps1fwd2bwd2bwp2[4])
+	l.SetBWPAlpha(eps1fwd2bwd2bwp2[5])
+	l.SetBWPBeta(eps1fwd2bwd2bwp2[6])
+	return nil
+}
+
 //SetEps sets epsilon
 func (l *Layer) SetEps(eps float64) {
-	l.eps = eps
+	if eps >= float64(1e-5) {
+		l.eps = eps
+	}
+
 }
 
 //SetBWPAlpha sets the alpha for bwards params
