@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCudnn/cudart"
 	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/half"
 
@@ -20,10 +21,12 @@ type CudaSlice struct {
 	length    uint
 	capacity  uint
 	memcpyflg gocu.Mem
+}
 
 //MallocDevice allocates memory to set device
 func mallocdevice(dtype devices.Type, length, capacity uint) (*CudaSlice, error) {
-	mem, err := gocudnn.Malloc(gocudnn.SizeT(capacity * dtype.SizeOf().Uint()))
+
+	err := cudart.Malloc(gocudnn.SizeT(capacity * dtype.SizeOf().Uint()))
 	if err != nil {
 		return nil, err
 	}
