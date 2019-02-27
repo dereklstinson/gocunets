@@ -1,20 +1,20 @@
 package cudnn
 
 import (
-	"github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //TrainMode is a flag to set the TrainingMode
-type TrainMode gocudnn.TrainingMode
+type TrainMode xtra.TrainingMode
 
 //Cu is used to pass gocudnn.TrainMode flags for the functions inside the different cudnn packages
-func (t TrainMode) Cu() gocudnn.TrainingMode {
-	return gocudnn.TrainingMode(t)
+func (t TrainMode) Cu() xtra.TrainingMode {
+	return xtra.TrainingMode(t)
 }
 
 //TrainModeFlag is used to pass TrainingMode flags through methods.
 type TrainModeFlag struct {
-	c gocudnn.TrainingModeFlag
+	c xtra.TrainingModeFlag
 }
 
 //Adam is used to set the TrainingMode to Adam

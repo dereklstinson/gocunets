@@ -8,6 +8,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
 //SetValues sets all the values in the tensor to whatever is passed. It does this by looking at the format that is held in the tensor descriptor and auto retypes it.
@@ -103,7 +104,7 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplie
 }
 
 //LoadMem will Load the mem with
-func (t *Volume) LoadMem(handle *cudnn.Handler, input gocudnn.Memer, size cudnn.SizeT) error {
+func (t *Volume) LoadMem(handle *cudnn.Handler, input gocu.Mem, size uint) error {
 
 	if t.CurrentSizeT() != size {
 

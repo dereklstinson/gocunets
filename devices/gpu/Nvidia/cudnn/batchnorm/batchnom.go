@@ -6,6 +6,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
 //Ops contains the operation of batchnorm.
@@ -14,13 +15,13 @@ type Ops struct {
 	exponentialfactor uint
 	mode              gocudnn.BatchNormMode
 	bnsbmvd           *gocudnn.TensorD
-	rrm               *gocudnn.Malloced
-	rrv               *gocudnn.Malloced
-	rsm               *gocudnn.Malloced
-	rsv               *gocudnn.Malloced
+	rrm               gocu.Mem
+	rrv               gocu.Mem
+	rsm               gocu.Mem
+	rsv               gocu.Mem
 }
 
-func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*gocudnn.Malloced, error) {
+func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (gocu.Mem, error) {
 	var tfuncs gocudnn.Tensor
 	dtype, _, _, err := desc.GetDescrptor()
 	if err != nil {

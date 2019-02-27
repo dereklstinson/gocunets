@@ -12,23 +12,25 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/curand"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
 	current  *tensordescriptor
 	previous []*tensordescriptor
-	memgpu   *gocudnn.Malloced
+	memgpu   gocu.Mem
 	thelp    gocudnn.Tensor
 	fhelp    gocudnn.Filter
 	ophelp   gocudnn.OpTensor
-	randgen  *gocudnn.CuRandGenerator
+	randgen  *curand.Generator
 	op       tensops
 	dtype    cudnn.DataType
 	propnan  cudnn.NanMode
 	frmt     cudnn.TensorFormat
 	min, max float32
-	maxsizet cudnn.SizeT
+	maxsizet uint
 	maxvol   int32
 	ongpu    bool
 	weights  bool
@@ -386,7 +388,7 @@ func (t *Volume) MaxSizeT() cudnn.SizeT {
 }
 
 //Memer returns the Memer for Tensor
-func (t *Volume) Memer() *gocudnn.Malloced {
+func (t *Volume) Memer() gocu.Mem {
 	return t.memgpu
 }
 

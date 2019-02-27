@@ -1,5 +1,6 @@
 package cudart
 
+/*
 import (
 	"reflect"
 	"testing"
@@ -8,19 +9,6 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-/*
-
-//CudaSlice is cuda memory.
-type CudaSlice struct {
-	mem       *gocudnn.Malloced
-	dtype     devices.Type
-	device    bool
-	length    uint
-	capacity  uint
-
-	memcpyflg gocudnn.MemcpyKindFlag
-}
-*/
 func TestMake(t *testing.T) {
 	type args struct {
 		x    interface{}
@@ -119,3 +107,4 @@ func TestCudaSlice_Set(t *testing.T) {
 	}
 
 }
+*/

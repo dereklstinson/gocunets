@@ -1,9 +1,11 @@
 package cudart
 
+/*
 import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/half"
 
 	"github.com/dereklstinson/GoCuNets/devices"
@@ -12,13 +14,12 @@ import (
 
 //CudaSlice is cuda memory.
 type CudaSlice struct {
-	mem       *gocudnn.Malloced
+	mem       gocu.Mem
 	dtype     devices.Type
 	device    bool
 	length    uint
 	capacity  uint
-	memcpyflg gocudnn.MemcpyKindFlag
-}
+	memcpyflg gocu.Mem
 
 //MallocDevice allocates memory to set device
 func mallocdevice(dtype devices.Type, length, capacity uint) (*CudaSlice, error) {
@@ -208,3 +209,4 @@ func make2(x interface{}, args ...uint) (*CudaSlice, error) {
 
 	return nil, errors.New("Unsupported Type")
 }
+*/

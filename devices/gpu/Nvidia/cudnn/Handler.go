@@ -8,15 +8,20 @@ package cudnn
 import (
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/cuda"
+	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //Handler contains the handles used in gocudnn and also the xtra kernals.
 type Handler struct {
 	cudnn    *gocudnn.Handle
-	xtra     *gocudnn.XHandle
-	stream   *gocudnn.Stream
+	xtra     *xtra.Handle
+	stream   gocu.Streamer
 	unified  bool
 	maxbatch int32
+	device   cudart.Device
 }
 
 //FindMaxVol will find the max vol for tensor.  This is going to hold two functions
@@ -42,12 +47,12 @@ func (h *Handler) GetMaxBatch() int32 {
 
 }
 
-//FindMaxSizeT returns the max sizeT
-func (h *Handler) FindMaxSizeT(outputdims []int32) SizeT {
+//FindMaxUint returns the max sizeT
+func (h *Handler) FindMaxUint(outputdims []int32) uint {
 	if h.maxbatch <= 0 {
-		return SizeT(utils.FindVolumeInt32(outputdims, nil) * 4)
+		return uint(utils.FindVolumeInt32(outputdims, nil) * 4)
 	}
-	return SizeT(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims) * 4)
+	return uint(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims) * 4)
 }
 
 //Unified returns if the device the handler is using uses unified memory
@@ -66,47 +71,51 @@ func (h *Handler) Cudnn() *gocudnn.Handle {
 }
 
 //Stream returns the stream
-func (h *Handler) Stream() *gocudnn.Stream {
+func (h *Handler) Stream() gocu.Streamer {
 	return h.stream
 }
 
 //XHandle returns a pointer to the XHandle
-func (h *Handler) XHandle() *gocudnn.XHandle {
+func (h *Handler) XHandle() *xtra.Handle {
 	return h.xtra
 }
 
 //Sync syncs the streams
 func (h *Handler) Sync() error {
 	if h.stream == nil {
-		return gocudnn.Cuda{}.CtxSynchronize()
+		return cuda.CtxSynchronize()
 	}
 	return h.stream.Sync()
 }
 
 //SyncContext will sync the contexts
 func (h *Handler) SyncContext() error {
-	return gocudnn.Cuda{}.CtxSynchronize()
+	return cuda.CtxSynchronize()
 }
 
 //DeviceSync syncs the device
 func (h *Handler) DeviceSync() error {
-	return gocudnn.Cuda{}.DeviceSync()
+	return h.device.DeviceSync()
 }
 
 //CreateHandler creates a the handlers
 //The handler is used in managing memory for all the packages that use cudnn.Handler. This function will raise a flag that will tell the program
 //to use unified memory management.  If that is not wanted call MakeNotUnified immediately to turn this off.
-func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
+func CreateHandler(dev cudart.Device, xtrakernsfolder string) *Handler {
 	err := dev.Set()
 	if err != nil {
 		panic(err)
 	}
 	var unified bool
-	if 6 < dev.Major() {
+	major, err := dev.Major()
+	if err != nil {
+		return nil
+	}
+	if 6 < major {
 		unified = true
 	}
 	x := gocudnn.NewHandle()
-	y, err := gocudnn.Xtra{}.MakeXHandle(xtrakernsfolder, dev)
+	y, err := xtra.MakeHandle(xtrakernsfolder, dev, unified)
 	if err != nil {
 		panic(err)
 	}
@@ -116,14 +125,12 @@ func CreateHandler(dev *gocudnn.Device, xtrakernsfolder string) *Handler {
 		xtra:     y,
 		unified:  unified,
 		maxbatch: 0,
+		device:   dev,
 	}
 }
 
 //SetStream sets the stream for the handles
-func (h *Handler) SetStream(stream *gocudnn.Stream) error {
-	if h.stream != nil {
-		h.stream.Destroy()
-	}
+func (h *Handler) SetStream(stream gocu.Streamer) error {
 	err := h.cudnn.SetStream(stream)
 	if err != nil {
 		return err
