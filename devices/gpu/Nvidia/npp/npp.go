@@ -1,5 +1,6 @@
 package npp
 
+/*
 import (
 	"github.com/dereklstinson/GoCudnn/npp"
 	"github.com/dereklstinson/GoCudnn/npp"
@@ -23,4 +24,4 @@ fucn ResizeSqPixelC1R(src interface{},srcsize npp.Size, srcstep int32, srcROI np
 
 	}
 	npp.ResizeSqrPixel8uC3R()
-}
+}*/
