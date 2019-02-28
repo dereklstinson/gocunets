@@ -9,7 +9,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCudnn/curand"
@@ -20,7 +21,7 @@ import (
 type Volume struct {
 	current  *tensordescriptor
 	previous []*tensordescriptor
-	memgpu   gocu.Mem
+	memgpu   *nvidia.Malloced
 	thelp    gocudnn.Tensor
 	fhelp    gocudnn.Filter
 	ophelp   gocudnn.OpTensor

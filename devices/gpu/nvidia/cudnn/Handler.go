@@ -98,6 +98,11 @@ func (h *Handler) DeviceSync() error {
 	return h.device.DeviceSync()
 }
 
+//SetDevice sets the device the handler is using
+func (h *Handler) SetDevice() error {
+	return h.device.Set()
+}
+
 //CreateHandler creates a the handlers
 //The handler is used in managing memory for all the packages that use cudnn.Handler. This function will raise a flag that will tell the program
 //to use unified memory management.  If that is not wanted call MakeNotUnified immediately to turn this off.

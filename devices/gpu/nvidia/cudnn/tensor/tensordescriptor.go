@@ -3,7 +3,7 @@ package tensor
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )

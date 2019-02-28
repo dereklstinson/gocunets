@@ -3,7 +3,8 @@ package tensor
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -15,7 +16,7 @@ type Info struct {
 	Nan      cudnn.NanMode      `json:"Nan,omitempty"`
 	Dims     []int32            `json:"Dims,omitempty"`
 	MaxDims  []int32            `json:"max_dims,omitempty"`
-	Values   []float64          `json:"Values,omitempty"`
+	Data     []byte             `json:"data,omitempty"`
 }
 
 //MakeInfo makes an info struct
@@ -37,58 +38,16 @@ func (t *Volume) Info() (Info, error) {
 	}
 	dflgs := t.thelp.Flgs.Data
 
-	size := utils.FindVolumeInt32(dims, nil)
-
-	//I don't like this switch type stuff.  I am probably going to make something in the gocudnn package to get rid of this. I just haven't thought of a really easy way to implement this.
-	vals := make([]float64, size)
-	switch dtype.Cu() {
-	case dflgs.Double():
-
-		values := make([]float64, size)
-		err = t.memgpu.FillSlice(values)
-		if err != nil {
-			return Info{}, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-	case dflgs.Float():
-		values := make([]float32, size)
-		err = t.memgpu.FillSlice(values)
-		if err != nil {
-			return Info{}, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-	case dflgs.Int32():
-		values := make([]int32, size)
-		err = t.memgpu.FillSlice(values)
-		if err != nil {
-			return Info{}, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-	case dflgs.Int8():
-		values := make([]float64, size)
-		err = t.memgpu.FillSlice(values)
-		if err != nil {
-			return Info{}, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-
-	default:
-		return Info{}, errors.New("Unsupported Format : Most likely internal error. Contact Code Writer")
+	vals := make([]byte, t.memgpu.TotalBytes())
+	writen, err := t.memgpu.Write(vals)
+	if err != nil {
+		return Info{}, err
 	}
-
 	return Info{
 		Format:   frmt,
 		DataType: dtype,
 		Dims:     dims,
-		Values:   vals,
+		Data:     vals,
 	}, nil
 }
 
@@ -99,7 +58,7 @@ func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
 	if len(i.Dims) < 4 {
 		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
 	}
-	var newmemer *gocudnn.Malloced
+	var newmemer *nvidia.Malloced
 	var tens *gocudnn.TensorD
 	var filts *gocudnn.FilterD
 	var err error
@@ -115,33 +74,10 @@ func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
 		}
 		size, err := tens.GetSizeInBytes()
 
+		newmemer, err = nvidia.MallocGlobal(handle,size)
 		if err != nil {
-			tens.DestroyDescriptor()
-			filts.DestroyDescriptor()
+
 			return nil, err
-		}
-		if handle.Unified() == true {
-			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
-			if err != nil {
-
-				tens.DestroyDescriptor()
-				filts.DestroyDescriptor()
-				return nil, err
-			}
-			newmemer.Set(0)
-
-		} else {
-
-			newmemer, err = gocudnn.Malloc(size)
-			if err != nil {
-
-				tens.DestroyDescriptor()
-				filts.DestroyDescriptor()
-				return nil, err
-
-			}
-			newmemer.Set(0)
-
 		}
 
 	} else {
