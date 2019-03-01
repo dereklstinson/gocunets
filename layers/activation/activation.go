@@ -3,9 +3,9 @@ package activation
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/activation"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/reduce"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/activation"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"

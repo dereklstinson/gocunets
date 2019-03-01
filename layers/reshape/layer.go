@@ -3,8 +3,8 @@ package reshape
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/custom/reshapes"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/reshapes"
 
 	"github.com/dereklstinson/GoCuNets/layers"
 )
@@ -60,8 +60,10 @@ func SetupS2B(handle *cudnn.Handler, window, stride []int32, networkinput bool) 
 func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.IO, error) {
 	var lmf ModeFlag
 	switch l.mode {
+
 	case lmf.Transpose():
-		return l.gettransposeIO(handle, x, l.networkinput)
+		return nil, errors.New("Unsupported Method")
+		//	return l.gettransposeIO(handle, x, l.networkinput)
 	case lmf.S2B():
 		return l.getshapetobatchio(handle, x, l.networkinput)
 	case lmf.Resize():
@@ -80,7 +82,8 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():
-		return l.transposeforwardprop(handle, x, y)
+		return errors.New("Unsupported Method")
+		// /return l.transposeforwardprop(handle, x, y)
 	case lmf.S2B():
 		return l.spacetobatchforwardprop(handle, x, y)
 	case lmf.Resize():
@@ -100,7 +103,8 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():
-		return l.transposebackprop(handle, x, y)
+		return errors.New("Unsupported Method")
+		//return l.transposebackprop(handle, x, y)
 	case lmf.S2B():
 		return l.spacetobatchbackprop(handle, x, y)
 	case lmf.Resize():

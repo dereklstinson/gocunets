@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -168,7 +169,7 @@ func (c *Ops) SetBwdFiltPerformanceAlgo(bwdfilt BackFilterPerformance) {
 }
 
 //GetFwdAlgoPerfList gets a list of forward performance stats
-func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume, workspace *gocudnn.Malloced) ([]ForwardPerformance, error) {
+func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume, workspace *nvidia.Malloced) ([]ForwardPerformance, error) {
 	maxfwd, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithmMaxCount(handle.Cudnn())
 	if err != nil {
 		return nil, err
@@ -177,7 +178,7 @@ func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume, 
 	if workspace == nil {
 		fwdlist, err = c.helper.Funcs.Fwd.FindConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.fwddesc, y.TD(), maxfwd)
 	} else {
-		fwdlist, err = c.helper.Funcs.Fwd.FindConvolutionForwardAlgorithmEx(handle.Cudnn(), x.TD(), x.Memer(), w.FD(), w.Memer(), c.fwddesc, y.TD(), y.Memer(), maxfwd, workspace)
+		fwdlist, err = c.helper.Funcs.Fwd.FindConvolutionForwardAlgorithmEx(handle.Cudnn(), x.TD(), x.Memer(), w.FD(), w.Memer(), c.fwddesc, y.TD(), y.Memer(), maxfwd, workspace, workspace.TotalBytes())
 	}
 
 	if err != nil {
@@ -205,7 +206,7 @@ func (c *Ops) GetFwdAlgoPerfList(handle *cudnn.Handler, x, w, y *tensor.Volume, 
 }
 
 //GetBwdDataAlgoPerfList gets a list of backward data performance stats to set the convolution algo
-func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Volume, workspace *gocudnn.Malloced) ([]BackDataPerformance, error) {
+func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Volume, workspace *nvidia.Malloced) ([]BackDataPerformance, error) {
 	if dx == nil {
 		return nil, nil
 	}
@@ -217,7 +218,7 @@ func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Vo
 	if workspace == nil {
 		bwddata, err = c.helper.Funcs.Bwd.FindConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), c.bwdddesc, dx.TD(), maxbwddata)
 	} else {
-		bwddata, err = c.helper.Funcs.Bwd.FindConvolutionBackwardDataAlgorithmEx(handle.Cudnn(), w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.bwdddesc, dx.TD(), dx.Memer(), maxbwddata, workspace)
+		bwddata, err = c.helper.Funcs.Bwd.FindConvolutionBackwardDataAlgorithmEx(handle.Cudnn(), w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.bwdddesc, dx.TD(), dx.Memer(), maxbwddata, workspace, workspace.TotalBytes())
 	}
 
 	if err != nil {
@@ -241,7 +242,7 @@ func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Vo
 }
 
 //GetBwdFiltAlgoPerfList gets a list of backward filter stats
-func (c *Ops) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, dw, dy *tensor.Volume, workspace *gocudnn.Malloced) ([]BackFilterPerformance, error) {
+func (c *Ops) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, dw, dy *tensor.Volume, workspace *nvidia.Malloced) ([]BackFilterPerformance, error) {
 	maxbwdfilt, err := c.helper.Funcs.Bwd.GetConvolutionBackwardFilterAlgorithmMaxCount(handle.Cudnn())
 	if err != nil {
 		return nil, err
@@ -250,7 +251,7 @@ func (c *Ops) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, dw, dy *tensor.Vo
 	if workspace == nil {
 		bwdfilt, err = c.helper.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), dy.TD(), c.bwdfdesc, dw.FD(), maxbwdfilt)
 	} else {
-		bwdfilt, err = c.helper.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithmEx(handle.Cudnn(), x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.bwdfdesc, dw.FD(), dw.Memer(), maxbwdfilt, workspace)
+		bwdfilt, err = c.helper.Funcs.Bwd.FindConvolutionBackwardFilterAlgorithmEx(handle.Cudnn(), x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.bwdfdesc, dw.FD(), dw.Memer(), maxbwdfilt, workspace, workspace.TotalBytes())
 	}
 
 	if err != nil {

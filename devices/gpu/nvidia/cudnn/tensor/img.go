@@ -1,6 +1,17 @@
 package tensor
 
-/*
+import (
+	"errors"
+	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"os"
+	"strconv"
+
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+)
+
 func arraysizefromdims(dims []int32) int {
 	mult := 1
 	for i := 0; i < len(dims); i++ {
@@ -159,7 +170,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 	}
 
 	var tf cudnn.TensorFormatFlag
-	var dt cudnn.DataTypeFlag
+	var dt cudnn.DataType
 	if err != nil {
 		return nil, err
 	}
@@ -288,4 +299,3 @@ func (t *Volume) convert() ([][]image.Image, error) {
 
 	return imgs, nil
 }
-*/

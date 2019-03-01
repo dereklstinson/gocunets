@@ -1,10 +1,6 @@
 package reshape
 
-import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-)
-
+/*
 //GetTransposeIO will return an IO that can be used with the transpose function of this layer.
 func (l *Layer) gettransposeIO(handle *cudnn.Handler, x *layers.IO, input bool) (*layers.IO, error) {
 	yfrmt, ydtype, dims, _, err := l.op.GetTransposeOutputProperties(handle, x.T())
@@ -35,3 +31,4 @@ func (l *Layer) transposebackprop(handle *cudnn.Handler, x, y *layers.IO) error 
 	}
 	return l.op.TransposeChannelBackward(handle, x.DeltaT(), y.DeltaT())
 }
+*/

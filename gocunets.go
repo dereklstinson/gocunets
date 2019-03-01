@@ -27,7 +27,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -99,7 +100,7 @@ func CreateNetwork() *Network {
 }
 
 //Initialize initializes the IO between the hidden layers. It also returns some performance meterics that you can choose to increase the speed of the network at the cost of memory.
-func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO, workspace *gocudnn.Malloced) ([]ConvolutionPerformance, error) {
+func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO, workspace *nvidia.Malloced) ([]ConvolutionPerformance, error) {
 	m.previousdims = input.T().Dims()
 	err := m.buildhiddenios(handle, input)
 	if err != nil {
@@ -173,6 +174,7 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 	return m.wtrainers, m.btrainers
 }
 
+//MetaOptimizer uses a PSO to optimize meta values
 type MetaOptimizer struct {
 	trainers       []trainer.Trainer
 	pso            pso.Swarm
@@ -180,6 +182,7 @@ type MetaOptimizer struct {
 	numofparticles int
 }
 
+//AsyncUpdating updates the Swarm after each particle use
 func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 	err := m.pso.AsyncUpdate(m.index, fitness)
 	if err != nil {
@@ -335,7 +338,7 @@ func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error
 }
 
 //ForwardProp does the forward prop for a prebuilt Network
-func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 	if m.mem == nil {
 
@@ -391,20 +394,20 @@ func comparedims(x, y []int32) bool {
 }
 
 //BackPropFilterData does the backprop of the hidden layers
-func (m *Network) BackPropFilterData(handle *cudnn.Handler, datawspace, filterwspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) BackPropFilterData(handle *cudnn.Handler, datawspace, filterwspace *nvidia.Malloced, x, y *layers.IO) error {
 	return m.backpropfilterdata(handle, datawspace, filterwspace, x, y)
 
 }
 
 //BackPropData only does the data backprop
-func (m *Network) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	return m.backpropdata(handle, wspace, x, y)
 
 }
 func wraperror(comment string, err error) error {
 	return errors.New(comment + "-" + err.Error())
 }
-func (m *Network) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 
 	err = m.layer[0].forwardprop(handle, wspace, x, m.mem[0])
@@ -428,7 +431,7 @@ func (m *Network) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x
 	return nil
 
 }
-func (m *Network) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 
 	err = m.layer[0].inference(handle, wspace, x, m.mem[0])
@@ -450,7 +453,7 @@ func (m *Network) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 	}
 	return nil
 }
-func (m *Network) backpropdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropdata(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 	//	err := handle.stream.Sync()
 	if err != nil {
@@ -479,7 +482,7 @@ func (m *Network) backpropdata(handle *cudnn.Handler, wspace *gocudnn.Malloced, 
 }
 
 //BackProp does the backprop of a Network
-func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 	//	err := handle.stream.Sync()
 	if err != nil {

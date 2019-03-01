@@ -1,18 +1,19 @@
 package layers
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/reduce"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
 type reduceop struct {
 	op          *reduce.Ops
 	mem         *tensor.Volume
-	gptr        *gocudnn.GoPointer
-	indicies    *gocudnn.Malloced
-	wspace      *gocudnn.Malloced
+	gptr        *gocu.GoMem
+	indicies    *nvidia.Malloced
+	wspace      *nvidia.Malloced
 	val         []float32
 	alpha, beta float64
 	unified     bool
@@ -45,7 +46,6 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 	if err != nil {
 		return nil, err
 	}
-	managed := handle.Unified()
 
 	reducedims := make([]int32, len(dims))
 
@@ -66,30 +66,15 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 		return nil, err
 	}
 	val := make([]float32, dims[0])
-	gpr, err := gocudnn.MakeGoPointer(val)
-	if err != nil {
-		return nil, err
-	}
-	if managed {
-		wspace, err := gocudnn.UnifiedMangedGlobal(wspacesize)
-		if err != nil {
-			return nil, err
-		}
-		return &reduceop{
-			op:     op,
-			mem:    mem,
-			wspace: wspace,
-			alpha:  1,
-			beta:   0,
-			val:    val,
-			gptr:   gpr,
-		}, nil
-	}
-	wspace, err := gocudnn.Malloc(wspacesize)
+	gpr, err := gocu.MakeGoMem(val)
 	if err != nil {
 		return nil, err
 	}
 
+	wspace, err := nvidia.MallocGlobal(handle, wspacesize)
+	if err != nil {
+		return nil, err
+	}
 	return &reduceop{
 		op:     op,
 		mem:    mem,
@@ -100,6 +85,8 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 		gptr:   gpr,
 	}, nil
 }
+
+/*
 func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume) (*reduceop, error) {
 	frmt, dtype, dims, err := iomem.Properties()
 	managed := handle.Unified()
@@ -165,6 +152,7 @@ func buildreduceop(handle *cudnn.Handler, min bool, iomem *tensor.Volume) (*redu
 		gptr:   gpr,
 	}, nil
 }
+*/
 func checkifones(x []int32) bool {
 	for i := range x {
 		if x[i] != 1 {
@@ -175,15 +163,9 @@ func checkifones(x []int32) bool {
 }
 func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) (float32, error) {
 	if checkifones(x.Dims()) {
-		if r.unified == true {
-			err := gocudnn.UnifiedMemCopy(r.gptr, x.Memer())
-			if err != nil {
-				return 0, err
-			}
-			return r.val[0], nil
-		}
-		bsize := x.Memer().ByteSize()
-		err := gocudnn.CudaMemCopy(r.gptr, x.Memer(), bsize, gocudnn.MemcpyKindFlag{}.DeviceToHost())
+
+		bsize := x.Memer().TotalBytes()
+		err := nvidia.Memcpy(r.gptr, x.Memer(), bsize)
 		if err != nil {
 			return 0, err
 		}
@@ -195,15 +177,9 @@ func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) (float32, err
 	if err != nil {
 		return 0, err
 	}
-	if r.unified == true {
-		err = gocudnn.UnifiedMemCopy(r.gptr, r.mem.Memer())
-		if err != nil {
-			return 0, err
-		}
-		return r.val[0], nil
-	}
-	bsize := r.mem.Memer().ByteSize()
-	err = gocudnn.CudaMemCopy(r.gptr, r.mem.Memer(), bsize, gocudnn.MemcpyKindFlag{}.DeviceToHost())
+
+	bsize := x.Memer().TotalBytes()
+	err = nvidia.Memcpy(r.gptr, x.Memer(), bsize)
 	if err != nil {
 		return 0, err
 	}

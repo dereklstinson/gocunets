@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const debugconvolutionperformance = false
@@ -21,11 +21,11 @@ type ConvolutionPerformance struct {
 }
 
 //GetFastestWSpaceSizes will return the largest workspace size of the whole network.  I am thinking that this could be used for the entire network.  I haven't used it yet though.
-func GetFastestWSpaceSizes(perfs []ConvolutionPerformance) (fwd, bwdd, bwdf cudnn.SizeT) {
+func GetFastestWSpaceSizes(perfs []ConvolutionPerformance) (fwd, bwdd, bwdf uint) {
 	var (
-		fsize  cudnn.SizeT
-		bdsize cudnn.SizeT
-		bfsize cudnn.SizeT
+		fsize  uint
+		bdsize uint
+		bfsize uint
 	)
 	for i := range perfs {
 		fsize, bdsize, bfsize = perfs[i].FindFastestWspace()
@@ -44,17 +44,17 @@ func GetFastestWSpaceSizes(perfs []ConvolutionPerformance) (fwd, bwdd, bwdf cudn
 }
 
 //SetWSpaceSize sets the fastest algorithm for the convolution based on the limit of the workspace.
-func SetWSpaceSize(handle *cudnn.Handler, wspacesize cudnn.SizeT, perfs []ConvolutionPerformance) {
+func SetWSpaceSize(handle *cudnn.Handler, wspacesize uint, perfs []ConvolutionPerformance) {
 	for i := range perfs {
 		perfs[i].SetAlgoPerWspacesize(handle, wspacesize)
 	}
 }
 
 //SetAlgoPerWspacesize will set the fastest algorithm based on the size fo the workspaced sent
-func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wspacesize cudnn.SizeT) {
+func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wspacesize uint) {
 	if c.Fwd != nil {
 		for i := range c.Fwd {
-			if wspacesize >= cudnn.SizeT(c.Fwd[i].Memory) {
+			if wspacesize >= (c.Fwd[i].Memory) {
 				c.Layer.setcudnnperformancefwd(handle, c.Fwd[i])
 				break
 			}
@@ -63,7 +63,7 @@ func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wsp
 	}
 	if c.BwdD != nil {
 		for i := range c.BwdD {
-			if wspacesize >= cudnn.SizeT(c.BwdD[i].Memory) {
+			if wspacesize >= uint(c.BwdD[i].Memory) {
 				c.Layer.setcudnnperformancebwdd(handle, c.BwdD[i])
 				break
 			}
@@ -71,7 +71,7 @@ func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wsp
 	}
 	if c.BwdF != nil {
 		for i := range c.BwdD {
-			if wspacesize >= cudnn.SizeT(c.BwdF[i].Memory) {
+			if wspacesize >= uint(c.BwdF[i].Memory) {
 				c.Layer.setcudnnperformancebwdf(handle, c.BwdF[i])
 				break
 			}
@@ -80,27 +80,27 @@ func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wsp
 }
 
 //FindFastestWspace retunrs the wspace of the fastest algorithm
-func (c *ConvolutionPerformance) FindFastestWspace() (fwdwspace, bwddwspace, bwdfwspace cudnn.SizeT) {
+func (c *ConvolutionPerformance) FindFastestWspace() (fwdwspace, bwddwspace, bwdfwspace uint) {
 
 	if c.Fwd != nil {
 
-		if fwdwspace < cudnn.SizeT(c.Fwd[0].Memory) {
-			fwdwspace = cudnn.SizeT(c.Fwd[0].Memory)
+		if fwdwspace < uint(c.Fwd[0].Memory) {
+			fwdwspace = uint(c.Fwd[0].Memory)
 		}
 	}
 	if c.BwdD != nil {
-		if bwddwspace < cudnn.SizeT(c.BwdD[0].Memory) {
-			bwddwspace = cudnn.SizeT(c.BwdD[0].Memory)
+		if bwddwspace < uint(c.BwdD[0].Memory) {
+			bwddwspace = uint(c.BwdD[0].Memory)
 		}
 	}
 	if c.BwdF != nil {
-		if bwdfwspace < cudnn.SizeT(c.BwdF[0].Memory) {
-			bwdfwspace = cudnn.SizeT(c.BwdF[0].Memory)
+		if bwdfwspace < uint(c.BwdF[0].Memory) {
+			bwdfwspace = uint(c.BwdF[0].Memory)
 		}
 	}
 	return fwdwspace, bwddwspace, bwdfwspace
 }
-func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]ConvolutionPerformance, error) {
+func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]ConvolutionPerformance, error) {
 
 	//	var err error
 	performers := make([]ConvolutionPerformance, 0)

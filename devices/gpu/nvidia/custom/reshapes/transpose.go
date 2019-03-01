@@ -1,12 +1,6 @@
 package reshapes
 
-import (
-	"errors"
-
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-)
-
+/*
 //TransposeChannelForward will take a nchw and change it to a nhwc and vice-versa. Will find the transpose of x and put it in y
 func (o *Ops) TransposeChannelForward(handle *cudnn.Handler, x, y *tensor.Volume) error {
 	xfrmt, _, xdims, err := x.Properties()
@@ -105,3 +99,4 @@ func (o *Ops) gettransposevol(handle *cudnn.Handler, x *tensor.Volume) (*tensor.
 	return tensor.Build(handle, cudnn.TensorFormat(frmt), cudnn.DataType(dtype), dims)
 
 }
+*/

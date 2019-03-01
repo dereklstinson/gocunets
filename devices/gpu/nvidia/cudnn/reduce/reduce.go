@@ -3,13 +3,14 @@ package reduce
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 type flagsforop struct {
-	DType      cudnn.DataTypeFlag
+	DType      cudnn.DataType
 	NanProp    cudnn.NanModeFlag
 	ReduceMode OpFlags
 	IndFlag    IndiciesFLag
@@ -39,7 +40,7 @@ func Stage(op OpMode, dtype cudnn.DataType, nanprop cudnn.NanMode, reducetensori
 }
 
 //Reduce performs the reduce operation with input/output being y where y= alpha* Op(x) +beta*y
-func (o *Ops) Reduce(handle *cudnn.Handler, indicies *gocudnn.Malloced, workspace *gocudnn.Malloced, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
+func (o *Ops) Reduce(handle *cudnn.Handler, indicies *nvidia.Malloced, workspace *nvidia.Malloced, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
 	_, dtypet, _, err := x.Properties()
 	if err != nil {
 		return err
@@ -49,7 +50,7 @@ func (o *Ops) Reduce(handle *cudnn.Handler, indicies *gocudnn.Malloced, workspac
 	if a == nil || c == nil {
 		return errors.New("Not supported Format")
 	}
-	err = o.desc.ReduceTensorOp(handle.Cudnn(), indicies, workspace, a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
+	err = o.desc.ReduceTensorOp(handle.Cudnn(), indicies, indicies.TotalBytes(), workspace, workspace.TotalBytes(), a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
 	if err != nil {
 		return errors.New(o.op.Readable() + ":" + err.Error())
 	}
@@ -58,20 +59,11 @@ func (o *Ops) Reduce(handle *cudnn.Handler, indicies *gocudnn.Malloced, workspac
 }
 
 //GetWorkSpaceSize returns the workspace size for the two tensors
-func (o *Ops) GetWorkSpaceSize(handle *cudnn.Handler, x, y *tensor.Volume) (gocudnn.SizeT, error) {
+func (o *Ops) GetWorkSpaceSize(handle *cudnn.Handler, x, y *tensor.Volume) (uint, error) {
 	return o.desc.GetWorkSpaceSize(handle.Cudnn(), x.TD(), y.TD())
 }
 
 //GetIndiciesSize returns the size of indicies
-func (o *Ops) GetIndiciesSize(handle *cudnn.Handler, x, y *tensor.Volume) (gocudnn.SizeT, error) {
+func (o *Ops) GetIndiciesSize(handle *cudnn.Handler, x, y *tensor.Volume) (uint, error) {
 	return o.desc.IndiciesSize(handle.Cudnn(), x.TD(), y.TD())
-}
-
-//Destroy destroys the op and turns the op to nil
-func (o *Ops) Destroy() error {
-	err := o.desc.Destroy()
-	if err == nil {
-		o = nil
-	}
-	return err
 }

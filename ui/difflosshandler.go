@@ -55,6 +55,7 @@ func NewDifLossHandler(title string, LossData <-chan []LabelFloat2, epoc bool, p
 	return x, lblflt
 }
 
+//LabelFloat2 wraps a label (string) and data (float array)
 type LabelFloat2 struct {
 	Label string
 	Data  []float32

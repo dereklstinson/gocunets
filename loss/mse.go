@@ -1,11 +1,11 @@
 package loss
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/custom/xloss"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/xloss"
+	"github.com/dereklstinson/GoCudnn/xtra"
 
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //MSE is Mean Squared Error
@@ -55,7 +55,7 @@ func (m *MSE) Loss() float32 {
 //CreateMSECalculatorGPU creates a mean squared error calculator for gpu memory
 func CreateMSECalculatorGPU(handle *cudnn.Handler, managed bool) (*MSE, error) {
 
-	var modeflag gocudnn.XLossModeFlag
+	var modeflag xtra.XLossModeFlag
 	xloss, err := xloss.Stage(handle.XHandle(), modeflag.MSE(), managed)
 	if err != nil {
 		return nil, err

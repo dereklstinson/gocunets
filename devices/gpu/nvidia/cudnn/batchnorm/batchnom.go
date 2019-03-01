@@ -3,10 +3,10 @@ package batchnorm
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
 //Ops contains the operation of batchnorm.
@@ -15,13 +15,13 @@ type Ops struct {
 	exponentialfactor uint
 	mode              gocudnn.BatchNormMode
 	bnsbmvd           *gocudnn.TensorD
-	rrm               gocu.Mem
-	rrv               gocu.Mem
-	rsm               gocu.Mem
-	rsv               gocu.Mem
+	rrm               *nvidia.Malloced
+	rrv               *nvidia.Malloced
+	rsm               *nvidia.Malloced
+	rsv               *nvidia.Malloced
 }
 
-func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (gocu.Mem, error) {
+func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*nvidia.Malloced, error) {
 	var tfuncs gocudnn.Tensor
 	dtype, _, _, err := desc.GetDescrptor()
 	if err != nil {
@@ -31,29 +31,16 @@ func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (gocu.Mem, erro
 	if err != nil {
 		return nil, err
 	}
-	if handle.Unified() {
-		gpumem, err := gocudnn.UnifiedMangedGlobal(sizet)
-		if err != nil {
-			return nil, err
-		}
-		zero := gocudnn.CScalarByDataType(dtype, 0.0)
 
-		err = tfuncs.SetTensor(handle.Cudnn(), desc, gpumem, zero)
-		if err != nil {
-			gpumem.Free()
-			return nil, err
-		}
-		return gpumem, err
-
-	}
-	gpumem, err := gocudnn.Malloc(sizet)
+	gpumem, err := nvidia.MallocGlobal(handle, sizet)
 	if err != nil {
 		return nil, err
 	}
 	zero := gocudnn.CScalarByDataType(dtype, 0.0)
+
 	err = tfuncs.SetTensor(handle.Cudnn(), desc, gpumem, zero)
 	if err != nil {
-		gpumem.Free()
+
 		return nil, err
 	}
 	return gpumem, err

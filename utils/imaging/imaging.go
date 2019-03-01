@@ -9,9 +9,9 @@ import (
 	"image/png"
 	"io"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/custom/reshapes"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/reshapes"
 	"github.com/dereklstinson/GoCuNets/layers" //	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/nfnt/resize"
@@ -79,7 +79,7 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 	if err != nil {
 		return nil, err
 	}
-	var dflg cudnn.DataTypeFlag
+	var dflg cudnn.DataType
 	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
@@ -155,7 +155,7 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 	if err != nil {
 		return nil, nil, err
 	}
-	var dflg cudnn.DataTypeFlag
+	var dflg cudnn.DataType
 	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
@@ -240,7 +240,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 	if err != nil {
 		return nil, err
 	}
-	var dflg cudnn.DataTypeFlag
+	var dflg cudnn.DataType
 	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {

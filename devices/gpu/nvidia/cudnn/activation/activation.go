@@ -6,13 +6,14 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.
 type Ops struct {
 	helper gocudnn.Activation
 	desc   *gocudnn.ActivationD
-	xdesc  *gocudnn.XActivationD
+	xdesc  *xtra.XActivationD
 	mode   Mode
 	nan    cudnn.NanMode
 }
@@ -24,7 +25,6 @@ type Ops struct {
 //Stage creates an activation struct given the properties passed in function
 func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*Ops, error) {
 	var dtype gocudnn.DataTypeFlag
-	var xtra gocudnn.Xtra
 	var mflg ModeFlag
 	var hlp gocudnn.Activation
 	switch mode {

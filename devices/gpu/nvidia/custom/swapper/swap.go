@@ -1,19 +1,19 @@
 package swapper
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //Swapper holds kernels that do swap functions
 type Swapper struct {
-	swap *gocudnn.Swapper
+	swap *xtra.Swapper
 }
 
 //CreateSwapper returns a Swapper
 func CreateSwapper(handle *cudnn.Handler) (*Swapper, error) {
-	swap, err := gocudnn.Xtra{}.NewBatchSwapper(handle.XHandle())
+	swap, err := xtra.NewBatchSwapper(handle.XHandle())
 	if err != nil {
 		return nil, err
 	}

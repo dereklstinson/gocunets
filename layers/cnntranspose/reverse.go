@@ -1,7 +1,8 @@
 package cnntranspose
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -57,16 +58,16 @@ func ReverseBuild(handle *cudnn.Handler,
 	}, nil
 }
 
-func (l *Layer) reverseForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) reverseForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseForwardProp(handle, wspace, x, y)
 }
-func (l *Layer) reverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) reverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y)
 }
-func (l *Layer) reverseBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) reverseBackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseBackPropData(handle, wspace, x, y)
 }
-func (l *Layer) reverseBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) reverseBackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	return l.conv.ReverseBackPropFilter(handle, wspace, x, y)
 }
 

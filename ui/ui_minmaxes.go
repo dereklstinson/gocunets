@@ -56,6 +56,3 @@ func (w *Windows) AddStats(header, refreshrate, purl string, up Handler, columns
 	w.names = append(w.names, purl)
 
 }
-func NetworkStatHelper() {
-
-}

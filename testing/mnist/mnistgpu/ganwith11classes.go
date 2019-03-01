@@ -1,9 +1,12 @@
 package mnistgpu
 
+/*
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCudnn/gocu"
+
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -45,9 +48,9 @@ func WithLabels11Gan(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorForm
 			i++
 		}
 
-		data, err := gocudnn.MakeGoPointer(batchslice)
+		data, err := gocu.MakeGoMem(batchslice)
 		cherror(err)
-		label, err := gocudnn.MakeGoPointer(batchlabelslice)
+		label, err := gocu.MakeGoMem(batchlabelslice)
 		cherror(err)
 		inpt, err := layers.BuildNetworkInputIO(handle, frmt, dtype, dims(batchsize, 1, 28, 28))
 		cherror(err)
@@ -90,3 +93,4 @@ func WithLabels11Gan(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorForm
 	fmt.Println("Done Loading Testing To GPU")
 	return gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata
 }
+*/

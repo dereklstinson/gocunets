@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 const debuggingadam = false
@@ -15,15 +18,15 @@ const debuggingadam = false
 type Adam struct {
 	loss1     []float32
 	loss2     []float32
-	goptr1    *gocudnn.GoPointer
-	goptr2    *gocudnn.GoPointer
-	gpuloss1  *gocudnn.Malloced
-	gpuloss2  *gocudnn.Malloced
-	gsum      *gocudnn.Malloced
-	xsum      *gocudnn.Malloced
-	trainer   *gocudnn.TrainerD
-	params    gocudnn.TrainingParams
-	regparams gocudnn.RegParams
+	goptr1    *gocu.GoMem
+	goptr2    *gocu.GoMem
+	gpuloss1  *nvidia.Malloced
+	gpuloss2  *nvidia.Malloced
+	gsum      *nvidia.Malloced
+	xsum      *nvidia.Malloced
+	trainer   *xtra.TrainerD
+	params    xtra.TrainingParams
+	regparams xtra.RegParams
 	dims      []int32
 }
 
@@ -44,21 +47,21 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 	}
 	a.dims = dims
 	//DeFault := gocudnn.MemcpyKindFlag{}.Default()
-	Global := gocudnn.ManagedMemFlag{}.Global()
-	var dflg cudnn.DataTypeFlag
+
+	var dflg cudnn.DataType
 	switch dtype {
 
 	case dflg.Float():
 		a.loss1 = make([]float32, 1)
 		a.loss2 = make([]float32, 1)
-		a.goptr1, err = gocudnn.MakeGoPointer(a.loss1)
+		a.goptr1, err = gocu.MakeGoMem(a.loss1)
 		if err != nil {
 			if debuggingadam {
 				panic(err)
 			}
 			return err
 		}
-		a.goptr2, err = gocudnn.MakeGoPointer(a.loss2)
+		a.goptr2, err = gocu.MakeGoMem(a.loss2)
 		if err != nil {
 			if debuggingadam {
 				panic(err)
@@ -67,33 +70,15 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 		}
 		//asize := dimsize()
 		sizet := gocudnn.FindSizeTfromVol(dims, dtype.Cu())
-		/*
-			x := make([]float32, asize)
-			sizet, err := gocudnn.FindSizeT(x)
-			if err != nil {
-				if debuggingadam {
-					panic(err)
-				}
-				return err
-			}
 
-			xp, err := gocudnn.MakeGoPointer(x)
-			if err != nil {
-				if debuggingadam {
-					panic(err)
-				}
-				return err
-			}
-
-		*/
-		a.gsum, err = gocudnn.UnifiedMangedGlobal(sizet)
+		a.gsum, err = nvidia.MallocGlobal(han, sizet)
 		if err != nil {
 			if debuggingadam {
 				panic(err)
 			}
 			return err
 		}
-		a.xsum, err = gocudnn.UnifiedMangedGlobal(sizet)
+		a.xsum, err = nvidia.MallocGlobal(han, sizet)
 		if err != nil {
 			if debuggingadam {
 				panic(err)
@@ -105,45 +90,26 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			if debuggingadam {
 				fmt.Println("Dims are", dims)
 				fmt.Println("Adress for a.xsum,and a.gsum", a.xsum, a.gsum)
-				fmt.Println("a.xsum Cudasize", a.gsum.ByteSize())
+				fmt.Println("a.xsum Cudasize", a.gsum.TotalBytes())
 				panic(err)
 			}
 		}
 		err = a.gsum.Set(0)
 		if err != nil {
 			if debuggingadam {
-				fmt.Println("a.gsum Cudasize", a.gsum.ByteSize())
+				fmt.Println("a.gsum Cudasize", a.gsum.TotalBytes())
 				panic(err)
 			}
 		}
 
-		/*
-				err = a.gsum.CudaMemCopy(a.gsum, xp, sizet, DeFault)
-				if err != nil {
-					if debuggingadam {
-
-						fmt.Println("SizeT is ", sizet)
-						//Bug Was Here
-						panic(err)
-					}
-					return err
-				}
-			err = gocudnn.CudaMemCopy(a.xsum, xp, sizet, DeFault)
-			if err != nil {
-				if debuggingadam {
-					panic(err)
-				}
-				return err
-			}
-		*/
-		a.gpuloss1, err = gocudnn.MallocManaged(gocudnn.SizeT(4), Global)
+		a.gpuloss1, err = nvidia.MallocGlobal(han, 4)
 		if err != nil {
 			if debuggingadam {
 				panic(err)
 			}
 			return err
 		}
-		a.gpuloss2, err = gocudnn.MallocManaged(gocudnn.SizeT(4), Global)
+		a.gpuloss2, err = nvidia.MallocGlobal(han, 4)
 		if err != nil {
 			if debuggingadam {
 				panic(err)
@@ -193,6 +159,7 @@ func (a *Adam) freememer() error {
 	return nil
 }
 */
+
 //Dims returns the dims of the training parameter holders
 func (a *Adam) Dims() []int32 {
 	return a.dims
@@ -206,7 +173,7 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 		return err
 	}
 	a.SetBatch(float32(batchsize))
-	err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+	err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
 	if err != nil {
 		return err
 	}
@@ -215,7 +182,7 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 	if err != nil {
 		return err
 	}
-	err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+	err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
 	if err != nil {
 		return err
 	}
@@ -231,11 +198,11 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 }
 func (a *Adam) l1l2loss() error {
 	var err error
-	err = gocudnn.UnifiedMemCopy(a.goptr1, a.gpuloss1)
+	err = nvidia.Memcpy(a.goptr1, a.gpuloss1, a.goptr1.TotalBytes())
 	if err != nil {
 		return err
 	}
-	err = gocudnn.UnifiedMemCopy(a.goptr2, a.gpuloss2)
+	err = nvidia.Memcpy(a.goptr2, a.gpuloss2, a.goptr2.TotalBytes())
 	if err != nil {
 		return err
 	}
@@ -257,7 +224,7 @@ func dimsize(dims []int32) int32 {
 }
 
 //SetupAdamWandB returns a trainer for both WandB
-func SetupAdamWandB(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Adam, *Adam, error) {
+func SetupAdamWandB(tctx *xtra.Handle, decay1, decay2 float32, batch int32) (*Adam, *Adam, error) {
 	adam1, err := SetupAdam(tctx, decay1, decay2, batch)
 	if err != nil {
 		return nil, nil, err
@@ -279,15 +246,15 @@ func SetupAdamWandB2(handle *cudnn.Handler, rate, decay1, decay2 float32, batch 
 }
 
 //SetupAdam sets up adam
-func SetupAdam(tctx *gocudnn.XHandle, decay1, decay2 float32, batch int32) (*Adam, error) {
+func SetupAdam(tctx *xtra.Handle, decay1, decay2 float32, batch int32) (*Adam, error) {
 
-	adam := gocudnn.TrainingModeFlag{}.Adam()
-	t, err := gocudnn.Xtra{}.NewTrainingDescriptor(tctx, adam, gocudnn.DataTypeFlag{}.Float())
+	adam := xtra.TrainingModeFlag{}.Adam()
+	t, err := xtra.NewTrainingDescriptor(tctx, adam, gocudnn.DataTypeFlag{}.Float())
 	if err != nil {
 		return nil, err
 	}
-	reg := gocudnn.Xtra{}.CreateRegParamsFloat32(decay1, decay2, float32(batch))
-	x := gocudnn.Xtra{}.CreateParamsFloat32(defaultadameps, defaultadamrate, defaultadambeta1, defaultadambeta2)
+	reg := xtra.CreateRegParamsFloat32(decay1, decay2, float32(batch))
+	x := xtra.CreateParamsFloat32(defaultadameps, defaultadamrate, defaultadambeta1, defaultadambeta2)
 
 	return &Adam{
 		trainer:   t,

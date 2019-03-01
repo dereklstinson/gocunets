@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-func (l *layer) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *layer) inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 
 	err := handle.Sync()
 	if err != nil {
@@ -79,7 +79,7 @@ func (l *layer) inference(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y 
 }
 
 //ForwardProp does the forward prop for a layer
-func (l *layer) forwardprop(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *layer) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 
 	err := handle.Sync()
 	if err != nil {

@@ -6,10 +6,9 @@ import (
 	"io"
 	"strings"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
-
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCudnn/gocu"
 
 	"github.com/dereklstinson/GoCuNets/utils"
 )
@@ -149,7 +148,7 @@ func getTensor(tensor *tensor.Volume) (Tensor, error) {
 	numofelements := utils.FindVolumeInt32(dims, nil)
 
 	values := make([]float64, 0)
-	var flg cudnn.DataTypeFlag
+	var flg cudnn.DataType
 	switch tensor.DataType() {
 	case flg.Double():
 		x := make([]float64, numofelements)
@@ -185,7 +184,7 @@ func getTensor(tensor *tensor.Volume) (Tensor, error) {
 
 }
 func datatypetostring(dtype cudnn.DataType) (string, error) {
-	var flg cudnn.DataTypeFlag
+	var flg cudnn.DataType
 	switch dtype {
 	case flg.Double():
 		return "Double", nil
@@ -203,7 +202,7 @@ func datatypetostring(dtype cudnn.DataType) (string, error) {
 }
 func stringtodatatype(dtype string) (cudnn.DataType, error) {
 	dtype = strings.ToUpper(dtype)
-	var flg cudnn.DataTypeFlag
+	var flg cudnn.DataType
 	switch dtype {
 	case "DOUBLE":
 		return flg.Double(), nil
@@ -224,7 +223,7 @@ func stringtodatatype(dtype string) (cudnn.DataType, error) {
 // Dims don't need to be the same, but the volume does need to be the same
 // Also Datatype Needs to be the same
 func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
-	var flg cudnn.DataTypeFlag
+	var flg cudnn.DataType
 	tdtype, err := stringtodatatype(val.Datatype)
 	if err != nil {
 		return err
@@ -238,39 +237,39 @@ func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
 	switch tdtype {
 	case flg.Double():
 		x := utils.ToFLoat64Slice(val.Values)
-		gptr, err := gocudnn.MakeGoPointer(x)
+		gptr, err := gocu.MakeGoMem(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
+		return t.LoadMem(handle, gptr, gptr.TotalBytes())
 	case flg.Float():
 		x := utils.ToFloat32Slice(val.Values)
-		gptr, err := gocudnn.MakeGoPointer(x)
+		gptr, err := gocu.MakeGoMem(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
+		return t.LoadMem(handle, gptr, gptr.TotalBytes())
 	case flg.Int32():
 		x := utils.ToInt32Slice(val.Values)
-		gptr, err := gocudnn.MakeGoPointer(x)
+		gptr, err := gocu.MakeGoMem(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
+		return t.LoadMem(handle, gptr, gptr.TotalBytes())
 	case flg.Int8():
 		x := utils.ToInt8Slice(val.Values)
-		gptr, err := gocudnn.MakeGoPointer(x)
+		gptr, err := gocu.MakeGoMem(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
+		return t.LoadMem(handle, gptr, gptr.TotalBytes())
 	case flg.UInt8():
 		x := utils.ToUint8Slice(val.Values)
-		gptr, err := gocudnn.MakeGoPointer(x)
+		gptr, err := gocu.MakeGoMem(x)
 		if err != nil {
 			return err
 		}
-		return t.LoadMem(handle, gptr, cudnn.SizeT(gptr.ByteSize()))
+		return t.LoadMem(handle, gptr, gptr.TotalBytes())
 	}
 	return errors.New("Unsupported Type")
 }

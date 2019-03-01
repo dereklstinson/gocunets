@@ -3,7 +3,7 @@ package cnntranspose
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 )
 
 //SetupWStatReducers sets up the minmax reducers for the bias and weights

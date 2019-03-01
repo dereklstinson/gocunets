@@ -147,7 +147,7 @@ func (m *Malloced) WriteTo(w io.Writer) (n int64, err error) {
 
 		if wmalloced.TotalBytes() < size {
 			size = wmalloced.TotalBytes()
-			errholder = fmt.Errorf("Total Size of Malloced is %d. Than MallocedWriter's passed bytes.  Still read from Nvidia Device", size, wmalloced.TotalBytes())
+			errholder = fmt.Errorf("Total Size of Malloced is %d. Than MallocedWriter's passed bytes %d.  Still read from Nvidia Device", size, wmalloced.TotalBytes())
 		}
 		err = Memcpy(wmalloced, m, size)
 		if err != nil {

@@ -3,6 +3,7 @@ package convolution
 import (
 	"errors"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -18,7 +19,7 @@ type Ops struct {
 	bwdfgroup    int32
 	helper       gocudnn.Convolution
 	setfilt      bool
-	pwspacesize  gocudnn.SizeT
+	pwspacesize  uint
 	perfforward  ForwardPerformance
 	perfbackdata BackDataPerformance
 	perfbackfilt BackFilterPerformance
@@ -187,7 +188,7 @@ func (c *Ops) BwdPropData(
 	alpha float64,
 	w *tensor.Volume,
 	dy *tensor.Volume,
-	wspace *gocudnn.Malloced,
+	wspace *nvidia.Malloced,
 	beta float64,
 	dx *tensor.Volume) error {
 
@@ -202,7 +203,7 @@ func (c *Ops) BwdPropData(
 		return errors.New("Unsuported Datatype")
 	}
 
-	return c.bwdddesc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, b, dx.TD(), dx.Memer())
+	return c.bwdddesc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), b, dx.TD(), dx.Memer())
 }
 
 //BwdPropFilt dw = alpha * BwdPropFilt(x,dy)+beta*dw
@@ -211,7 +212,7 @@ func (c *Ops) BwdPropFilt(
 	alpha float64,
 	x *tensor.Volume,
 	dy *tensor.Volume,
-	wspace *gocudnn.Malloced,
+	wspace *nvidia.Malloced,
 	beta float64,
 	dw *tensor.Volume) error {
 
@@ -222,7 +223,7 @@ func (c *Ops) BwdPropFilt(
 	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
 	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
 
-	return c.bwdfdesc.BackwardFilter(handle.Cudnn(), a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, b, dw.FD(), dw.Memer())
+	return c.bwdfdesc.BackwardFilter(handle.Cudnn(), a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), b, dw.FD(), dw.Memer())
 }
 
 //FwdProp    y= alpha * Convolution(x,w)+ beta*y
@@ -231,7 +232,7 @@ func (c *Ops) FwdProp(
 	alpha float64,
 	x *tensor.Volume,
 	w *tensor.Volume,
-	wspace *gocudnn.Malloced,
+	wspace *nvidia.Malloced,
 	beta float64,
 	y *tensor.Volume) error {
 
@@ -256,7 +257,7 @@ func (c *Ops) FwdProp(
 		fmt.Println("13: ", y.Memer())
 	*/
 
-	return c.fwddesc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, b, y.TD(), y.Memer())
+	return c.fwddesc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), b, y.TD(), y.Memer())
 }
 
 //BwdBias does the backward bias calculation

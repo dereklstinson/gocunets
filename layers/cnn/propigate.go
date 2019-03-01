@@ -1,14 +1,14 @@
 package cnn
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //ForwardProp performs the ForwardProp
-func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	err := c.conv.FwdProp(handle, c.fwd.alpha,
 		x.T(),
 		c.w.T(),
@@ -23,7 +23,7 @@ func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 }
 
 //BackPropFilterData does the backprop for the data and the filter
-func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 	if x.IsInput() == true {
 		return c.BackPropFilter(handle, wspacefilter, x, y)
@@ -40,7 +40,7 @@ func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilt
 }
 
 //BackPropData performs the BackPropData
-func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	if x.IsInput() == true {
 		return nil
 	}
@@ -57,7 +57,7 @@ func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 }
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
-func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	err := c.conv.BwdPropFilt(
 		handle,
 		c.bwdf.alpha,

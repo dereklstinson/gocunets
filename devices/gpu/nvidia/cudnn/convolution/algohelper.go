@@ -19,7 +19,7 @@ func (c *Ops) SetBestAlgosConsidering(
 	w *tensor.Volume,
 	wspacesize int,
 	fastest bool) (
-	gocudnn.SizeT,
+	uint,
 	error) {
 	if fastest == true {
 		return c.setfastest(handle, x, y, w)
@@ -27,7 +27,7 @@ func (c *Ops) SetBestAlgosConsidering(
 	if wspacesize > 0 {
 		return c.setwspacelimit(handle, x, y, w, wspacesize)
 	}
-	return gocudnn.SizeT(wspacesize), c.setnowspace(handle, x, y, w)
+	return uint(wspacesize), c.setnowspace(handle, x, y, w)
 }
 
 //SetBestAlgosConsideringDims4d is the same as SetBestAlgosConsidering as long as the dims are 4d
@@ -41,7 +41,7 @@ func (c *Ops) SetBestAlgosConsideringDims4d(
 	dtype cudnn.DataType,
 	frmt cudnn.TensorFormat,
 ) (
-	gocudnn.SizeT,
+	uint,
 	error) {
 
 	x, err := gocudnn.Tensor{}.NewTensor4dDescriptor(dtype.Cu(), frmt.Cu(), xd)
@@ -72,11 +72,11 @@ func (c *Ops) SetBestAlgosConsideringDims4d(
 }
 
 //this will set the fastest algos to to the struct and return the largest worksize for fwd, bwdd, bwdf. if an error is found nothing will be set.
-func (c *Ops) setfastestdescriptors(handle *cudnn.Handler, x, y *gocudnn.TensorD, w *gocudnn.FilterD) (gocudnn.SizeT, error) {
+func (c *Ops) setfastestdescriptors(handle *cudnn.Handler, x, y *gocudnn.TensorD, w *gocudnn.FilterD) (uint, error) {
 	preff := c.helper.Flgs.Fwd.Pref.PreferFastest()
 	prefbd := c.helper.Flgs.Bwd.DataPref.PreferFastest()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.PrefFastest()
-	wspace := gocudnn.SizeT(0)
+	wspace := uint(0)
 	fwdalgo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x, w, c.fwddesc, y, preff, wspace)
 	if err != nil {
 		return 0, err
@@ -121,7 +121,7 @@ func (c *Ops) setnowspacedescriptors(handle *cudnn.Handler, x, y *gocudnn.Tensor
 	preff := c.helper.Flgs.Fwd.Pref.NoWorkSpace()
 	prefbd := c.helper.Flgs.Bwd.DataPref.NoWorkSpace()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.NoWorkSpace()
-	wspace := gocudnn.SizeT(0)
+	wspace := uint(0)
 	fwdalgo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x, w, c.fwddesc, y, preff, wspace)
 	if err != nil {
 		return err
@@ -143,11 +143,11 @@ func (c *Ops) setnowspacedescriptors(handle *cudnn.Handler, x, y *gocudnn.Tensor
 }
 
 //this will set the fastest algo with the memory limit given if an error is returned no settings will be changed
-func (c *Ops) setwspacelimitdescriptors(handle *cudnn.Handler, x, y *gocudnn.TensorD, w *gocudnn.FilterD, wspacesize int) (gocudnn.SizeT, error) {
+func (c *Ops) setwspacelimitdescriptors(handle *cudnn.Handler, x, y *gocudnn.TensorD, w *gocudnn.FilterD, wspacesize int) (uint, error) {
 	preff := c.helper.Flgs.Fwd.Pref.SpecifyWorkSpaceLimit()
 	prefbd := c.helper.Flgs.Bwd.DataPref.SpecifyWorkSpaceLimit()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.SpecifyWorkSpaceLimit()
-	wspace := gocudnn.SizeT(wspacesize)
+	wspace := uint(wspacesize)
 	fwdalgo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x, w, c.fwddesc, y, preff, wspace)
 	if err != nil {
 		return 0, err
@@ -192,7 +192,7 @@ func (c *Ops) setnowspace(handle *cudnn.Handler, x, y, w *tensor.Volume) error {
 	preff := c.helper.Flgs.Fwd.Pref.NoWorkSpace()
 	prefbd := c.helper.Flgs.Bwd.DataPref.NoWorkSpace()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.NoWorkSpace()
-	wspace := gocudnn.SizeT(0)
+	wspace := uint(0)
 	fwdalgo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.fwddesc, y.TD(), preff, wspace)
 	if err != nil {
 		return err
@@ -215,11 +215,11 @@ func (c *Ops) setnowspace(handle *cudnn.Handler, x, y, w *tensor.Volume) error {
 }
 
 //this will set the fastest algo with the memory limit given if an error is returned no settings will be changed
-func (c *Ops) setwspacelimit(handle *cudnn.Handler, x, y, w *tensor.Volume, wspacesize int) (gocudnn.SizeT, error) {
+func (c *Ops) setwspacelimit(handle *cudnn.Handler, x, y, w *tensor.Volume, wspacesize int) (uint, error) {
 	preff := c.helper.Flgs.Fwd.Pref.SpecifyWorkSpaceLimit()
 	prefbd := c.helper.Flgs.Bwd.DataPref.SpecifyWorkSpaceLimit()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.SpecifyWorkSpaceLimit()
-	wspace := gocudnn.SizeT(wspacesize)
+	wspace := uint(wspacesize)
 	fwdalgo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.fwddesc, y.TD(), preff, wspace)
 	if err != nil {
 		return 0, err
@@ -260,11 +260,11 @@ func (c *Ops) setwspacelimit(handle *cudnn.Handler, x, y, w *tensor.Volume, wspa
 }
 
 //this will set the fastest algos to to the struct and return the largest worksize for fwd, bwdd, bwdf. if an error is found nothing will be set.
-func (c *Ops) setfastest(handle *cudnn.Handler, x, y, w *tensor.Volume) (gocudnn.SizeT, error) {
+func (c *Ops) setfastest(handle *cudnn.Handler, x, y, w *tensor.Volume) (uint, error) {
 	preff := c.helper.Flgs.Fwd.Pref.PreferFastest()
 	prefbd := c.helper.Flgs.Bwd.DataPref.PreferFastest()
 	prefbf := c.helper.Flgs.Bwd.FltrPref.PrefFastest()
-	wspace := gocudnn.SizeT(0)
+	wspace := uint(0)
 	fwdalgo, err := c.helper.Funcs.Fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.fwddesc, y.TD(), preff, wspace)
 	if err != nil {
 		return 0, err

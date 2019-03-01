@@ -3,12 +3,13 @@ package activation
 import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //ModeFlag passes Mode flags
 type ModeFlag struct {
 	m gocudnn.ActivationModeFlag
-	x gocudnn.XActivationModeFlag
+	x xtra.XActivationModeFlag
 }
 
 //Mode is the flag that holds the activation mode
@@ -71,6 +72,6 @@ type Flag struct {
 func (m Mode) c() gocudnn.ActivationMode {
 	return gocudnn.ActivationMode(m)
 }
-func (m Mode) x() gocudnn.XActivationMode {
-	return gocudnn.XActivationMode(m)
+func (m Mode) x() xtra.XActivationMode {
+	return xtra.XActivationMode(m)
 }

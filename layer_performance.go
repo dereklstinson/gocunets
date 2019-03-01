@@ -1,10 +1,10 @@
 package gocunets
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const debuglayerperformance = false
@@ -41,7 +41,7 @@ func (l *layer) setcudnnperformancebwdf(handle *cudnn.Handler, bwdf convolution.
 		return
 	}
 }
-func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
+func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
 
 	if l.cnn != nil {
 		if debuglayerperformance {

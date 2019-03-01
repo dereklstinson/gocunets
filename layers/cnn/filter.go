@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -24,7 +24,7 @@ type Layer struct {
 	w          *layers.IO
 	bias       *layers.IO
 	pindims    []int32
-	wspacesize gocudnn.SizeT
+	wspacesize uint
 	fwd        xtras
 	bwdd       xtras
 	bwdf       xtras

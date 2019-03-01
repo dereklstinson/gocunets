@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"html/template"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/ui/uihelper"
 )
 
+//GetHTMLedStats gets the stats put into html form
 func (m *Network) GetHTMLedStats(handle *cudnn.Handler) (string, error) {
 	x, err := m.GetStats(handle)
 	if err != nil {
@@ -16,6 +17,8 @@ func (m *Network) GetHTMLedStats(handle *cudnn.Handler) (string, error) {
 	return string(combine(MakeHTMLTemplates(x))), nil
 
 }
+
+//MakeHTMLTemplates preps the HTML so that it can be called with GetHTMLedstats
 func MakeHTMLTemplates(input []*LayerIOStats) []template.HTML {
 	section := make([]template.HTML, len(input))
 	for i := range input {

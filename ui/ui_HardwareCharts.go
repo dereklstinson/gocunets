@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+//HardwareCharts is a struct that contains the necissary values to make a chart
 type HardwareCharts struct {
 	Header string
 	URL    string

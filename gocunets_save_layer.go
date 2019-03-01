@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 )
 
 func (l *layer) loadparams(handle *cudnn.Handler, params *Params) error {

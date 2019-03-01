@@ -1,10 +1,10 @@
 package cnn
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //MakeOutputTensor makes the output tensor of the layer
@@ -37,7 +37,7 @@ func (c *Layer) FindOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32
 //if fastest is marked true. Then it will find the fastest algo no mater what worksize is.
 //if fastest is set to false. It will check if wspace is greater than zero then it will set the algos to the fastest algo considering the workspace size, and return the largest wspacesize in all the algos
 //else it will find and set the fastest algos with no workspace size and return 0
-func (c *Layer) SetBestAlgosConsidering(handle *cudnn.Handler, x, y *layers.IO, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
+func (c *Layer) SetBestAlgosConsidering(handle *cudnn.Handler, x, y *layers.IO, wspacelimit int, fastest bool) (uint, error) {
 	return c.conv.SetBestAlgosConsidering(handle, x.T(), y.T(), c.w.T(), wspacelimit, fastest)
 }
 
@@ -47,7 +47,7 @@ func (c *Layer) SetBestAlgosConsidering(handle *cudnn.Handler, x, y *layers.IO, 
 //if fastest is marked true. Then it will find the fastest algo no mater what worksize is.
 //if fastest is set to false. It will check if wspace is greater than zero then it will set the algos to the fastest algo considering the workspace size, and return the largest wspacesize in all the algos
 //else it will find and set the fastest algos with no workspace size and return 0
-func (c *Layer) SetBestAlgosConsideringDims4d(handle *cudnn.Handler, x, y, w []int32, wspacelimit int, fastest bool) (gocudnn.SizeT, error) {
+func (c *Layer) SetBestAlgosConsideringDims4d(handle *cudnn.Handler, x, y, w []int32, wspacelimit int, fastest bool) (uint, error) {
 	frmt, data, _, err := c.w.Properties()
 	if err != nil {
 		return 0, err
@@ -61,17 +61,17 @@ func (c *Layer) FilterProps() (cudnn.TensorFormat, cudnn.DataType, []int32, erro
 }
 
 //GetFwdAlgoPerfList gets a list of forward performance algos
-func (c *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.ForwardPerformance, error) {
+func (c *Layer) GetFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]convolution.ForwardPerformance, error) {
 	return c.conv.GetFwdAlgoPerfList(handle, x.T(), c.w.T(), y.T(), workspace)
 }
 
 //GetBwdDataAlgoPerfList gets a list of backward performance algos
-func (c *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackDataPerformance, error) {
+func (c *Layer) GetBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]convolution.BackDataPerformance, error) {
 	return c.conv.GetBwdDataAlgoPerfList(handle, x.T(), c.w.T(), y.T(), workspace)
 }
 
 //GetBwdFiltAlgoPerfList gets a list of forward performance algos
-func (c *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackFilterPerformance, error) {
+func (c *Layer) GetBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]convolution.BackFilterPerformance, error) {
 	return c.conv.GetBwdFiltAlgoPerfList(handle, x.T(), c.w.T(), y.T(), workspace)
 }
 
@@ -98,18 +98,18 @@ For the Reverse algos used for cnntranspose
 */
 
 //GetReverseBwdDataAlgoPerfList gets a list of forward performance algos used for the back propagation data
-func (c *Layer) GetReverseBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.ForwardPerformance, error) {
+func (c *Layer) GetReverseBwdDataAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]convolution.ForwardPerformance, error) {
 
 	return c.conv.GetFwdAlgoPerfList(handle, y.T(), c.w.T(), x.T(), workspace)
 }
 
 //GetReverseFwdAlgoPerfList gets a list of backward performance algos used for the forward propagation
-func (c *Layer) GetReverseFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackDataPerformance, error) {
+func (c *Layer) GetReverseFwdAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]convolution.BackDataPerformance, error) {
 	return c.conv.GetBwdDataAlgoPerfList(handle, y.T(), c.w.T(), x.T(), workspace)
 }
 
 //GetReverseBwdFiltAlgoPerfList gets a list of back prop filter performance algos
-func (c *Layer) GetReverseBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *gocudnn.Malloced) ([]convolution.BackFilterPerformance, error) {
+func (c *Layer) GetReverseBwdFiltAlgoPerfList(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]convolution.BackFilterPerformance, error) {
 	return c.conv.GetBwdFiltAlgoPerfList(handle, y.T(), c.w.T(), x.T(), workspace)
 }
 

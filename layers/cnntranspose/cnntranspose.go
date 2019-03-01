@@ -3,7 +3,8 @@ package cnntranspose
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -46,7 +47,7 @@ func (l *Layer) Bias() *layers.IO {
 }
 
 //ForwardProp does the forward propagation of convolution transpose
-func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	switch l.mode {
 
 	case convtransposereverse:
@@ -56,7 +57,7 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, 
 }
 
 //BackPropData does the back propigation data of convolution transpose
-func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	switch l.mode {
 
 	case convtransposereverse:
@@ -67,7 +68,7 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x,
 }
 
 //BackPropFilterData does the back propigation filter and data of convolution transpose
-func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
+func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
 	if l.inputlayer == true {
 		switch l.mode {
 

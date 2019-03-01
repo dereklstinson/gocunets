@@ -3,8 +3,9 @@ package cnn
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/convolution"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -41,7 +42,7 @@ func SetupReverse(handle *cudnn.Handler,
 }
 
 //ReverseForwardProp performs the ForwardProp
-func (c *Layer) ReverseForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) ReverseForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 
 	err := c.conv.BwdPropData(
 		handle,
@@ -67,7 +68,7 @@ func (c *Layer) ReverseForwardProp(handle *cudnn.Handler, wspace *gocudnn.Malloc
 }
 
 //ReverseBackPropFilterData does the backprop for the data and the filter
-func (c *Layer) ReverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) ReverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 	if x.IsInput() == true {
 		return c.ReverseBackPropFilter(handle, wspacefilter, x, y)
@@ -86,7 +87,7 @@ func (c *Layer) ReverseBackPropFilterData(handle *cudnn.Handler, wspacedata, wsp
 }
 
 //ReverseBackPropData performs the BackPropData
-func (c *Layer) ReverseBackPropData(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) ReverseBackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	if x.IsInput() == true {
 		return nil
 	}
@@ -107,7 +108,7 @@ func (c *Layer) ReverseBackPropData(handle *cudnn.Handler, wspace *gocudnn.Mallo
 }
 
 //ReverseBackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
-func (c *Layer) ReverseBackPropFilter(handle *cudnn.Handler, wspace *gocudnn.Malloced, x, y *layers.IO) error {
+func (c *Layer) ReverseBackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	err := c.conv.BwdPropFilt(
 		handle,
 		c.bwdf.alpha,

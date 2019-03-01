@@ -1,10 +1,9 @@
 package batchnorm
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -18,29 +17,41 @@ type Info struct {
 	Nan               cudnn.NanMode         `json:"Nan"`
 	Dims              []int32               `json:"Dims"`
 	Stride            []int32               `json:"Stride"`
-	RRM               []float64             `json:"RRM"`
-	RRV               []float64             `json:"RRV"`
-	RSM               []float64             `json:"RSM"`
-	RSV               []float64             `json:"RSV"`
+	RRM               []byte                `json:"RRM"`
+	RRV               []byte                `json:"RRV"`
+	RSM               []byte                `json:"RSM"`
+	RSV               []byte                `json:"RSV"`
 }
 
 //Info returns the Info struct
 func (o *Ops) Info() (Info, error) {
+	sizet, err := o.bnsbmvd.GetSizeInBytes()
+	if err != nil {
+		return Info{}, err
+	}
 
-	rrm, err := getfloat64val(o.bnsbmvd, o.rrm)
+	rrm := make([]byte, sizet)
+	rrv := make([]byte, sizet)
+	rsm := make([]byte, sizet)
+	rsv := make([]byte, sizet)
+	rmmwritten, err := o.rrm.Write(rrm)
 	if err != nil {
+		fmt.Println("Bytes Written rrm: ", rmmwritten)
 		return Info{}, err
 	}
-	rrv, err := getfloat64val(o.bnsbmvd, o.rrv)
+	rmmwritten, err = o.rrv.Write(rrv)
 	if err != nil {
+		fmt.Println("Bytes Written rrv: ", rmmwritten)
 		return Info{}, err
 	}
-	rsm, err := getfloat64val(o.bnsbmvd, o.rsm)
+	rmmwritten, err = o.rsm.Write(rsm)
 	if err != nil {
+		fmt.Println("Bytes Written rsm: ", rmmwritten)
 		return Info{}, err
 	}
-	rsv, err := getfloat64val(o.bnsbmvd, o.rsv)
+	rmmwritten, err = o.rsv.Write(rsv)
 	if err != nil {
+		fmt.Println("Bytes Written rsv: ", rmmwritten)
 		return Info{}, err
 	}
 	dtype, dims, stride, err := o.bnsbmvd.GetDescrptor()
@@ -64,60 +75,5 @@ func (o *Ops) Info() (Info, error) {
 		RSV:      rsv,
 		RSM:      rsm,
 	}, nil
-
-}
-
-func getfloat64val(desc *gocudnn.TensorD, mem *gocudnn.Malloced) ([]float64, error) {
-	var dflgs gocudnn.DataTypeFlag
-	dtype, dims, stride, err := desc.GetDescrptor()
-	if err != nil {
-		return nil, err
-	}
-	size := utils.FindVolumeInt32(dims, stride)
-	vals := make([]float64, size)
-	switch dtype {
-	case dflgs.Double():
-
-		values := make([]float64, size)
-		err = mem.FillSlice(values)
-		if err != nil {
-			return nil, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-
-	case dflgs.Float():
-		values := make([]float32, size)
-		err = mem.FillSlice(values)
-		if err != nil {
-			return nil, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-	case dflgs.Int32():
-		values := make([]int32, size)
-		err = mem.FillSlice(values)
-		if err != nil {
-			return nil, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-	case dflgs.Int8():
-		values := make([]float64, size)
-		err = mem.FillSlice(values)
-		if err != nil {
-			return nil, err
-		}
-		for i := range values {
-			vals[i] = float64(values[i])
-		}
-
-	default:
-		return nil, errors.New("Unsupported Format : Most likely internal error. Contact Code Writer")
-	}
-	return vals, nil
 
 }

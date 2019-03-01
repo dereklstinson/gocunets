@@ -1,21 +1,20 @@
 package xloss
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //Ops contains the operation to do the loss function
 type Ops struct {
-	desc *gocudnn.XLossD
+	desc *xtra.XLossD
 	loss float32
 }
 
 //Stage stages the loss operation
-func Stage(handle *gocudnn.XHandle, mode gocudnn.XLossMode, managed bool) (*Ops, error) {
-	var xtra gocudnn.Xtra
+func Stage(handle *xtra.Handle, mode xtra.XLossMode, managed bool) (*Ops, error) {
 
-	xloss, err := xtra.NewLossDescriptor(handle, mode, managed)
+	xloss, err := xtra.NewLossDescriptor(handle, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +22,7 @@ func Stage(handle *gocudnn.XHandle, mode gocudnn.XLossMode, managed bool) (*Ops,
 		desc: xloss,
 	}, nil
 }
-func (o *Ops) Error(handle *gocudnn.XHandle, dx, y, dy *tensor.Volume) error {
+func (o *Ops) Error(handle *xtra.Handle, dx, y, dy *tensor.Volume) error {
 	var err error
 	o.loss, err = o.desc.CalculateErrorAndLoss(handle, dx.TD(), dx.Memer(), y.TD(), y.Memer(), dy.TD(), dy.Memer())
 	return err
