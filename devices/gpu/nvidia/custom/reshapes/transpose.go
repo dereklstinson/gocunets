@@ -3,8 +3,8 @@ package reshapes
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 )
 
 //TransposeChannelForward will take a nchw and change it to a nhwc and vice-versa. Will find the transpose of x and put it in y

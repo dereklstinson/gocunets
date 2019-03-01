@@ -1,7 +1,7 @@
 package reshapes
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 

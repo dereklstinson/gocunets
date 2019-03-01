@@ -87,25 +87,10 @@ func BuildtoCudaHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn
 	}
 
 	previous[0] = current
-	sizet := handle.FindMaxSizeT(startdims)
+	sizet := handle.FindMaxUint(startdims)
 	maxvol := handle.FindMaxVol(startdims)
-	if handle.Unified() {
-		newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Host())
-		if err != nil {
-			return nil, err
-		}
-		return &Volume{
-			current:  current,
-			previous: previous,
-			frmt:     frmt,
-			dtype:    dtype,
-			memgpu:   newmemer,
-			maxsizet: sizet,
-			maxvol:   maxvol,
-			ongpu:    false,
-		}, nil
-	}
-	newmemer, err := gocudnn.MallocHost(sizet.Cu())
+
+	newmemer, err := nvidia.MallocHost(handle, sizet)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +127,8 @@ func BuildWeights(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.Da
 
 //AddRandNormalGenerator will add a random normal generator to the volume
 func (t *Volume) AddRandNormalGenerator(handle *cudnn.Handler, seed uint64) error {
-	t.randgen = gocudnn.CreateCuRandGenerator((gocudnn.CuRandRngTypeFlag{}.PseudoDefault()))
+	var x curand.RngType
+	t.randgen = curand.CreateGenerator((x.PseudoDefault()))
 	err := t.randgen.SetPsuedoSeed(seed)
 	if err != nil {
 		return err
@@ -166,7 +152,7 @@ func (t *Volume) NormalRand(mean, std float32) error {
 
 	}
 	//The mem might need to be set to zero. Maybe
-	return t.randgen.NormalFloat32(t.memgpu, mean, std)
+	return t.randgen.NormalFloat32(t.memgpu, t.CurrentSizeT(), mean, std)
 }
 
 //BuildRandNorm sets a randomnorm volume that can have its values set to random values over and over again
@@ -175,8 +161,8 @@ func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.D
 	if err != nil {
 		return nil, err
 	}
-
-	vol.randgen = gocudnn.CreateCuRandGenerator(gocudnn.CuRandRngTypeFlag{}.PseudoDefault())
+	var x curand.RngType
+	vol.randgen = curand.CreateGenerator((x.PseudoDefault()))
 
 	err = vol.randgen.SetPsuedoSeed(seed)
 	if err != nil {
@@ -187,7 +173,7 @@ func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.D
 	if err != nil {
 		return nil, err
 	}
-	err = vol.randgen.NormalFloat32(vol.memgpu, mean, std)
+	err = vol.randgen.NormalFloat32(vol.memgpu, vol.CurrentSizeT(), mean, std)
 	//vol.memgpu
 	return vol, err
 }
@@ -214,24 +200,8 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 		previous[0] = current
 
 		sizet := gocudnn.FindSizeTfromVol(startdims, dtype.Cu())
-		if handle.Unified() {
-			newmemer, err := gocudnn.MallocManaged(sizet, gocudnn.ManagedMemFlag{}.Global())
-			if err != nil {
-				return nil, err
-			}
-			return &Volume{
-				current:  current,
-				previous: previous,
-				frmt:     frmt,
-				dtype:    dtype,
-				memgpu:   newmemer,
-				maxsizet: cudnn.SizeT(sizet),
-				maxvol:   utils.FindVolumeInt32(startdims, nil),
-				ongpu:    true,
-				weights:  weights,
-			}, nil
-		}
-		newmemer, err := gocudnn.Malloc(sizet)
+
+		newmemer, err := nvidia.MallocGlobal(handle, sizet)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +211,7 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 			frmt:     frmt,
 			dtype:    dtype,
 			memgpu:   newmemer,
-			maxsizet: cudnn.SizeT(sizet),
+			maxsizet: (sizet),
 			maxvol:   utils.FindVolumeInt32(startdims, nil),
 			ongpu:    true,
 			weights:  weights,
@@ -253,6 +223,39 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 			return nil, err
 		}
 
+		previous[0] = current
+		var maxvol int32
+		var sizet uint
+		if maxdims == nil {
+			sizet = handle.FindMaxUint(startdims)
+			maxvol = handle.FindMaxVol(startdims)
+		} else {
+			maxvol = utils.FindVolumeInt32(maxdims, nil)
+			sizet = gocudnn.FindSizeTfromVol(maxdims, dtype.Cu())
+		}
+
+		newmemer, err := nvidia.MallocGlobal(handle, sizet)
+		if err != nil {
+			return nil, err
+		}
+		return &Volume{
+			current:  current,
+			previous: previous,
+			frmt:     frmt,
+			dtype:    dtype,
+			memgpu:   newmemer,
+			maxsizet: sizet,
+			maxvol:   maxvol,
+			ongpu:    true,
+			weights:  weights,
+		}, nil
+	}
+	/*
+		previous := make([]*tensordescriptor, 10)
+		current, err := maketensordescriptor(frmt, dtype, startdims)
+		if err != nil {
+			return nil, err
+		}
 		previous[0] = current
 		var maxvol int32
 		var sizet cudnn.SizeT
@@ -296,56 +299,8 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 			ongpu:    true,
 			weights:  weights,
 		}, nil
-	}
-	previous := make([]*tensordescriptor, 10)
-	current, err := maketensordescriptor(frmt, dtype, startdims)
-	if err != nil {
-		return nil, err
-	}
-	previous[0] = current
-	var maxvol int32
-	var sizet cudnn.SizeT
-	if maxdims == nil {
-		sizet = handle.FindMaxSizeT(startdims)
-		maxvol = handle.FindMaxVol(startdims)
-	} else {
-		maxvol = utils.FindVolumeInt32(maxdims, nil)
-		sizet = cudnn.SizeT(gocudnn.FindSizeTfromVol(maxdims, dtype.Cu()))
-	}
-
-	if handle.Unified() {
-		newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Global())
-		if err != nil {
-			return nil, err
-		}
-		return &Volume{
-			current:  current,
-			previous: previous,
-			frmt:     frmt,
-			dtype:    dtype,
-			memgpu:   newmemer,
-			maxsizet: sizet,
-			maxvol:   maxvol,
-			ongpu:    true,
-			weights:  weights,
-		}, nil
-	}
-	newmemer, err := gocudnn.Malloc(sizet.Cu())
-	if err != nil {
-		return nil, err
-	}
-	return &Volume{
-		current:  current,
-		previous: previous,
-		frmt:     frmt,
-		dtype:    dtype,
-		memgpu:   newmemer,
-		maxsizet: sizet,
-		maxvol:   maxvol,
-		ongpu:    true,
-		weights:  weights,
-	}, nil
-
+	*/
+	return nil, errors.New("Unreachable Location in tensor.volume build")
 }
 
 //DataType returns the datatype of the volume
@@ -384,7 +339,7 @@ func (t *Volume) MaxVol() int32 {
 }
 
 //MaxSizeT will return the max size in bytes that this tensor can build with
-func (t *Volume) MaxSizeT() cudnn.SizeT {
+func (t *Volume) MaxSizeT() uint {
 	return t.maxsizet
 }
 
@@ -394,8 +349,8 @@ func (t *Volume) Memer() gocu.Mem {
 }
 
 //CurrentSizeT returns the size in bytes for the current tensor
-func (t *Volume) CurrentSizeT() cudnn.SizeT {
-	return cudnn.SizeT(gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu()))
+func (t *Volume) CurrentSizeT() uint {
+	return (gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu()))
 }
 
 //Properties returns the properties of the tensor
@@ -405,6 +360,7 @@ func (t *Volume) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, erro
 
 }
 
+/*
 //FillSlice will fill the slice
 func (t *Volume) FillSlice(input interface{}, length int32) error {
 	if utils.FindVolumeInt32(t.current.dims, nil) != length {
@@ -412,6 +368,7 @@ func (t *Volume) FillSlice(input interface{}, length int32) error {
 	}
 	return t.memgpu.FillSlice(input)
 }
+*/
 
 //ZeroClone returns a zero clone of the the memory
 func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
@@ -430,9 +387,8 @@ func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 	}
 
 	previous[0] = current
-
-	if handle.Unified() {
-		newmemer, err := gocudnn.MallocManaged(t.maxsizet.Cu(), gocudnn.ManagedMemFlag{}.Global())
+	if t.ongpu {
+		newmemer, err := nvidia.MallocGlobal(handle, t.maxsizet)
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +404,7 @@ func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 			weights:  t.weights,
 		}, nil
 	}
-	newmemer, err := gocudnn.Malloc(t.maxsizet.Cu())
+	newmemer, err := nvidia.MallocHost(handle, t.maxsizet)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +423,7 @@ func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 }
 
 //arraysize will return the size of the array and will return 0 if unsupported type is used.
-func arraysize(dtype cudnn.DataType, size gocudnn.SizeT) int {
+func arraysize(dtype cudnn.DataType, size uint) int {
 	var flg gocudnn.DataTypeFlag
 	x := int(size)
 	switch dtype.Cu() {
@@ -486,14 +442,14 @@ func arraysize(dtype cudnn.DataType, size gocudnn.SizeT) int {
 	}
 }
 
-func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) error {
+func (t *Volume) printmem(comment string, max bool) error {
 	var flg gocudnn.DataTypeFlag
-	var sib gocudnn.SizeT
+	var sib uint
 
 	var as int
 
 	if max {
-		sib = t.memgpu.ByteSize()
+		sib = t.maxsizet
 		as = arraysize(t.dtype, sib)
 	} else {
 		sib = gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu())
@@ -504,11 +460,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) err
 	case flg.Double():
 
 		array := make([]float64, as)
-		ptr, err := gocudnn.MakeGoPointer(array)
+		ptr, err := gocu.MakeGoMem(array)
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
+		err = nvidia.Memcpy(ptr, t.memgpu, sib)
 		if err != nil {
 			return err
 		}
@@ -518,12 +474,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) err
 	case flg.Float():
 
 		array := make([]float32, as)
-		ptr, err := gocudnn.MakeGoPointer(array)
-
+		ptr, err := gocu.MakeGoMem(array)
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
+		err = nvidia.Memcpy(ptr, t.memgpu, sib)
 		if err != nil {
 			return err
 		}
@@ -533,12 +488,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) err
 	case flg.Int32():
 
 		array := make([]int32, as)
-		ptr, err := gocudnn.MakeGoPointer(array)
-
+		ptr, err := gocu.MakeGoMem(array)
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
+		err = nvidia.Memcpy(ptr, t.memgpu, sib)
 		if err != nil {
 			return err
 		}
@@ -548,12 +502,11 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) err
 	case flg.UInt8():
 
 		array := make([]byte, as)
-		ptr, err := gocudnn.MakeGoPointer(array)
-
+		ptr, err := gocu.MakeGoMem(array)
 		if err != nil {
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
+		err = nvidia.Memcpy(ptr, t.memgpu, sib)
 		if err != nil {
 			return err
 		}
@@ -563,14 +516,12 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) err
 	case flg.Int8():
 
 		array := make([]int8, as)
-		ptr, err := gocudnn.MakeGoPointer(array)
+		ptr, err := gocu.MakeGoMem(array)
 		if err != nil {
-
 			return err
 		}
-		err = gocudnn.CudaMemCopy(ptr, t.memgpu, sib, kind)
+		err = nvidia.Memcpy(ptr, t.memgpu, sib)
 		if err != nil {
-
 			return err
 		}
 		fmt.Printf("\n{")
@@ -585,26 +536,12 @@ func (t *Volume) printmem(comment string, kind gocudnn.MemcpyKind, max bool) err
 
 //PrintCurrentTensor - Prints the memory that the current tensor is using
 func (t *Volume) PrintCurrentTensor(handle *cudnn.Handler, comment string) error {
-	var kflg gocudnn.MemcpyKindFlag
-	if handle.Unified() {
 
-		return t.printmem(comment, kflg.Default(), false)
-	}
-	if t.ongpu {
-		return t.printmem(comment, kflg.DeviceToHost(), false)
-	}
-	return t.printmem(comment, kflg.HostToHost(), false)
+	return t.printmem(comment, false)
 }
 
 //PrintMaxMem prints the unified Memory
 func (t *Volume) PrintMaxMem(handle *cudnn.Handler, comment string) error {
 
-	var kflg gocudnn.MemcpyKindFlag
-	if handle.Unified() {
-		return t.printmem(comment, kflg.Default(), true)
-	}
-	if t.ongpu {
-		return t.printmem(comment, kflg.DeviceToHost(), true)
-	}
-	return t.printmem(comment, kflg.HostToHost(), true)
+	return t.printmem(comment, true)
 }

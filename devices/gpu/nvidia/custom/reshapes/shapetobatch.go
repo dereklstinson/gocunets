@@ -3,8 +3,8 @@ package reshapes
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 )
 
 //GetB2SOutputProperties returns the properties of the output

@@ -10,6 +10,7 @@ import (
 	"github.com/dereklstinson/half"
 )
 
+/*
 //SizeT is used commonly to specify the number of bytes a chunck of data contains
 type SizeT uint
 
@@ -17,6 +18,8 @@ type SizeT uint
 func (s SizeT) Uint() uint {
 	return uint(s)
 }
+
+*/
 
 //MakeFloat16Slice makes slice of float16 from a slice of float32
 func MakeFloat16Slice(vals []float32) []half.Float16 {
@@ -54,39 +57,45 @@ const (
 	Float16H
 	Float32
 	Float64
+	UNKNOWN
 )
 
+//Typer returns a Type equivilent to its own type
+type Typer interface {
+	Type() Type
+}
+
 //SizeOf returns the SizeT which is the size in bytes of the type
-func (t Type) SizeOf() SizeT {
+func (t Type) SizeOf() uint {
 	switch t {
 	case Uint8:
-		return SizeT(1)
+		return uint(1)
 	case Int8:
-		return SizeT(1)
+		return uint(1)
 	case Uint16:
-		return SizeT(2)
+		return uint(2)
 	case Int16:
-		return SizeT(2)
+		return uint(2)
 	case Uint32:
-		return SizeT(4)
+		return uint(4)
 	case Int32:
-		return SizeT(4)
+		return uint(4)
 	case Uint:
 		var x uint
-		return SizeT(unsafe.Sizeof(x))
+		return uint(unsafe.Sizeof(x))
 	case Int:
 		var x int
-		return SizeT(unsafe.Sizeof(x))
+		return uint(unsafe.Sizeof(x))
 	case Uint64:
-		return SizeT(8)
+		return uint(8)
 	case Int64:
-		return SizeT(8)
+		return uint(8)
 	case Float16H:
-		return SizeT(2)
+		return uint(2)
 	case Float32:
-		return SizeT(4)
+		return uint(4)
 	case Float64:
-		return SizeT(8)
+		return uint(8)
 
 	}
 	return 0

@@ -2,11 +2,13 @@ package tensor
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
 //Info struct contains the info that is needed to build a volume
@@ -36,11 +38,11 @@ func (t *Volume) Info() (Info, error) {
 	if err != nil {
 		return Info{}, err
 	}
-	dflgs := t.thelp.Flgs.Data
 
 	vals := make([]byte, t.memgpu.TotalBytes())
 	writen, err := t.memgpu.Write(vals)
 	if err != nil {
+		fmt.Printf("Written Bytes:%d, Length of byte array %d\n", writen, len(vals))
 		return Info{}, err
 	}
 	return Info{
@@ -69,12 +71,14 @@ func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
 		}
 		filts, err = fhelper.NewFilterNdDescriptor(i.DataType.Cu(), i.Format.Cu(), i.Dims)
 		if err != nil {
-			tens.DestroyDescriptor()
 			return nil, err
 		}
 		size, err := tens.GetSizeInBytes()
+		if err != nil {
 
-		newmemer, err = nvidia.MallocGlobal(handle,size)
+			return nil, err
+		}
+		newmemer, err = nvidia.MallocGlobal(handle, size)
 		if err != nil {
 
 			return nil, err
@@ -93,32 +97,11 @@ func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
 		}
 		size, err := tens.GetSizeInBytes()
 		if err != nil {
-			tens.DestroyDescriptor()
-			filts.DestroyDescriptor()
 			return nil, err
 		}
-		if handle.Unified() == true {
-
-			newmemer, err = gocudnn.MallocManaged(size, gocudnn.ManagedMemFlag{}.Global())
-			if err != nil {
-
-				tens.DestroyDescriptor()
-				filts.DestroyDescriptor()
-				return nil, err
-
-			}
-			newmemer.Set(0)
-		} else {
-			newmemer, err = gocudnn.Malloc(size)
-			if err != nil {
-
-				tens.DestroyDescriptor()
-				filts.DestroyDescriptor()
-				return nil, err
-
-			}
-			newmemer.Set(0)
-
+		newmemer, err = nvidia.MallocGlobal(handle, size)
+		if err != nil {
+			return nil, err
 		}
 
 	}
@@ -134,14 +117,14 @@ func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
 		dtype:  i.DataType,
 		memgpu: newmemer,
 	}
-	if i.Values == nil {
+	if i.Data == nil {
 		return vol, nil
 	}
-	goptr, err := gocudnn.MakeGoPointer(i.Values)
+	goptr, err := gocu.MakeGoMem(i.Data)
 	if err != nil {
 		return nil, err
 	}
-	err = vol.LoadMem(handle, goptr, cudnn.SizeT(goptr.ByteSize()))
+	err = vol.LoadMem(handle, goptr, (uint)(len(i.Data)))
 	if err != nil {
 		return nil, err
 	}

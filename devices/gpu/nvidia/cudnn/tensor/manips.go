@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
@@ -103,27 +104,18 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Amultiplier, tmultiplie
 	return t.thelp.AddTensor(handle.Cudnn(), a, A.current.tD, A.memgpu, b, t.current.tD, t.memgpu)
 }
 
-//LoadMem will Load the mem with
+//LoadMem will Load the volume with the inputed mem.  Input mem with the size of size
 func (t *Volume) LoadMem(handle *cudnn.Handler, input gocu.Mem, size uint) error {
 
 	if t.CurrentSizeT() != size {
 
-		destsize := strconv.Itoa(int(t.memgpu.ByteSize()))
-		srcsize := strconv.Itoa(int(input.ByteSize()))
+		destsize := strconv.Itoa(int(t.memgpu.TotalBytes()))
 		currentsize := strconv.Itoa(int(t.CurrentSizeT()))
 
-		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + " " + srcsize + "  " + currentsize)
-	}
-	kind, err := gocudnn.MemCpyDeterminer(input, t.memgpu)
-	if err != nil {
-		return prependerror("LoadMem", err)
+		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + "  " + currentsize)
 	}
 
-	if handle.Unified() {
-		return gocudnn.CudaMemCopy(t.memgpu, input, size.Cu(), gocudnn.MemcpyKindFlag{}.Default())
-
-	}
-	return gocudnn.CudaMemCopy(t.memgpu, input, size.Cu(), kind)
+	return nvidia.Memcpy(t.memgpu, input, t.CurrentSizeT())
 
 }
 func prependerror(info string, input error) error {
@@ -152,21 +144,21 @@ func (t *Volume) SetRandomNormal(handle *cudnn.Handler, min, max float32) error 
 		for i := 0; i < vol1; i++ {
 			randomizedvol[i] = utils.RandomFloat64(float64(min), float64(max))
 		}
-		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		ptr, err := gocu.MakeGoMem(randomizedvol)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return t.LoadMem(handle, ptr, cudnn.SizeT(ptr.ByteSize()))
+		return t.LoadMem(handle, ptr, uint(vol*8))
 	case t.thelp.Flgs.Data.Float():
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
 			randomizedvol[i] = utils.RandomFloat32(min, max)
 		}
-		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		ptr, err := gocu.MakeGoMem(randomizedvol)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return t.LoadMem(handle, ptr, cudnn.SizeT(ptr.ByteSize()))
+		return t.LoadMem(handle, ptr, uint(vol*4))
 
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")
@@ -190,16 +182,12 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 		for i := 0; i < vol1; i++ {
 			randomizedvol[i] = utils.RandWeightSet(mean, max, fanin)
 		}
-		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
+		ptr, err := gocu.MakeGoMem(randomizedvol)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
-		if err != nil {
-			return prependerror("SetRandom", err)
-		}
-		fmt.Println("memcopyflag-double")
-		return gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), memflag)
+
+		return nvidia.Memcpy(t.memgpu, ptr, size)
 	case t.thelp.Flgs.Data.Float():
 
 		randomizedvol := make([]float32, vol)
@@ -208,16 +196,12 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 			randomizedvol[i] = float32(utils.RandWeightSet(mean, max, fanin))
 		}
 
-		ptr, err := gocudnn.MakeGoPointer(randomizedvol)
-		if err != nil {
-			fmt.Println("GOPOINTER ERROR")
-			return prependerror("SetRandom", err)
-		}
-		//memflag, err := gocudnn.MemCpyDeterminer(ptr, t.memgpu)
+		ptr, err := gocu.MakeGoMem(randomizedvol)
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		err = gocudnn.CudaMemCopy(t.memgpu, ptr, size.Cu(), gocudnn.MemcpyKindFlag{}.Default())
+
+		err = nvidia.Memcpy(t.memgpu, ptr, size)
 		if err != nil {
 			fmt.Println("Size Value is ", size)
 			fmt.Println("Size of vol is ", vol)

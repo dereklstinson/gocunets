@@ -4,8 +4,8 @@ Package softmax uses the softmax functions from GoCudnn which is from cudnn.   E
 package softmax
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 

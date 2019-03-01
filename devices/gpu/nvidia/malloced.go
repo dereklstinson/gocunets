@@ -5,7 +5,6 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/dereklstinson/GoCuNets/devices"
 	"github.com/dereklstinson/GoCudnn/cudart"
 	"github.com/dereklstinson/GoCudnn/gocu"
 )
@@ -17,10 +16,9 @@ type Handler interface {
 
 //Malloced is a pointer to some nvidia memory
 type Malloced struct {
-	ptr       unsafe.Pointer
-	unitbytes uint
-	unitlen   uint
-	host      bool
+	ptr      unsafe.Pointer
+	numbytes uint
+	host     bool
 }
 
 const defaultmemcopykind = cudart.MemcpyKind(4) //enum of 4 is the default memcopy kind
@@ -36,31 +34,34 @@ func (m *Malloced) DPtr() *unsafe.Pointer {
 }
 
 //OffSet returns the offset of the nvidia memory
-func (m *Malloced) OffSet(byunits uint) *Malloced {
-	offset := unsafe.Pointer(uintptr(m.ptr) + uintptr(byunits*m.unitbytes))
+func (m *Malloced) OffSet(bybytes uint) *Malloced {
+	if m.numbytes-bybytes < 1 {
+		return nil
+	}
+	offset := unsafe.Pointer(uintptr(m.ptr) + uintptr(bybytes))
+
 	return &Malloced{
-		ptr:       offset,
-		unitlen:   m.unitlen - byunits,
-		unitbytes: m.unitbytes,
+		ptr:      offset,
+		numbytes: m.numbytes - bybytes,
+		host:     m.host,
 	}
 }
 
 //TotalBytes returns the total bytes the malloced has
 func (m *Malloced) TotalBytes() uint {
-	return m.unitbytes * m.unitlen
+	return m.numbytes
 }
 
 //MallocHost allocates memory onto the host used by nvidia devices.
 //Handler will set the device it is allocating to. Besure to set back if wanting to use another device
-func MallocHost(h Handler, sizebytes uint, dt devices.Type) (*Malloced, error) {
+func MallocHost(h Handler, sizebytes uint) (*Malloced, error) {
 	err := h.SetDevice()
 	if err != nil {
 		return nil, err
 	}
 
 	x := new(Malloced)
-	x.unitbytes = dt.SizeOf().Uint()
-	x.unitlen = sizebytes / dt.SizeOf().Uint()
+	x.numbytes = sizebytes
 	x.host = true
 	err = cudart.MallocManagedHost(x, sizebytes)
 	if err != nil {
@@ -76,17 +77,20 @@ func Memcpy(dest, src gocu.Mem, sizeinbytes uint) error {
 	return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
 }
 
+//Set sets the memory to whatever integer value passed
+func (m *Malloced) Set(val int32) error {
+	return cudart.Memset(m, val, m.TotalBytes())
+}
+
 //MallocGlobal allocates memory to the nvidia gpu
 //Handler will set the device it is allocating to. Besure to set back if wanting to use another device
-func MallocGlobal(h Handler, sizebytes uint, dt devices.Type) (*Malloced, error) {
+func MallocGlobal(h Handler, sizebytes uint) (*Malloced, error) {
 	err := h.SetDevice()
 	if err != nil {
 		return nil, err
 	}
 
 	x := new(Malloced)
-	x.unitbytes = dt.SizeOf().Uint()
-	x.unitlen = sizebytes / dt.SizeOf().Uint()
 	x.host = true
 	err = cudart.MallocManagedGlobal(x, sizebytes)
 	if err != nil {
