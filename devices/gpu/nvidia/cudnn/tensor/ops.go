@@ -47,40 +47,19 @@ func (o *optensorop) isset() bool {
 //OpAdd adds the op
 func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypeA, _, err := A.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypeB, _, err := B.Properties()
-	if err != nil {
-		return err
-	}
-	if dtypeA != dtypeB || dtypeA != dtypet {
-		return errors.New("Data Types don't match")
-	}
-
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
-	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || b == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	if t.op.add.isset() == false {
-
-		desc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet.Cu(), t.propnan.Cu())
+	if !t.op.add.isset() {
+		_, dtypet, _, err := t.Properties()
+		if err != nil {
+			return err
+		}
+		t.op.add.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet.Cu(), t.propnan.Cu())
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
-		t.op.add.desc = desc
-
-		return t.op.add.desc.OpTensor(h.Cudnn(), a, A.current.tD, A.memgpu, b, B.current.tD, B.memgpu, c, t.current.tD, t.memgpu)
+		return t.op.add.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 	}
 
-	return t.op.add.desc.OpTensor(h.Cudnn(), a, A.current.tD, A.memgpu, b, B.current.tD, B.memgpu, c, t.current.tD, t.memgpu)
+	return t.op.add.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 }
 func errorappend(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
@@ -89,164 +68,88 @@ func errorappend(comment string, err error) error {
 //OpMult does a multiplication Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
 func (t *Volume) OpMult(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
-	if err != nil {
-		return err
+	if !t.op.mult.isset() {
+		_, dtypet, _, err := t.Properties()
+		if err != nil {
+			return err
+		}
+		t.op.mult.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		return t.op.mult.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 	}
-	_, dtypeA, _, err := A.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypeB, _, err := B.Properties()
-	if err != nil {
-		return err
-	}
-	if dtypeA != dtypeB || dtypeA != dtypet {
-		return errors.New("Data Types don't match")
-	}
+	return t.op.mult.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
-	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || b == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
-	defer opdesc.DestroyDescriptor()
-	if err != nil {
-		return err
-	}
-
-	return opdesc.OpTensor(h.Cudnn(), a, A.current.tD, A.memgpu, b, B.current.tD, B.memgpu, c, t.current.tD, t.memgpu)
 }
 
 //OpNot does negation Operation performed on only the A  C = op ( alpha1[0] * A) + beta[0] * C,
 func (t *Volume) OpNot(h *cudnn.Handler, A *Volume, alpha1, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypeA, _, err := A.Properties()
-	if err != nil {
-		return err
+	if !t.op.not.isset() {
+		_, dtypet, _, err := t.Properties()
+		if err != nil {
+			return err
+		}
+
+		t.op.not.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet.Cu(), t.propnan.Cu())
+		if err != nil {
+			return err
+		}
+		return t.op.not.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
 	}
 
-	if dtypeA != dtypet {
-		return errors.New("Data Types don't match")
-	}
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet.Cu(), t.propnan.Cu())
-	defer opdesc.DestroyDescriptor()
-	if err != nil {
-		return err
-	}
-
-	return opdesc.OpTensor(h.Cudnn(), a, A.current.tD, A.memgpu, nil, nil, nil, c, t.current.tD, t.memgpu)
+	return t.op.not.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
 }
 
 //OpMax does max comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
 func (t *Volume) OpMax(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
-	if err != nil {
-		return err
+	if !t.op.max.isset() {
+		_, dtypet, _, err := t.Properties()
+		if err != nil {
+			return err
+		}
+		t.op.max.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		return t.op.max.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 	}
-	_, dtypeA, _, err := A.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypeB, _, err := B.Properties()
-	if err != nil {
-		return err
-	}
-	if dtypeA != dtypeB || dtypeA != dtypet {
-		return errors.New("Data Types don't match")
-	}
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
-	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || b == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Max(), dtypet.Cu(), t.propnan.Cu())
-	defer opdesc.DestroyDescriptor()
-	if err == nil {
-		return err
-	}
+	return t.op.max.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 
-	return opdesc.OpTensor(h.Cudnn(), a, A.current.tD, A.memgpu, b, B.current.tD, B.memgpu, c, t.current.tD, t.memgpu)
 }
 
 //OpMin does min comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
 func (t *Volume) OpMin(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
-	if err != nil {
-		return err
+	if !t.op.min.isset() {
+		_, dtypet, _, err := t.Properties()
+		if err != nil {
+			return err
+		}
+		t.op.min.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		return t.op.min.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 	}
-	_, dtypeA, _, err := A.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypeB, _, err := B.Properties()
-	if err != nil {
-		return err
-	}
-	if dtypeA != dtypeB || dtypeA != dtypet {
-		return errors.New("Data Types don't match")
-	}
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
-	b := gocudnn.CScalarByDataType(dtypet.Cu(), alpha2)
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || b == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Min(), dtypet.Cu(), t.propnan.Cu())
-	defer opdesc.DestroyDescriptor()
-	if err == nil {
-		return err
-	}
-
-	return opdesc.OpTensor(h.Cudnn(), a, A.current.tD, A.memgpu, b, B.current.tD, B.memgpu, c, t.current.tD, t.memgpu)
+	return t.op.min.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
 }
 
 //OpSqrt does squareroot Operation C = op ( alpha1[0] * A ) + beta[0] * C,
 func (t *Volume) OpSqrt(h *cudnn.Handler, A *Volume, alpha1, beta float64) error {
 
-	_, dtypet, _, err := t.Properties()
-	if err != nil {
-		return err
+	if !t.op.sqrt.isset() {
+		_, dtypet, _, err := t.Properties()
+		if err != nil {
+			return err
+		}
+		t.op.sqrt.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		return t.op.sqrt.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
 	}
-	_, dtypeA, _, err := A.Properties()
-	if err != nil {
-		return err
-	}
-	if dtypeA != dtypet {
-		return errors.New("Data Types don't match")
-	}
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha1)
-
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	opdesc, err := t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Sqrt(), dtypet.Cu(), t.propnan.Cu())
-	defer opdesc.DestroyDescriptor()
-	if err == nil {
-		return err
-	}
-
-	return opdesc.OpTensor(h.Cudnn(),
-		a,
-		A.current.tD,
-		A.memgpu,
-		nil,
-		nil,
-		nil,
-		c, t.current.tD, t.memgpu)
+	return t.op.sqrt.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
 }

@@ -89,9 +89,8 @@ func MallocGlobal(h Handler, sizebytes uint) (*Malloced, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	x := new(Malloced)
-	x.host = true
+	x.numbytes = sizebytes
 	err = cudart.MallocManagedGlobal(x, sizebytes)
 	if err != nil {
 		return nil, err

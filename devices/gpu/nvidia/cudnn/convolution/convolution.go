@@ -1,8 +1,6 @@
 package convolution
 
 import (
-	"errors"
-
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
@@ -192,18 +190,7 @@ func (c *Ops) BwdPropData(
 	beta float64,
 	dx *tensor.Volume) error {
 
-	_, dtypew, _, err := w.Properties()
-	if err != nil {
-		return err
-	}
-
-	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
-	if a == nil || b == nil {
-		return errors.New("Unsuported Datatype")
-	}
-
-	return c.bwdddesc.BackwardData(handle.Cudnn(), a, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), b, dx.TD(), dx.Memer())
+	return c.bwdddesc.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
 }
 
 //BwdPropFilt dw = alpha * BwdPropFilt(x,dy)+beta*dw
@@ -215,15 +202,7 @@ func (c *Ops) BwdPropFilt(
 	wspace *nvidia.Malloced,
 	beta float64,
 	dw *tensor.Volume) error {
-
-	_, dtypew, _, err := dw.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
-
-	return c.bwdfdesc.BackwardFilter(handle.Cudnn(), a, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), b, dw.FD(), dw.Memer())
+	return c.bwdfdesc.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), beta, dw.FD(), dw.Memer())
 }
 
 //FwdProp    y= alpha * Convolution(x,w)+ beta*y
@@ -236,15 +215,9 @@ func (c *Ops) FwdProp(
 	beta float64,
 	y *tensor.Volume) error {
 
-	_, dtypew, _, err := w.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtypew.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtypew.Cu(), beta)
 	/*
 		fmt.Println("1: ", handle)
-		fmt.Println("2: ", a)
+		fmt.Println("2: ", alpha)
 		fmt.Println("3: ", x.TD())
 		fmt.Println("5: ", x.Memer())
 		fmt.Println("6: ", w.FD())
@@ -252,12 +225,12 @@ func (c *Ops) FwdProp(
 		fmt.Println("8: ", c.desc)
 		fmt.Println("9: ", c.fwdalgo)
 		fmt.Println("10: ", wspace)
-		fmt.Println("11: ", b)
+		fmt.Println("11: ", beta)
 		fmt.Println("12: ", y.TD())
 		fmt.Println("13: ", y.Memer())
 	*/
 
-	return c.fwddesc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), b, y.TD(), y.Memer())
+	return c.fwddesc.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), beta, y.TD(), y.Memer())
 }
 
 //BwdBias does the backward bias calculation
@@ -268,25 +241,12 @@ func (c *Ops) BwdBias(
 	beta float64,
 	dbias *tensor.Volume) error {
 
-	_, dtypedy, _, err := dy.Properties()
-	if err != nil {
-		return err
-	}
-	_, dtypedbias, _, err := dbias.Properties()
-	if err != nil {
-		return err
-	}
-	if dtypedbias != dtypedy {
-		return errors.New("bias and y not same")
-	}
-	a := gocudnn.CScalarByDataType(dtypedy.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtypedy.Cu(), beta)
 	return c.helper.Funcs.Bwd.ConvolutionBackwardBias(
 		handle.Cudnn(),
-		a,
+		alpha,
 		dy.TD(),
 		dy.Memer(),
-		b,
+		beta,
 		dbias.TD(),
 		dbias.Memer(),
 	)

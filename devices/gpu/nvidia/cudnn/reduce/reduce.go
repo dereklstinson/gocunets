@@ -41,16 +41,8 @@ func Stage(op OpMode, dtype cudnn.DataType, nanprop cudnn.NanMode, reducetensori
 
 //Reduce performs the reduce operation with input/output being y where y= alpha* Op(x) +beta*y
 func (o *Ops) Reduce(handle *cudnn.Handler, indicies *nvidia.Malloced, workspace *nvidia.Malloced, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
-	_, dtypet, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtypet.Cu(), alpha)
-	c := gocudnn.CScalarByDataType(dtypet.Cu(), beta)
-	if a == nil || c == nil {
-		return errors.New("Not supported Format")
-	}
-	err = o.desc.ReduceTensorOp(handle.Cudnn(), indicies, indicies.TotalBytes(), workspace, workspace.TotalBytes(), a, x.TD(), x.Memer(), c, y.TD(), y.Memer())
+
+	err := o.desc.ReduceTensorOp(handle.Cudnn(), indicies, indicies.TotalBytes(), workspace, workspace.TotalBytes(), alpha, x.TD(), x.Memer(), beta, y.TD(), y.Memer())
 	if err != nil {
 		return errors.New(o.op.Readable() + ":" + err.Error())
 	}

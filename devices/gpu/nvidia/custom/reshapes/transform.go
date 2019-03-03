@@ -9,9 +9,7 @@ import (
 
 //TransformForward fills tensor y with x to the best of its ability.
 func (o *Ops) TransformForward(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.Volume, yhelper *TransFormHelper) error {
-	dtype := x.TD().DataType()
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+
 	/*
 		z, zz, zzz, zzzz := x.TDStrided().GetDescrptor()
 		w, ww, www, wwww := x.TD().GetDescrptor()
@@ -22,14 +20,12 @@ func (o *Ops) TransformForward(handle *cudnn.Handler, alpha, beta float64, x, y 
 		fmt.Println(h, hh, hhh, hhhh)
 		fmt.Println(g, gg, ggg, gggg)
 	*/
-	return gocudnn.Tensor{}.TransformTensor(handle.Cudnn(), a, x.TDStrided(), x.Memer(), b, yhelper.desc, y.Memer())
+	return gocudnn.Tensor{}.TransformTensor(handle.Cudnn(), alpha, x.TDStrided(), x.Memer(), beta, yhelper.desc, y.Memer())
 }
 
 //TransformBackward fills tensor x with the values of y to the best of its ability
 func (o *Ops) TransformBackward(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.Volume, yhelper *TransFormHelper) error {
-	dtype := x.TD().DataType()
-	a := gocudnn.CScalarByDataType(dtype, alpha)
-	b := gocudnn.CScalarByDataType(dtype, beta)
+
 	/*
 		z, zz, zzz, zzzz := x.TDStrided().GetDescrptor()
 		w, ww, www, wwww := x.TD().GetDescrptor()
@@ -40,7 +36,7 @@ func (o *Ops) TransformBackward(handle *cudnn.Handler, alpha, beta float64, x, y
 		fmt.Println(h, hh, hhh, hhhh)
 		fmt.Println(g, gg, ggg, gggg)
 	*/
-	return gocudnn.Tensor{}.TransformTensor(handle.Cudnn(), a, yhelper.desc, y.Memer(), b, x.TDStrided(), x.Memer())
+	return gocudnn.Tensor{}.TransformTensor(handle.Cudnn(), alpha, yhelper.desc, y.Memer(), beta, x.TDStrided(), x.Memer())
 }
 
 //TransFormHelper helps with the transform

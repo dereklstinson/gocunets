@@ -100,26 +100,12 @@ func (s *Ops) Info() OpInfo {
 
 //ForwardProp performs the forward propigation
 func (s *Ops) ForwardProp(handle *cudnn.Handler, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
-	_, dtype, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
-	err = s.helper.Funcs.SoftMaxForward(handle.Cudnn(), s.algo, s.mode, a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
-	return err
+	return s.helper.Funcs.SoftMaxForward(handle.Cudnn(), s.algo, s.mode, alpha, x.TD(), x.Memer(), beta, y.TD(), y.Memer())
 }
 
 //BackProp performs the backward propigation
 func (s *Ops) BackProp(handle *cudnn.Handler, alpha float64, y, dy *tensor.Volume, beta float64, dx *tensor.Volume) error {
-	_, dtype, _, err := dx.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
-	err = s.helper.Funcs.SoftMaxBackward(handle.Cudnn(), s.algo, s.mode, a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), b, dx.TD(), dx.Memer())
-	return err
+	return s.helper.Funcs.SoftMaxBackward(handle.Cudnn(), s.algo, s.mode, alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), beta, dx.TD(), dx.Memer())
 }

@@ -23,10 +23,7 @@ type Ops struct {
 
 func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*nvidia.Malloced, error) {
 	var tfuncs gocudnn.Tensor
-	dtype, _, _, err := desc.GetDescrptor()
-	if err != nil {
-		return nil, err
-	}
+
 	sizet, err := desc.GetSizeInBytes()
 	if err != nil {
 		return nil, err
@@ -36,9 +33,8 @@ func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*nvidia.Malloc
 	if err != nil {
 		return nil, err
 	}
-	zero := gocudnn.CScalarByDataType(dtype, 0.0)
 
-	err = tfuncs.SetTensor(handle.Cudnn(), desc, gpumem, zero)
+	err = tfuncs.SetTensor(handle.Cudnn(), desc, gpumem, 0.0)
 	if err != nil {
 
 		return nil, err
@@ -188,18 +184,12 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 	scale *tensor.Volume,
 	bias *tensor.Volume,
 	y *tensor.Volume) error {
-	_, dtype, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
 	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardTraining(
 		handle.Cudnn(),
 		o.mode,
-		a,
-		b,
+		alpha,
+		beta,
 		x.TD(),
 		x.Memer(),
 		y.TD(),
@@ -226,18 +216,12 @@ func (o *Ops) ForwardInference(handle *cudnn.Handler,
 	scale *tensor.Volume,
 	bias *tensor.Volume,
 	y *tensor.Volume) error {
-	_, dtype, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
 	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardInference(
 		handle.Cudnn(),
 		o.mode,
-		a,
-		b,
+		alpha,
+		beta,
 		x.TD(),
 		x.Memer(),
 		y.TD(),
@@ -264,21 +248,15 @@ func (o *Ops) BackwardProp(handle *cudnn.Handler,
 	dbias,
 	dx,
 	dy *tensor.Volume) error {
-	_, dtype, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	ad := gocudnn.CScalarByDataType(dtype.Cu(), alphadata)
-	bd := gocudnn.CScalarByDataType(dtype.Cu(), betadata)
-	ap := gocudnn.CScalarByDataType(dtype.Cu(), alphaparam)
-	bp := gocudnn.CScalarByDataType(dtype.Cu(), betaparam)
+
 	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationBackward(
 		handle.Cudnn(),
 		o.mode,
-		ad,
-		bd,
-		ap,
-		bp,
+		alphadata,
+		betadata,
+		alphaparam,
+		betaparam,
+
 		x.TD(),
 		x.Memer(),
 		dy.TD(),

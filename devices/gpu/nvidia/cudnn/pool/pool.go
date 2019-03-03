@@ -138,27 +138,14 @@ func (p *Ops) OutputDims(input *tensor.Volume) ([]int32, error) {
 
 //FwdProp does the pooling fwd operation
 func (p *Ops) FwdProp(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.Volume) error {
-	_, dtype, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
 
-	return p.desc.PoolingForward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+	return p.desc.PoolingForward(handle.Cudnn(), alpha, x.TD(), x.Memer(), beta, y.TD(), y.Memer())
 }
 
 //BwdProp does the backward propagation operation
 func (p *Ops) BwdProp(handle *cudnn.Handler, alpha, beta float64, x, dx, y, dy *tensor.Volume) error {
-	_, dtype, _, err := x.Properties()
-	if err != nil {
-		return err
-	}
 
-	a := gocudnn.CScalarByDataType(dtype.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtype.Cu(), beta)
-
-	return p.desc.PoolingBackward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+	return p.desc.PoolingBackward(handle.Cudnn(), alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), beta, dx.TD(), dx.Memer())
 
 }
 

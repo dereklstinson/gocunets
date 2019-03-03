@@ -137,11 +137,8 @@ func (act *Ops) FwdProp(
 	if dtypex != dtypey {
 		return errors.New("output type not matching input type")
 	}
-	a := gocudnn.CScalarByDataType(dtypex.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtypex.Cu(), beta)
-	if a == nil || b == nil {
-		return errors.New("Unsupported Datatype for either alpha or beta")
-	}
+	a := alpha
+	b := beta
 	var mflg ModeFlag
 	switch act.mode {
 	case mflg.Threshhold():
@@ -198,11 +195,8 @@ func (act *Ops) BwdProp(
 	if dtypedx != dtypey || dtypedx != dtypedy || dtypedx != dtypex {
 		return errors.New("output type not matching input type")
 	}
-	a := gocudnn.CScalarByDataType(dtypedx.Cu(), alpha)
-	b := gocudnn.CScalarByDataType(dtypedx.Cu(), beta)
-	if a == nil || b == nil {
-		return errors.New("Unsupported Datatype for either alpha or beta")
-	}
+	a := alpha
+	b := beta
 	var mflg ModeFlag
 	switch act.mode {
 	case mflg.Threshhold():
