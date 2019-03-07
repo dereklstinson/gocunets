@@ -213,3 +213,16 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
 	//	return err
 }
+
+//SetScalars takes a slice of length 4 and sets the scalars in the order of fwd (alpha, beta) and bwd(alpha,beta)
+func (l *Layer) SetScalars(fwd2bwd2 []float64) {
+	l.alpha = fwd2bwd2[0]
+	l.beta = fwd2bwd2[1]
+	l.balpha = fwd2bwd2[2]
+	l.bbeta = fwd2bwd2[3]
+}
+
+//NumScalars returns the number of scalars this layer has
+func (l *Layer) NumScalars() int {
+	return 4
+}

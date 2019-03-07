@@ -142,11 +142,11 @@ func (act *Ops) FwdProp(
 	var mflg ModeFlag
 	switch act.mode {
 	case mflg.Threshhold():
-		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), thresh.Memer(), poscoef.Memer())
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), thresh.Memer(), poscoef.Memer(), a, b)
 	case mflg.Leaky():
-		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil, nil)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil, nil, a, b)
 	case mflg.PRelu():
-		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), nil, nil)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), nil, nil, a, b)
 	case mflg.ClippedRelu():
 		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
 	case mflg.Elu():
@@ -200,11 +200,11 @@ func (act *Ops) BwdProp(
 	var mflg ModeFlag
 	switch act.mode {
 	case mflg.Threshhold():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), poscoef.Memer(), dposcoef.Memer())
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), poscoef.Memer(), dposcoef.Memer(), a, b)
 	case mflg.Leaky():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil, nil)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil, nil, a, b)
 	case mflg.PRelu():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), nil, nil, nil)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), nil, nil, nil, a, b)
 	case mflg.ClippedRelu():
 		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 	case mflg.Elu():

@@ -26,6 +26,7 @@ type layer struct {
 	batch        *batchnorm.Layer
 	reshape      *reshape.Layer
 	cnntranspose *cnntranspose.Layer
+	scalarnum    int
 }
 
 func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
@@ -115,7 +116,89 @@ func wraplayer(input interface{}) (*layer, bool) { //the bool is for a counter t
 		return nil, false
 	}
 }
+func (l *layer) numofscalars() int {
+	return l.scalarnum
+}
+func (l *layer) initscalarsamount() int {
 
+	if l.cnn != nil {
+		l.scalarnum = l.cnn.NumScalars()
+		return l.scalarnum
+	}
+
+	if l.pool != nil {
+		l.scalarnum = l.pool.NumScalars()
+		return l.scalarnum
+
+	}
+	if l.drop != nil {
+
+		return 0
+	}
+	if l.activation != nil {
+		l.scalarnum = l.activation.NumScalars()
+		return l.scalarnum
+
+	}
+	if l.batch != nil {
+		return 0
+	}
+
+	if l.softmax != nil {
+		l.scalarnum = l.softmax.NumScalars()
+		return l.scalarnum
+
+	}
+	if l.reshape != nil {
+		return 0
+	}
+	if l.cnntranspose != nil {
+		l.scalarnum = l.cnntranspose.NumScalars()
+		return l.scalarnum
+
+	}
+	return 0
+}
+func (l *layer) updatescalar(scalars []float64) (offset []float64) {
+	if l.cnn != nil {
+
+		l.cnn.SetScalars(scalars[:l.scalarnum])
+		return scalars[l.scalarnum:]
+	}
+
+	if l.pool != nil {
+		l.pool.SetScalars(scalars[:l.scalarnum])
+		return scalars[l.scalarnum:]
+
+	}
+	if l.drop != nil {
+
+		return scalars
+	}
+	if l.activation != nil {
+		l.activation.SetScalars(scalars[:l.scalarnum])
+		return scalars[l.scalarnum:]
+
+	}
+	if l.batch != nil {
+		return scalars
+	}
+
+	if l.softmax != nil {
+		l.softmax.SetScalars(scalars[:l.scalarnum])
+		return scalars[l.scalarnum:]
+
+	}
+	if l.reshape != nil {
+		return scalars
+	}
+	if l.cnntranspose != nil {
+		l.cnntranspose.SetScalars(scalars[:l.scalarnum])
+		return scalars[l.scalarnum:]
+
+	}
+	return scalars
+}
 func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*layers.IO, string, error) {
 
 	if l.cnn != nil {

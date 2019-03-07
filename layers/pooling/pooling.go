@@ -114,6 +114,17 @@ func (l *Layer) Destroy() error {
 	return l.pD.Destroy()
 }
 
+//SetScalars takes a slice of float64 of length of 4 and puts sets them fwd alpha, fwd beta, bwd alpha, and bwd beta
+func (l *Layer) SetScalars(fw2bwd2 []float64) {
+	l.SetFwdScalars(fw2bwd2[0], fw2bwd2[1])
+	l.SetBwdScalars(fw2bwd2[2], fw2bwd2[3])
+}
+
+//NumScalars returns the number of scalars this layers has for the forward and backward prop
+func (l *Layer) NumScalars() int {
+	return 4
+}
+
 //SetFwdScalars will change the default fwd scalars to whatever is passsed
 func (l *Layer) SetFwdScalars(alpha, beta float64) {
 	l.fwd.alpha = alpha

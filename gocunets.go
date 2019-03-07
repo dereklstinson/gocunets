@@ -168,10 +168,41 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 	}
 	return nil
 }
+func (m *Network) totalnumofscalars() int {
+	adder := 0
+	for i := range m.layer {
+		adder += m.layer[i].scalarnum
+	}
+	return adder
+}
 
 //GetTrainers returns the trainers for the network.  ...convienence function
 func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 	return m.wtrainers, m.btrainers
+}
+
+type ScalarOptimizer struct {
+	hasscalars     []*layer
+	pso            pso.Swarm
+	index          int
+	numofparticles int
+}
+
+func (m *Network) initializescalarstuff() ([]*layer, int) {
+	adder := 0
+	layers := make([]*layer, 0)
+	for i := range m.layer {
+		x := m.layer[i].initscalarsamount()
+		if x > 0 {
+			layers = append(layers, m.layer[i])
+		}
+		adder += x
+	}
+	return layers, adder
+}
+func SetupScalarPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, maxstartposition, alphamax, inertiamax float32, args ...Network) ScalarOptimizer {
+
+	return ScalarOptimizer{}
 }
 
 //MetaOptimizer uses a PSO to optimize meta values

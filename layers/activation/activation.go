@@ -133,16 +133,21 @@ func (a *Layer) Info() (Info, error) {
 	}, nil
 }
 
-//SetAllScalars sets all the scalars for the fwd and bwd.
+//SetScalars sets all the scalars for the fwd and bwd.
 //both get 2 scalaras alpha and beta and will be stored in that order.
 //and will be stored in order of fwd then bwd.
-func (a *Layer) SetAllScalars(fwd2bwd2 []float64) error {
+func (a *Layer) SetScalars(fwd2bwd2 []float64) error {
 	if len(fwd2bwd2) != 4 {
 		return errors.New("SetAllScalars needs to have the size of 2")
 	}
 	a.UpDateFwdCScalars(fwd2bwd2[0], fwd2bwd2[1])
 	a.UpDateBwdCScalars(fwd2bwd2[2], fwd2bwd2[3])
 	return nil
+}
+
+//NumScalars returns the number of scalars the activation layer has both the forward and backward propigation.
+func (a *Layer) NumScalars() int {
+	return 4
 }
 
 //UpDateFwdCScalars updates the alpha and beta scalars
