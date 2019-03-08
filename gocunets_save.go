@@ -3,23 +3,23 @@ package gocunets
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCudnn/gocu"
 
 	"github.com/dereklstinson/GoCuNets/utils"
 )
 
 //Tensor are the Tensor that are used to save and load data to a layer
 type Tensor struct {
-	Format   string    `json:"format,omitempty"`
-	Datatype string    `json:"datatype,omitempty"`
-	Dims     []int32   `json:"dims,omitempty"`
-	Stride   []int32   `json:"stride,omitempty"` //Stride is a holder for now
-	Values   []float64 `json:"values,omitempty"`
+	Format   string  `json:"format,omitempty"`
+	Datatype string  `json:"datatype,omitempty"`
+	Dims     []int32 `json:"dims,omitempty"`
+	Stride   []int32 `json:"stride,omitempty"` //Stride is a holder for now
+	Data     []byte  `json:"data,omitempty"`
 }
 
 //Params are a layers paramters or weights
@@ -145,33 +145,12 @@ func getTensor(tensor *tensor.Volume) (Tensor, error) {
 		return Tensor{}, err
 	}
 	dims := tensor.Dims()
-	numofelements := utils.FindVolumeInt32(dims, nil)
-
-	values := make([]float64, 0)
-	var flg cudnn.DataType
-	switch tensor.DataType() {
-	case flg.Double():
-		x := make([]float64, numofelements)
-		tensor.Memer().FillSlice(x)
-		values = tofloat64(x)
-	case flg.Float():
-		x := make([]float32, numofelements)
-		tensor.Memer().FillSlice(x)
-		values = tofloat64(x)
-
-	case flg.Int32():
-		x := make([]int32, numofelements)
-		tensor.Memer().FillSlice(x)
-		values = tofloat64(x)
-	case flg.Int8():
-		x := make([]int8, numofelements)
-		tensor.Memer().FillSlice(x)
-		values = tofloat64(x)
-
-	case flg.UInt8():
-		x := make([]uint8, numofelements)
-		tensor.Memer().FillSlice(x)
-		values = tofloat64(x)
+	sizet := tensor.Memer().TotalBytes()
+	data := make([]byte, sizet)
+	read, err := tensor.Memer().Read(data)
+	if err != nil {
+		fmt.Println("getTensor - SizeT and Writtennum", sizet, read)
+		return Tensor{}, err
 	}
 	//	tensor.Memer().FillSlice()
 
@@ -179,7 +158,7 @@ func getTensor(tensor *tensor.Volume) (Tensor, error) {
 		Format:   frmt,
 		Datatype: dtype,
 		Dims:     dims,
-		Values:   values,
+		Data:     data,
 	}, nil
 
 }
@@ -223,7 +202,7 @@ func stringtodatatype(dtype string) (cudnn.DataType, error) {
 // Dims don't need to be the same, but the volume does need to be the same
 // Also Datatype Needs to be the same
 func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
-	var flg cudnn.DataType
+
 	tdtype, err := stringtodatatype(val.Datatype)
 	if err != nil {
 		return err
@@ -234,44 +213,12 @@ func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
 	if utils.FindVolumeInt32(t.Dims(), nil) != utils.FindVolumeInt32(val.Dims, nil) {
 		return errors.New("LoadTensor-Volumes Don't Match")
 	}
-	switch tdtype {
-	case flg.Double():
-		x := utils.ToFLoat64Slice(val.Values)
-		gptr, err := gocu.MakeGoMem(x)
-		if err != nil {
-			return err
-		}
-		return t.LoadMem(handle, gptr, gptr.TotalBytes())
-	case flg.Float():
-		x := utils.ToFloat32Slice(val.Values)
-		gptr, err := gocu.MakeGoMem(x)
-		if err != nil {
-			return err
-		}
-		return t.LoadMem(handle, gptr, gptr.TotalBytes())
-	case flg.Int32():
-		x := utils.ToInt32Slice(val.Values)
-		gptr, err := gocu.MakeGoMem(x)
-		if err != nil {
-			return err
-		}
-		return t.LoadMem(handle, gptr, gptr.TotalBytes())
-	case flg.Int8():
-		x := utils.ToInt8Slice(val.Values)
-		gptr, err := gocu.MakeGoMem(x)
-		if err != nil {
-			return err
-		}
-		return t.LoadMem(handle, gptr, gptr.TotalBytes())
-	case flg.UInt8():
-		x := utils.ToUint8Slice(val.Values)
-		gptr, err := gocu.MakeGoMem(x)
-		if err != nil {
-			return err
-		}
-		return t.LoadMem(handle, gptr, gptr.TotalBytes())
+
+	written, err := t.Memer().Write(val.Data)
+	if err != nil {
+		fmt.Println("Written ammount and size of data", written, len(val.Data))
 	}
-	return errors.New("Unsupported Type")
+	return err
 }
 func stringtoformat(frmt string) (cudnn.TensorFormat, error) {
 	var flgs cudnn.TensorFormatFlag

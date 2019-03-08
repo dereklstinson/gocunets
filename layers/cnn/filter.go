@@ -73,19 +73,19 @@ func (c *Layer) L1L2Loss() (L1 float32, L2 float32) {
 }
 
 //LoadTrainer sets up the momentum trainer
-func (c *Layer) LoadTrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
+func (c *Layer) LoadTrainer(handle *cudnn.Handler, forweights, forbias trainer.Trainer) error {
 	var err error
-	c.train = trainerweights
+	c.train = forweights
 	err = trainer.CreateTrainingMem(handle, c.train, c.w)
 	if err != nil {
 		return err
 	}
-	c.btrain = trainerbias
+	c.btrain = forbias
 	err = trainer.CreateTrainingMem(handle, c.btrain, c.bias)
 	if err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 //Bias returns the Bias

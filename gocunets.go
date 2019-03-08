@@ -183,7 +183,7 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 
 type ScalarOptimizer struct {
 	hasscalars     []*layer
-	pso            pso.Swarm
+	pso            pso.Swarm64
 	index          int
 	numofparticles int
 }
@@ -200,9 +200,31 @@ func (m *Network) initializescalarstuff() ([]*layer, int) {
 	}
 	return layers, adder
 }
-func SetupScalarPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, maxstartposition, alphamax, inertiamax float32, args ...Network) ScalarOptimizer {
+func SetupScalarPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, maxstartposition, alphamax, inertiamax float64, x ...Network) ScalarOptimizer {
+	hasscalars := make([]*layer, 0)
+	totalscalars := 0
+	for i := range x {
+		for _, layer := range x[i].layer {
+			amount := layer.initscalarsamount()
 
-	return ScalarOptimizer{}
+			if amount != 0 {
+				hasscalars = append(hasscalars, layer)
+				totalscalars += amount
+			}
+
+		}
+	}
+	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, maxstartposition, alphamax, inertiamax)
+	position := swarm.GetParticlePosition(0)
+
+	for i := range hasscalars {
+
+		position = hasscalars[i].updatescalar(position)
+	}
+	return ScalarOptimizer{
+		hasscalars: hasscalars,
+		pso:        swarm,
+	}
 }
 
 //MetaOptimizer uses a PSO to optimize meta values
@@ -252,8 +274,9 @@ func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, 
 		pctr = pctr + 3
 	}
 	return MetaOptimizer{
-		trainers: trainers,
-		pso:      swarm,
+		trainers:       trainers,
+		pso:            swarm,
+		numofparticles: numofparticles,
 	}
 }
 
@@ -324,6 +347,8 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 		}
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
+
+			fmt.Println("error in get output")
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
 		netiomem := wrapnetio(mem)
@@ -344,6 +369,7 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	if m.savedparams != nil && !m.loadedsaved {
 		err := m.LoadNetworkTensorparams(handle, m.savedparams)
 		if err != nil {
+			fmt.Println("error in loading saved params")
 			return err
 		}
 		m.loadedsaved = true
@@ -407,7 +433,10 @@ func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x,
 	if err != nil {
 		fmt.Println("Error in doing the forward prop after resize")
 	}
-
+	err = handle.Sync()
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
@@ -426,13 +455,21 @@ func comparedims(x, y []int32) bool {
 
 //BackPropFilterData does the backprop of the hidden layers
 func (m *Network) BackPropFilterData(handle *cudnn.Handler, datawspace, filterwspace *nvidia.Malloced, x, y *layers.IO) error {
-	return m.backpropfilterdata(handle, datawspace, filterwspace, x, y)
+	err := m.backpropfilterdata(handle, datawspace, filterwspace, x, y)
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
 
 }
 
 //BackPropData only does the data backprop
 func (m *Network) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	return m.backpropdata(handle, wspace, x, y)
+	err := m.backpropdata(handle, wspace, x, y)
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
 
 }
 func wraperror(comment string, err error) error {

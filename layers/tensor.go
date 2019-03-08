@@ -492,7 +492,11 @@ func (i *IO) LoadTValues(handle *cudnn.Handler, input *tensor.Volume) error {
 	if utils.FindVolumeInt32(i.x.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
 		return errors.New("InputCurrent dims not matching IO current dims")
 	}
-	return i.x.LoadMem(handle, input.Memer(), input.CurrentSizeT())
+	err := i.x.LoadMem(handle, input.Memer(), input.CurrentSizeT())
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
 }
 
 //LoadTValuesFromGoSlice takes a go slice and fills it into the tensor sitting in the gpu.  If the length of goslice doesn't fit the input it will return an error
@@ -505,8 +509,11 @@ func (i *IO) LoadTValuesFromGoSlice(handle *cudnn.Handler, input interface{}, le
 	if err != nil {
 		return err
 	}
-
-	return i.x.LoadMem(handle, i.gxptr, (i.gxptr.TotalBytes()))
+	err = i.x.LoadMem(handle, i.gxptr, (i.gxptr.TotalBytes()))
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
 }
 
 //GetLength returns the length in int32
@@ -546,7 +553,11 @@ func (i *IO) LoadDeltaTValues(handle *cudnn.Handler, input *tensor.Volume) error
 	if utils.FindVolumeInt32(i.dx.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
 		return errors.New("InputCurrent dims not matching IO current dims")
 	}
-	return i.dx.LoadMem(handle, input.Memer(), input.CurrentSizeT())
+	err := i.dx.LoadMem(handle, input.Memer(), input.CurrentSizeT())
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
 }
 
 /*

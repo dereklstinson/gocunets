@@ -43,9 +43,12 @@ func (t *Volume) LoadMem(handle *cudnn.Handler, input gocu.Mem, size uint) error
 
 		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + "  " + currentsize)
 	}
-
-	return nvidia.Memcpy(t.memgpu, input, t.CurrentSizeT())
-
+	err := nvidia.Memcpy(t.memgpu, input, t.CurrentSizeT())
+	if err != nil {
+		fmt.Println("Loading Mem checking ointers", t.memgpu, input)
+		return err
+	}
+	return nil
 }
 func prependerror(info string, input error) error {
 	return errors.New(info + ": " + input.Error())
@@ -87,7 +90,11 @@ func (t *Volume) SetRandomNormal(handle *cudnn.Handler, min, max float32) error 
 		if err != nil {
 			return prependerror("SetRandom", err)
 		}
-		return t.LoadMem(handle, ptr, uint(vol*4))
+		err = t.LoadMem(handle, ptr, uint(vol*4))
+		if err != nil {
+			fmt.Println("error in loading mem in set rand normoal")
+		}
+		return err
 
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")

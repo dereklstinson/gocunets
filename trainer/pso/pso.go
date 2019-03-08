@@ -42,21 +42,31 @@ const testingvmax = true
 //Mode is the mode flag for the swarm
 type Mode int32
 
+//ModeFlag returns modes
 type ModeFlag struct {
 }
 
+//Vanilla sets vanilla mode
 func (m ModeFlag) Vanilla() Mode {
 	return Mode(1)
 }
+
+//ConstantInertia sets ConstantInertia mode
 func (m ModeFlag) ConstantInertia() Mode {
 	return Mode(2)
 }
+
+//InertiaReduction sets InertiaReduction mode
 func (m ModeFlag) InertiaReduction() Mode {
 	return Mode(3)
 }
+
+//Constriction sets Constriction mode
 func (m ModeFlag) Constriction() Mode {
 	return Mode(4)
 }
+
+//DynamicInertiaMaxVelReduction sets DynamicInertiaMaxVelReduction mode
 func (m ModeFlag) DynamicInertiaMaxVelReduction() Mode {
 	return Mode(5)
 }

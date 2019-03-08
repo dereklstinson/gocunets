@@ -2,6 +2,7 @@ package gocunets
 
 import (
 	"errors"
+	"fmt"
 	"image"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
@@ -175,7 +176,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler) error {
 		for i := range m.totalionets {
 			err := m.totalionets[i].buildminmax(handle)
 			if err != nil {
-
+				fmt.Println("error in building minmax")
 				return err
 			}
 		}
@@ -184,7 +185,7 @@ func (m *Network) buildminmax(handle *cudnn.Handler) error {
 		for i := range m.totalionets {
 			err := m.totalionets[i].rebuildstathidden(handle)
 			if err != nil {
-
+				fmt.Println("error intotalionetsinit")
 				return err
 			}
 		}

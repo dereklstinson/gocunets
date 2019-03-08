@@ -2,6 +2,7 @@ package gocunets
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -256,7 +257,11 @@ func (l *layer) getoutputdims(handle *cudnn.Handler, input *layers.IO) ([]int32,
 func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 
 	if l.cnn != nil {
-		return l.cnn.MakeOutputTensor(handle, input)
+		io, err := l.cnn.MakeOutputTensor(handle, input)
+		if err != nil {
+			fmt.Println("Error in CNN Make Output Tensor input is:", input)
+		}
+		return io, err
 	}
 
 	if l.pool != nil {
@@ -272,16 +277,26 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 		return input.ZeroClone(handle)
 	}
 	if l.activation != nil {
+		io, err := input.ZeroClone(handle)
+		if err != nil {
+			fmt.Println("Error in activation Make Output Tensor input is:", input)
+		}
+		return io, err
 
-		return input.ZeroClone(handle)
 	}
 	if l.batch != nil {
 
 		err := l.batch.SetupPreset(handle, input)
 		if err != nil {
+			fmt.Println("error in batch initialization")
 			return nil, err
 		}
-		return input.ZeroClone(handle)
+
+		io, err := input.ZeroClone(handle)
+		if err != nil {
+			fmt.Println("Error in batch Make Output Tensor input is:", input)
+		}
+		return io, err
 	}
 
 	if l.softmax != nil {
@@ -291,7 +306,11 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 		return l.reshape.MakeOutputTensor(handle, input)
 	}
 	if l.cnntranspose != nil {
-		return l.cnntranspose.MakeOutputTensor(handle, input)
+		io, err := l.cnntranspose.MakeOutputTensor(handle, input)
+		if err != nil {
+			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
+		}
+		return io, err
 	}
 	return nil, errors.New("Layer Needs Support")
 }

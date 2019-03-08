@@ -163,6 +163,7 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 
 	l.b, err = batchnorm.Stage(handle, x.T(), l.mode)
 	if err != nil {
+		fmt.Println("Err in stage batch norm")
 		return err
 	}
 
@@ -179,9 +180,14 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 	}
 	err = l.scale.T().SetRandomNormal(handle, .7, 1)
 	if err != nil {
+		fmt.Println("error in set random normal scale", l.scale)
 		return err
 	}
 	err = l.bias.T().SetRandomNormal(handle, .01, .1)
+	if err != nil {
+		fmt.Println("error in set random normal bias")
+		return err
+	}
 	err = trainer.CreateTrainingMem(handle, l.scaletrain, l.scale)
 	if err != nil {
 		fmt.Println("Creating Training Mem for scale")
