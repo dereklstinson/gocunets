@@ -13,16 +13,24 @@ type Info struct {
 	ReverseInfo cnn.Info `json:"reverse_info,omitempty"`
 }
 
-//SetScalars sets all the scalars.  This is going to be used for a PSO.
-//Order to put scalars each operation has 3 scalars in each there will be alaph, alpha2, beta
-//the order the array will need to be is fwd, bwd-data,and bwd-filter
-func (l *Layer) SetScalars(fwd3bwdd3bwdf3 []float64) error {
-	return l.conv.SetScalars(fwd3bwdd3bwdf3)
+//SetAlphaScalars sets the alpha scalars in the order of fwd, bwd-data, and bwd-filt.
+func (l *Layer) SetAlphaScalars(alphas []float64) error {
+	return l.conv.SetAlphaScalars(alphas)
 }
 
-//NumScalars returns the number of scalars for the forward,backward data, and backward filter
-func (l *Layer) NumScalars() int {
-	return l.conv.NumScalars()
+//SetBetaScalars sets the beta scalars in the order of fwd, bwd-data, and bwd-filt.
+func (l *Layer) SetBetaScalars(alphas []float64) error {
+	return l.conv.SetBetaScalars(alphas)
+}
+
+//NumAlphaScalars returns the number of alpha scalars for the forward,backward data, and backward filter
+func (l *Layer) NumAlphaScalars() int {
+	return l.conv.NumAlphaScalars()
+}
+
+//NumBetaScalars returns the number of beta scalars for the forward,backward data, and backward filter
+func (l *Layer) NumBetaScalars() int {
+	return l.conv.NumBetaScalars()
 }
 
 //Info method returns an info struct used to save and stuff

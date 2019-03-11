@@ -42,9 +42,8 @@ type Layer struct {
 }
 
 type xtras struct {
-	alpha  float64
-	alpha2 float64
-	beta   float64
+	alpha float64
+	beta  float64
 }
 
 func appenderror(comment string, err error) error {
@@ -243,56 +242,71 @@ func layersetup(
 		w:    w,
 		bias: bias,
 		fwd: xtras{
-			alpha:  alphadefault,
-			alpha2: alphadefault,
-			beta:   beta1default,
+			alpha: alphadefault,
+			//	alpha2: alphadefault,
+			beta: beta1default,
 		},
 		bwdd: xtras{
-			alpha:  alphadefault,
-			alpha2: alphadefault,
-			beta:   beta1default,
+			alpha: alphadefault,
+			//	alpha2: alphadefault,
+			beta: beta1default,
 		},
 		bwdf: xtras{
-			alpha:  alphadefault,
-			alpha2: alphadefault,
-			beta:   beta2default,
+			alpha: alphadefault,
+			//	alpha2: alphadefault,
+			beta: beta2default,
 		},
 		datatype: dtype,
 	}, nil
 }
 
-//SetScalars sets all the scalars.  This is going to be used for a PSO.
-//Order to put scalars each operation has 3 scalars in each there will be alaph, alpha2, beta
-//the order the array will need to be is fwd, bwd-data,and bwd-filter
-func (c *Layer) SetScalars(fwd3bwdd3bwdf3 []float64) error {
-	if len(fwd3bwdd3bwdf3) != 9 {
-		return errors.New("Scalar length needs to be 9")
+//SetAlphaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
+func (c *Layer) SetAlphaScalars(alphas []float64) error {
+	if len(alphas) != 3 {
+		return errors.New("alpha Scalar length needs to be 3")
 	}
 
-	c.SetFwdScalars(fwd3bwdd3bwdf3[0], fwd3bwdd3bwdf3[1], fwd3bwdd3bwdf3[2])
-	c.SetBwdDataScalars(fwd3bwdd3bwdf3[3], fwd3bwdd3bwdf3[4], fwd3bwdd3bwdf3[5])
-	c.SetBwdFilterScalars(fwd3bwdd3bwdf3[6], fwd3bwdd3bwdf3[7], fwd3bwdd3bwdf3[8])
+	c.fwd.alpha = alphas[0]
+	c.bwdd.alpha = alphas[0]
+	c.bwdf.alpha = alphas[0]
 	return nil
 }
 
-//NumScalars returns the number of scalars
-func (c *Layer) NumScalars() int {
-	return 9
+//SetBetaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
+func (c *Layer) SetBetaScalars(betas []float64) error {
+	if len(betas) != 3 {
+		return errors.New("alpha Scalar length needs to be 3")
+	}
+
+	c.fwd.beta = betas[0]
+	c.bwdd.beta = betas[0]
+	c.bwdf.beta = betas[0]
+	return nil
 }
 
-//SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetFwdScalars(alpha, alpha2, beta float64) {
-	c.fwd.alpha, c.fwd.alpha2, c.fwd.beta = alpha, alpha2, beta
+//NumAlphaScalars returns the number of alpha scalars which is used for fwd,bwd-data,bwd-filter.
+func (c *Layer) NumAlphaScalars() int {
+	return 3
 }
 
-//SetBwdDataScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetBwdDataScalars(alpha, alpha2, beta float64) {
-	c.bwdd.alpha, c.bwdd.alpha2, c.bwdd.beta = alpha, alpha2, beta
+//NumBetaScalars returns the number of beta scalars which is used for fwd,bwd-data,bwd-filter.
+func (c *Layer) NumBetaScalars() int {
+	return 3
 }
 
-//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha, alpha2 =1, 1, beta=1 and are initialized in the function FilterSetup
-func (c *Layer) SetBwdFilterScalars(alpha, alpha2, beta float64) {
-	c.bwdf.alpha, c.bwdf.alpha2, c.bwdf.beta = alpha, alpha2, beta
+//SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetFwdScalars(alpha, beta float64) {
+	c.fwd.alpha, c.fwd.beta = alpha, beta
+}
+
+//SetBwdDataScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetBwdDataScalars(alpha, beta float64) {
+	c.bwdd.alpha, c.bwdd.beta = alpha, beta
+}
+
+//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha,  1, beta=1 and are initialized in the function FilterSetup
+func (c *Layer) SetBwdFilterScalars(alpha, beta float64) {
+	c.bwdf.alpha, c.bwdf.beta = alpha, beta
 }
 
 func find4doutputdims(x, w, padding, stride, dilation []int32, frmt cudnn.TensorFormat) []int32 {

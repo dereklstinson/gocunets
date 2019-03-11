@@ -181,6 +181,7 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 	return m.wtrainers, m.btrainers
 }
 
+//ScalarOptimizer optimizes the scalars of the operators
 type ScalarOptimizer struct {
 	hasscalars     []*layer
 	pso            pso.Swarm64
@@ -188,11 +189,11 @@ type ScalarOptimizer struct {
 	numofparticles int
 }
 
-func (m *Network) initializescalarstuff() ([]*layer, int) {
+func (m *Network) initializeslphascalarstuff() ([]*layer, int) {
 	adder := 0
 	layers := make([]*layer, 0)
 	for i := range m.layer {
-		x := m.layer[i].initscalarsamount()
+		x := m.layer[i].initalphascalarsamount()
 		if x > 0 {
 			layers = append(layers, m.layer[i])
 		}
@@ -200,12 +201,26 @@ func (m *Network) initializescalarstuff() ([]*layer, int) {
 	}
 	return layers, adder
 }
-func SetupScalarPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, maxstartposition, alphamax, inertiamax float64, x ...Network) ScalarOptimizer {
+func (m *Network) initializebetascalarstuff() ([]*layer, int) {
+	adder := 0
+	layers := make([]*layer, 0)
+	for i := range m.layer {
+		x := m.layer[i].initbetascalarsamount()
+		if x > 0 {
+			layers = append(layers, m.layer[i])
+		}
+		adder += x
+	}
+	return layers, adder
+}
+
+//SetupScalarPSO returns a pso to optimize the scalars in the network
+func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, x ...*Network) ScalarOptimizer {
 	hasscalars := make([]*layer, 0)
 	totalscalars := 0
 	for i := range x {
 		for _, layer := range x[i].layer {
-			amount := layer.initscalarsamount()
+			amount := layer.initalphascalarsamount()
 
 			if amount != 0 {
 				hasscalars = append(hasscalars, layer)
@@ -214,17 +229,87 @@ func SetupScalarPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, so
 
 		}
 	}
-	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, maxstartposition, alphamax, inertiamax)
+	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.GetParticlePosition(0)
 
 	for i := range hasscalars {
 
-		position = hasscalars[i].updatescalar(position)
+		position = hasscalars[i].updatealphascalar(position)
 	}
 	return ScalarOptimizer{
 		hasscalars: hasscalars,
 		pso:        swarm,
 	}
+}
+
+//SetupScalarPSO returns a pso to optimize the scalars in the network
+func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, x ...*Network) ScalarOptimizer {
+	hasscalars := make([]*layer, 0)
+	totalscalars := 0
+	for i := range x {
+		for _, layer := range x[i].layer {
+			amount := layer.initbetascalarsamount()
+
+			if amount != 0 {
+				hasscalars = append(hasscalars, layer)
+				totalscalars += amount
+			}
+
+		}
+	}
+	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
+	position := swarm.GetParticlePosition(0)
+
+	for i := range hasscalars {
+
+		position = hasscalars[i].updateabetascalar(position)
+	}
+	return ScalarOptimizer{
+		hasscalars: hasscalars,
+		pso:        swarm,
+	}
+}
+
+//AsyncUpdating updates the Swarm after each particle use
+func (m *ScalarOptimizer) AsyncUpdatingBeta(fitness float32) error {
+
+	err := m.pso.AsyncUpdate(m.index, float64(fitness))
+	if err != nil {
+		return err
+	}
+	if m.index < m.numofparticles-1 {
+		m.index++
+	} else {
+		m.index = 0
+	}
+
+	position := m.pso.GetParticlePosition(m.index)
+	for i := range m.hasscalars {
+		position = m.hasscalars[i].updateabetascalar(position)
+
+	}
+	return nil
+}
+
+//AsyncUpdating updates the Swarm after each particle use
+func (m *ScalarOptimizer) AsyncUpdatingAlpha(fitness float32) error {
+
+	err := m.pso.AsyncUpdate(m.index, float64(fitness))
+	if err != nil {
+		return err
+	}
+	if m.index < m.numofparticles-1 {
+		m.index++
+	} else {
+		m.index = 0
+	}
+
+	position := m.pso.GetParticlePosition(m.index)
+	for i := range m.hasscalars {
+		position = m.hasscalars[i].updatealphascalar(position)
+
+	}
+	return nil
 }
 
 //MetaOptimizer uses a PSO to optimize meta values
@@ -258,14 +343,14 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 }
 
 //SetUpPSO will set up the pso
-func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, maxstartposition, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
+func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
 
 	trainers := make([]trainer.Trainer, 0)
 	for i := range x {
 		trainers = append(trainers, x[i]...)
 	}
 	totaldims := len(trainers) * 3
-	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, maxstartposition, alphamax, inertiamax)
+	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.GetParticlePosition(0)
 	pctr := 0
 	for i := range trainers {

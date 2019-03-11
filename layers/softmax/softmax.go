@@ -1,6 +1,8 @@
 package softmax
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/softmax"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -214,15 +216,32 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	//	return err
 }
 
-//SetScalars takes a slice of length 4 and sets the scalars in the order of fwd (alpha, beta) and bwd(alpha,beta)
-func (l *Layer) SetScalars(fwd2bwd2 []float64) {
-	l.alpha = fwd2bwd2[0]
-	l.beta = fwd2bwd2[1]
-	l.balpha = fwd2bwd2[2]
-	l.bbeta = fwd2bwd2[3]
+//SetAlphaScalars takes a slice of length 2 and sets the scalars in the order of fwd and bwd
+func (l *Layer) SetAlphaScalars(alphas []float64) error {
+	if len(alphas) != 2 {
+		return errors.New("length of alphas needs to be 2")
+	}
+	l.alpha = alphas[0]
+	l.balpha = alphas[1]
+	return nil
 }
 
-//NumScalars returns the number of scalars this layer has
-func (l *Layer) NumScalars() int {
-	return 4
+//SetBetaScalars takes a slice of length 2 and sets the scalars in the order of fwd and bwd
+func (l *Layer) SetBetaScalars(betas []float64) error {
+	if len(betas) != 2 {
+		return errors.New("length of betas needs to be 2")
+	}
+	l.beta = betas[0]
+	l.bbeta = betas[1]
+	return nil
+}
+
+//NumAlphaScalars returns the number of alpha scalars for this layer
+func (l *Layer) NumAlphaScalars() int {
+	return 2
+}
+
+//NumBetaScalars returns the number of beta scalars for this layer
+func (l *Layer) NumBetaScalars() int {
+	return 2
 }

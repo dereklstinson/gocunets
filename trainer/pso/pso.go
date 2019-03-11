@@ -78,12 +78,12 @@ func (m ModeFlag) SocialPressure() Mode {
 */
 
 //CreateSwarm creates a particle swarm
-func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, xmaxstart, alphamax, inertiamax float32) Swarm {
+func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, xminstart, xmaxstart, alphamax, inertiamax float32) Swarm {
 	rand.Seed(int64(seed))
 
 	particles := make([]particle, numofparticles)
 	for i := range particles {
-		particles[i] = createparticle(vmax, xmaxstart, alphamax, inertiamax, dims, rand.Int63())
+		particles[i] = createparticle(vmax, xminstart, xmaxstart, alphamax, inertiamax, dims, rand.Int63())
 
 	}
 	gamma := float64(social + cognative)
@@ -100,14 +100,15 @@ func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, soc
 	}
 }
 
-func createparticle(maxv, maxxstart, maxalpha, maxinertia float32, dims int, seed int64) particle {
+func createparticle(maxv, minxstart, maxxstart, maxalpha, maxinertia float32, dims int, seed int64) particle {
 	source := rand.NewSource(seed)
 	rng := rand.New(source)
 	position := make([]float32, dims)
 	indvbest := make([]float32, dims)
 	velocity := make([]float32, dims)
+	var val float32
 	for i := range position {
-		val := rng.Float32() * maxxstart
+		val = ((maxxstart - minxstart) * rng.Float32()) + minxstart
 		position[i] = val
 		indvbest[i] = val
 		velocity[i] = rng.Float32() * maxv

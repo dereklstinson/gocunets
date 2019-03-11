@@ -38,12 +38,12 @@ type Swarm64 struct {
 }
 
 //CreateSwarm64 creates a particle swarm
-func CreateSwarm64(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, xmaxstart, alphamax, inertiamax float64) Swarm64 {
+func CreateSwarm64(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, pminstart, pmaxstart, alphamax, inertiamax float64) Swarm64 {
 	rand.Seed(int64(seed))
 
 	particles64 := make([]particle64, numofparticles)
 	for i := range particles64 {
-		particles64[i] = createparticle64(vmax, xmaxstart, alphamax, inertiamax, dims, rand.Int63())
+		particles64[i] = createparticle64(vmax, pminstart, pmaxstart, alphamax, inertiamax, dims, rand.Int63())
 
 	}
 	gamma := float64(social + cognative)
@@ -60,14 +60,15 @@ func CreateSwarm64(mode Mode, numofparticles, dims, seed, kmax int, cognative, s
 	}
 }
 
-func createparticle64(maxv, maxxstart, maxalpha, maxinertia float64, dims int, seed int64) particle64 {
+func createparticle64(maxv, pminstart, pmaxstart, maxalpha, maxinertia float64, dims int, seed int64) particle64 {
 	source := rand.NewSource(seed)
 	rng := rand.New(source)
 	position := make([]float64, dims)
 	indvbest := make([]float64, dims)
 	velocity := make([]float64, dims)
+	var val float64
 	for i := range position {
-		val := rng.Float64() * maxxstart
+		val = (rng.Float64() * (pmaxstart - pminstart)) + pminstart
 		position[i] = val
 		indvbest[i] = val
 		velocity[i] = rng.Float64() * maxv

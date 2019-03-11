@@ -233,7 +233,7 @@ func layersetupreverse(
 	}
 
 	alpha := 1.0
-	alpha2 := 1.0
+	//	alpha2 := 1.0
 	beta := 0.0
 	beta2 := 0.0
 	return &Layer{
@@ -243,19 +243,19 @@ func layersetupreverse(
 		w:    w,
 		bias: bias,
 		fwd: xtras{
-			alpha:  alpha,
-			alpha2: alpha2,
-			beta:   beta,
+			alpha: alpha,
+			//		alpha2: alpha2,
+			beta: beta,
 		},
 		bwdd: xtras{
-			alpha:  alpha,
-			alpha2: alpha2,
-			beta:   beta,
+			alpha: alpha,
+			//		alpha2: alpha2,
+			beta: beta,
 		},
 		bwdf: xtras{
-			alpha:  alpha,
-			alpha2: alpha2,
-			beta:   beta2,
+			alpha: alpha,
+			//	alpha2: alpha2,
+			beta: beta2,
 		},
 		datatype: dtype,
 	}, nil

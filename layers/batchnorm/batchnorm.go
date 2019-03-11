@@ -203,36 +203,6 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 	return err
 }
 
-/*
-//LayerSetup sets the layer up. I set the defaults for alpha and beta (a,b) for the forward(1,0), backward param(1,1), and backward data(1,0) that are used in cudnn.
-//I am 70 percent sure that fwd and bwd data are set correctly.  I am about 25% sure bwd param is set correctly.  I will change it if it needs it
-func LayerSetup(handle *cudnn.Handler, x *layers.IO, mode gocudnn.BatchNormMode, managed bool) (*Layer, error) {
-	b, err := batchnorm.Stage(handle, x.T(), mode, managed)
-	fw := abscalars{
-		a: alphaforwarddefault,
-		b: betaforwarddefault,
-	}
-	bwd := abscalars{
-		a: alphabackwarddefault,
-		b: betabackwarddefault,
-	}
-	bwp := abscalars{
-		a: alphabackwardparamdefault,
-		b: betabackwardparamdefault,
-	}
-
-	return &Layer{
-		b:       b,
-		fw:      fw,
-		bwp:     bwp,
-		bwd:     bwd,
-		eps:     float64(2e-5),
-		mode:    mode,
-		managed: managed,
-	}, err
-}
-*/
-
 //ForwardInference Does the Testing Forward Prop and used for production
 func (l *Layer) ForwardInference(
 	handle *cudnn.Handler,
@@ -277,19 +247,6 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 //UpdateWeights does the weight update
 func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	var err error
-	/*
-		err := l.bias.T().AddTo(handle, l.bias.DeltaT(), -1, 1)
-		if err != nil {
-			return err
-		}
-		err = l.scale.T().AddTo(handle, l.scale.DeltaT(), -1, 1)
-		if err != nil {
-			return err
-		}
-		l.bias.DeltaT().SetValues(handle, 0)
-
-		l.scale.DeltaT().SetValues(handle, 0)
-	*/
 
 	err = l.biastrain.UpdateWeights(handle, l.bias, batch)
 	if err != nil {
@@ -311,6 +268,39 @@ func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias tra
 	l.biastrain = trainerbias
 	l.scaletrain.SetDecays(0.0, 0.0)
 	l.biastrain.SetDecays(0.0, 0.0)
+	return nil
+}
+
+//NumAlphaScalars returns the number of alpha scalars batch norm uses
+func (l *Layer) NumAlphaScalars() int {
+	return 3
+}
+
+//NumBetaScalars returns the number of beta scalars batch norm uses
+func (l *Layer) NumBetaScalars() int {
+	return 3
+}
+
+//SetAlphaScalars sets the forward backward and backward parameters alpha scalars in that order
+func (l *Layer) SetAlphaScalars(alphas []float64) error {
+	if len(alphas) != 3 {
+		return errors.New("Len of alphas needs to be 3")
+	}
+	l.fw.a = alphas[0]
+	l.bwd.a = alphas[1]
+	l.bwp.a = alphas[2]
+	return nil
+}
+
+//SetBetaScalars sets the forward backward and backward parameters beta scalars in that order
+func (l *Layer) SetBetaScalars(betas []float64) error {
+	if len(betas) != 3 {
+		return errors.New("Len of betas needs to be 3")
+	}
+
+	l.fw.b = betas[0]
+	l.bwd.b = betas[1]
+	l.bwp.b = betas[2]
 	return nil
 }
 
