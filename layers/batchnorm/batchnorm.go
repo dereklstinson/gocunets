@@ -133,7 +133,7 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 		fw:         fw,
 		bwp:        bwp,
 		bwd:        bwd,
-		eps:        float64(2e-5),
+		eps:        float64(1e-5),
 		mode:       flg.SpatialPersistent(),
 		managed:    managed,
 		countermax: trainingfactoringlimit,
@@ -204,11 +204,7 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
 }
 
 //ForwardInference Does the Testing Forward Prop and used for production
-func (l *Layer) ForwardInference(
-	handle *cudnn.Handler,
-	x,
-	y *layers.IO,
-) error {
+func (l *Layer) ForwardInference(handle *cudnn.Handler, x, y *layers.IO) error {
 
 	return l.b.ForwardInference(handle, l.fw.a, l.fw.b, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
 }
@@ -231,10 +227,10 @@ func (l *Layer) ForwardProp(
 //BackProp does the back propagation in training the layer
 func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	return l.b.BackwardProp(handle,
-		l.bwp.a,
-		l.bwp.b,
 		l.bwd.a,
 		l.bwd.b,
+		l.bwp.a,
+		l.bwp.b,
 		l.eps,
 		x.T(),
 		l.scale.T(),

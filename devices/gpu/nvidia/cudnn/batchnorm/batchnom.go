@@ -185,7 +185,7 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 	bias *tensor.Volume,
 	y *tensor.Volume) error {
 
-	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardTraining(
+	return gocudnn.BatchNorm{}.Funcs.ForwardTraining(
 		handle.Cudnn(),
 		o.mode,
 		alpha,
@@ -209,15 +209,10 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 
 //ForwardInference is the forward prop used for testing and production
 func (o *Ops) ForwardInference(handle *cudnn.Handler,
-	alpha,
-	beta,
-	epsilon float64,
-	x,
-	scale *tensor.Volume,
-	bias *tensor.Volume,
-	y *tensor.Volume) error {
-
-	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationForwardInference(
+	alpha, beta, epsilon float64,
+	x, scale, bias, y *tensor.Volume,
+) error {
+	return gocudnn.BatchNorm{}.Funcs.ForwardInference(
 		handle.Cudnn(),
 		o.mode,
 		alpha,
@@ -237,10 +232,10 @@ func (o *Ops) ForwardInference(handle *cudnn.Handler,
 
 //BackwardProp is used for the forward training
 func (o *Ops) BackwardProp(handle *cudnn.Handler,
-	alphaparam,
-	betaparam,
 	alphadata,
 	betadata,
+	alphaparam,
+	betaparam,
 	epsilon float64,
 	x,
 	scale,
@@ -249,7 +244,7 @@ func (o *Ops) BackwardProp(handle *cudnn.Handler,
 	dx,
 	dy *tensor.Volume) error {
 
-	return gocudnn.BatchNorm{}.Funcs.BatchNormalizationBackward(
+	return gocudnn.BatchNorm{}.Funcs.Backward(
 		handle.Cudnn(),
 		o.mode,
 		alphadata,

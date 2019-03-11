@@ -18,16 +18,16 @@ import (
 )
 
 type layer struct {
-	name         string
-	activation   *activation.Layer
-	cnn          *cnn.Layer
-	softmax      *softmax.Layer
-	pool         *pooling.Layer
-	drop         *dropout.Layer
-	batch        *batchnorm.Layer
-	reshape      *reshape.Layer
-	cnntranspose *cnntranspose.Layer
-	scalarnum    int
+	name                          string
+	activation                    *activation.Layer
+	cnn                           *cnn.Layer
+	softmax                       *softmax.Layer
+	pool                          *pooling.Layer
+	drop                          *dropout.Layer
+	batch                         *batchnorm.Layer
+	reshape                       *reshape.Layer
+	cnntranspose                  *cnntranspose.Layer
+	scalarnumalpha, scalarnumbeta int
 }
 
 func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
