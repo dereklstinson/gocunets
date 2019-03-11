@@ -167,6 +167,26 @@ func (c *Layer) MakeReverseOutputTensor(handle *cudnn.Handler, input *layers.IO)
 	return output, nil
 }
 
+//MakeReverseOutputTensorInference makes the output tensor of the reverse convolution layer inference mode so only contains x
+func (c *Layer) MakeReverseOutputTensorInference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+	xdims := input.T().TD().Dims()
+
+	frmt, dtype, wdims, err := c.w.Properties()
+	if err != nil {
+		return nil, err
+	}
+	dims := findreverse4doutputdims(xdims, wdims, c.pad, c.stride, c.dilation, frmt)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := layers.BuildInferenceIO(handle, frmt, dtype, dims)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
 func findreverse4doutputdims(x, w, padding, stride, dilation []int32, frmt cudnn.TensorFormat) []int32 {
 	var flag cudnn.TensorFormatFlag
 	if frmt == flag.NCHW() {

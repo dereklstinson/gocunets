@@ -268,25 +268,13 @@ func (i *IO) SetDXStatReducers(handle *cudnn.Handler) (err error) {
 	}
 	return err
 }
-
-/*
-//PlaceDeltaT will put a *tensor.Volume into the DeltaT and destroy the previous memory held in the spot
-func (i *IO) PlaceDeltaT(dT *tensor.Volume) {
-	if i.dx != nil {
-		i.dx.Destroy()
+func (i *IO) ZeroCloneInference(handle *cudnn.Handler) (*IO, error) {
+	frmt, dtype, dims, err := i.Properties()
+	if err != nil {
+		return nil, err
 	}
-	i.dx = dT
-
+	return BuildInferenceIO(handle, frmt, dtype, dims)
 }
-
-//PlaceT will put a *tensor.Volume into the T  and destroy the previous memory held in the spot
-func (i *IO) PlaceT(T *tensor.Volume) {
-	if i.x != nil {
-		i.x.Destroy()
-	}
-	i.x = T
-}
-*/
 
 //ZeroClone Makes a zeroclone of the IO
 func (i *IO) ZeroClone(handle *cudnn.Handler) (*IO, error) {
@@ -400,6 +388,11 @@ func (i *IO) ResizeIO(handle *cudnn.Handler, dims []int32) error {
 	}
 
 	return nil
+}
+
+//BuildInferenceIO builds an IO used for only inference.  It doesn't contain a tensor for the errors.
+func BuildInferenceIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+	return buildIO(handle, frmt, dtype, dims, true, false)
 }
 
 //BuildNetworkOutputIOFromSlice will return IO with the slice put into the DeltaT() section of the IO

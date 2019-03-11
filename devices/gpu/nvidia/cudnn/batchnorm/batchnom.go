@@ -210,8 +210,7 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 //ForwardInference is the forward prop used for testing and production
 func (o *Ops) ForwardInference(handle *cudnn.Handler,
 	alpha, beta, epsilon float64,
-	x, scale, bias, y *tensor.Volume,
-) error {
+	x, scale, bias, y *tensor.Volume) error {
 	return gocudnn.BatchNorm{}.Funcs.ForwardInference(
 		handle.Cudnn(),
 		o.mode,

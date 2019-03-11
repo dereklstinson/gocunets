@@ -9,9 +9,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 )
 
-//ForwardProp does the forward prop for a layer
-func (l *layer) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-
+func (l *layer) inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	err := handle.Sync()
 	if err != nil {
 		fmt.Println("Error During First sync")
@@ -114,4 +112,56 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 		return nil
 	}
 	return errors.New("Layer Not Set Up")
+}
+
+//Must run getoutput(training) before running this
+func (l *layer) getoutputinference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+
+	if l.cnn != nil {
+		io, err := l.cnn.MakeOutputTensorInference(handle, input)
+		if err != nil {
+			fmt.Println("Error in CNN Make Output Tensor input is:", input)
+		}
+		return io, err
+	}
+
+	if l.pool != nil {
+		return l.pool.MakeOutputLayerInference(handle, input)
+	}
+	if l.drop != nil {
+
+		return input.ZeroCloneInference(handle)
+	}
+
+	if l.activation != nil {
+		io, err := input.ZeroCloneInference(handle)
+		if err != nil {
+			fmt.Println("Error in activation Make Output Tensor input is:", input)
+		}
+		return io, err
+
+	}
+	if l.batch != nil {
+
+		io, err := input.ZeroCloneInference(handle)
+		if err != nil {
+			fmt.Println("Error in batch Make Output Tensor input is:", input)
+		}
+		return io, err
+	}
+
+	if l.softmax != nil {
+		return input.ZeroCloneInference(handle)
+	}
+	if l.reshape != nil {
+		return l.reshape.MakeOutputTensorInference(handle, input)
+	}
+	if l.cnntranspose != nil {
+		io, err := l.cnntranspose.MakeOutputTensor(handle, input)
+		if err != nil {
+			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
+		}
+		return io, err
+	}
+	return nil, errors.New("Layer Needs Support")
 }

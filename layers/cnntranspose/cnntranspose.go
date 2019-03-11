@@ -134,6 +134,16 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
 
+//MakeOutputTensorInference makes the output tensor for inference only
+func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+	switch l.mode {
+
+	case convtransposereverse:
+		return l.reverseOutputInference(handle, input)
+	}
+	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
+}
+
 //LoadTrainer loads a trainer into the layer
 func (l *Layer) LoadTrainer(handle *cudnn.Handler, wtrainer, btrainer trainer.Trainer) error {
 

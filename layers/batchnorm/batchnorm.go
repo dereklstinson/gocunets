@@ -17,7 +17,7 @@ const alphabackwarddefault = 1
 const betabackwarddefault = 0
 const alphabackwardparamdefault = 1
 const betabackwardparamdefault = 1
-const trainingfactoringlimit = 100
+const trainingfactoringlimit = 1000
 
 //Layer the ops of a batch norm
 type Layer struct {
@@ -211,12 +211,8 @@ func (l *Layer) ForwardInference(handle *cudnn.Handler, x, y *layers.IO) error {
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
 func (l *Layer) ForwardProp(
-	handle *cudnn.Handler,
-	x,
-	y *layers.IO,
-) error {
+	handle *cudnn.Handler, x, y *layers.IO) error {
 	l.af = (1.0 / (1.0 + float64(l.counter)))
-
 	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
 	if l.counter < l.countermax {
 		l.counter++

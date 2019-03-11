@@ -117,19 +117,17 @@ func wraplayer(input interface{}) (*layer, bool) { //the bool is for a counter t
 		return nil, false
 	}
 }
-func (l *layer) numofscalars() int {
-	return l.scalarnum
-}
+
 func (l *layer) initalphascalarsamount() int {
 
 	if l.cnn != nil {
-		l.scalarnum = l.cnn.NumAlphaScalars()
-		return l.scalarnum
+		l.scalarnumalpha = l.cnn.NumAlphaScalars()
+		return l.scalarnumalpha
 	}
 
 	if l.pool != nil {
-		l.scalarnum = l.pool.NumAlphaScalars()
-		return l.scalarnum
+		l.scalarnumalpha = l.pool.NumAlphaScalars()
+		return l.scalarnumalpha
 
 	}
 	if l.drop != nil {
@@ -137,25 +135,26 @@ func (l *layer) initalphascalarsamount() int {
 		return 0
 	}
 	if l.activation != nil {
-		l.scalarnum = l.activation.NumAlphaScalars()
-		return l.scalarnum
+		l.scalarnumalpha = l.activation.NumAlphaScalars()
+		return l.scalarnumalpha
 
 	}
 	if l.batch != nil {
-		return 0
+		l.scalarnumalpha = l.batch.NumAlphaScalars()
+		return l.scalarnumalpha
 	}
 
 	if l.softmax != nil {
-		l.scalarnum = l.softmax.NumAlphaScalars()
-		return l.scalarnum
+		l.scalarnumalpha = l.softmax.NumAlphaScalars()
+		return l.scalarnumalpha
 
 	}
 	if l.reshape != nil {
 		return 0
 	}
 	if l.cnntranspose != nil {
-		l.scalarnum = l.cnntranspose.NumAlphaScalars()
-		return l.scalarnum
+		l.scalarnumalpha = l.cnntranspose.NumAlphaScalars()
+		return l.scalarnumalpha
 
 	}
 	return 0
@@ -164,13 +163,13 @@ func (l *layer) initalphascalarsamount() int {
 func (l *layer) initbetascalarsamount() int {
 
 	if l.cnn != nil {
-		l.scalarnum = l.cnn.NumBetaScalars()
-		return l.scalarnum
+		l.scalarnumbeta = l.cnn.NumBetaScalars()
+		return l.scalarnumbeta
 	}
 
 	if l.pool != nil {
-		l.scalarnum = l.pool.NumBetaScalars()
-		return l.scalarnum
+		l.scalarnumbeta = l.pool.NumBetaScalars()
+		return l.scalarnumbeta
 
 	}
 	if l.drop != nil {
@@ -178,25 +177,26 @@ func (l *layer) initbetascalarsamount() int {
 		return 0
 	}
 	if l.activation != nil {
-		l.scalarnum = l.activation.NumBetaScalars()
-		return l.scalarnum
+		l.scalarnumbeta = l.activation.NumBetaScalars()
+		return l.scalarnumbeta
 
 	}
 	if l.batch != nil {
-		return 0
+		l.scalarnumbeta = l.batch.NumBetaScalars()
+		return l.scalarnumbeta
 	}
 
 	if l.softmax != nil {
-		l.scalarnum = l.softmax.NumBetaScalars()
-		return l.scalarnum
+		l.scalarnumbeta = l.softmax.NumBetaScalars()
+		return l.scalarnumbeta
 
 	}
 	if l.reshape != nil {
 		return 0
 	}
 	if l.cnntranspose != nil {
-		l.scalarnum = l.cnntranspose.NumBetaScalars()
-		return l.scalarnum
+		l.scalarnumbeta = l.cnntranspose.NumBetaScalars()
+		return l.scalarnumbeta
 
 	}
 	return 0
@@ -205,13 +205,13 @@ func (l *layer) initbetascalarsamount() int {
 func (l *layer) updateabetascalar(scalars []float64) (offset []float64) {
 	if l.cnn != nil {
 
-		l.cnn.SetBetaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.cnn.SetBetaScalars(scalars[:l.scalarnumbeta])
+		return scalars[l.scalarnumbeta:]
 	}
 
 	if l.pool != nil {
-		l.pool.SetBetaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.pool.SetBetaScalars(scalars[:l.scalarnumbeta])
+		return scalars[l.scalarnumbeta:]
 
 	}
 	if l.drop != nil {
@@ -219,25 +219,26 @@ func (l *layer) updateabetascalar(scalars []float64) (offset []float64) {
 		return scalars
 	}
 	if l.activation != nil {
-		l.activation.SetBetaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.activation.SetBetaScalars(scalars[:l.scalarnumbeta])
+		return scalars[l.scalarnumbeta:]
 
 	}
 	if l.batch != nil {
-		return scalars
+		l.batch.SetBetaScalars(scalars[:l.scalarnumbeta])
+		return scalars[l.scalarnumbeta:]
 	}
 
 	if l.softmax != nil {
-		l.softmax.SetBetaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.softmax.SetBetaScalars(scalars[:l.scalarnumbeta])
+		return scalars[l.scalarnumbeta:]
 
 	}
 	if l.reshape != nil {
 		return scalars
 	}
 	if l.cnntranspose != nil {
-		l.cnntranspose.SetBetaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.cnntranspose.SetBetaScalars(scalars[:l.scalarnumbeta])
+		return scalars[l.scalarnumbeta:]
 
 	}
 	return scalars
@@ -245,13 +246,13 @@ func (l *layer) updateabetascalar(scalars []float64) (offset []float64) {
 func (l *layer) updatealphascalar(scalars []float64) (offset []float64) {
 	if l.cnn != nil {
 
-		l.cnn.SetAlphaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.cnn.SetAlphaScalars(scalars[:l.scalarnumalpha])
+		return scalars[l.scalarnumalpha:]
 	}
 
 	if l.pool != nil {
-		l.pool.SetAlphaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.pool.SetAlphaScalars(scalars[:l.scalarnumalpha])
+		return scalars[l.scalarnumalpha:]
 
 	}
 	if l.drop != nil {
@@ -259,25 +260,27 @@ func (l *layer) updatealphascalar(scalars []float64) (offset []float64) {
 		return scalars
 	}
 	if l.activation != nil {
-		l.activation.SetAlphaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.activation.SetAlphaScalars(scalars[:l.scalarnumalpha])
+		return scalars[l.scalarnumalpha:]
 
 	}
 	if l.batch != nil {
-		return scalars
+		l.batch.SetAlphaScalars(scalars[:l.scalarnumalpha])
+		return scalars[l.scalarnumalpha:]
+
 	}
 
 	if l.softmax != nil {
-		l.softmax.SetAlphaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.softmax.SetAlphaScalars(scalars[:l.scalarnumalpha])
+		return scalars[l.scalarnumalpha:]
 
 	}
 	if l.reshape != nil {
 		return scalars
 	}
 	if l.cnntranspose != nil {
-		l.cnntranspose.SetAlphaScalars(scalars[:l.scalarnum])
-		return scalars[l.scalarnum:]
+		l.cnntranspose.SetAlphaScalars(scalars[:l.scalarnumalpha])
+		return scalars[l.scalarnumalpha:]
 
 	}
 	return scalars

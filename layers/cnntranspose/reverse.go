@@ -87,3 +87,6 @@ func (l *Layer) reverseBackPropFilter(handle *cudnn.Handler, wspace *nvidia.Mall
 func (l *Layer) reverseOutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	return l.conv.MakeReverseOutputTensor(handle, input)
 }
+func (l *Layer) reverseOutputInference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+	return l.conv.MakeReverseOutputTensorInference(handle, input)
+}

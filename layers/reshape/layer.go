@@ -76,6 +76,25 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.I
 
 	return nil, errors.New("Layer doesn't support mode passed")
 }
+func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, x *layers.IO) (*layers.IO, error) {
+	var lmf ModeFlag
+	switch l.mode {
+
+	case lmf.Transpose():
+		return nil, errors.New("Unsupported Method")
+		//	return l.gettransposeIO(handle, x, l.networkinput)
+	case lmf.S2B():
+		return l.getshapetobatchioinference(handle, x, l.networkinput)
+	case lmf.Resize():
+		return nil, errors.New("No output descriptor needed for resize")
+	case lmf.Transform():
+		return nil, errors.New("No output descriptor needed for transform")
+	case lmf.B2S():
+		return l.getbatchtoshapeioinference(handle, x, l.networkinput)
+	}
+
+	return nil, errors.New("Layer doesn't support mode passed")
+}
 
 //ForwardProp performs the forward prop x is the input and y is the input and output
 func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {

@@ -104,7 +104,7 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace 
 
 	//	var err error
 	performers := make([]ConvolutionPerformance, 0)
-	fwd, bwdd, bwdf, err := m.layer[0].getcudnnperformance(handle, x, m.mem[0], workspace)
+	fwd, bwdd, bwdf, err := m.layer[0].getcudnnperformance(handle, x, m.training.mem[0], workspace)
 	if err != nil {
 		if debugconvolutionperformance {
 			dbprt("(m *Network) performance(handle *cudnn.Handler, x, y *layers.IO) ([]ConvolutionPerformance, error)")
@@ -124,7 +124,7 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace 
 		if debugconvolutionperformance {
 			fmt.Println("index " + strconv.Itoa(i))
 		}
-		fwd1, bwdd1, bwdf1, err := m.layer[i].getcudnnperformance(handle, m.mem[i-1], m.mem[i], workspace)
+		fwd1, bwdd1, bwdf1, err := m.layer[i].getcudnnperformance(handle, m.training.mem[i-1], m.training.mem[i], workspace)
 		if err != nil {
 			return nil, wraperror("cudnn performance index:"+strconv.Itoa(i), err)
 		}
@@ -140,7 +140,7 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace 
 	if debugconvolutionperformance {
 		fmt.Println("index " + strconv.Itoa(lnum-1))
 	}
-	fwd1, bwdd1, bwdf1, err := m.layer[lnum-1].getcudnnperformance(handle, m.mem[lnum-2], y, workspace)
+	fwd1, bwdd1, bwdf1, err := m.layer[lnum-1].getcudnnperformance(handle, m.training.mem[lnum-2], y, workspace)
 	if err != nil {
 		return nil, wraperror("cudnn performance index:"+strconv.Itoa(lnum-1), err)
 	}

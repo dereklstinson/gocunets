@@ -37,6 +37,22 @@ func (l *Layer) MakeOutputLayer(handle *cudnn.Handler, input *layers.IO) (*layer
 
 }
 
+//MakeOutputLayerInference makes the output inference IO which doesn't contain a volume for the deltas
+func (l *Layer) MakeOutputLayerInference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+	frmt, dtype, _, err := input.Properties()
+	if err != nil {
+
+		return nil, err
+	}
+	dims, err := l.pD.OutputDims(input.T())
+	if err != nil {
+		return nil, err
+	}
+
+	return layers.BuildInferenceIO(handle, frmt, dtype, dims)
+
+}
+
 //SetupNoOutput will setup the pooling layer but not provide an output
 func SetupNoOutput(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, error) {
 	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)

@@ -25,6 +25,24 @@ func (c *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 	return output, nil
 }
 
+//MakeOutputTensorInference makes the output tensor of the layer
+func (c *Layer) MakeOutputTensorInference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+	dims, err := c.conv.OutputDim(input.T(), c.w.T())
+	if err != nil {
+		return nil, err
+	}
+	frmt, dtype, _, err := c.w.Properties()
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := layers.BuildInferenceIO(handle, frmt, dtype, dims)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
 //FindOutputDims finds the outputdims fo the cnn
 func (c *Layer) FindOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
 	return c.conv.OutputDim(input.T(), c.w.T())
