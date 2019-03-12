@@ -3,7 +3,9 @@ package ui
 import (
 	"image"
 	"image/jpeg"
+	"image/png"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -18,10 +20,20 @@ type ImageHandlerV2 struct {
 }
 
 //MakeImageHandlerV2 makes a new image handler
-func MakeImageHandlerV2(bufferlen int) *ImageHandlerV2 {
-
+func MakeImageHandlerV2(bufferlen int, initimagelocation string) *ImageHandlerV2 {
+	file, err := os.Open(initimagelocation)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 	x := &ImageHandlerV2{}
-	x.img = make([]image.Image, bufferlen)
+	imgs := make([]image.Image, bufferlen)
+
+	imgs[0], err = png.Decode(file)
+	if err != nil {
+		panic(err)
+	}
+	x.img = imgs
 	x.size = bufferlen
 	x.imgc = make(chan image.Image, bufferlen)
 	x.buf = make(chan int, bufferlen)

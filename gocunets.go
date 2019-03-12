@@ -467,6 +467,33 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefi
 	//	return handle.stream.Sync()
 }
 
+//ZeroHiddenIOs will zero out the hidden ios. This is used for training the feedback loops for the scalars.
+func (m *Network) ZeroHiddenIOs(handle *cudnn.Handler) error {
+	var err error
+	err = handle.Sync()
+	if err != nil {
+		return err
+	}
+	for i := range m.inference.mem {
+		err = m.inference.mem[i].T().Memer().Set(0)
+		if err != nil {
+			return err
+		}
+		err = m.inference.mem[i].DeltaT().Memer().Set(0)
+		if err != nil {
+			return err
+		}
+	}
+	for i := range m.training.mem {
+		err = m.training.mem[i].T().Memer().Set(0)
+		if err != nil {
+			return err
+		}
+	}
+	return handle.Sync()
+
+}
+
 //UpdateWeights updates the weights of a Network
 func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
 	var err error
