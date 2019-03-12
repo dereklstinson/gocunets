@@ -136,12 +136,18 @@ func (s *Swarm) AsyncUpdate(index int, loss float32) error {
 		copy(s.globalposition, s.particles[index].position)
 	}
 	s.particles[index].update(s.mode, s.cognative, s.social, s.vmax, s.constriction, s.globalposition)
+	if s.k < s.kmax {
+		s.k++
+	}
 	return nil
 }
 
 //GetParticlePosition returns the particle position of the index passed
 func (s *Swarm) GetParticlePosition(index int) []float32 {
-	return s.particles[index].position
+	if s.k < s.kmax {
+		return s.particles[index].position
+	}
+	return s.globalposition
 
 }
 
