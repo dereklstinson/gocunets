@@ -142,6 +142,14 @@ func (s *Swarm) AsyncUpdate(index int, loss float32) error {
 	return nil
 }
 
+//ReachedKmax will let the outside world know if max num of k was reached
+func (s *Swarm) ReachedKmax() bool {
+	if s.k < s.kmax {
+		return false
+	}
+	return true
+}
+
 //GetParticlePosition returns the particle position of the index passed
 func (s *Swarm) GetParticlePosition(index int) []float32 {
 	if s.k < s.kmax {

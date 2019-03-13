@@ -85,6 +85,14 @@ func createparticle64(maxv, pminstart, pmaxstart, maxalpha, maxinertia float64, 
 	}
 }
 
+//ReachedKmax will let the outside world know if max num of k was reached
+func (s *Swarm64) ReachedKmax() bool {
+	if s.k < s.kmax {
+		return false
+	}
+	return true
+}
+
 //AsyncUpdate does the update asyncrounusly
 func (s *Swarm64) AsyncUpdate(index int, loss float64) error {
 	if index >= len(s.particles) {

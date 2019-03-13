@@ -109,6 +109,11 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 	}
 }
 
+//ReachedKmax will let the outside world know if max num of k was reached
+func (m *ScalarOptimizer) ReachedKmax() bool {
+	return m.ReachedKmax()
+}
+
 //AsyncUpdating does an asyncronus update of the scalar parameters
 func (m *ScalarOptimizer) AsyncUpdating(fitness float32) error {
 	if m.alpha {
@@ -187,6 +192,11 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 		pctr = pctr + 3
 	}
 	return nil
+}
+
+//ReachedKmax will let the outside world know if max num of k was reached
+func (m *MetaOptimizer) ReachedKmax() bool {
+	return m.ReachedKmax()
 }
 
 //SetUpPSO will set up the pso
