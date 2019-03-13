@@ -47,6 +47,8 @@ func (m *Network) resizehiddeniosinference(handle *cudnn.Handler, newinput []int
 	}
 	return nil
 }
+
+//Inference performs the inference operation.  Its hidden ios are seperated from training
 func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	var err error
 	if m.inference.mem == nil {
@@ -57,7 +59,11 @@ func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 			return err
 		}
 		m.inference.previousdims = x.T().Dims()
-		return m.inferenceforward(handle, wspace, x, y)
+		err = m.inferenceforward(handle, wspace, x, y)
+		if err != nil {
+			return err
+		}
+		return handle.Sync()
 
 	}
 	_, _, xdims, err := x.Properties()
@@ -67,12 +73,10 @@ func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 	if comparedims(m.inference.previousdims, xdims) {
 		err = m.inferenceforward(handle, wspace, x, y)
 		if err != nil {
-
 			fmt.Println("Error in doing the forward prop after compair dims")
-
 			return err
 		}
-		return nil
+		return handle.Sync()
 	}
 
 	m.inference.previousdims = xdims
@@ -85,7 +89,7 @@ func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 	if err != nil {
 		fmt.Println("Error in doing the forward prop after resize")
 	}
-	return nil
+	return handle.Sync()
 }
 func (m *Network) inferenceforward(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	var err error

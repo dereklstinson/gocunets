@@ -234,14 +234,14 @@ func SetupAdamWandB(tctx *xtra.Handle, decay1, decay2 float32, batch int32) (*Ad
 }
 
 //SetupAdamWandB2 returns a trainer for both WandB and includes the learning rate
-func SetupAdamWandB2(handle *cudnn.Handler, rate, decay1, decay2 float32, batch int32) (*Adam, *Adam, error) {
+func SetupAdamWandB2(handle *cudnn.Handler, rate, dwalpha, decay1, decay2 float32, batch int32) (*Adam, *Adam, error) {
 	adam1, err := SetupAdam(handle.XHandle(), decay1, decay2, batch)
-	adam1.SetRate(rate)
+	adam1.SetRates(rate, dwalpha)
 	if err != nil {
 		return nil, nil, err
 	}
 	adam2, err := SetupAdam(handle.XHandle(), decay1, decay2, batch)
-	adam2.SetRate(rate)
+	adam2.SetRates(rate, dwalpha)
 	return adam1, adam2, err
 }
 
@@ -254,7 +254,7 @@ func SetupAdam(tctx *xtra.Handle, decay1, decay2 float32, batch int32) (*Adam, e
 		return nil, err
 	}
 	reg := xtra.CreateRegParamsFloat32(decay1, decay2, float32(batch))
-	x := xtra.CreateParamsFloat32(defaultadameps, defaultadamrate, defaultadambeta1, defaultadambeta2)
+	x := xtra.CreateParamsFloat32(defaultadameps, defaultadamrate, defaultadambeta1, defaultadambeta2, 0)
 
 	return &Adam{
 		trainer:   t,
@@ -291,9 +291,10 @@ func (a *Adam) SetBeta2(beta2 float32) {
 
 }
 
-//SetRate sets rate
-func (a *Adam) SetRate(rate float32) {
+//SetRates sets rate
+func (a *Adam) SetRates(rate, dwalpha float32) {
 	a.params.SetRate(rate)
+	a.params.SetDWalpha(dwalpha)
 
 }
 

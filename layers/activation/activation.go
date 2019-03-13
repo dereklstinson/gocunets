@@ -77,6 +77,44 @@ func setup(handle *cudnn.Handler, mode activation.Mode, nanproped cudnn.NanMode,
 	}, nil
 }
 
+//ResetWeightsHiddenMem will reset the weights to random, and the delta storage will be set to zero.
+func (a *Layer) ResetWeightsHiddenMem(h *cudnn.Handler) error {
+	fanin := float64(a.posCoefs.T().MaxVol())
+	var err error
+	if a.posCoefs != nil {
+		err = a.posCoefs.T().SetRandom(h, 0, 1, fanin)
+		if err != nil {
+			return err
+		}
+		err = a.posCoefs.DeltaT().SetValues(h, 0)
+		if err != nil {
+			return err
+		}
+	}
+	if a.negCoefs != nil {
+		err = a.negCoefs.T().SetRandom(h, 0, 1, fanin)
+		if err != nil {
+			return err
+		}
+		err = a.negCoefs.DeltaT().SetValues(h, 0)
+		if err != nil {
+			return err
+		}
+	}
+	if a.threshold != nil {
+		err := a.threshold.T().SetRandom(h, 0, 1, fanin)
+		if err != nil {
+			return err
+		}
+		err = a.threshold.DeltaT().SetValues(h, 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 //Leaky returns an activation layer set to leaky
 func Leaky(handle *cudnn.Handler) (*Layer, error) {
 	var flg activation.ModeFlag

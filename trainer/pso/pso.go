@@ -3,6 +3,7 @@
 pso is based on the slides from Jaco F. Schutte EGM 6365 - Structural Optimization Fall 2005
 Link to slides https://www.mii.lt/zilinskas/uploads/Heuristic%20Algorithms/Lectures/Lect4/PSO2.pdf
 
+TODO: ResetSwarm should check the opposite condition. So that I can minimize the number of calculations.
 */
 
 package pso
@@ -11,6 +12,7 @@ import (
 	"errors"
 	"math"
 	"math/rand"
+	"time"
 )
 
 type particle struct {
@@ -28,13 +30,15 @@ type particle struct {
 
 //Swarm contains the particles and meta values
 type Swarm struct {
-	k, kmax                               int
-	loss                                  float32
-	cognative, social, vmax, constriction float32
-	particles                             []particle
-	globalposition                        []float32
-	bestbool                              []bool
-	mode                                  Mode
+	k, kmax                                                                           int
+	loss                                                                              float32
+	cognative, social, vmax, constriction, alphamax, xminstart, xmaxstart, inertiamax float32
+	particles                                                                         []particle
+	globalposition                                                                    []float32
+	bestbool                                                                          []bool
+	mode                                                                              Mode
+	source                                                                            rand.Source
+	rng                                                                               *rand.Rand
 }
 
 const testingvmax = true
@@ -79,8 +83,9 @@ func (m ModeFlag) SocialPressure() Mode {
 
 //CreateSwarm creates a particle swarm
 func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, xminstart, xmaxstart, alphamax, inertiamax float32) Swarm {
-	rand.Seed(int64(seed))
 
+	source := rand.NewSource(int64(time.Now().Nanosecond()))
+	rng := rand.New(source)
 	particles := make([]particle, numofparticles)
 	for i := range particles {
 		particles[i] = createparticle(vmax, xminstart, xmaxstart, alphamax, inertiamax, dims, rand.Int63())
@@ -89,14 +94,21 @@ func CreateSwarm(mode Mode, numofparticles, dims, seed, kmax int, cognative, soc
 	gamma := float64(social + cognative)
 	constriction := 2 / (2 - gamma - math.Sqrt((gamma*gamma)-4*gamma))
 	return Swarm{
-		k:            1,
-		cognative:    cognative,
-		social:       social,
-		kmax:         kmax,
-		vmax:         vmax,
-		loss:         9999999999,
-		particles:    particles,
-		constriction: float32(constriction),
+		k:              1,
+		globalposition: make([]float32, dims),
+		cognative:      cognative,
+		social:         social,
+		kmax:           kmax,
+		vmax:           vmax,
+		xminstart:      xminstart,
+		xmaxstart:      xmaxstart,
+		alphamax:       alphamax,
+		inertiamax:     inertiamax,
+		loss:           9999999999,
+		particles:      particles,
+		constriction:   float32(constriction),
+		source:         source,
+		rng:            rng,
 	}
 }
 
@@ -123,6 +135,48 @@ func createparticle(maxv, minxstart, maxxstart, maxalpha, maxinertia float32, di
 		inertia:  rng.Float32() * maxinertia,
 		alpha:    rng.Float32() * maxalpha,
 	}
+}
+func (p *particle) reset(maxv, minxstart, maxxstart, maxalpha, maxinertia float32) {
+	var val float32
+	for i := range p.position {
+		val = ((maxxstart - minxstart) * p.rng.Float32()) + minxstart
+		p.position[i] = val
+		p.indvbest[i] = val
+		p.velocity[i] = p.rng.Float32() * maxv
+
+	}
+	p.alpha = p.rng.Float32() * maxalpha
+	p.inertia = p.rng.Float32() * maxinertia
+}
+
+//ResetSwarm resets the swarm reseting a percentage of the particles. percent should be 0 to 1 with the percentages being .5 for 50% and .75 for 75%
+//ResetSwarm Doesn't change the k counter
+func (s *Swarm) ResetSwarm(percent float32) error {
+	if percent > 1 || percent < 0 {
+		return errors.New("Invalid Percent")
+	}
+
+	for i := range s.globalposition {
+		s.globalposition[i] = 0
+	}
+	numofparticles := len(s.particles)
+	numofresetparticles := (int)((float32)(numofparticles) * percent)
+	resetedarray := make([]bool, numofparticles)
+	var location int
+	for i := 0; i < numofresetparticles; {
+		location = s.rng.Intn(numofparticles)
+		if !resetedarray[location] {
+			s.particles[location].reset(s.vmax, s.xminstart, s.xmaxstart, s.alphamax, s.inertiamax)
+			resetedarray[location] = true
+			i++
+		}
+	}
+	return nil
+}
+
+//ResetInnerKCounter resets the k counter used to count up to kmax to zero
+func (s *Swarm) ResetInnerKCounter() {
+	s.k = 0
 }
 
 //AsyncUpdate does the update asyncrounusly

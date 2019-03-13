@@ -115,6 +115,11 @@ func build(handle *cudnn.Handler,
 	}, nil
 }
 
+//MakeRandom makes the weights random
+func (l *Layer) MakeRandom(h *cudnn.Handler) error {
+	return l.conv.MakeRandom(h)
+}
+
 //FindOutputDims will return the output dims of the reverse convolution
 func (l *Layer) FindOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
 	switch l.mode {

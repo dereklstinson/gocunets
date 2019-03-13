@@ -11,6 +11,7 @@ import (
 	"errors"
 	"math"
 	"math/rand"
+	"time"
 )
 
 type particle64 struct {
@@ -28,19 +29,21 @@ type particle64 struct {
 
 //Swarm64 contains the particles and meta values
 type Swarm64 struct {
-	k, kmax                               int
-	loss                                  float64
-	cognative, social, vmax, constriction float64
-	particles                             []particle64
-	globalposition                        []float64
-	bestbool                              []bool
-	mode                                  Mode
+	k, kmax                                                                           int
+	loss                                                                              float64
+	cognative, social, vmax, constriction, alphamax, xminstart, xmaxstart, inertiamax float64
+	particles                                                                         []particle64
+	globalposition                                                                    []float64
+	bestbool                                                                          []bool
+	mode                                                                              Mode
+	source                                                                            rand.Source
+	rng                                                                               *rand.Rand
 }
 
 //CreateSwarm64 creates a particle swarm
 func CreateSwarm64(mode Mode, numofparticles, dims, seed, kmax int, cognative, social, vmax, pminstart, pmaxstart, alphamax, inertiamax float64) Swarm64 {
-	rand.Seed(int64(seed))
-
+	source := rand.NewSource(int64(time.Now().Nanosecond()))
+	rng := rand.New(source)
 	particles64 := make([]particle64, numofparticles)
 	for i := range particles64 {
 		particles64[i] = createparticle64(vmax, pminstart, pmaxstart, alphamax, inertiamax, dims, rand.Int63())
@@ -49,14 +52,21 @@ func CreateSwarm64(mode Mode, numofparticles, dims, seed, kmax int, cognative, s
 	gamma := float64(social + cognative)
 	constriction := 2 / (2 - gamma - math.Sqrt((gamma*gamma)-4*gamma))
 	return Swarm64{
-		k:            1,
-		cognative:    cognative,
-		social:       social,
-		kmax:         kmax,
-		vmax:         vmax,
-		loss:         9999999999,
-		particles:    particles64,
-		constriction: float64(constriction),
+		k:              1,
+		cognative:      cognative,
+		social:         social,
+		kmax:           kmax,
+		vmax:           vmax,
+		xminstart:      pminstart,
+		xmaxstart:      pmaxstart,
+		alphamax:       alphamax,
+		inertiamax:     inertiamax,
+		loss:           9999999999,
+		particles:      particles64,
+		constriction:   float64(constriction),
+		globalposition: make([]float64, dims),
+		source:         source,
+		rng:            rng,
 	}
 }
 
@@ -117,6 +127,11 @@ func (s *Swarm64) GetParticlePosition(index int) []float64 {
 
 	}
 	return s.globalposition
+}
+
+//ResetInnerKCounter resets the k counter used to count up to kmax to zero
+func (s *Swarm64) ResetInnerKCounter() {
+	s.k = 0
 }
 
 //SyncUpdate updates the particle swarm after all particles tested
@@ -227,4 +242,41 @@ func (p *particle64) constriction(cognative, social, vmax, constriction float64,
 		}
 		p.position[i] += p.velocity[i]
 	}
+}
+func (p *particle64) reset(maxv, minxstart, maxxstart, maxalpha, maxinertia float64) {
+	var val float64
+	for i := range p.position {
+		val = ((maxxstart - minxstart) * p.rng.Float64()) + minxstart
+		p.position[i] = val
+		p.indvbest[i] = val
+		p.velocity[i] = p.rng.Float64() * maxv
+
+	}
+	p.alpha = p.rng.Float64() * maxalpha
+	p.inertia = p.rng.Float64() * maxinertia
+}
+
+//ResetSwarm resets the swarm reseting a percentage of the particles. percent should be 0 to 1 with the percentages being .5 for 50% and .75 for 75%
+//ResetSwarm Doesn't change the k counter
+func (s *Swarm64) ResetSwarm(percent float32) error {
+	if percent > 1 || percent < 0 {
+		return errors.New("Invalid Percent")
+	}
+
+	for i := range s.globalposition {
+		s.globalposition[i] = 0
+	}
+	numofparticles := len(s.particles)
+	numofresetparticles := (int)((float32)(numofparticles) * percent)
+	resetedarray := make([]bool, numofparticles)
+	var location int
+	for i := 0; i < numofresetparticles; {
+		location = s.rng.Intn(numofparticles)
+		if !resetedarray[location] {
+			s.particles[location].reset(s.vmax, s.xminstart, s.xmaxstart, s.alphamax, s.inertiamax)
+			resetedarray[location] = true
+			i++
+		}
+	}
+	return nil
 }

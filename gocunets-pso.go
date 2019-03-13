@@ -111,7 +111,22 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 
 //ReachedKmax will let the outside world know if max num of k was reached
 func (m *ScalarOptimizer) ReachedKmax() bool {
-	return m.ReachedKmax()
+	return m.pso.ReachedKmax()
+}
+
+//ResetInnerKCounter resets the inner k counter
+func (m *ScalarOptimizer) ResetInnerKCounter() {
+	m.pso.ResetInnerKCounter()
+}
+
+//Reset resets the Optimizer and resets a percent (between 0 and 1..1 being 100%) of the partilces
+func (m *ScalarOptimizer) Reset(percent float32) error {
+	err := m.pso.ResetSwarm(percent)
+	if err != nil {
+		return err
+	}
+	m.pso.ResetInnerKCounter()
+	return nil
 }
 
 //AsyncUpdating does an asyncronus update of the scalar parameters
@@ -187,16 +202,31 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 	pctr := 0
 	position := m.pso.GetParticlePosition(m.index)
 	for i := range m.trainers {
-		m.trainers[i].SetRate(position[pctr])
-		m.trainers[i].SetDecays(position[pctr+1], position[pctr+2])
-		pctr = pctr + 3
+		m.trainers[i].SetRates(position[pctr], position[pctr+1])
+		m.trainers[i].SetDecays(position[pctr+2], position[pctr+3])
+		pctr += 4
 	}
 	return nil
 }
 
 //ReachedKmax will let the outside world know if max num of k was reached
 func (m *MetaOptimizer) ReachedKmax() bool {
-	return m.ReachedKmax()
+	return m.pso.ReachedKmax()
+}
+
+//ResetInnerKCounter resets the inner k counter
+func (m *MetaOptimizer) ResetInnerKCounter() {
+	m.pso.ResetInnerKCounter()
+}
+
+//Reset resets the Optimizer and resets a percent (between 0 and 1..1 being 100%) of the partilces
+func (m *MetaOptimizer) Reset(percent float32) error {
+	err := m.pso.ResetSwarm(percent)
+	if err != nil {
+		return err
+	}
+	m.pso.ResetInnerKCounter()
+	return nil
 }
 
 //SetUpPSO will set up the pso
@@ -211,9 +241,9 @@ func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, 
 	position := swarm.GetParticlePosition(0)
 	pctr := 0
 	for i := range trainers {
-		trainers[i].SetRate(position[pctr])
-		trainers[i].SetDecays(position[pctr+1], position[pctr+2])
-		pctr = pctr + 3
+		trainers[i].SetRates(position[pctr], position[pctr+1])
+		trainers[i].SetDecays(position[pctr+2], position[pctr+3])
+		pctr += 4
 	}
 	return MetaOptimizer{
 		trainers:       trainers,

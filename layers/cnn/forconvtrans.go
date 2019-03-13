@@ -27,7 +27,7 @@ func SetupReverse(handle *cudnn.Handler,
 	if err != nil {
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(handle, filterdims, seed)
+	err = layer.MakeRandom(handle)
 	if err != nil {
 		return nil, err
 	}

@@ -126,7 +126,7 @@ func Setup(handle *cudnn.Handler,
 		fmt.Println("Error in layer setup")
 		return nil, err
 	}
-	err = layer.MakeRandomFromFaninDims(handle, filterdims, seed)
+	err = layer.MakeRandom(handle)
 	if err != nil {
 		fmt.Println("Error in randomfanindims")
 		return nil, err
@@ -142,28 +142,16 @@ func Setup(handle *cudnn.Handler,
 	return layer, nil
 }
 
-//MakeRandomFromFaninDims does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32, seed uint64) error {
-
+//MakeRandom does what it says it will make the weights random considering the fanin
+func (c *Layer) MakeRandom(handle *cudnn.Handler) error {
+	dims := c.w.T().Dims()
 	if len(dims) < 5 {
 
 		fanin := float64(dims[1] * dims[2] * dims[3])
 		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
 			return err
-		} /*
-			err := c.w.T().AddRandNormalGenerator(handle, seed)
-			if err != nil {
-
-				fmt.Println("RandomFaninDims Making GErator")
-				return err
-			}
-			err = c.w.T().NormalRand(0, 1.0*float32(fanin))
-			if err != nil {
-				fmt.Println("RandomFaninDims Trying Random")
-				return err
-			}
-		*/
+		}
 	}
 	if len(dims) > 4 {
 		return errors.New("Not Available yet")
@@ -172,6 +160,7 @@ func (c *Layer) MakeRandomFromFaninDims(handle *cudnn.Handler, dims []int32, see
 	return nil
 }
 
+/*
 //MakeRandomFromFanin does what it says it will make the weights random considering the fanin
 func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, seed uint64) error {
 	_, _, dims, err := input.Properties()
@@ -180,16 +169,7 @@ func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, see
 	}
 	if len(dims) < 5 {
 
-		fanin := float64(dims[1] * dims[2] * dims[3]) /*
-			err := c.w.T().AddRandNormalGenerator(handle, seed)
-			if err != nil {
-				return err
-			}
-			err = c.w.T().NormalRand(0, 1.0*float32(fanin))
-			if err != nil {
-				return err
-			}
-		*/
+		fanin := float64(dims[1] * dims[2] * dims[3])
 		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		//err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
 		if err != nil {
@@ -202,7 +182,7 @@ func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, see
 
 	return nil
 }
-
+*/
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetup(
 	handle *cudnn.Handler,

@@ -61,10 +61,6 @@ type Flag struct {
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
 	layer []*layer
-	//	mem                   []*layers.IO
-	//	inferencemem          []*layers.IO
-	//previousdims          []int32
-	//previousdimsinference []int32
 	training          hiddenio
 	inference         hiddenio
 	totalionets       []*netios
@@ -74,7 +70,6 @@ type Network struct {
 	resizecounter     int
 	hybridsize        int
 	reshaper          *reshape.Layer
-
 	descriminator   bool
 	l1losses        []float32
 	l2losses        []float32
@@ -467,6 +462,42 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefi
 	//	return handle.stream.Sync()
 }
 
+//ZeroHiddenInferenceIOs zeros out the hidden inference ios
+func (m *Network) ZeroHiddenInferenceIOs(handle *cudnn.Handler) error {
+	var err error
+	err = handle.Sync()
+	if err != nil {
+		return err
+	}
+	for i := range m.inference.mem {
+		err = m.inference.mem[i].T().Memer().Set(0)
+		if err != nil {
+			return err
+		}
+	}
+	return handle.Sync()
+}
+
+//ZeroHiddenTrainingIOs zeros out the hidden training ios
+func (m *Network) ZeroHiddenTrainingIOs(handle *cudnn.Handler) error {
+	var err error
+	err = handle.Sync()
+	if err != nil {
+		return err
+	}
+	for i := range m.training.mem {
+		err = m.training.mem[i].T().Memer().Set(0)
+		if err != nil {
+			return err
+		}
+		err = m.training.mem[i].T().Memer().Set(0)
+		if err != nil {
+			return err
+		}
+	}
+	return handle.Sync()
+}
+
 //ZeroHiddenIOs will zero out the hidden ios. This is used for training the feedback loops for the scalars.
 func (m *Network) ZeroHiddenIOs(handle *cudnn.Handler) error {
 	var err error
@@ -479,12 +510,12 @@ func (m *Network) ZeroHiddenIOs(handle *cudnn.Handler) error {
 		if err != nil {
 			return err
 		}
-		err = m.inference.mem[i].DeltaT().Memer().Set(0)
+	}
+	for i := range m.training.mem {
+		err = m.training.mem[i].T().Memer().Set(0)
 		if err != nil {
 			return err
 		}
-	}
-	for i := range m.training.mem {
 		err = m.training.mem[i].T().Memer().Set(0)
 		if err != nil {
 			return err

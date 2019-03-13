@@ -4,6 +4,8 @@
 package trainer
 
 import (
+	"errors"
+
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 )
@@ -12,7 +14,7 @@ import (
 type Trainer interface {
 	UpdateWeights(ctx *cudnn.Handler, weights *layers.IO, batch int) error
 	L1L2Loss() (float32, float32)
-	SetRate(rate float32)
+	SetRates(rate, dwalpha float32)
 	SetDecays(l1, l2 float32)
 }
 
@@ -22,10 +24,8 @@ func CreateTrainingMem(handle *cudnn.Handler, trainer Trainer, weights *layers.I
 	switch x := trainer.(type) {
 	case *Adam:
 		return x.SetTrainingMem(handle, weights)
-	case *Momentum:
-
-		return x.SetTrainingMem(handle, weights)
+	default:
+		return errors.New("only adam is supported")
 	}
 
-	return nil
 }
