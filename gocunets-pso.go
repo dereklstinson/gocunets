@@ -1,6 +1,7 @@
 package gocunets
 
 import (
+	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCuNets/trainer/pso"
 )
@@ -21,6 +22,7 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 //ScalarOptimizer optimizes the scalars of the operators
 type ScalarOptimizer struct {
 	hasscalars     []*layer
+	mse            *loss.MSE
 	pso            pso.Swarm64
 	index          int
 	numofparticles int
@@ -53,7 +55,7 @@ func (m *Network) initializebetascalarstuff() ([]*layer, int) {
 }
 
 //SetupScalarAlphaPSO returns a pso to optimize the alpha scalars in the network
-func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, x ...*Network) ScalarOptimizer {
+func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, mse *loss.MSE, x ...*Network) ScalarOptimizer {
 	hasscalars := make([]*layer, 0)
 	totalscalars := 0
 	for i := range x {
@@ -67,6 +69,7 @@ func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognativ
 
 		}
 	}
+	totalscalars++ //mse has only one alpha
 	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.GetParticlePosition(0)
 
@@ -78,11 +81,12 @@ func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognativ
 		hasscalars: hasscalars,
 		pso:        swarm,
 		alpha:      true,
+		mse:        mse,
 	}
 }
 
 //SetupScalarBetaPSO returns a pso to optimize the beta scalars in the network
-func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, x ...*Network) ScalarOptimizer {
+func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, mse *loss.MSE, x ...*Network) ScalarOptimizer {
 	hasscalars := make([]*layer, 0)
 	totalscalars := 0
 	for i := range x {
@@ -96,6 +100,7 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 
 		}
 	}
+	totalscalars++ //mse has only one beta
 	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.GetParticlePosition(0)
 
@@ -106,6 +111,7 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 	return ScalarOptimizer{
 		hasscalars: hasscalars,
 		pso:        swarm,
+		mse:        mse,
 	}
 }
 
@@ -155,6 +161,10 @@ func (m *ScalarOptimizer) asyncupdatebeta(fitness float32) error {
 		position = m.hasscalars[i].updateabetascalar(position)
 
 	}
+	if len(position) != 1 {
+		panic("position should be one here")
+	}
+	m.mse.SetBetaScalars(position)
 	return nil
 }
 
@@ -176,6 +186,10 @@ func (m *ScalarOptimizer) asyncupdatealpha(fitness float32) error {
 		position = m.hasscalars[i].updatealphascalar(position)
 
 	}
+	if len(position) != 1 {
+		panic("position should be one here")
+	}
+	m.mse.SetAlphaScalars(position)
 	return nil
 }
 
@@ -236,7 +250,7 @@ func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, 
 	for i := range x {
 		trainers = append(trainers, x[i]...)
 	}
-	totaldims := len(trainers) * 3
+	totaldims := len(trainers) * 4
 	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.GetParticlePosition(0)
 	pctr := 0
