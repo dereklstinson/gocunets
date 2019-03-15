@@ -1,11 +1,6 @@
 package npp
 
-import (
-	"errors"
-
-	"github.com/dereklstinson/GoCudnn/npp"
-)
-
+/*
 func getUint8pointertype(src interface{}) *npp.Uint8 {
 	switch x := src.(type) {
 	case *npp.Uint8:
@@ -87,3 +82,4 @@ func ResizeSqPixelC1R(src interface{}, srcsize npp.Size, srcstep int32, srcROI n
 	}
 	return errors.New("ResizeSqPixelC1R unsupported type")
 }
+*/

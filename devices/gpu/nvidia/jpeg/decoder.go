@@ -89,9 +89,24 @@ func (d *Decoder) DecodeBatchedAIO(r []io.Reader, maxCPUthreads int, frmt nvjpeg
 	return imgs, nil
 }
 
-//BatchPhaseInitialize initialezes a batch of phases
-func (d *Decoder) BatchPhaseInitialize(batchsize, maxCputhreads int, frmt nvjpeg.OutputFormat) error {
-	return d.state.DecodeBatchedInitialize(d.h, batchsize, maxCputhreads, frmt)
+//BatchPhaseInitialize initialezes a batch of phases. It also initializes the bytes(BatchedPhase1) and dests (BatchedPhase3) used for the phases.
+func (d *Decoder) BatchPhaseInitialize(r []io.Reader, maxCputhreads int, frmt nvjpeg.OutputFormat, allocator gocu.Allocator) (data [][]byte, dests []*Image, err error) {
+	batchsize := len(r)
+	dests = make([]*Image, len(r))
+	data = make([][]byte, len(r))
+
+	for i := range r {
+		dests[i], err = CreateDestImage(d.h, frmt, r[i], allocator)
+		if err != nil {
+			return nil, nil, err
+		}
+		rdata, err := ioutil.ReadAll(r[i])
+		if err != nil {
+			return nil, nil, err
+		}
+		data[i] = rdata
+	}
+	return data, dests, d.state.DecodeBatchedInitialize(d.h, batchsize, maxCputhreads, frmt)
 }
 
 //BatchedPhase1 does phase one of batch decoding
