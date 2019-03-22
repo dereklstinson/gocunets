@@ -13,7 +13,8 @@ import (
 type Ops struct {
 	epsilon           float64
 	exponentialfactor uint
-	mode              gocudnn.BatchNormMode
+	op                *gocudnn.BatchNormD
+	opex              *gocudnn.BatchNormDEx
 	bnsbmvd           *gocudnn.TensorD
 	rrm               *nvidia.Malloced
 	rrv               *nvidia.Malloced
@@ -22,7 +23,6 @@ type Ops struct {
 }
 
 func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*nvidia.Malloced, error) {
-	var tfuncs gocudnn.Tensor
 
 	sizet, err := desc.GetSizeInBytes()
 	if err != nil {
@@ -34,7 +34,7 @@ func buildfromdesc(handle *cudnn.Handler, desc *gocudnn.TensorD) (*nvidia.Malloc
 		return nil, err
 	}
 
-	err = tfuncs.SetTensor(handle.Cudnn(), desc, gpumem, 0.0)
+	err = gocudnn.SetTensor(handle.Cudnn(), desc, gpumem, 0.0)
 	if err != nil {
 
 		return nil, err
@@ -82,9 +82,11 @@ func (o *Ops) Free() error {
 //This mode is intended for use after convolutional layers (where spatial invariance is desired).
 //In this mode the bnBias, bnScale tensor dimensions are 1xCx1x1.
 func PreStageSpatial(handle *cudnn.Handler) (*Ops, error) {
-	var x gocudnn.BatchNormModeFlag
+	var x gocudnn.BatchNormMode
+	op := gocudnn.CreateBatchNormDescriptor()
+	op.Set(x.Spatial())
 	return &Ops{
-		mode: x.Spatial(),
+		op: op,
 	}, nil
 }
 
@@ -104,41 +106,73 @@ For finite but very large input values, the algorithm may encounter overflows mo
 The user can invoke cudnnQueryRuntimeError() to check if a numerical overflow occurred in this mode.
 */
 func PreStageSpatialPersistant(handle *cudnn.Handler) (*Ops, error) {
-	var x gocudnn.BatchNormModeFlag
+	var x gocudnn.BatchNormMode
+	op := gocudnn.CreateBatchNormDescriptor()
+	op.Set(x.SpatialPersistent())
 	return &Ops{
-		mode: x.SpatialPersistent(),
+		op: op,
 	}, nil
+
 }
 
 //PreStagePerActivation Normalization is performed per-activation. This mode is intended to be used after non-convolutional network layers.
 //In this mode the tensor dimensions of bnBias and bnScale, the parameters used in the cudnnBatchNormalization* functions, are 1xCxHxW.
 func PreStagePerActivation(handle *cudnn.Handler, managed bool) (*Ops, error) {
-	var x gocudnn.BatchNormModeFlag
+	var x gocudnn.BatchNormMode
+	op := gocudnn.CreateBatchNormDescriptor()
+	op.Set(x.PerActivation())
 	return &Ops{
-		mode: x.PerActivation(),
+		op: op,
 	}, nil
+
 }
 
 //Stage will stage the o Ops from the prestaged function
 func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) error {
 
-	o, err := Stage(handle, x, o.mode)
+	bnd, err := o.op.DeriveBNTensorDescriptor(x.TD())
+	o.bnsbmvd = bnd
+	if err != nil {
+		return err
+	}
+	o.rrm, err = buildfromdesc(handle, bnd)
+	if err != nil {
 
-	return err
+		return err
+	}
+	o.rrv, err = buildfromdesc(handle, bnd)
+	if err != nil {
 
+		return err
+	}
+	o.rsm, err = buildfromdesc(handle, bnd)
+	if err != nil {
+
+		return err
+	}
+	o.rsv, err = buildfromdesc(handle, bnd)
+	if err != nil {
+
+		return err
+	}
+	return nil
 }
 
 //BiasScaleProperties returns the bias and scale for the batch norm bias and scale forward and backprop
-func (o *Ops) BiasScaleProperties() (cudnn.TensorFormat, cudnn.DataType, []int32) {
-	return cudnn.TensorFormat(o.bnsbmvd.Format()), cudnn.DataType(o.bnsbmvd.DataType()), o.bnsbmvd.Dims()
+func (o *Ops) BiasScaleProperties() (gocudnn.TensorFormat, gocudnn.DataType, []int32) {
+	return (o.bnsbmvd.Format()), (o.bnsbmvd.DataType()), o.bnsbmvd.Dims()
 }
 
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
 func Stage(handle *cudnn.Handler,
 	x *tensor.Volume,
 	mode gocudnn.BatchNormMode) (*Ops, error) {
-
-	bnd, err := gocudnn.BatchNorm{}.DeriveBNTensorDescriptor(x.TD(), mode)
+	op := gocudnn.CreateBatchNormDescriptor()
+	err := op.Set(mode)
+	if err != nil {
+		return nil, err
+	}
+	bnd, err := op.DeriveBNTensorDescriptor(x.TD())
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +199,7 @@ func Stage(handle *cudnn.Handler,
 
 	return &Ops{
 		bnsbmvd: bnd,
-		mode:    mode,
+		op:      op,
 		rrm:     rrm,
 		rrv:     rrv,
 		rsm:     rsm,
@@ -185,9 +219,8 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 	bias *tensor.Volume,
 	y *tensor.Volume) error {
 
-	return gocudnn.BatchNorm{}.Funcs.ForwardTraining(
+	return o.op.ForwardTraining(
 		handle.Cudnn(),
-		o.mode,
 		alpha,
 		beta,
 		x.TD(),
@@ -211,9 +244,8 @@ func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 func (o *Ops) ForwardInference(handle *cudnn.Handler,
 	alpha, beta, epsilon float64,
 	x, scale, bias, y *tensor.Volume) error {
-	return gocudnn.BatchNorm{}.Funcs.ForwardInference(
+	return o.op.ForwardInference(
 		handle.Cudnn(),
-		o.mode,
 		alpha,
 		beta,
 		x.TD(),
@@ -243,9 +275,8 @@ func (o *Ops) BackwardProp(handle *cudnn.Handler,
 	dx,
 	dy *tensor.Volume) error {
 
-	return gocudnn.BatchNorm{}.Funcs.Backward(
+	return o.op.Backward(
 		handle.Cudnn(),
-		o.mode,
 		alphadata,
 		betadata,
 		alphaparam,

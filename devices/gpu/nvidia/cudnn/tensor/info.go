@@ -1,7 +1,6 @@
 package tensor
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
@@ -13,16 +12,17 @@ import (
 
 //Info struct contains the info that is needed to build a volume
 type Info struct {
-	Format   cudnn.TensorFormat `json:"Format,omitempty"`
-	DataType cudnn.DataType     `json:"DataType,omitempty"`
-	Nan      cudnn.NanMode      `json:"Nan,omitempty"`
-	Dims     []int32            `json:"Dims,omitempty"`
-	MaxDims  []int32            `json:"max_dims,omitempty"`
-	Data     []byte             `json:"data,omitempty"`
+	Format   gocudnn.TensorFormat `json:"Format,omitempty"`
+	DataType gocudnn.DataType     `json:"DataType,omitempty"`
+	Nan      gocudnn.NANProp      `json:"Nan,omitempty"`
+	Dims     []int32              `json:"Dims,omitempty"`
+	Stride   []int32              `json:"Stride,omitempty"`
+	MaxDims  []int32              `json:"max_dims,omitempty"`
+	Data     []byte               `json:"data,omitempty"`
 }
 
 //MakeInfo makes an info struct
-func MakeInfo(frmt cudnn.TensorFormat, dtype cudnn.DataType, currnetdims, maxdims []int32) Info {
+func MakeInfo(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, currnetdims, maxdims []int32) Info {
 	return Info{
 		Format:   frmt,
 		DataType: dtype,
@@ -55,55 +55,25 @@ func (t *Volume) Info() (Info, error) {
 
 //Build is a method for Info that will retrun a volume type. If Weights is nil the memory will still be malloced on the cuda side.  So make sure to add values if needed.
 func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
-	var thelper gocudnn.Tensor
-	var fhelper gocudnn.Filter
-	if len(i.Dims) < 4 {
-		return nil, errors.New("Dims less than 4. Create A 4 dim Tensor and set dims not needed to 1")
-	}
-	var newmemer *nvidia.Malloced
-	var tens *gocudnn.TensorD
-	var filts *gocudnn.FilterD
+
 	var err error
-	if len(i.Dims) > 4 {
-		tens, err = thelper.NewTensorNdDescriptorEx(i.Format.Cu(), i.DataType.Cu(), i.Dims)
-		if err != nil {
-			return nil, err
-		}
-		filts, err = fhelper.NewFilterNdDescriptor(i.DataType.Cu(), i.Format.Cu(), i.Dims)
-		if err != nil {
-			return nil, err
-		}
-		size, err := tens.GetSizeInBytes()
-		if err != nil {
-
-			return nil, err
-		}
-		newmemer, err = nvidia.MallocGlobal(handle, size)
-		if err != nil {
-
-			return nil, err
-		}
-
-	} else {
-
-		tens, err = thelper.NewTensor4dDescriptor(i.DataType.Cu(), i.Format.Cu(), i.Dims)
-		if err != nil {
-			return nil, err
-		}
-		filts, err = fhelper.NewFilter4dDescriptor(i.DataType.Cu(), i.Format.Cu(), i.Dims)
-		if err != nil {
-			tens.DestroyDescriptor()
-			return nil, err
-		}
-		size, err := tens.GetSizeInBytes()
-		if err != nil {
-			return nil, err
-		}
-		newmemer, err = nvidia.MallocGlobal(handle, size)
-		if err != nil {
-			return nil, err
-		}
-
+	tens, err := gocudnn.CreateTensorDescriptor()
+	if err != nil {
+		return nil, err
+	}
+	filts, err := gocudnn.CreateFilterDescriptor()
+	if err != nil {
+		return nil, err
+	}
+	err = tens.Set(i.Format, i.DataType, i.Dims, i.Stride)
+	if err != nil {
+		return nil, err
+	}
+	err = filts.Set(i.DataType, i.Format, i.Dims)
+	size, err := tens.GetSizeInBytes()
+	newmemer, err := nvidia.MallocGlobal(handle, size)
+	if err != nil {
+		return nil, err
 	}
 
 	vol := &Volume{

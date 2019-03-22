@@ -31,6 +31,7 @@ type tensops struct {
 	max  optensorop
 	sqrt optensorop
 	not  optensorop
+	flg  gocudnn.OpTensorOp
 }
 type optensorop struct {
 	mode gocudnn.OpTensorOp
@@ -52,7 +53,8 @@ func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 		if err != nil {
 			return err
 		}
-		t.op.add.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Add(), dtypet.Cu(), t.propnan.Cu())
+		t.op.add.desc, err = gocudnn.CreateOpTensorDescriptor()
+		err = t.op.add.desc.Set(t.op.flg.Add(), dtypet, t.propnan)
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
@@ -73,7 +75,12 @@ func (t *Volume) OpMult(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta flo
 		if err != nil {
 			return err
 		}
-		t.op.mult.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+
+		t.op.mult.desc, err = gocudnn.CreateOpTensorDescriptor()
+		err = t.op.mult.desc.Set(t.op.flg.Mul(), dtypet, t.propnan)
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
@@ -91,8 +98,12 @@ func (t *Volume) OpNot(h *cudnn.Handler, A *Volume, alpha1, beta float64) error 
 		if err != nil {
 			return err
 		}
+		t.op.not.desc, err = gocudnn.CreateOpTensorDescriptor()
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		err = t.op.not.desc.Set(t.op.flg.Not(), dtypet, t.propnan)
 
-		t.op.not.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Not(), dtypet.Cu(), t.propnan.Cu())
 		if err != nil {
 			return err
 		}
@@ -110,7 +121,13 @@ func (t *Volume) OpMax(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 		if err != nil {
 			return err
 		}
-		t.op.max.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+
+		t.op.max.desc, err = gocudnn.CreateOpTensorDescriptor()
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		err = t.op.max.desc.Set(t.op.flg.Max(), dtypet, t.propnan)
+
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
@@ -128,7 +145,13 @@ func (t *Volume) OpMin(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 		if err != nil {
 			return err
 		}
-		t.op.min.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+
+		t.op.min.desc, err = gocudnn.CreateOpTensorDescriptor()
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		err = t.op.min.desc.Set(t.op.flg.Min(), dtypet, t.propnan)
+
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
@@ -145,7 +168,13 @@ func (t *Volume) OpSqrt(h *cudnn.Handler, A *Volume, alpha1, beta float64) error
 		if err != nil {
 			return err
 		}
-		t.op.sqrt.desc, err = t.ophelp.NewOpTensorDescriptor(t.ophelp.Flgs.Mul(), dtypet.Cu(), t.propnan.Cu())
+
+		t.op.sqrt.desc, err = gocudnn.CreateOpTensorDescriptor()
+		if err != nil {
+			return errorappend("NewOpTensorDescriptor: ", err)
+		}
+		err = t.op.sqrt.desc.Set(t.op.flg.Sqrt(), dtypet, t.propnan)
+
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}

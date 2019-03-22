@@ -1,14 +1,13 @@
 package activation
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //ModeFlag passes Mode flags
 type ModeFlag struct {
-	m gocudnn.ActivationModeFlag
+	m gocudnn.ActivationMode
 	x xtra.XActivationModeFlag
 }
 
@@ -65,7 +64,7 @@ func (m ModeFlag) PRelu() Mode {
 //Flag is a helper struct used to pass flags
 type Flag struct {
 	Mode    ModeFlag
-	NanFlag cudnn.NanMode
+	NanFlag gocudnn.NANProp
 }
 
 //private

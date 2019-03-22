@@ -60,7 +60,7 @@ type Flag struct {
 
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
-	layer []*layer
+	layer             []*layer
 	training          hiddenio
 	inference         hiddenio
 	totalionets       []*netios
@@ -70,14 +70,14 @@ type Network struct {
 	resizecounter     int
 	hybridsize        int
 	reshaper          *reshape.Layer
-	descriminator   bool
-	l1losses        []float32
-	l2losses        []float32
-	totalionetsinit bool
-	wtrainers       []trainer.Trainer
-	btrainers       []trainer.Trainer
-	savedparams     *NetworkSavedTensor
-	loadedsaved     bool
+	descriminator     bool
+	l1losses          []float32
+	l2losses          []float32
+	totalionetsinit   bool
+	wtrainers         []trainer.Trainer
+	btrainers         []trainer.Trainer
+	savedparams       *NetworkSavedTensor
+	loadedsaved       bool
 }
 type hiddenio struct {
 	mem          []*layers.IO

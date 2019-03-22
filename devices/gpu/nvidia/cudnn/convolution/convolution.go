@@ -9,13 +9,14 @@ import (
 
 //Ops is a struct
 type Ops struct {
-	fwddesc      *gocudnn.ConvolutionD
-	fwdgroup     int32
-	bwdddesc     *gocudnn.ConvolutionD
-	bwddgroup    int32
-	bwdfdesc     *gocudnn.ConvolutionD
-	bwdfgroup    int32
-	helper       gocudnn.Convolution
+	op    *gocudnn.ConvolutionD
+	group int32
+	/*
+		bwdddesc     *gocudnn.ConvolutionD
+		bwddgroup    int32
+		bwdfdesc     *gocudnn.ConvolutionD
+		bwdfgroup    int32
+	*/
 	setfilt      bool
 	pwspacesize  uint
 	perfforward  ForwardPerformance
@@ -47,61 +48,28 @@ func Flags() gocudnn.ConvolutionFlags {
 }
 
 //StageOperation set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
-func StageOperation(mode gocudnn.ConvolutionMode, data cudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
-	helper := gocudnn.Convolution{}
-	if len(pad) == 2 {
+func StageOperation(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 
-		fwddesc, err := helper.NewConvolution2dDescriptor(mode, data.Cu(), pad, stride, dilation)
-		if err != nil {
-			return nil, err
-		}
-		bwdddesc, err := helper.NewConvolution2dDescriptor(mode, data.Cu(), pad, stride, dilation)
-		if err != nil {
-			return nil, err
-		}
-
-		bwdfdesc, err := helper.NewConvolution2dDescriptor(mode, data.Cu(), pad, stride, dilation)
-		if err != nil {
-			return nil, err
-		}
-		return &Ops{
-			fwddesc:  fwddesc,
-			bwdddesc: bwdddesc,
-			bwdfdesc: bwdfdesc,
-			stride:   stride,
-			dilation: dilation,
-			pad:      pad,
-		}, nil
-	}
-	fwddesc, err := helper.NewConvolutionNdDescriptor(mode, data.Cu(), pad, stride, dilation)
+	desc, err := gocudnn.CreateConvolutionDescriptor()
 	if err != nil {
 		return nil, err
 	}
-	bwdddesc, err := helper.NewConvolutionNdDescriptor(mode, data.Cu(), pad, stride, dilation)
-	if err != nil {
-		return nil, err
-	}
-	bwdfdesc, err := helper.NewConvolutionNdDescriptor(mode, data.Cu(), pad, stride, dilation)
+	err = desc.Set(mode, data, pad, stride, dilation)
 	if err != nil {
 		return nil, err
 	}
 	return &Ops{
-		fwddesc:  fwddesc,
-		bwdddesc: bwdddesc,
-		bwdfdesc: bwdfdesc,
-		stride:   stride,
-		dilation: dilation,
-		pad:      pad,
+		op: desc,
 	}, nil
-
 }
 
-//FwdGroup links the convolution with a group number
-func (c *Ops) FwdGroup(group int32) error {
-	c.fwdgroup = group
-	return c.fwddesc.SetGroupCount(group)
+//Group links the convolution with a group number
+func (c *Ops) Group(group int32) error {
+	c.group = group
+	return c.op.SetGroupCount(group)
 }
 
+/*
 //BwdFilterGroup links the convolution with a group number
 func (c *Ops) BwdFilterGroup(group int32) error {
 	c.bwdfgroup = group
@@ -113,18 +81,18 @@ func (c *Ops) BwdDataGroup(group int32) error {
 	c.bwddgroup = group
 	return c.bwdddesc.SetGroupCount(group)
 }
-
+*/
 //Group is a group of convolution functions
 type Group struct {
 	g   []*Ops
 	num int32
 }
 
-//FwdMakeGroup takes a slice of convolution pointers and links them into a group
-func FwdMakeGroup(groupnumber int32, group []*Ops) (Group, error) {
+//MakeGroup takes a slice of convolution pointers and links them into a group
+func MakeGroup(groupnumber int32, group []*Ops) (Group, error) {
 	var err error
 	for i := 0; i < len(group); i++ {
-		err = group[i].FwdGroup(groupnumber)
+		err = group[i].Group(groupnumber)
 		if err != nil {
 			return Group{}, err
 		}
@@ -135,6 +103,7 @@ func FwdMakeGroup(groupnumber int32, group []*Ops) (Group, error) {
 	}, nil
 }
 
+/*
 //BwdDataMakeGroup takes a slice of convolution pointers and links them into a group
 func BwdDataMakeGroup(groupnumber int32, group []*Ops) (Group, error) {
 	var err error
@@ -164,12 +133,14 @@ func BwdFiltMakeGroup(groupnumber int32, group []*Ops) (Group, error) {
 		num: groupnumber,
 	}, nil
 }
+*/
 
-//SetFwdMathType sets the mathtype
-func (c *Ops) SetFwdMathType(math gocudnn.MathType) error {
-	return c.fwddesc.SetMathType(math)
+//SetMathType sets the mathtype
+func (c *Ops) SetMathType(math gocudnn.MathType) error {
+	return c.op.SetMathType(math)
 }
 
+/*
 //SetBwdDataMathType sets the mathtype
 func (c *Ops) SetBwdDataMathType(math gocudnn.MathType) error {
 	return c.bwdddesc.SetMathType(math)
@@ -179,9 +150,10 @@ func (c *Ops) SetBwdDataMathType(math gocudnn.MathType) error {
 func (c *Ops) SetBwdFiltType(math gocudnn.MathType) error {
 	return c.bwdfdesc.SetMathType(math)
 }
+*/
 
-//BwdPropData dx = alpha * BwdPropData(w,dy)+beta*dx
-func (c *Ops) BwdPropData(
+//BackwardData dx = alpha * BwdPropData(w,dy)+beta*dx
+func (c *Ops) BackwardData(
 	handle *cudnn.Handler,
 	alpha float64,
 	w *tensor.Volume,
@@ -190,11 +162,11 @@ func (c *Ops) BwdPropData(
 	beta float64,
 	dx *tensor.Volume) error {
 
-	return c.bwdddesc.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
+	return c.op.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
 }
 
-//BwdPropFilt dw = alpha * BwdPropFilt(x,dy)+beta*dw
-func (c *Ops) BwdPropFilt(
+//BackwardFilter dw = alpha * BwdPropFilt(x,dy)+beta*dw
+func (c *Ops) BackwardFilter(
 	handle *cudnn.Handler,
 	alpha float64,
 	x *tensor.Volume,
@@ -202,11 +174,11 @@ func (c *Ops) BwdPropFilt(
 	wspace *nvidia.Malloced,
 	beta float64,
 	dw *tensor.Volume) error {
-	return c.bwdfdesc.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), beta, dw.FD(), dw.Memer())
+	return c.op.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), beta, dw.FD(), dw.Memer())
 }
 
-//FwdProp    y= alpha * Convolution(x,w)+ beta*y
-func (c *Ops) FwdProp(
+//Forward    y= alpha * Convolution(x,w)+ beta*y
+func (c *Ops) Forward(
 	handle *cudnn.Handler,
 	alpha float64,
 	x *tensor.Volume,
@@ -230,18 +202,18 @@ func (c *Ops) FwdProp(
 		fmt.Println("13: ", y.Memer())
 	*/
 
-	return c.fwddesc.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), beta, y.TD(), y.Memer())
+	return c.op.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), beta, y.TD(), y.Memer())
 }
 
-//BwdBias does the backward bias calculation
-func (c *Ops) BwdBias(
+//BackwardBias does the backward bias calculation
+func (c *Ops) BackwardBias(
 	handle *cudnn.Handler,
 	alpha float64,
 	dy *tensor.Volume,
 	beta float64,
 	dbias *tensor.Volume) error {
 
-	return c.helper.Funcs.Bwd.ConvolutionBackwardBias(
+	return c.op.BackwardBias(
 		handle.Cudnn(),
 		alpha,
 		dy.TD(),

@@ -11,11 +11,10 @@ import (
 
 //Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.
 type Ops struct {
-	helper gocudnn.Activation
-	desc   *gocudnn.ActivationD
-	xdesc  *xtra.XActivationD
-	mode   Mode
-	nan    cudnn.NanMode
+	desc  *gocudnn.ActivationD
+	xdesc *xtra.XActivationD
+	mode  Mode
+	nan   gocudnn.NANProp
 }
 
 //const defaultparachantrainingmode = gocudnn.TrainingMode(4) //This is adam
@@ -23,13 +22,16 @@ type Ops struct {
 //const defaultcoefforclipped = 6
 
 //Stage creates an activation struct given the properties passed in function
-func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*Ops, error) {
-	var dtype gocudnn.DataTypeFlag
+func Stage(handle *cudnn.Handler, mode Mode, nan gocudnn.NANProp, coef float64) (*Ops, error) {
+	var dtype gocudnn.DataType
 	var mflg ModeFlag
-	var hlp gocudnn.Activation
+	x, err := gocudnn.CreateActivationDescriptor()
+	if err != nil {
+		return nil, err
+	}
 	switch mode {
 	case mflg.Threshhold():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan, coef)
 		if err != nil {
 			return nil, err
 		}
@@ -38,7 +40,7 @@ func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*
 			mode:  mode,
 		}, err
 	case mflg.Leaky():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan, coef)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +49,7 @@ func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*
 			mode:  mode,
 		}, err
 	case mflg.PRelu():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan.Cu(), coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan, coef)
 		if err != nil {
 			return nil, err
 		}
@@ -56,32 +58,32 @@ func Stage(handle *cudnn.Handler, mode Mode, nan cudnn.NanMode, coef float64) (*
 			mode:  mode,
 		}, err
 	case mflg.ClippedRelu():
-		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		x.Set(mode.c(), nan, coef)
 		return &Ops{
 			desc: x,
 			mode: mode,
 		}, err
 	case mflg.Elu():
-		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		x.Set(mode.c(), nan, coef)
 		return &Ops{
 			desc: x,
 			mode: mode,
 		}, err
 
 	case mflg.Relu():
-		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		x.Set(mode.c(), nan, coef)
 		return &Ops{
 			desc: x,
 			mode: mode,
 		}, err
 	case mflg.Sigmoid():
-		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		x.Set(mode.c(), nan, coef)
 		return &Ops{
 			desc: x,
 			mode: mode,
 		}, err
 	case mflg.Tanh():
-		x, err := hlp.NewActivationDescriptor(mode.c(), nan.Cu(), coef)
+		x.Set(mode.c(), nan, coef)
 		return &Ops{
 			desc: x,
 			mode: mode,
@@ -98,7 +100,7 @@ func (act *Ops) Info() (OpInfo, error) {
 
 	return OpInfo{
 		Mode:    Mode(amode),
-		NanProp: cudnn.NanMode(propnan),
+		NanProp: (propnan),
 		Coef:    coef,
 	}, err
 }
@@ -109,9 +111,9 @@ func (act *Ops) Mode() Mode {
 }
 
 //Properties returns the values that were used to Create the Activation struct
-func (act *Ops) Properties() (Mode, cudnn.NanMode, float64, error) {
-	a, b, c, err := act.desc.GetDescriptor()
-	return Mode(a), cudnn.NanMode(b), c, err
+func (act *Ops) Properties() (Mode, gocudnn.NANProp, float64, error) {
+	a, b, c, err := act.desc.Get()
+	return Mode(a), b, c, err
 
 }
 
@@ -224,5 +226,5 @@ func (act *Ops) BwdProp(
 //Destroy destroys the cuda allocated memory associated with Activation
 func (act *Ops) Destroy() error {
 
-	return act.desc.DestroyDescriptor()
+	return act.desc.Destroy()
 }

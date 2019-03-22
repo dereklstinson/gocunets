@@ -8,8 +8,7 @@ import (
 	"sync"
 
 	"github.com/dereklstinson/GoCuNets/utils"
-
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 func findabsolutemaxfloat32(params []float32) float32 {
@@ -56,15 +55,15 @@ func (t *Volume) ToImagesColor() ([][]image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convertcolor(slice, dims, cudnn.TensorFormat(t.current.tD.Format()))
+	return convertcolor(slice, dims, t.frmt)
 }
 
-func convertcolor(data []float32, dims []int32, frmt cudnn.TensorFormat) ([][]image.Image, error) {
+func convertcolor(data []float32, dims []int32, frmt gocudnn.TensorFormat) ([][]image.Image, error) {
 	if len(dims) > 4 {
 		return nil, errors.New("Dims of 4 only supported")
 	}
 
-	var tf cudnn.TensorFormatFlag
+	var tf gocudnn.TensorFormat
 
 	var conv []int
 

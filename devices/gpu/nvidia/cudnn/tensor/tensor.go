@@ -22,19 +22,17 @@ type Volume struct {
 	current  *tensordescriptor
 	previous []*tensordescriptor
 	memgpu   *nvidia.Malloced
-	thelp    gocudnn.Tensor
-	fhelp    gocudnn.Filter
-	ophelp   gocudnn.OpTensor
 	randgen  *curand.Generator
 	op       tensops
-	dtype    cudnn.DataType
-	propnan  cudnn.NanMode
-	frmt     cudnn.TensorFormat
+	dtype    gocudnn.DataType
+	propnan  gocudnn.NANProp
+	frmt     gocudnn.TensorFormat
 	min, max float32
 	maxsizet uint
 	maxvol   int32
 	ongpu    bool
 	weights  bool
+
 	//	ongpu    bool
 
 	//scalar gocudnn.CScalar
@@ -42,18 +40,13 @@ type Volume struct {
 
 //SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN
 func (t *Volume) SetPropNan() {
-	t.propnan = cudnn.NanMode(t.thelp.Flgs.NaN.PropagateNan())
+	t.propnan.Propigate()
 }
 
 //SetNotPropNan will set the nan propigation flag to NotPropigationNan (NotPropigationNan is default)
 func (t *Volume) SetNotPropNan() {
-	t.propnan = cudnn.NanMode(t.thelp.Flgs.NaN.NotPropagateNan())
+	t.propnan.NotPropigate()
 
-}
-
-//Flags returns a struct that passes gocudnn flags through methods used in building the tensor
-func Flags() gocudnn.TensorFlags {
-	return gocudnn.TensorFlags{}
 }
 
 //ChangeDims will change the dims of the volume. As long as they are within the max volume of the maxdims size.
@@ -79,7 +72,7 @@ func (t *Volume) ChangeDims(dims []int32) error {
 }
 
 //BuildtoCudaHost stores the tensor memory to paged memory
-func BuildtoCudaHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, startdims []int32) (*Volume, error) {
+func BuildtoCudaHost(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, startdims []int32) (*Volume, error) {
 	previous := make([]*tensordescriptor, 10)
 	current, err := maketensordescriptor(frmt, dtype, startdims)
 	if err != nil {
@@ -108,20 +101,20 @@ func BuildtoCudaHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn
 }
 
 //BuildWithMaxDims is used if you already know the max dims.  This would be good on using something like S2B or B2S
-func BuildWithMaxDims(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims, maxdims []int32) (*Volume, error) {
+func BuildWithMaxDims(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, currentdims, maxdims []int32) (*Volume, error) {
 	return build(handle, frmt, dtype, currentdims, maxdims, false)
 }
 
 //Build creates a tensor and mallocs the memory for the tensor. Max dims will change the amount of memory allocated to it.
 //  Technically, these are not the max dims. As long as the new dim volume is <= max dim volume.
 //If maxvol is zero or negative it will chose the max volume to be the size of the currentdims
-func Build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32) (*Volume, error) {
+func Build(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, currentdims []int32) (*Volume, error) {
 
 	return build(handle, frmt, dtype, currentdims, nil, false)
 }
 
 //BuildWeights builds the weights
-func BuildWeights(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32) (*Volume, error) {
+func BuildWeights(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, currentdims []int32) (*Volume, error) {
 	return build(handle, frmt, dtype, currentdims, nil, true)
 }
 
@@ -156,7 +149,7 @@ func (t *Volume) NormalRand(mean, std float32) error {
 }
 
 //BuildRandNorm sets a randomnorm volume that can have its values set to random values over and over again
-func BuildRandNorm(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, currentdims []int32, mean, std float32, seed uint64, static bool) (*Volume, error) {
+func BuildRandNorm(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, currentdims []int32, mean, std float32, seed uint64, static bool) (*Volume, error) {
 	vol, err := build(handle, frmt, dtype, currentdims, nil, static)
 	if err != nil {
 		return nil, err
@@ -188,7 +181,7 @@ func firstinfirstout(new *tensordescriptor, previous []*tensordescriptor) {
 }
 
 //Build creates a tensor and mallocs the memory for the tensor
-func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, startdims, maxdims []int32, weights bool) (*Volume, error) {
+func build(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, startdims, maxdims []int32, weights bool) (*Volume, error) {
 	switch weights {
 	case true:
 		previous := make([]*tensordescriptor, 10)
@@ -199,7 +192,7 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 
 		previous[0] = current
 
-		sizet := gocudnn.FindSizeTfromVol(startdims, dtype.Cu())
+		sizet := gocudnn.FindSizeTfromVol(startdims, dtype)
 
 		newmemer, err := nvidia.MallocGlobal(handle, sizet)
 		if err != nil {
@@ -231,7 +224,7 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 			maxvol = handle.FindMaxVol(startdims)
 		} else {
 			maxvol = utils.FindVolumeInt32(maxdims, nil)
-			sizet = gocudnn.FindSizeTfromVol(maxdims, dtype.Cu())
+			sizet = gocudnn.FindSizeTfromVol(maxdims, dtype)
 		}
 
 		newmemer, err := nvidia.MallocGlobal(handle, sizet)
@@ -264,11 +257,11 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 			maxvol = handle.FindMaxVol(startdims)
 		} else {
 			maxvol = utils.FindVolumeInt32(maxdims, nil)
-			sizet = cudnn.SizeT(gocudnn.FindSizeTfromVol(maxdims, dtype.Cu()))
+			sizet = cudnn.SizeT(gocudnn.FindSizeTfromVol(maxdims, dtype))
 		}
 
 		if handle.Unified() {
-			newmemer, err := gocudnn.MallocManaged(sizet.Cu(), gocudnn.ManagedMemFlag{}.Global())
+			newmemer, err := gocudnn.MallocManaged(sizet, gocudnn.ManagedMemFlag{}.Global())
 			if err != nil {
 				return nil, err
 			}
@@ -284,7 +277,7 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 				weights:  weights,
 			}, nil
 		}
-		newmemer, err := gocudnn.Malloc(sizet.Cu())
+		newmemer, err := gocudnn.Malloc(sizet)
 		if err != nil {
 			return nil, err
 		}
@@ -304,12 +297,12 @@ func build(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType,
 }
 
 //DataType returns the datatype of the volume
-func (t *Volume) DataType() cudnn.DataType {
+func (t *Volume) DataType() gocudnn.DataType {
 	return t.dtype
 }
 
 //Format returns the format of the volume
-func (t *Volume) Format() cudnn.TensorFormat {
+func (t *Volume) Format() gocudnn.TensorFormat {
 	return t.frmt
 }
 
@@ -350,13 +343,13 @@ func (t *Volume) Memer() *nvidia.Malloced {
 
 //CurrentSizeT returns the size in bytes for the current tensor
 func (t *Volume) CurrentSizeT() uint {
-	return (gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu()))
+	return (gocudnn.FindSizeTfromVol(t.current.dims, t.dtype))
 }
 
 //Properties returns the properties of the tensor
-func (t *Volume) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
-	a, b, _, err := t.current.tD.GetDescrptor()
-	return t.frmt, cudnn.DataType(a), b, err
+func (t *Volume) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
+	frmt, a, b, _, err := t.current.tD.Get()
+	return frmt, a, b, err
 
 }
 
@@ -421,10 +414,10 @@ func (t *Volume) ZeroClone(handle *cudnn.Handler) (*Volume, error) {
 }
 
 //arraysize will return the size of the array and will return 0 if unsupported type is used.
-func arraysize(dtype cudnn.DataType, size uint) int {
-	var flg gocudnn.DataTypeFlag
+func arraysize(dtype gocudnn.DataType, size uint) int {
+	var flg gocudnn.DataType
 	x := int(size)
-	switch dtype.Cu() {
+	switch dtype {
 	case flg.Double():
 		return x / 8
 	case flg.Float():
@@ -441,7 +434,7 @@ func arraysize(dtype cudnn.DataType, size uint) int {
 }
 
 func (t *Volume) printmem(comment string, max bool) error {
-	var flg gocudnn.DataTypeFlag
+	var flg gocudnn.DataType
 	var sib uint
 
 	var as int
@@ -450,11 +443,11 @@ func (t *Volume) printmem(comment string, max bool) error {
 		sib = t.maxsizet
 		as = arraysize(t.dtype, sib)
 	} else {
-		sib = gocudnn.FindSizeTfromVol(t.current.dims, t.dtype.Cu())
+		sib = gocudnn.FindSizeTfromVol(t.current.dims, t.dtype)
 		as = int(utils.FindVolumeInt32(t.current.dims, t.current.dims))
 	}
 
-	switch t.dtype.Cu() {
+	switch t.dtype {
 	case flg.Double():
 
 		array := make([]float64, as)

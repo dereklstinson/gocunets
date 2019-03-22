@@ -8,6 +8,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
@@ -15,13 +16,13 @@ import (
 //Documentation states that you have to pass a value that is the same type as the DataType.  input is typecase
 func (t *Volume) SetValues(handle *cudnn.Handler, input float64) error {
 
-	return t.thelp.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, input)
+	return gocudnn.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, input)
 }
 
 //ScaleValues values will scale the values to the scalar passed
 func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
 
-	return t.thelp.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, alpha)
+	return gocudnn.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, alpha)
 
 }
 
@@ -30,7 +31,7 @@ func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
 //In the later case the same value from the A tensor for the dims will be used to blend into (t *Tensor).
 func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Ascalar, tscalar float64) error {
 
-	return t.thelp.AddTensor(handle.Cudnn(), Ascalar, A.current.tD, A.memgpu, tscalar, t.current.tD, t.memgpu)
+	return gocudnn.AddTensor(handle.Cudnn(), Ascalar, A.current.tD, A.memgpu, tscalar, t.current.tD, t.memgpu)
 }
 
 //LoadMem will Load the volume with the inputed mem.  Input mem with the size of size
@@ -68,10 +69,10 @@ func (t *Volume) SetRandomNormal(handle *cudnn.Handler, min, max float32) error 
 	if err != nil {
 		return prependerror("SetRandomNormal", err)
 	}
+	var fflg gocudnn.DataType
+	switch dtype {
 
-	switch dtype.Cu() {
-
-	case t.thelp.Flgs.Data.Double():
+	case fflg.Double():
 		randomizedvol := make([]float64, vol)
 		for i := 0; i < vol1; i++ {
 			randomizedvol[i] = utils.RandomFloat64(float64(min), float64(max))
@@ -81,7 +82,7 @@ func (t *Volume) SetRandomNormal(handle *cudnn.Handler, min, max float32) error 
 			return prependerror("SetRandom", err)
 		}
 		return t.LoadMem(handle, ptr, uint(vol*8))
-	case t.thelp.Flgs.Data.Float():
+	case fflg.Float():
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
 			randomizedvol[i] = utils.RandomFloat32(min, max)
@@ -110,10 +111,10 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 	vol := utils.FindVolumeInt32(dims, nil)
 	vol1 := int(vol)
 	size := t.CurrentSizeT()
+	var fflg gocudnn.DataType
+	switch dtype {
 
-	switch dtype.Cu() {
-
-	case t.thelp.Flgs.Data.Double():
+	case fflg.Double():
 		randomizedvol := make([]float64, vol)
 		for i := 0; i < vol1; i++ {
 			randomizedvol[i] = utils.RandWeightSet(mean, max, fanin)
@@ -124,7 +125,7 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 		}
 
 		return nvidia.Memcpy(t.memgpu, ptr, size)
-	case t.thelp.Flgs.Data.Float():
+	case fflg.Float():
 
 		randomizedvol := make([]float32, vol)
 		for i := 0; i < vol1; i++ {
@@ -171,13 +172,13 @@ func (t *Tensor) Transform(handle *cudnn.Handler, A *Tensor, alpha, beta float64
 	var a gocudnn.CScalar
 	var b gocudnn.CScalar
 	switch dtypeA {
-	case t.thelp.Flgs.Data.Double():
+	case fflg.Double():
 		a = gocudnn.CDouble(alpha)
 		b = gocudnn.CDouble(beta)
-	case t.thelp.Flgs.Data.Float():
+	case fflg.Float():
 		a = gocudnn.CFloat(alpha)
 		b = gocudnn.CFloat(beta)
-	case t.thelp.Flgs.Data.Int32():
+	case fflg.Int32():
 		a = gocudnn.CInt(alpha)
 		b = gocudnn.CInt(beta)
 	default:

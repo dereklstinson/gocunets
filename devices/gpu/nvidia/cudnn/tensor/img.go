@@ -9,7 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 func arraysizefromdims(dims []int32) int {
@@ -169,8 +169,8 @@ func (t *Volume) convert() ([][]image.Image, error) {
 		return nil, errors.New("Dims of 4 only supported")
 	}
 
-	var tf cudnn.TensorFormatFlag
-	var dt cudnn.DataType
+	var tf gocudnn.TensorFormat
+	var dt gocudnn.DataType
 	if err != nil {
 		return nil, err
 	}

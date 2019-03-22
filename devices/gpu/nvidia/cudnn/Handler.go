@@ -119,7 +119,7 @@ func CreateHandler(dev cudart.Device, xtrakernsfolder string) *Handler {
 	if 6 < major {
 		unified = true
 	}
-	x := gocudnn.NewHandle()
+	x := gocudnn.CreateHandle(true)
 	y, err := xtra.MakeHandle(xtrakernsfolder, dev, unified)
 	if err != nil {
 		panic(err)

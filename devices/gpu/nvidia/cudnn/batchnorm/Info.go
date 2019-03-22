@@ -3,7 +3,6 @@ package batchnorm
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -12,9 +11,9 @@ type Info struct {
 	Epsilon           float64               `json:"Epsilon"`
 	Exponentialfactor uint                  `json:"Exponentialfactor"`
 	Mode              gocudnn.BatchNormMode `json:"Mode"`
-	Format            cudnn.TensorFormat    `json:"Format"`
-	DataType          cudnn.DataType        `json:"DataType"`
-	Nan               cudnn.NanMode         `json:"Nan"`
+	Format            gocudnn.TensorFormat  `json:"Format"`
+	DataType          gocudnn.DataType      `json:"DataType"`
+	Nan               gocudnn.NANProp       `json:"Nan"`
 	Dims              []int32               `json:"Dims"`
 	Stride            []int32               `json:"Stride"`
 	RRM               []byte                `json:"RRM"`
@@ -54,22 +53,22 @@ func (o *Ops) Info() (Info, error) {
 		fmt.Println("Bytes Written rsv: ", rmmwritten)
 		return Info{}, err
 	}
-	dtype, dims, stride, err := o.bnsbmvd.GetDescrptor()
+	frmt, dtype, dims, stride, err := o.bnsbmvd.Get()
 
 	if err != nil {
 		return Info{}, err
 	}
-	frmt, err := o.bnsbmvd.GetFormat()
+	mode, err := o.op.Get()
 	if err != nil {
 		return Info{}, err
 	}
 	return Info{
 		Epsilon:  o.epsilon,
-		Mode:     o.mode,
-		DataType: cudnn.DataType(dtype),
+		Mode:     mode,
+		DataType: dtype,
 		Stride:   stride,
 		Dims:     dims,
-		Format:   cudnn.TensorFormat(frmt),
+		Format:   frmt,
 		RRM:      rrm,
 		RRV:      rrv,
 		RSV:      rsv,

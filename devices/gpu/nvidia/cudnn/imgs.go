@@ -6,14 +6,16 @@ import (
 	"image/color"
 	"runtime"
 	"sync"
+
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-func ToImagesColorFloat32(data []float32, dims []int32, frmt TensorFormat) ([][]image.Image, error) {
+func ToImagesColorFloat32(data []float32, dims []int32, frmt gocudnn.TensorFormat) ([][]image.Image, error) {
 	if len(dims) > 4 {
 		return nil, errors.New("Dims of 4 only supported")
 	}
 
-	var tf TensorFormatFlag
+	var tf gocudnn.TensorFormat
 
 	var conv []int
 
