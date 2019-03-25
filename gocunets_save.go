@@ -9,6 +9,7 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 
 	"github.com/dereklstinson/GoCuNets/utils"
 )
@@ -162,8 +163,8 @@ func getTensor(tensor *tensor.Volume) (Tensor, error) {
 	}, nil
 
 }
-func datatypetostring(dtype cudnn.DataType) (string, error) {
-	var flg cudnn.DataType
+func datatypetostring(dtype gocudnn.DataType) (string, error) {
+	var flg gocudnn.DataType
 	switch dtype {
 	case flg.Double():
 		return "Double", nil
@@ -179,9 +180,9 @@ func datatypetostring(dtype cudnn.DataType) (string, error) {
 	}
 	return "Unsupported", errors.New("Unsupported Datatype")
 }
-func stringtodatatype(dtype string) (cudnn.DataType, error) {
+func stringtodatatype(dtype string) (gocudnn.DataType, error) {
 	dtype = strings.ToUpper(dtype)
-	var flg cudnn.DataType
+	var flg gocudnn.DataType
 	switch dtype {
 	case "DOUBLE":
 		return flg.Double(), nil
@@ -194,7 +195,7 @@ func stringtodatatype(dtype string) (cudnn.DataType, error) {
 	case "UINT8":
 		return flg.UInt8(), nil
 	default:
-		return cudnn.DataType(9999999), errors.New("Unsupported String")
+		return gocudnn.DataType(9999999), errors.New("Unsupported String")
 	}
 }
 
@@ -220,8 +221,8 @@ func (val *Tensor) LoadTensor(handle *cudnn.Handler, t *tensor.Volume) error {
 	}
 	return err
 }
-func stringtoformat(frmt string) (cudnn.TensorFormat, error) {
-	var flgs cudnn.TensorFormatFlag
+func stringtoformat(frmt string) (gocudnn.TensorFormat, error) {
+	var flgs gocudnn.TensorFormat
 	frmt = strings.ToUpper(frmt)
 	switch frmt {
 	case "NCHW":
@@ -231,10 +232,10 @@ func stringtoformat(frmt string) (cudnn.TensorFormat, error) {
 	case "NCHWVECTC":
 		return flgs.NCHWvectC(), nil
 	}
-	return cudnn.TensorFormat(999999), errors.New("Unsupported string name")
+	return gocudnn.TensorFormat(999999), errors.New("Unsupported string name")
 }
-func formattostring(frmt cudnn.TensorFormat) (string, error) {
-	var flgs cudnn.TensorFormatFlag
+func formattostring(frmt gocudnn.TensorFormat) (string, error) {
+	var flgs gocudnn.TensorFormat
 	switch frmt {
 	case flgs.NCHW():
 		return "NCHW", nil

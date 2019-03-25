@@ -20,7 +20,7 @@ func (o *Ops) TransformForward(handle *cudnn.Handler, alpha, beta float64, x, y 
 		fmt.Println(h, hh, hhh, hhhh)
 		fmt.Println(g, gg, ggg, gggg)
 	*/
-	return gocudnn.Tensor{}.TransformTensor(handle.Cudnn(), alpha, x.TDStrided(), x.Memer(), beta, yhelper.desc, y.Memer())
+	return gocudnn.TransformTensor(handle.Cudnn(), alpha, x.TDStrided(), x.Memer(), beta, yhelper.desc, y.Memer())
 }
 
 //TransformBackward fills tensor x with the values of y to the best of its ability
@@ -36,7 +36,7 @@ func (o *Ops) TransformBackward(handle *cudnn.Handler, alpha, beta float64, x, y
 		fmt.Println(h, hh, hhh, hhhh)
 		fmt.Println(g, gg, ggg, gggg)
 	*/
-	return gocudnn.Tensor{}.TransformTensor(handle.Cudnn(), alpha, yhelper.desc, y.Memer(), beta, x.TDStrided(), x.Memer())
+	return gocudnn.TransformTensor(handle.Cudnn(), alpha, yhelper.desc, y.Memer(), beta, x.TDStrided(), x.Memer())
 }
 
 //TransFormHelper helps with the transform
@@ -44,11 +44,6 @@ type TransFormHelper struct {
 	desc   *gocudnn.TensorD
 	dims   []int32
 	stride []int32
-}
-
-//Destroy destroys the malloced memory made for the tensordescriptor inside the struct.
-func (t *TransFormHelper) Destroy() error {
-	return t.desc.DestroyDescriptor()
 }
 
 //Dims returns the dims for the descriptor
@@ -63,7 +58,14 @@ func (o *Ops) MakeTransformHelper(src, dest *tensor.Volume) (*TransFormHelper, e
 	dtype := src.TD().DataType()
 	destdims := dest.TD().Dims()
 	strides := utils.FindFittingStride(sdims, destdims)
-	stridedtensordescriptor, err := gocudnn.Tensor{}.NewTensor4dDescriptorEx(dtype, sdims, strides)
+	var fflg gocudnn.TensorFormat
+
+	stridedtensordescriptor, err := gocudnn.CreateTensorDescriptor()
+	if err != nil {
+		return nil, err
+	}
+	err = stridedtensordescriptor.Set(fflg.Strided(), dtype, sdims, strides)
+	//	stridedtensordescriptor, err := gocudnn.NewTensor4dDescriptorEx(dtype, sdims, strides)
 	if err != nil {
 		return nil, err
 	}

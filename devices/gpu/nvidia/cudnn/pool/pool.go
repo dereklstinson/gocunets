@@ -88,7 +88,7 @@ func (p *Ops) Forward(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.V
 }
 
 //BackWard does the backward propagation operation
-func (p *Ops) BackWard(handle *cudnn.Handler, alpha, beta float64, x, dx, y, dy *tensor.Volume) error {
+func (p *Ops) Backward(handle *cudnn.Handler, alpha, beta float64, x, dx, y, dy *tensor.Volume) error {
 
 	return p.desc.Backward(handle.Cudnn(), alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), beta, dx.TD(), dx.Memer())
 

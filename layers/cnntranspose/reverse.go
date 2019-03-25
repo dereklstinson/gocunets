@@ -47,8 +47,8 @@ func (l *Layer) Info() (Info, error) {
 //ReverseBuild sets up reverse version of cnn transpose
 //The output is determined by  -->  output = (slide *(input-1)) - (2*padding) + (((filter-1)*dilation)+1)
 func ReverseBuild(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad, //largestgains with no pad

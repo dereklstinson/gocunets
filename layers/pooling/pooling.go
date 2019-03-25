@@ -54,29 +54,8 @@ func (l *Layer) MakeOutputLayerInference(handle *cudnn.Handler, input *layers.IO
 }
 
 //SetupNoOutput will setup the pooling layer but not provide an output
-func SetupNoOutput(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32, managedmem bool) (*Layer, error) {
-	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &Layer{
-		pD: pD,
-		fwd: xtras{
-			alpha: 1.0,
-			beta:  0.0,
-		},
-		bwd: xtras{
-			alpha: 1.0,
-			beta:  0.0,
-		},
-	}, nil
-}
-
-//SetupDims will setup the pooling layer but not provide an output
-func SetupDims(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, numbofinputdims int, window, padding, stride []int32, managedmem bool) (*Layer, error) {
-	pD, err := pool.StageOpDims(mode, nan, numbofinputdims, window, padding, stride)
+func SetupNoOutput(mode gocudnn.PoolingMode, nan gocudnn.NANProp, window, padding, stride []int32, managedmem bool) (*Layer, error) {
+	pD, err := pool.StageOperation(mode, nan, window, padding, stride)
 
 	if err != nil {
 		return nil, err
@@ -96,8 +75,8 @@ func SetupDims(mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, numbofinput
 }
 
 //Setup setsup the pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
-func Setup(handle *cudnn.Handler, mode gocudnn.PoolingMode, nan gocudnn.PropagationNAN, input *layers.IO, window, padding, stride []int32) (*Layer, *layers.IO, error) {
-	pD, err := pool.StageOperation(mode, nan, input.T(), window, padding, stride)
+func Setup(handle *cudnn.Handler, mode gocudnn.PoolingMode, nan gocudnn.NANProp, input *layers.IO, window, padding, stride []int32) (*Layer, *layers.IO, error) {
+	pD, err := pool.StageOperation(mode, nan, window, padding, stride)
 
 	if err != nil {
 		return nil, nil, err
@@ -176,11 +155,11 @@ func (l *Layer) SetBwdScalars(alpha, beta float64) {
 
 //ForwardProp performs the pooling forward propigation
 func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.pD.FwdProp(handle, l.fwd.alpha, l.fwd.beta, x.T(), y.T())
+	return l.pD.Forward(handle, l.fwd.alpha, l.fwd.beta, x.T(), y.T())
 }
 
 //BackProp performs the pooling backward propigation
 func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.pD.BwdProp(handle, l.bwd.alpha, l.bwd.beta, x.T(), x.DeltaT(), y.T(), y.DeltaT())
+	return l.pD.Backward(handle, l.bwd.alpha, l.bwd.beta, x.T(), x.DeltaT(), y.T(), y.DeltaT())
 
 }

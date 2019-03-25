@@ -5,6 +5,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/GoCuNets/layers"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //MakeOutputTensor makes the output tensor of the layer
@@ -74,7 +75,7 @@ func (c *Layer) SetBestAlgosConsideringDims4d(handle *cudnn.Handler, x, y, w []i
 }
 
 //FilterProps returns the filter properties of the Convolution Layer
-func (c *Layer) FilterProps() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
+func (c *Layer) FilterProps() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
 	return c.w.Properties()
 }
 

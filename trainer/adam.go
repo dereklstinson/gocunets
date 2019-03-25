@@ -48,7 +48,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 	a.dims = dims
 	//DeFault := gocudnn.MemcpyKindFlag{}.Default()
 
-	var dflg cudnn.DataType
+	var dflg gocudnn.DataType
 	switch dtype {
 
 	case dflg.Float():
@@ -69,7 +69,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			return err
 		}
 		//asize := dimsize()
-		sizet := gocudnn.FindSizeTfromVol(dims, dtype.Cu())
+		sizet := gocudnn.FindSizeTfromVol(dims, dtype)
 
 		a.gsum, err = nvidia.MallocGlobal(han, sizet)
 		if err != nil {
@@ -249,7 +249,8 @@ func SetupAdamWandB2(handle *cudnn.Handler, rate, dwalpha, decay1, decay2 float3
 func SetupAdam(tctx *xtra.Handle, decay1, decay2 float32, batch int32) (*Adam, error) {
 
 	adam := xtra.TrainingModeFlag{}.Adam()
-	t, err := xtra.NewTrainingDescriptor(tctx, adam, gocudnn.DataTypeFlag{}.Float())
+	var dflt gocudnn.DataType
+	t, err := xtra.NewTrainingDescriptor(tctx, adam, dflt.Float())
 	if err != nil {
 		return nil, err
 	}

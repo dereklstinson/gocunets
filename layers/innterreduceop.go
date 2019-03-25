@@ -5,6 +5,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
@@ -40,7 +41,7 @@ func buildnorm2reduce(handle *cudnn.Handler, iomem *tensor.Volume) (*reduceop, e
 	return genericbuildreduceop(handle, rflg.ReduceMode.Norm2(), iomem)
 }
 
-func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tensor.Volume) (*reduceop, error) {
+func genericbuildreduceop(handle *cudnn.Handler, mode gocudnn.ReduceTensorOp, iomem *tensor.Volume) (*reduceop, error) {
 	rflg := reduce.Flags
 	frmt, dtype, dims, err := iomem.Properties()
 	if err != nil {
@@ -53,7 +54,7 @@ func genericbuildreduceop(handle *cudnn.Handler, mode reduce.OpMode, iomem *tens
 		reducedims[i] = 1
 	}
 
-	op, err := reduce.Stage(mode, dtype, rflg.NanProp.NoPropNAN(), rflg.IndFlag.NoIndices(), rflg.IndType.Type32Bit())
+	op, err := reduce.Stage(mode, dtype, rflg.NanProp.NotPropigate(), rflg.IndFlag.NoIndices(), rflg.IndType.Type32Bit())
 	if err != nil {
 		return nil, err
 	}

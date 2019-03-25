@@ -19,7 +19,7 @@ type Layer struct {
 	bwd                  Scalars
 	memmanaged           bool
 	updatable            bool
-	nanproped            gocudnn.PropagationNAN
+	nanproped            gocudnn.NANProp
 	threshandpreludims   []int32
 	posmin, posmax       float32
 	negmin, negmax       float32
@@ -49,14 +49,14 @@ type Scalars struct {
 const defaultalpha = float64(1)
 const defaultbeta = float64(0)
 const defaultcoef = float64(6)
-const defaultnanprop = cudnn.NanMode(0) //NotPropigateNAN
+const defaultnanprop = gocudnn.NANProp(0) //NotPropigateNAN
 const defaultleakycoef = float64(.01)
 
 //Setup takes default settings for coef (6) and NottPropNan. alpha =1 ,beta =0
 //You can change the values by using the Layer methods.
 //The way that alpha and beta work is this Y=(alpha *ActivationOp)+(beta*Y).
 //It's best to keep the defaults of alpha and beta, but you can values in the methods that Layer holds
-func setup(handle *cudnn.Handler, mode activation.Mode, nanproped cudnn.NanMode, af, bf, ab, bb, coef float64) (*Layer, error) {
+func setup(handle *cudnn.Handler, mode activation.Mode, nanproped gocudnn.NANProp, af, bf, ab, bb, coef float64) (*Layer, error) {
 
 	act, err := activation.Stage(handle, mode, nanproped, coef)
 	if err != nil {

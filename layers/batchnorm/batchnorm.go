@@ -59,7 +59,7 @@ type Settings struct {
 //PerActivationPreset will presetup some values for the batch norm PerActivation
 func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 	//	b, err := batchnorm.PreStagePerActivation(handle, managed)
-	var flg gocudnn.BatchNormModeFlag
+	var flg gocudnn.BatchNormMode
 	fw := abscalars{
 		a: alphaforwarddefault,
 		b: betaforwarddefault,
@@ -86,7 +86,7 @@ func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 //SpatialPreset will presetup some values for the batch norm Spatial Mode
 func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatial(handle, managed)
-	var flg gocudnn.BatchNormModeFlag
+	var flg gocudnn.BatchNormMode
 	fw := abscalars{
 		a: alphaforwarddefault,
 		b: betaforwarddefault,
@@ -115,7 +115,7 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 //SpatialPersistantPreset will presetup some values for the batch norm SpatialPersistantPreset Mode
 func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
-	var flg gocudnn.BatchNormModeFlag
+	var flg gocudnn.BatchNormMode
 	fw := abscalars{
 		a: alphaforwarddefault,
 		b: betaforwarddefault,

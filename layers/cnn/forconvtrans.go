@@ -15,8 +15,8 @@ import (
 
 //SetupReverse sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
 func SetupReverse(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -44,7 +44,7 @@ func SetupReverse(handle *cudnn.Handler,
 //ReverseForwardProp performs the ForwardProp
 func (c *Layer) ReverseForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 
-	err := c.conv.BwdPropData(
+	err := c.conv.BackwardData(
 		handle,
 		c.fwd.alpha,
 		c.w.T(),
@@ -91,7 +91,7 @@ func (c *Layer) ReverseBackPropData(handle *cudnn.Handler, wspace *nvidia.Malloc
 	if x.IsInput() == true {
 		return nil
 	}
-	err := c.conv.FwdProp(handle,
+	err := c.conv.Forward(handle,
 		c.bwdd.alpha,
 		y.DeltaT(), //x.T(),
 		c.w.T(),
@@ -109,7 +109,7 @@ func (c *Layer) ReverseBackPropData(handle *cudnn.Handler, wspace *nvidia.Malloc
 
 //ReverseBackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
 func (c *Layer) ReverseBackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	err := c.conv.BwdPropFilt(
+	err := c.conv.BackwardFilter(
 		handle,
 		c.bwdf.alpha,
 		y.DeltaT(), //x.T(),     ///This might need switched
@@ -121,7 +121,7 @@ func (c *Layer) ReverseBackPropFilter(handle *cudnn.Handler, wspace *nvidia.Mall
 		return utils.ErrorWrapper("Filter", err)
 	}
 
-	err = c.conv.BwdBias(
+	err = c.conv.BackwardBias(
 		handle,
 		c.bwdf.alpha,
 		y.DeltaT(), //	y.DeltaT(),
@@ -187,8 +187,8 @@ func (c *Layer) MakeReverseOutputTensorInference(handle *cudnn.Handler, input *l
 	return output, nil
 }
 
-func findreverse4doutputdims(x, w, padding, stride, dilation []int32, frmt cudnn.TensorFormat) []int32 {
-	var flag cudnn.TensorFormatFlag
+func findreverse4doutputdims(x, w, padding, stride, dilation []int32, frmt gocudnn.TensorFormat) []int32 {
+	var flag gocudnn.TensorFormat
 	if frmt == flag.NCHW() {
 		return findreverse4doutputdims4dNCHW(x, w, padding, stride, dilation)
 	}
@@ -224,8 +224,8 @@ func findreverseoutputdim(x, w, s, p, d int32) int32 {
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetupreverse(
 	handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,

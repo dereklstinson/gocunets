@@ -9,7 +9,7 @@ import (
 
 //ForwardProp performs the ForwardProp
 func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	err := c.conv.FwdProp(handle, c.fwd.alpha,
+	err := c.conv.Forward(handle, c.fwd.alpha,
 		x.T(),
 		c.w.T(),
 		wspace,
@@ -44,7 +44,7 @@ func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, 
 	if x.IsInput() == true {
 		return nil
 	}
-	return c.conv.BwdPropData(
+	return c.conv.BackwardData(
 		handle,
 		c.bwdd.alpha,
 		c.w.T(),
@@ -58,7 +58,7 @@ func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, 
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
 func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	err := c.conv.BwdPropFilt(
+	err := c.conv.BackwardFilter(
 		handle,
 		c.bwdf.alpha,
 		x.T(),
@@ -70,7 +70,7 @@ func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x
 		return utils.ErrorWrapper("Filter", err)
 	}
 
-	err = c.conv.BwdBias(
+	err = c.conv.BackwardBias(
 		handle,
 		c.bwdf.alpha,
 		y.DeltaT(),

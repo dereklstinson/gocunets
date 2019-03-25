@@ -28,7 +28,7 @@ type Layer struct {
 	fwd        xtras
 	bwdd       xtras
 	bwdf       xtras
-	datatype   cudnn.DataType
+	datatype   gocudnn.DataType
 	train      trainer.Trainer
 	btrain     trainer.Trainer
 	pad        []int32
@@ -113,8 +113,8 @@ func (c *Layer) OutputDims(inputdims []int32) []int32 {
 
 //Setup sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
 func Setup(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -186,8 +186,8 @@ func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, see
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetup(
 	handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
@@ -289,8 +289,8 @@ func (c *Layer) SetBwdFilterScalars(alpha, beta float64) {
 	c.bwdf.alpha, c.bwdf.beta = alpha, beta
 }
 
-func find4doutputdims(x, w, padding, stride, dilation []int32, frmt cudnn.TensorFormat) []int32 {
-	var flag cudnn.TensorFormatFlag
+func find4doutputdims(x, w, padding, stride, dilation []int32, frmt gocudnn.TensorFormat) []int32 {
+	var flag gocudnn.TensorFormat
 	if frmt == flag.NCHW() {
 		return find4doutputdims4dNCHW(x, w, padding, stride, dilation)
 	}

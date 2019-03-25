@@ -13,9 +13,9 @@ func (l *Layer) getshapetobatchio(handle *cudnn.Handler, x *layers.IO, input boo
 		return nil, err
 	}
 	if input == false {
-		return layers.BuildIO(handle, cudnn.TensorFormat(yfrmt), cudnn.DataType(ydtype), dims)
+		return layers.BuildIO(handle, (yfrmt), (ydtype), dims)
 	}
-	return layers.BuildNetworkInputIO(handle, cudnn.TensorFormat(yfrmt), cudnn.DataType(ydtype), dims)
+	return layers.BuildNetworkInputIO(handle, (yfrmt), (ydtype), dims)
 }
 
 //GetShapetoBatchIO will return the output IO for the S2B op.
@@ -24,7 +24,7 @@ func (l *Layer) getshapetobatchioinference(handle *cudnn.Handler, x *layers.IO, 
 	if err != nil {
 		return nil, err
 	}
-	return layers.BuildInferenceIO(handle, cudnn.TensorFormat(yfrmt), cudnn.DataType(ydtype), dims)
+	return layers.BuildInferenceIO(handle, (yfrmt), (ydtype), dims)
 }
 
 //SpaceToBatchForwardProp does the forwardpropagation

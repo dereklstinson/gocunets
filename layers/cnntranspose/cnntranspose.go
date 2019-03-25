@@ -91,8 +91,8 @@ func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilt
 
 //Transform sets up a transform version of cnn transpose
 func build(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	upscaleddims []int32, //UpscaledDims will be the dims of the input before the convolution
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,

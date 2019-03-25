@@ -76,6 +76,8 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.I
 
 	return nil, errors.New("Layer doesn't support mode passed")
 }
+
+//MakeOutputTensorInference makes the output tensor for inference
 func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, x *layers.IO) (*layers.IO, error) {
 	var lmf ModeFlag
 	switch l.mode {

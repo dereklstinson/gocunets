@@ -7,10 +7,11 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/activation"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/utils"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Threshhold returns an activation layer set to AdvancedThreshRandRelu
-func Threshhold(handle *cudnn.Handler, dtype cudnn.DataType, minneg, maxneg, minthresh, maxthresh, minpos, maxpos float32, managedmem bool) (*Layer, error) {
+func Threshhold(handle *cudnn.Handler, dtype gocudnn.DataType, minneg, maxneg, minthresh, maxthresh, minpos, maxpos float32, managedmem bool) (*Layer, error) {
 
 	var flg activation.ModeFlag
 

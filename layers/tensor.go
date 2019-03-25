@@ -29,11 +29,11 @@ type IO struct {
 
 //Settings contains the info that is needed to build an IO
 type Settings struct {
-	Dims     []int32                `json:"dims,omitempty"`
-	Managed  bool                   `json:"managed,omitempty"`
-	Format   gocudnn.TensorFormat   `json:"format,omitempty"`
-	DataType gocudnn.DataType       `json:"data_type,omitempty"`
-	NanProp  gocudnn.PropagationNAN `json:"nan_prop,omitempty"`
+	Dims     []int32              `json:"dims,omitempty"`
+	Managed  bool                 `json:"managed,omitempty"`
+	Format   gocudnn.TensorFormat `json:"format,omitempty"`
+	DataType gocudnn.DataType     `json:"data_type,omitempty"`
+	NanProp  gocudnn.NANProp      `json:"nan_prop,omitempty"`
 }
 
 //Info is a struct that contains all the information to build an IO struct
@@ -199,7 +199,7 @@ func findvol(dims []int32) int {
 }
 
 //Properties returns the tensorformat, datatype and a slice of dims that describe the tensor
-func (i *IO) Properties() (cudnn.TensorFormat, cudnn.DataType, []int32, error) {
+func (i *IO) Properties() (gocudnn.TensorFormat, gocudnn.DataType, []int32, error) {
 	return i.x.Properties()
 }
 
@@ -287,39 +287,39 @@ func (i *IO) ZeroClone(handle *cudnn.Handler) (*IO, error) {
 }
 
 //BuildIOWeightsT builds The IOweights
-func BuildIOWeightsT(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+func BuildIOWeightsT(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, true, true)
 }
 
 //BuildIOWeights builds the weights for the IO
-func BuildIOWeights(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+func BuildIOWeights(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, false, true)
 }
 
 //BuildIO builds a regular IO with both a T tensor and a DeltaT tensor
-func BuildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+func BuildIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 
 	return buildIO(handle, frmt, dtype, dims, false, false)
 }
 
 //BuildNormRandIO builds a regular IO with both a T tensor and a DeltaT tensor.  But the T tensor is randomized
-func BuildNormRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
+func BuildNormRandIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
 	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, false, false)
 
 }
 
 //BuildStaticRandInputIO builds a fix sized input
-func BuildStaticRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
+func BuildStaticRandInputIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
 	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true, true)
 
 }
 
 //BuildNormRandInputIO builds a regular IO but the input is set to nil
-func BuildNormRandInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
+func BuildNormRandInputIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
 	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true, false)
 
 }
-func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, mean, std float32, seed uint64, input, static bool) (*IO, error) {
+func buildRandIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64, input, static bool) (*IO, error) {
 	if input {
 
 		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, static)
@@ -352,7 +352,7 @@ func buildRandIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.Dat
 }
 
 //BuildNetworkInputHost build the input tensor to paged memory on host ram
-func BuildNetworkInputHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+func BuildNetworkInputHost(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 	x, err := tensor.BuildtoCudaHost(handle, frmt, dtype, dims)
 	if err != nil {
 		return nil, err
@@ -367,7 +367,7 @@ func BuildNetworkInputHost(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype
 
 //BuildNetworkInputIO builds an input IO which is an IO with DeltaT() set to nil. This is used for the input or the output of a network.
 //If it is the output of a network in training. Then DeltaT will Need to be loaded with the labeles between batches.
-func BuildNetworkInputIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+func BuildNetworkInputIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, true, false)
 }
 
@@ -391,12 +391,12 @@ func (i *IO) ResizeIO(handle *cudnn.Handler, dims []int32) error {
 }
 
 //BuildInferenceIO builds an IO used for only inference.  It doesn't contain a tensor for the errors.
-func BuildInferenceIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32) (*IO, error) {
+func BuildInferenceIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, true, false)
 }
 
 //BuildNetworkOutputIOFromSlice will return IO with the slice put into the DeltaT() section of the IO
-func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, slice []float32) (*IO, error) {
+func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, slice []float32) (*IO, error) {
 
 	chkr := int32(1)
 	for i := 0; i < len(dims); i++ {
@@ -421,7 +421,7 @@ func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt cudnn.TensorForma
 	return newio, err
 }
 
-func buildIO(handle *cudnn.Handler, frmt cudnn.TensorFormat, dtype cudnn.DataType, dims []int32, input, weights bool) (*IO, error) {
+func buildIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, input, weights bool) (*IO, error) {
 
 	if input {
 		if weights {
