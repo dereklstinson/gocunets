@@ -14,6 +14,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/reshapes"
 	"github.com/dereklstinson/GoCuNets/layers" //	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
 	"github.com/dereklstinson/GoCuNets/utils"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/nfnt/resize"
 )
 
@@ -79,7 +80,7 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 	if err != nil {
 		return nil, err
 	}
-	var dflg cudnn.DataType
+	var dflg gocudnn.DataType
 	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
@@ -155,7 +156,7 @@ func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstr
 	if err != nil {
 		return nil, nil, err
 	}
-	var dflg cudnn.DataType
+	var dflg gocudnn.DataType
 	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
@@ -240,7 +241,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 	if err != nil {
 		return nil, err
 	}
-	var dflg cudnn.DataType
+	var dflg gocudnn.DataType
 	vol := utils.FindVolumeInt32(dims, nil)
 	var z []float32
 	switch dtype {
@@ -308,12 +309,12 @@ func converttofloat32(input interface{}) []float32 {
 	return nil
 }
 
-func makeimage(data []float32, dims []int32, frmt cudnn.TensorFormat) (image.Image, error) {
+func makeimage(data []float32, dims []int32, frmt gocudnn.TensorFormat) (image.Image, error) {
 	unNormalize(data)
 	if len(data) != int(utils.FindVolumeInt32(dims, nil)) {
 		return nil, errors.New("Volume Size doesn't Match intput size")
 	}
-	var fflag cudnn.TensorFormatFlag
+	var fflag gocudnn.TensorFormat
 	var h int
 	var w int
 	var c int

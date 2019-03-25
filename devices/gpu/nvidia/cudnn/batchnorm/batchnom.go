@@ -82,12 +82,13 @@ func (o *Ops) Free() error {
 //This mode is intended for use after convolutional layers (where spatial invariance is desired).
 //In this mode the bnBias, bnScale tensor dimensions are 1xCx1x1.
 func PreStageSpatial(handle *cudnn.Handler) (*Ops, error) {
+
+	ops := new(Ops)
 	var x gocudnn.BatchNormMode
-	op := gocudnn.CreateBatchNormDescriptor()
-	op.Set(x.Spatial())
-	return &Ops{
-		op: op,
-	}, nil
+	ops.op = gocudnn.CreateBatchNormDescriptor()
+	err := ops.op.Set(x.Spatial())
+	return ops, err
+
 }
 
 /*PreStageSpatialPersistant - similar to spatial but can be faster
@@ -106,51 +107,50 @@ For finite but very large input values, the algorithm may encounter overflows mo
 The user can invoke cudnnQueryRuntimeError() to check if a numerical overflow occurred in this mode.
 */
 func PreStageSpatialPersistant(handle *cudnn.Handler) (*Ops, error) {
+
+	ops := new(Ops)
 	var x gocudnn.BatchNormMode
-	op := gocudnn.CreateBatchNormDescriptor()
-	op.Set(x.SpatialPersistent())
-	return &Ops{
-		op: op,
-	}, nil
+	ops.op = gocudnn.CreateBatchNormDescriptor()
+	err := ops.op.Set(x.SpatialPersistent())
+	return ops, err
 
 }
 
 //PreStagePerActivation Normalization is performed per-activation. This mode is intended to be used after non-convolutional network layers.
 //In this mode the tensor dimensions of bnBias and bnScale, the parameters used in the cudnnBatchNormalization* functions, are 1xCxHxW.
-func PreStagePerActivation(handle *cudnn.Handler, managed bool) (*Ops, error) {
+func PreStagePerActivation(handle *cudnn.Handler) (*Ops, error) {
+	ops := new(Ops)
 	var x gocudnn.BatchNormMode
-	op := gocudnn.CreateBatchNormDescriptor()
-	op.Set(x.PerActivation())
-	return &Ops{
-		op: op,
-	}, nil
+	ops.op = gocudnn.CreateBatchNormDescriptor()
+	err := ops.op.Set(x.PerActivation())
+	return ops, err
 
 }
 
 //Stage will stage the o Ops from the prestaged function
-func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) error {
+func (o *Ops) Stage(handle *cudnn.Handler, x *tensor.Volume) (err error) {
 
-	bnd, err := o.op.DeriveBNTensorDescriptor(x.TD())
-	o.bnsbmvd = bnd
+	o.bnsbmvd, err = o.op.DeriveBNTensorDescriptor(x.TD())
 	if err != nil {
 		return err
 	}
-	o.rrm, err = buildfromdesc(handle, bnd)
-	if err != nil {
 
-		return err
-	}
-	o.rrv, err = buildfromdesc(handle, bnd)
+	o.rrm, err = buildfromdesc(handle, o.bnsbmvd)
 	if err != nil {
 
 		return err
 	}
-	o.rsm, err = buildfromdesc(handle, bnd)
+	o.rrv, err = buildfromdesc(handle, o.bnsbmvd)
 	if err != nil {
 
 		return err
 	}
-	o.rsv, err = buildfromdesc(handle, bnd)
+	o.rsm, err = buildfromdesc(handle, o.bnsbmvd)
+	if err != nil {
+
+		return err
+	}
+	o.rsv, err = buildfromdesc(handle, o.bnsbmvd)
 	if err != nil {
 
 		return err
@@ -163,6 +163,7 @@ func (o *Ops) BiasScaleProperties() (gocudnn.TensorFormat, gocudnn.DataType, []i
 	return (o.bnsbmvd.Format()), (o.bnsbmvd.DataType()), o.bnsbmvd.Dims()
 }
 
+/*
 //Stage stages the bachnorm op. It also builds the memory for it so you don't have to worry about it.
 func Stage(handle *cudnn.Handler,
 	x *tensor.Volume,
@@ -207,7 +208,7 @@ func Stage(handle *cudnn.Handler,
 	}, nil
 
 }
-
+*/
 //ForwardTraining is used for the forward training
 func (o *Ops) ForwardTraining(handle *cudnn.Handler,
 	alpha,

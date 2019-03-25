@@ -11,10 +11,10 @@ import (
 )
 
 //ImageToNppi Converts an jpeg.Image to a npp.type with its npp.Size
-func ImageToNppi(imgs *jpeg.Image) ([]*npp.Uint8, []npp.Size) {
-	chans := imgs.GetChannels()
-	planar := make([]*npp.Uint8, len(chans))
-	sizes := make([]npp.Size, len(chans))
+func ImageToNppi(img *jpeg.Image) (planar []*npp.Uint8, sizes []npp.Size) {
+	chans := img.GetChannels()
+	planar = make([]*npp.Uint8, len(chans))
+	sizes = make([]npp.Size, len(chans))
 	for i := range chans {
 		planar[i] = (*npp.Uint8)(chans[i].Ptr.Ptr())
 		sizes[i].Set(chans[i].Height, chans[i].Pitch)
@@ -30,6 +30,35 @@ type BatchMaker struct {
 	length   int
 }
 
+func convertNppitoNppsCHW(channel []*npp.Uint8, sizes []npp.Size, mem *npp.Uint8) (n uint, err error) {
+
+	var destoffset, srcsize uint
+
+	for i := range sizes {
+		h, w := sizes[i].Get()
+		srcsize = uint(h * w)
+		destoffset = srcsize * uint(i)
+
+		err = nvidia.Memcpy(gocu.Offset(mem, (destoffset)), channel[i], srcsize)
+		if err != nil {
+			return n, err
+		}
+		n += srcsize
+	}
+	return n, nil
+}
+func convertsCHWstoNCHW(srcs []*npp.Uint8, srcsSIBs []uint, dest *npp.Uint8) (n uint, err error) {
+	var destoffset uint
+	for i := range srcs {
+		destoffset = srcsSIBs[i] * uint(i)
+		err = nvidia.Memcpy(gocu.Offset(dest, destoffset), srcs[i], srcsSIBs[i])
+		if err != nil {
+			return n, err
+		}
+		n += srcsSIBs[i]
+	}
+	return n, nil
+}
 func convertNppitoNppsNCHW(channels [][]*npp.Uint8, sizes [][]npp.Size, mem *npp.Uint8) error {
 	coffsets := make([][]int, 0)
 	boffsets := make([]int, 0)

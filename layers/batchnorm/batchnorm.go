@@ -31,7 +31,6 @@ type Layer struct {
 	af                     float64
 	counter                uint64
 	countermax             uint64
-	mode                   gocudnn.BatchNormMode
 	managed                bool
 	scaletrain             trainer.Trainer
 	biastrain              trainer.Trainer
@@ -59,7 +58,7 @@ type Settings struct {
 //PerActivationPreset will presetup some values for the batch norm PerActivation
 func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 	//	b, err := batchnorm.PreStagePerActivation(handle, managed)
-	var flg gocudnn.BatchNormMode
+
 	fw := abscalars{
 		a: alphaforwarddefault,
 		b: betaforwarddefault,
@@ -72,13 +71,16 @@ func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 		a: alphabackwardparamdefault,
 		b: betabackwardparamdefault,
 	}
+	op, err := batchnorm.PreStagePerActivation(handle)
+	if err != nil {
+		return nil, err
+	}
 	return &Layer{
-
+		b:          op,
 		fw:         fw,
 		bwp:        bwp,
 		bwd:        bwd,
 		eps:        float64(1e-5),
-		mode:       flg.PerActivation(),
 		countermax: trainingfactoringlimit,
 	}, nil
 }
@@ -86,7 +88,7 @@ func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 //SpatialPreset will presetup some values for the batch norm Spatial Mode
 func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatial(handle, managed)
-	var flg gocudnn.BatchNormMode
+
 	fw := abscalars{
 		a: alphaforwarddefault,
 		b: betaforwarddefault,
@@ -99,13 +101,16 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		a: alphabackwardparamdefault,
 		b: betabackwardparamdefault,
 	}
+	op, err := batchnorm.PreStageSpatial(handle)
+	if err != nil {
+		return nil, err
+	}
 	return &Layer{
-		//b:    b,
+		b:          op,
 		fw:         fw,
 		bwp:        bwp,
 		bwd:        bwd,
 		eps:        float64(1e-5),
-		mode:       flg.Spatial(),
 		managed:    managed,
 		countermax: trainingfactoringlimit,
 	}, nil
@@ -115,7 +120,7 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 //SpatialPersistantPreset will presetup some values for the batch norm SpatialPersistantPreset Mode
 func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
-	var flg gocudnn.BatchNormMode
+
 	fw := abscalars{
 		a: alphaforwarddefault,
 		b: betaforwarddefault,
@@ -128,13 +133,16 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 		a: alphabackwardparamdefault,
 		b: betabackwardparamdefault,
 	}
+	op, err := batchnorm.PreStageSpatialPersistant(handle)
+	if err != nil {
+		return nil, err
+	}
 	return &Layer{
-
+		b:          op,
 		fw:         fw,
 		bwp:        bwp,
 		bwd:        bwd,
 		eps:        float64(1e-5),
-		mode:       flg.SpatialPersistent(),
 		managed:    managed,
 		countermax: trainingfactoringlimit,
 	}, nil
@@ -157,16 +165,13 @@ func (l *Layer) Trainers() (scale, bias trainer.Trainer) {
 }
 
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
-func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) error {
+func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) (err error) {
 
-	var err error
-
-	l.b, err = batchnorm.Stage(handle, x.T(), l.mode)
+	err = l.b.Stage(handle, x.T())
 	if err != nil {
 		fmt.Println("Err in stage batch norm")
 		return err
 	}
-
 	frmt, dtype, dims := l.b.BiasScaleProperties()
 	l.bias, err = layers.BuildIOWeights(handle, frmt, dtype, dims)
 	if err != nil {
