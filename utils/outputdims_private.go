@@ -11,18 +11,6 @@ type xwcombo struct {
 	minoutval int32
 }
 
-func makedimpaths(wx, wy []int32, ww [][]int32) (dimpaths []dimpathxtoy) {
-	dimpaths = make([]dimpathxtoy, len(wx))
-	for i := range dimpaths {
-		dimpaths[i].x = wx[i]
-		dimpaths[i].y = wy[i]
-		dimpaths[i].path = make([]int32, len(ww))
-		for j := range ww {
-			dimpaths[i].path[j] = ww[j][i]
-		}
-	}
-	return dimpaths
-}
 func findworkingpathvalues(x, y []int32, w [][]int32, NCHW bool) (wx, wy []int32, ww [][]int32) {
 	convoptions := len(x) - 2
 	wx = make([]int32, convoptions)
