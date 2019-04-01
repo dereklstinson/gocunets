@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"sync"
 )
 
 type ConvolutionCombo struct {
@@ -101,22 +102,39 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 	dimpaths := makedimpaths(wx, wy, ww)
 	workingoutputs := make([]int32, len(wx))
 	dimpathlayers := make([][]dimlayer, len(wx))
-
+	var wg sync.WaitGroup
+	errchans := make([]chan error, len(wx))
 	for i, dim := range dimpaths {
+		errchans[i] = make(chan error, 1)
+		errchan := errchans[i]
+		wg.Add(1)
+		go func(i int, dim dimpath, errchan chan error) {
 
-		var err error
-		output, dpath, err := reasonablepath(dim.x, dim.y, minp, maxs, maxd, dim.path, favordilation)
-		if err != nil {
-			fmt.Println("Doing Recursive Reason")
-			output1, dpath1, err2 := recursivenotreason(dim.x, dim.y, 0, maxs, maxd, dpath)
-			//	fmt.Println(output1, dpath1)
-			if err2 != nil {
-				return nil, errors.New("no path found")
+			var err error
+			output, dpath, err := reasonablepath(dim.x, dim.y, minp, maxs, maxd, dim.path, favordilation)
+			if err != nil {
+				fmt.Println("Doing Recursive Reason")
+				output1, dpath1, err2 := recursivenotreason(dim.x, dim.y, 0, maxs, maxd, dpath)
+				fmt.Println(output1)
+				if err2 != nil {
+					errchan <- errors.New("no path found")
+				}
+				workingoutputs[i], dimpathlayers[i] = output1, dpath1
+				//fmt.Printf("\n")
+			} else {
+				workingoutputs[i], dimpathlayers[i] = output, dpath
 			}
-			workingoutputs[i], dimpathlayers[i] = output1, dpath1
-			//fmt.Printf("\n")
-		} else {
-			workingoutputs[i], dimpathlayers[i] = output, dpath
+			close(errchan)
+			wg.Done()
+
+		}(i, dim, errchan)
+	}
+	wg.Wait()
+	for _, errchan := range errchans {
+		for err := range errchan {
+			if err != nil {
+				return nil, err
+			}
 		}
 
 	}
@@ -175,9 +193,9 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 	closestdist := int32(9999999)
 	closestchecker := int32(0)
 	if favordilation {
-		for i := minp; i <= smallestmaxp; i++ {
-			for j := int32(1); j <= smallestmaxd; j++ {
-				for k := int32(1); k <= smallestmaxs; k++ {
+		for i := smallestmaxp; i >= minp; i-- {
+			for j := smallestmaxd; j >= int32(1); j-- {
+				for k := smallestmaxs; k >= int32(1); k-- {
 					output = x
 					for l := range dimlayers {
 						dimlayers[l].set(i, j, k)
@@ -204,9 +222,9 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 			}
 		}
 	} else {
-		for i := minp; i <= smallestmaxp; i++ {
-			for j := int32(1); j <= smallestmaxs; j++ {
-				for k := int32(1); k <= smallestmaxd; k++ {
+		for i := smallestmaxp; i >= minp; i-- {
+			for j := smallestmaxs; j >= int32(1); j-- {
+				for k := smallestmaxd; k >= int32(1); k-- {
 					output = x
 					for l := range dimlayers {
 						dimlayers[l].set(i, k, j)
@@ -294,28 +312,21 @@ func recursivenotreason(x, y, index int32, stridemax, dilmax int32, reasonable [
 	maxd := maxdilation(x, w, maxp, stridemax)
 	maxs := maxstride(x, w, maxp, maxd, dilmax)
 
-	for k := int32(1); k <= maxs; k++ {
-		for i := int32(0); i <= maxp; i++ {
-			for j := int32(1); j <= maxd; j++ {
+	for j := maxd; j >= int32(1); j-- {
+		for k := maxs; k >= int32(1); k-- {
+			for i := maxp; i >= int32(0); i-- {
 				dimslayer[index].set(i, j, k)
 				output = dimslayer[index].out(x)
-
-				/*	if output == y && index == int32(len(reasonable)-1) {
-						return output, dimslayer, nil
-					}
-				*/
 				for l := index + 1; l < int32(len(reasonable)); l++ {
 					if output < 0 {
-						//		fmt.Println("Break")
 						break
 					}
 					output = dimslayer[l].out(output)
-
 				}
 				if output == y {
 					return output, dimslayer, nil
 				} else if output != y && output != -1 {
-					if index != int32(len(reasonable)-1) {
+					if index < int32(len(reasonable)-1) {
 						op, dl, err := recursivenotreason(output, y, index+1, stridemax, dilmax, reasonable)
 						if err == nil {
 							output, dimslayer = op, dl

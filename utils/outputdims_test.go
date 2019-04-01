@@ -49,19 +49,17 @@ func TestFindReasonAbleCombosForPath(t *testing.T) {
 	y := []int32{10, 10, 1, 1}
 	xs := [][]int32{
 		{10, 3, 32, 32},
-		{10, 3, 64, 64},
+		//	{10, 3, 64, 64},
 		//	{10, 3, 128, 128},
 	}
 	layers := [][]int32{
 		{20, 3, 5, 5},
-		{20, 20, 5, 5},
-		{20, 20, 5, 5},
-		{20, 20, 5, 5},
-		{20, 20, 5, 5},
+		{20, 20, 7, 7},
+		{20, 20, 9, 9},
 		{20, 20, 5, 5},
 	}
 	for i := range xs {
-		vals, err := FindReasonAbleCombosForPath(xs[i], y, layers, true, 0, 2, 2, true)
+		vals, err := FindReasonAbleCombosForPath(xs[i], y, layers, true, 0, -1, -1, true)
 		t.Error(vals)
 		if err != nil {
 			t.Error(err)
