@@ -397,7 +397,7 @@ func (m *Network) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x,
 
 	err = m.layer[lnum-1].forwardprop(handle, wspace, m.training.mem[lnum-2], y)
 	if err != nil {
-
+		fmt.Println("Dims for y and output", y.T().Dims)
 		return wraperror("forward index:"+strconv.Itoa(lnum-1), err)
 	}
 	return nil

@@ -342,7 +342,9 @@ func (l *layer) getoutputdims(handle *cudnn.Handler, input *layers.IO) ([]int32,
 func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 
 	if l.cnn != nil {
+
 		io, err := l.cnn.MakeOutputTensor(handle, input)
+		fmt.Println("DIMS Regular", io.T().Dims())
 		if err != nil {
 			fmt.Println("Error in CNN Make Output Tensor input is:", input)
 		}
@@ -392,6 +394,7 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 	}
 	if l.cnntranspose != nil {
 		io, err := l.cnntranspose.MakeOutputTensor(handle, input)
+		fmt.Println("DIMS Reverse", io.T().Dims())
 		if err != nil {
 			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
 		}
