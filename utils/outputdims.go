@@ -96,12 +96,12 @@ func makedimpaths(wx, wy []int32, ww [][]int32) (dimpaths []dimpath) {
 }
 
 //FindReasonAbleCombosForPath not operational
-func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp, maxs, maxd int32, favordilation bool) (css []ConvolutionSettings, err error) {
+func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp, maxs, maxd int32, favordilation bool) (cssc [][]ConvolutionSettings, err error) {
 	fmt.Println("Starting")
 	wx, wy, ww := findworkingpathvalues(x, y, layers, NCHW)
 	dimpaths := makedimpaths(wx, wy, ww)
-	workingoutputs := make([]int32, len(wx))
-	dimpathlayers := make([][]dimlayer, len(wx))
+	workingoutputs := make([][]int32, len(wx))
+	dimpathlayers := make([][][]dimlayer, len(wx))
 	var wg sync.WaitGroup
 	errchans := make([]chan error, len(wx))
 	for i, dim := range dimpaths {
@@ -113,16 +113,26 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 			var err error
 			output, dpath, err := reasonablepath(dim.x, dim.y, minp, maxs, maxd, dim.path, favordilation)
 			if err != nil {
+				var err2 error
 				fmt.Println("Doing Recursive Reason")
-				output1, dpath1, err2 := recursivenotreason(dim.x, dim.y, 0, maxs, maxd, dpath)
-				fmt.Println(output1)
+				outputs := make([]int32, 0)
+				dpaths := make([][]dimlayer, 0)
+				outputs, dpaths, err2 = recursivenotreason(dim.x, dim.y, 0, maxs, maxd, dpath, outputs, dpaths)
+				fmt.Println(outputs)
 				if err2 != nil {
 					errchan <- errors.New("no path found")
 				}
-				workingoutputs[i], dimpathlayers[i] = output1, dpath1
-				//fmt.Printf("\n")
+				if len(outputs) != len(dpaths) {
+					panic("outputs and dpaths should have been equal")
+				}
+
+				workingoutputs[i], dimpathlayers[i] = outputs, dpaths
+				dimpathlayers[i] = dpaths
+
 			} else {
-				workingoutputs[i], dimpathlayers[i] = output, dpath
+				workingoutputs[i], dimpathlayers[i] = make([]int32, 1), make([][]dimlayer, 1)
+				workingoutputs[i][0], dimpathlayers[i][0] = output, dpath
+
 			}
 			close(errchan)
 			wg.Done()
@@ -138,23 +148,37 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 		}
 
 	}
-	wlayers := make([]workinglayer, len(layers))
-	for i := range wlayers {
-		wlayers[i] = createworkinglayer()
-	}
+	wlayerscombo := make([][]workinglayer, 0)
 
-	for i := range wlayers {
-		for j := range dimpathlayers {
-			wlayers[i].append(dimpathlayers[j][i])
+	for h := range dimpathlayers {
+
+		for k := range dimpathlayers[h] {
+			wlayer := make([]workinglayer, len(layers))
+			for i := range wlayer {
+				wlayer[i] = createworkinglayer()
+			}
+
+			for i := 0; i < len(layers); i++ {
+				for j := range dimpathlayers {
+					wlayer[i].append(dimpathlayers[j][k][i])
+				}
+			}
+			wlayerscombo = append(wlayerscombo, wlayer)
 		}
 
 	}
-	css = make([]ConvolutionSettings, len(layers))
-	for i := range css {
 
-		css[i] = createconvolutionsettings(wlayers[i].get())
+	cssc = make([][]ConvolutionSettings, len(wlayerscombo))
+	for i := range cssc {
+		css := make([]ConvolutionSettings, len(layers))
+		for j := range css {
+
+			css[j] = createconvolutionsettings(wlayerscombo[i][j].get())
+		}
+		cssc[i] = css
 	}
-	return css, nil
+
+	return cssc, nil
 }
 
 //reasonablepath tries to find a path where all the layers share the same pad, stride and dim. The deeper the network the more likely this is to work.
@@ -304,43 +328,69 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 	}
 	return output, closestdimlayers, errors.New("Couldn't find anything")
 }
-func recursivenotreason(x, y, index int32, stridemax, dilmax int32, reasonable []dimlayer) (output int32, dimslayer []dimlayer, err error) {
+
+/*
+func notreasoablebackwards(x,y, stridemax,dilmax int32, current []dimlayer)(int32, []dimlayer,error){
+	po:=x
+	for i:=range current{
+	w:=	current[i].w
+		maxp:=maxpad(w-1)
+		maxd:=maxdilation(po,w,maxp,stridemax)
+		maxs := maxstride(po, w, maxp, maxd, dilmax)
+		for k := maxs; k >= int32(1); k-- {
+			for j := maxd; j >= int32(1); j-- {
+				for i := maxp; i >= int32(0); i-- {
+					current[i].set(i,j,k)
+	}
+}
+*/
+func recursivenotreason(x, y, index int32, stridemax, dilmax int32, current []dimlayer, louts []int32, ldimlayers [][]dimlayer) ([]int32, [][]dimlayer, error) {
 	//	fmt.Printf("%d ,", index)
-	dimslayer = copydimslayer(reasonable)
-	w := dimslayer[index].w
+	w := current[index].w
 	maxp := maxpad(w, -1)
 	maxd := maxdilation(x, w, maxp, stridemax)
 	maxs := maxstride(x, w, maxp, maxd, dilmax)
+	var noterrorflag bool
 
-	for j := maxd; j >= int32(1); j-- {
-		for k := maxs; k >= int32(1); k-- {
+	for k := maxs; k >= int32(1); k-- {
+		for j := maxd; j >= int32(1); j-- {
 			for i := maxp; i >= int32(0); i-- {
-				dimslayer[index].set(i, j, k)
-				output = dimslayer[index].out(x)
-				for l := index + 1; l < int32(len(reasonable)); l++ {
-					if output < 0 {
-						break
-					}
-					output = dimslayer[l].out(output)
-				}
-				if output == y {
-					return output, dimslayer, nil
-				} else if output != y && output != -1 {
-					if index < int32(len(reasonable)-1) {
-						op, dl, err := recursivenotreason(output, y, index+1, stridemax, dilmax, reasonable)
-						if err == nil {
-							output, dimslayer = op, dl
-							return output, dimslayer, err
+				current[index].set(i, j, k)
+				output := current[index].out(x)
+				if output > 0 {
+					for l := index + 1; l < int32(len(current)); l++ {
+
+						output = current[l].out(output)
+						if output > 0 {
+							break
 						}
 					}
+					if output == y {
+						louts = append(louts, output)
+						currentcopy := copydimslayer(current)
+						ldimlayers = append(ldimlayers, currentcopy)
+						return louts, ldimlayers, nil
+					} else if output != y && output > 0 {
+						if index < int32(len(current)-1) {
+							op, dl, err := recursivenotreason(output, y, index+1, stridemax, dilmax, current, louts, ldimlayers)
+							if err == nil {
+								noterrorflag = true
+								louts = append(louts, op...)
+								ldimlayers = append(ldimlayers, dl...)
+							}
+						}
 
+					}
 				}
 			}
 		}
 	}
 
-	return output, dimslayer, errors.New("Couldn't find anything")
+	if noterrorflag {
+		return louts, ldimlayers, nil
 
+	}
+	return louts, ldimlayers, errors.New("Not Found")
 }
 func distancecheck(goal, actual int32) int32 {
 	if actual < 0 {
