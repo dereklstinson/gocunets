@@ -10,7 +10,7 @@ import (
 )
 
 //ForwardProp does the forward prop for a layer
-func (l *layer) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (l *layer) forwardprop(handle *cudnn.Handler, fwdws,bwdws *nvidia.Malloced, x, y *layers.IO) error {
 
 	err := handle.Sync()
 	if err != nil {
@@ -18,7 +18,7 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 		return err
 	}
 	if l.cnn != nil {
-		err = l.cnn.ForwardProp(handle, wspace, x, y)
+		err = l.cnn.ForwardProp(handle, fwdws, x, y)
 		if err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func (l *layer) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 		return nil
 	}
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.ForwardProp(handle, wspace, x, y)
+		err = l.cnntranspose.ForwardProp(handle, bwdws, x, y)
 		if err != nil {
 			fmt.Println("Error in Transpose ForwardProp ")
 			return err

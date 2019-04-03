@@ -44,17 +44,26 @@ func GetFastestWSpaceSizes(perfs []ConvolutionPerformance) (fwd, bwdd, bwdf uint
 }
 
 //SetWSpaceSize sets the fastest algorithm for the convolution based on the limit of the workspace.
-func SetWSpaceSize(handle *cudnn.Handler, wspacesize uint, perfs []ConvolutionPerformance) {
+func (m *Network) SetWSpaceSize(handle *cudnn.Handler, wspacefwd, wspacebwdd, wspacebwdf uint, perfs []ConvolutionPerformance) {
+	if wspacebwdd != 0 {
+		m.usingwsbwdd = true
+	}
+	if wspacebwdf != 0 {
+		m.usingwsbwdf = true
+	}
+	if wspacefwd != 0 {
+		m.usingwsfwd = true
+	}
 	for i := range perfs {
-		perfs[i].SetAlgoPerWspacesize(handle, wspacesize)
+		perfs[i].SetAlgoPerWspacesize(handle, wspacefwd, wspacebwdd, wspacebwdf)
 	}
 }
 
 //SetAlgoPerWspacesize will set the fastest algorithm based on the size fo the workspaced sent
-func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wspacesize uint) {
+func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wspacefwd, wspacebwdd, wspacebwdf uint) {
 	if c.Fwd != nil {
 		for i := range c.Fwd {
-			if wspacesize >= (c.Fwd[i].Memory) {
+			if wspacefwd >= (c.Fwd[i].Memory) {
 				c.Layer.setcudnnperformancefwd(handle, c.Fwd[i])
 				break
 			}
@@ -63,7 +72,7 @@ func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wsp
 	}
 	if c.BwdD != nil {
 		for i := range c.BwdD {
-			if wspacesize >= uint(c.BwdD[i].Memory) {
+			if wspacebwdd >= uint(c.BwdD[i].Memory) {
 				c.Layer.setcudnnperformancebwdd(handle, c.BwdD[i])
 				break
 			}
@@ -71,7 +80,7 @@ func (c *ConvolutionPerformance) SetAlgoPerWspacesize(handle *cudnn.Handler, wsp
 	}
 	if c.BwdF != nil {
 		for i := range c.BwdD {
-			if wspacesize >= uint(c.BwdF[i].Memory) {
+			if wspacebwdf >= uint(c.BwdF[i].Memory) {
 				c.Layer.setcudnnperformancebwdf(handle, c.BwdF[i])
 				break
 			}
@@ -99,6 +108,13 @@ func (c *ConvolutionPerformance) FindFastestWspace() (fwdwspace, bwddwspace, bwd
 		}
 	}
 	return fwdwspace, bwddwspace, bwdfwspace
+}
+
+//SetWorkSpaces will set the workspaces for the network.
+func (m *Network) SetWorkSpaces(fwd, bwdd, bwdf *nvidia.Malloced) {
+	m.wsfwd = fwd
+	m.wsbwdd = bwdd
+	m.wsbwdf = bwdf
 }
 func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) ([]ConvolutionPerformance, error) {
 

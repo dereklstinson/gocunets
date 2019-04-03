@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 )
@@ -49,8 +48,11 @@ func (m *Network) resizehiddeniosinference(handle *cudnn.Handler, newinput []int
 }
 
 //Inference performs the inference operation.  Its hidden ios are seperated from training
-func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (m *Network) Inference(handle *cudnn.Handler, x, y *layers.IO) error {
 	var err error
+	if m.usingwsfwd && m.wsfwd == nil {
+		return errors.New("forward workspace performance is being used, but actual forward wspace memory has not been set")
+	}
 	if m.inference.mem == nil {
 
 		err = m.buildhiddeniosinference(handle, x)
@@ -59,7 +61,7 @@ func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 			return err
 		}
 		m.inference.previousdims = x.T().Dims()
-		err = m.inferenceforward(handle, wspace, x, y)
+		err = m.inferenceforward(handle, x, y)
 		if err != nil {
 			return err
 		}
@@ -71,7 +73,7 @@ func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 		return err
 	}
 	if comparedims(m.inference.previousdims, xdims) {
-		err = m.inferenceforward(handle, wspace, x, y)
+		err = m.inferenceforward(handle, x, y)
 		if err != nil {
 			fmt.Println("Error in doing the forward prop after compair dims")
 			return err
@@ -85,29 +87,35 @@ func (m *Network) Inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 		fmt.Println("Error in resize hiddenios")
 		return err
 	}
-	err = m.inferenceforward(handle, wspace, x, y)
+	err = m.inferenceforward(handle, x, y)
 	if err != nil {
 		fmt.Println("Error in doing the forward prop after resize")
 	}
 	return handle.Sync()
 }
-func (m *Network) inferenceforward(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	var err error
+func (m *Network) inferenceforward(handle *cudnn.Handler, x, y *layers.IO) error {
 
-	err = m.layer[0].inference(handle, wspace, x, m.inference.mem[0])
+	var err error
+	if m.usingwsfwd && m.wsfwd == nil {
+		return errors.New("forward workspace performance is being used, but actual forward wspace memory has not been set")
+	}
+	if m.usingwsbwdd && m.wsbwdd == nil {
+		return errors.New("set network to use workspace for bwd data, but bwd data wspace is nil")
+	}
+	err = m.layer[0].inference(handle, m.wsfwd, m.wsbwdd, x, m.inference.mem[0])
 	if err != nil {
 		return wraperror("forward index:"+strconv.Itoa(0), err)
 	}
 	lnum := len(m.layer)
 	for i := 1; i < lnum-1; i++ {
 
-		err = m.layer[i].inference(handle, wspace, m.inference.mem[i-1], m.inference.mem[i])
+		err = m.layer[i].inference(handle, m.wsfwd, m.wsbwdd, m.inference.mem[i-1], m.inference.mem[i])
 		if err != nil {
 			return wraperror("forward index:"+strconv.Itoa(i), err)
 		}
 	}
 
-	err = m.layer[lnum-1].inference(handle, wspace, m.inference.mem[lnum-2], y)
+	err = m.layer[lnum-1].inference(handle, m.wsfwd, m.wsbwdd, m.inference.mem[lnum-2], y)
 	if err != nil {
 
 		return wraperror("forward index:"+strconv.Itoa(lnum-1), err)

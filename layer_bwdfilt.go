@@ -9,7 +9,7 @@ import (
 )
 
 //BackProp does the backprop of a layer
-func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
+func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspacefwd, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
 	err := handle.Sync()
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilt
 		return handle.Sync()
 	}
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.BackPropFilterData(handle, wspacedata, wspacefilter, x, y)
+		err = l.cnntranspose.BackPropFilterData(handle, wspacefwd, wspacefilter, x, y)
 		if err != nil {
 			return err
 		}

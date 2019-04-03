@@ -42,11 +42,6 @@ func (c *Ops) Dilation() []int32 {
 	return c.dilation
 }
 
-//Flags returns the flags that are used for convolution
-func Flags() gocudnn.ConvolutionFlags {
-	return gocudnn.ConvolutionFlags{}
-}
-
 //StageOperation set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
 func StageOperation(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 

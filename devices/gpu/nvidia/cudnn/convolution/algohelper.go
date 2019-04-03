@@ -88,34 +88,32 @@ func (c *Ops) setfastestdescriptors(handle *cudnn.Handler, x, y *gocudnn.TensorD
 	preff.PreferFastest()
 	prefbd.PreferFastest()
 	prefbf.PreferFastest()
-	var fwd gocudnn.ConvolutionFwdFuncs
-	var bwd gocudnn.ConvolutionBwdFuncs
 
 	wspace := uint(0)
-	fwdalgo, err := fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x, w, c.op, y, preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := fwd.GetConvolutionForwardWorkspaceSize(handle.Cudnn(), x, w, c.op, y, fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x, w, y, fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w, y, c.op, x, prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := bwd.GetConvolutionBackwardDataWorkspaceSize(handle.Cudnn(), w, y, c.op, x, bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x, y, c.op, w, prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w, y, x, bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := bwd.GetConvolutionBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, c.op, w, bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, w, bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
@@ -139,20 +137,19 @@ func (c *Ops) setnowspacedescriptors(handle *cudnn.Handler, x, y *gocudnn.Tensor
 	preff.NoWorkSpace()
 	prefbd.NoWorkSpace()
 	prefbf.NoWorkSpace()
-	var fwd gocudnn.ConvolutionFwdFuncs
-	var bwd gocudnn.ConvolutionBwdFuncs
+
 	wspace := uint(0)
-	fwdalgo, err := fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x, w, c.op, y, preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwddalgo, err := bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w, y, c.op, x, prefbd, wspace)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwdfalgo, err := bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x, y, c.op, w, prefbf, wspace)
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
 	if err != nil {
 		return err
 	}
@@ -171,34 +168,32 @@ func (c *Ops) setwspacelimitdescriptors(handle *cudnn.Handler, x, y *gocudnn.Ten
 	preff.SpecifyWorkSpaceLimit()
 	prefbd.SpecifyWorkSpaceLimit()
 	prefbf.SpecifyWorkSpaceLimit()
-	var fwd gocudnn.ConvolutionFwdFuncs
-	var bwd gocudnn.ConvolutionBwdFuncs
 
 	wspace := uint(wspacesize)
-	fwdalgo, err := fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x, w, c.op, y, preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := fwd.GetConvolutionForwardWorkspaceSize(handle.Cudnn(), x, w, c.op, y, fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x, w, y, fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w, y, c.op, x, prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := bwd.GetConvolutionBackwardDataWorkspaceSize(handle.Cudnn(), w, y, c.op, x, bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x, y, c.op, w, prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w, y, x, bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := bwd.GetConvolutionBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, c.op, w, bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, w, bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
@@ -223,19 +218,19 @@ func (c *Ops) setnowspace(handle *cudnn.Handler, x, y, w *tensor.Volume) error {
 	preff.NoWorkSpace()
 	prefbd.NoWorkSpace()
 	prefbf.NoWorkSpace()
-	var fwd gocudnn.ConvolutionFwdFuncs
-	var bwd gocudnn.ConvolutionBwdFuncs
+
 	wspace := uint(0)
-	fwdalgo, err := fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.op, y.TD(), preff, wspace)
-	if err != nil {
-		return err
-	}
-	bwddalgo, err := bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), c.op, x.TD(), prefbd, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwdfalgo, err := bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), c.op, w.FD(), prefbf, wspace)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
+	if err != nil {
+		return err
+	}
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
 	if err != nil {
 		return err
 	}
@@ -255,33 +250,32 @@ func (c *Ops) setwspacelimit(handle *cudnn.Handler, x, y, w *tensor.Volume, wspa
 	preff.SpecifyWorkSpaceLimit()
 	prefbd.SpecifyWorkSpaceLimit()
 	prefbf.SpecifyWorkSpaceLimit()
-	var fwd gocudnn.ConvolutionFwdFuncs
-	var bwd gocudnn.ConvolutionBwdFuncs
 
 	wspace := uint(wspacesize)
-	fwdalgo, err := fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.op, y.TD(), preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwddalgo, err := bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), c.op, x.TD(), prefbd, wspace)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), y.TD(), fwdalgo)
+	if err != nil {
+		return 0, err
+	}
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), c.op, w.FD(), prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), x.TD(), bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	fwdwspace, err := fwd.GetConvolutionForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), c.op, y.TD(), fwdalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
 	if err != nil {
 		return 0, err
 	}
-	bwddspace, err := bwd.GetConvolutionBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), c.op, x.TD(), bwddalgo)
-	if err != nil {
-		return 0, err
-	}
-	bwdfspace, err := bwd.GetConvolutionBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), c.op, w.FD(), bwdfalgo)
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), w.FD(), bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
@@ -306,34 +300,32 @@ func (c *Ops) setfastest(handle *cudnn.Handler, x, y, w *tensor.Volume) (uint, e
 	preff.PreferFastest()
 	prefbd.PreferFastest()
 	prefbf.PreferFastest()
-	var fwd gocudnn.ConvolutionFwdFuncs
-	var bwd gocudnn.ConvolutionBwdFuncs
 
 	wspace := uint(0)
-	fwdalgo, err := fwd.GetConvolutionForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), c.op, y.TD(), preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := fwd.GetConvolutionForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), c.op, y.TD(), fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), y.TD(), fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := bwd.GetConvolutionBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), c.op, x.TD(), prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := bwd.GetConvolutionBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), c.op, x.TD(), bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := bwd.GetConvolutionBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), c.op, w.FD(), prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), x.TD(), bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := bwd.GetConvolutionBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), c.op, w.FD(), bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), w.FD(), bwdfalgo)
 	if err != nil {
 		return 0, err
 	}

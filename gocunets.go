@@ -61,6 +61,12 @@ type Flag struct {
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
 	layer             []*layer
+	usingwsfwd        bool
+	usingwsbwdd       bool
+	usingwsbwdf       bool
+	wsfwd             *nvidia.Malloced
+	wsbwdd            *nvidia.Malloced
+	wsbwdf            *nvidia.Malloced
 	training          hiddenio
 	inference         hiddenio
 	totalionets       []*netios
@@ -299,8 +305,9 @@ func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error
 }
 
 //ForwardProp does the forward prop for a prebuilt Network
-func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (m *Network) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	var err error
+
 	if m.training.mem == nil {
 
 		err = m.buildhiddenios(handle, x)
@@ -309,7 +316,7 @@ func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x,
 			return err
 		}
 		m.training.previousdims = x.T().Dims()
-		return m.forwardprop(handle, wspace, x, y)
+		return m.forwardprop(handle, x, y)
 
 	}
 	_, _, xdims, err := x.Properties()
@@ -317,7 +324,7 @@ func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x,
 		return err
 	}
 	if comparedims(m.training.previousdims, xdims) {
-		err = m.forwardprop(handle, wspace, x, y)
+		err = m.forwardprop(handle, x, y)
 		if err != nil {
 
 			fmt.Println("Error in doing the forward prop after compair dims")
@@ -333,7 +340,7 @@ func (m *Network) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x,
 		fmt.Println("Error in resize hiddenios")
 		return err
 	}
-	err = m.forwardprop(handle, wspace, x, y)
+	err = m.forwardprop(handle, x, y)
 	if err != nil {
 		fmt.Println("Error in doing the forward prop after resize")
 	}
@@ -358,8 +365,9 @@ func comparedims(x, y []int32) bool {
 }
 
 //BackPropFilterData does the backprop of the hidden layers
-func (m *Network) BackPropFilterData(handle *cudnn.Handler, datawspace, filterwspace *nvidia.Malloced, x, y *layers.IO) error {
-	err := m.backpropfilterdata(handle, datawspace, filterwspace, x, y)
+func (m *Network) BackPropFilterData(handle *cudnn.Handler, x, y *layers.IO) error {
+
+	err := m.backpropfilterdata(handle, x, y)
 	if err != nil {
 		return err
 	}
@@ -367,6 +375,7 @@ func (m *Network) BackPropFilterData(handle *cudnn.Handler, datawspace, filterws
 
 }
 
+/*
 //BackPropData only does the data backprop
 func (m *Network) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	err := m.backpropdata(handle, wspace, x, y)
@@ -376,26 +385,33 @@ func (m *Network) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x
 	return handle.Sync()
 
 }
+*/
 func wraperror(comment string, err error) error {
 	return errors.New(comment + "-" + err.Error())
 }
-func (m *Network) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (m *Network) forwardprop(handle *cudnn.Handler, x, y *layers.IO) error {
 	var err error
+	if m.usingwsfwd && m.wsfwd == nil {
+		return errors.New("forward workspace performance is being used, but actual forward wspace memory has not been set")
+	}
+	if m.usingwsbwdd && m.wsbwdd == nil {
+		return errors.New("set network to use workspace for bwd data, but bwd data wspace is nil")
+	}
 
-	err = m.layer[0].forwardprop(handle, wspace, x, m.training.mem[0])
+	err = m.layer[0].forwardprop(handle, m.wsfwd, m.wsbwdd, x, m.training.mem[0])
 	if err != nil {
 		return wraperror("forward index:"+strconv.Itoa(0), err)
 	}
 	lnum := len(m.layer)
 	for i := 1; i < lnum-1; i++ {
 
-		err = m.layer[i].forwardprop(handle, wspace, m.training.mem[i-1], m.training.mem[i])
+		err = m.layer[i].forwardprop(handle, m.wsfwd, m.wsbwdd, m.training.mem[i-1], m.training.mem[i])
 		if err != nil {
 			return wraperror("forward index:"+strconv.Itoa(i), err)
 		}
 	}
 
-	err = m.layer[lnum-1].forwardprop(handle, wspace, m.training.mem[lnum-2], y)
+	err = m.layer[lnum-1].forwardprop(handle, m.wsfwd, m.wsbwdd, m.training.mem[lnum-2], y)
 	if err != nil {
 		fmt.Println("Dims for y and output", y.T().Dims)
 		return wraperror("forward index:"+strconv.Itoa(lnum-1), err)
@@ -404,27 +420,28 @@ func (m *Network) forwardprop(handle *cudnn.Handler, wspace *nvidia.Malloced, x,
 
 }
 
-func (m *Network) backpropdata(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropdata(handle *cudnn.Handler, x, y *layers.IO) error {
 	var err error
+
 	//	err := handle.stream.Sync()
 	if err != nil {
 		return err
 	}
 	lnum := len(m.layer)
-	err = m.layer[lnum-1].backpropdata(handle, wspace, m.training.mem[lnum-2], y)
+	err = m.layer[lnum-1].backpropdata(handle, m.wsfwd, m.wsbwdd, m.training.mem[lnum-2], y)
 
 	if err != nil {
 		return err
 	}
 
 	for i := lnum - 2; i > 0; i-- {
-		err = m.layer[i].backpropdata(handle, wspace, m.training.mem[i-1], m.training.mem[i])
+		err = m.layer[i].backpropdata(handle, m.wsfwd, m.wsbwdd, m.training.mem[i-1], m.training.mem[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	err = m.layer[0].backpropdata(handle, wspace, x, m.training.mem[0])
+	err = m.layer[0].backpropdata(handle, m.wsfwd, m.wsbwdd, x, m.training.mem[0])
 	if err != nil {
 		return err
 	}
@@ -433,14 +450,13 @@ func (m *Network) backpropdata(handle *cudnn.Handler, wspace *nvidia.Malloced, x
 }
 
 //BackProp does the backprop of a Network
-func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
+func (m *Network) backpropfilterdata(handle *cudnn.Handler, x, y *layers.IO) error {
 	var err error
-	//	err := handle.stream.Sync()
-	if err != nil {
-		return err
+	if m.usingwsbwdf && m.wsbwdf == nil {
+		return errors.New("set network to use workspace for bwd filter, but bwd filter wspace is nil")
 	}
 	lnum := len(m.layer)
-	err = m.layer[lnum-1].backpropfilterdata(handle, wspacedata, wspacefilter, m.training.mem[lnum-2], y)
+	err = m.layer[lnum-1].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, m.training.mem[lnum-2], y)
 
 	if err != nil {
 		return err
@@ -448,13 +464,13 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, wspacedata, wspacefi
 
 	for i := lnum - 2; i > 0; i-- {
 
-		err = m.layer[i].backpropfilterdata(handle, wspacedata, wspacefilter, m.training.mem[i-1], m.training.mem[i])
+		err = m.layer[i].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, m.training.mem[i-1], m.training.mem[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	err = m.layer[0].backpropfilterdata(handle, wspacedata, wspacefilter, x, m.training.mem[0])
+	err = m.layer[0].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, x, m.training.mem[0])
 	if err != nil {
 		return err
 	}

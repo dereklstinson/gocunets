@@ -9,14 +9,14 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 )
 
-func (l *layer) inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (l *layer) inference(handle *cudnn.Handler, fwdwspace, bwddwspace *nvidia.Malloced, x, y *layers.IO) error {
 	err := handle.Sync()
 	if err != nil {
 		fmt.Println("Error During First sync")
 		return err
 	}
 	if l.cnn != nil {
-		err = l.cnn.ForwardProp(handle, wspace, x, y)
+		err = l.cnn.ForwardProp(handle, fwdwspace, x, y)
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func (l *layer) inference(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *
 		return nil
 	}
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.ForwardProp(handle, wspace, x, y)
+		err = l.cnntranspose.ForwardProp(handle, bwddwspace, x, y)
 		if err != nil {
 			fmt.Println("Error in Transpose ForwardProp ")
 			return err

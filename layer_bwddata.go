@@ -9,14 +9,15 @@ import (
 )
 
 //BackProp does the backprop of a layer
-func (l *layer) backpropdata(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+// Transpose workspace backward is actually forward
+func (l *layer) backpropdata(handle *cudnn.Handler, fwdwspace, bwdwspace *nvidia.Malloced, x, y *layers.IO) error {
 
 	err := handle.Sync()
 	if err != nil {
 		return err
 	}
 	if l.cnn != nil {
-		err = l.cnn.BackPropData(handle, wspace, x, y)
+		err = l.cnn.BackPropData(handle, bwdwspace, x, y)
 		if err != nil {
 			return err
 		}
@@ -67,7 +68,7 @@ func (l *layer) backpropdata(handle *cudnn.Handler, wspace *nvidia.Malloced, x, 
 		return handle.Sync()
 	}
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.BackPropData(handle, wspace, x, y)
+		err = l.cnntranspose.BackPropData(handle, fwdwspace, x, y)
 		if err != nil {
 			return err
 		}
