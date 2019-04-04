@@ -76,6 +76,9 @@ func (l *dimlayer) get() (w, p, d, s int32) {
 func (l *dimlayer) out(x int32) (y int32) {
 	return findoutputdim(x, l.w, l.s, l.p, l.d)
 }
+func (l *dimlayer) reverseout(y int32) (x int32) {
+	return findreverseoutputdim(y, l.w, l.s, l.p, l.d)
+}
 
 type dimpath struct {
 	x, y int32
@@ -96,12 +99,12 @@ func makedimpaths(wx, wy []int32, ww [][]int32) (dimpaths []dimpath) {
 }
 
 //FindReasonAbleCombosForPath not operational
-func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp, maxs, maxd int32, favordilation bool) (cssc [][]ConvolutionSettings, err error) {
+func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp, maxs, maxd int32, favordilation bool) (css []ConvolutionSettings, err error) {
 	fmt.Println("Starting")
 	wx, wy, ww := findworkingpathvalues(x, y, layers, NCHW)
 	dimpaths := makedimpaths(wx, wy, ww)
-	workingoutputs := make([][]int32, len(wx))
-	dimpathlayers := make([][][]dimlayer, len(wx))
+	workingoutputs := make([]int32, len(wx))
+	dimpathlayers := make([][]dimlayer, len(wx))
 	var wg sync.WaitGroup
 	errchans := make([]chan error, len(wx))
 	for i, dim := range dimpaths {
@@ -115,23 +118,18 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 			if err != nil {
 				var err2 error
 				fmt.Println("Doing Recursive Reason")
-				outputs := make([]int32, 0)
-				dpaths := make([][]dimlayer, 0)
-				outputs, dpaths, err2 = recursivenotreason(dim.x, dim.y, 0, maxs, maxd, dpath, outputs, dpaths)
+
+				outputs, dpaths, err2 := recursivenotreason(dim.x, dim.y, 0, maxs, maxd, dpath)
 				fmt.Println(outputs)
 				if err2 != nil {
-					errchan <- errors.New("no path found")
-				}
-				if len(outputs) != len(dpaths) {
-					panic("outputs and dpaths should have been equal")
+					errchan <- err2
 				}
 
 				workingoutputs[i], dimpathlayers[i] = outputs, dpaths
 				dimpathlayers[i] = dpaths
 
 			} else {
-				workingoutputs[i], dimpathlayers[i] = make([]int32, 1), make([][]dimlayer, 1)
-				workingoutputs[i][0], dimpathlayers[i][0] = output, dpath
+				workingoutputs[i], dimpathlayers[i] = output, dpath
 
 			}
 			close(errchan)
@@ -148,37 +146,22 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 		}
 
 	}
-	wlayerscombo := make([][]workinglayer, 0)
+	wlayer := make([]workinglayer, len(layers))
+	for i := range wlayer {
+		wlayer[i] = createworkinglayer()
 
-	for h := range dimpathlayers {
-
-		for k := range dimpathlayers[h] {
-			wlayer := make([]workinglayer, len(layers))
-			for i := range wlayer {
-				wlayer[i] = createworkinglayer()
-			}
-
-			for i := 0; i < len(layers); i++ {
-				for j := range dimpathlayers {
-					wlayer[i].append(dimpathlayers[j][k][i])
-				}
-			}
-			wlayerscombo = append(wlayerscombo, wlayer)
+		for j := range dimpathlayers {
+			wlayer[i].append(dimpathlayers[j][i])
 		}
-
 	}
 
-	cssc = make([][]ConvolutionSettings, len(wlayerscombo))
-	for i := range cssc {
-		css := make([]ConvolutionSettings, len(layers))
-		for j := range css {
+	css = make([]ConvolutionSettings, len(layers))
+	for j := range css {
 
-			css[j] = createconvolutionsettings(wlayerscombo[i][j].get())
-		}
-		cssc[i] = css
+		css[j] = createconvolutionsettings(wlayer[j].get())
 	}
 
-	return cssc, nil
+	return css, nil
 }
 
 //reasonablepath tries to find a path where all the layers share the same pad, stride and dim. The deeper the network the more likely this is to work.
@@ -201,14 +184,14 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 	}
 	smallestmaxd := int32(99999)
 	for i := range w {
-		dilmax := maxdilation(x, w[i], smallestmaxp, maxd)
+		dilmax := maxdilation(w[i], maxd)
 		if smallestmaxd > dilmax {
 			smallestmaxd = dilmax
 		}
 	}
 	smallestmaxs := int32(99999)
 	for i := range w {
-		stridex := maxstride(x, w[i], smallestmaxp, smallestmaxd, maxs)
+		stridex := maxstride(w[i], maxs)
 		if smallestmaxs > stridex {
 			smallestmaxs = stridex
 		}
@@ -288,8 +271,8 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 		dimslayer = copydimslayer(reasonable)
 		w := dimslayer[h].w
 		maxp := maxpad(w, -1)
-		maxd := maxdilation(x, w, maxp, -1)
-		maxs := maxstride(x, w, maxp, maxd, -1)
+		maxd := maxdilation(w, -1)
+		maxs := maxstride(x, -1)
 
 		for i := int32(0); i <= maxp; i++ {
 			for j := int32(1); j <= maxd; j++ {
@@ -328,69 +311,245 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 	}
 	return output, closestdimlayers, errors.New("Couldn't find anything")
 }
-
-/*
-func notreasoablebackwards(x,y, stridemax,dilmax int32, current []dimlayer)(int32, []dimlayer,error){
-	po:=x
-	for i:=range current{
-	w:=	current[i].w
-		maxp:=maxpad(w-1)
-		maxd:=maxdilation(po,w,maxp,stridemax)
-		maxs := maxstride(po, w, maxp, maxd, dilmax)
-		for k := maxs; k >= int32(1); k-- {
-			for j := maxd; j >= int32(1); j-- {
-				for i := maxp; i >= int32(0); i-- {
-					current[i].set(i,j,k)
+func withinboundsy(index, y, startx, endy int32) bool {
+	if y > (startx-endy)/(index+1) || y < (startx-endy)/(index+1) {
+		return true
 	}
+	return false
 }
-*/
-func recursivenotreason(x, y, index int32, stridemax, dilmax int32, current []dimlayer, louts []int32, ldimlayers [][]dimlayer) ([]int32, [][]dimlayer, error) {
-	//	fmt.Printf("%d ,", index)
+func withinboundsx(index, x, startx, endy int32) bool {
+	if x < (startx-endy)/(index) || x > (startx-endy)/(index+1) {
+		return true
+	}
+	return false
+}
+func backwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax int32, current []dimlayer) error {
+
 	w := current[index].w
 	maxp := maxpad(w, -1)
-	maxd := maxdilation(x, w, maxp, stridemax)
-	maxs := maxstride(x, w, maxp, maxd, dilmax)
-	var noterrorflag bool
+	minp := minpad(w, padmin)
+	maxd := maxdilation(w, stridemax)
+	maxs := maxstride(w, dilmax)
 
-	for k := maxs; k >= int32(1); k-- {
-		for j := maxd; j >= int32(1); j-- {
-			for i := maxp; i >= int32(0); i-- {
-				current[index].set(i, j, k)
-				output := current[index].out(x)
-				if output > 0 {
-					for l := index + 1; l < int32(len(current)); l++ {
+	if index == int32(len(current)-1) {
+		current[index].set(0, 1, 1)
+		output := index0goalx
+		for i := range current {
+			output = current[i].out(output)
+			if output < 1 {
+				break
+			}
+		}
+		if output == lastindexgoaly {
+			return nil
+		}
 
-						output = current[l].out(output)
-						if output > 0 {
-							break
-						}
-					}
-					if output == y {
-						louts = append(louts, output)
-						currentcopy := copydimslayer(current)
-						ldimlayers = append(ldimlayers, currentcopy)
-						return louts, ldimlayers, nil
-					} else if output != y && output > 0 {
-						if index < int32(len(current)-1) {
-							op, dl, err := recursivenotreason(output, y, index+1, stridemax, dilmax, current, louts, ldimlayers)
-							if err == nil {
-								noterrorflag = true
-								louts = append(louts, op...)
-								ldimlayers = append(ldimlayers, dl...)
-							}
-						}
+		y = lastindexgoaly
 
-					}
+		return backwardspd(x, output, index0goalx, lastindexgoaly, index-1, padmin, stridemax, dilmax, current)
+	} else if index == 0 {
+		x = index0goalx
+		return forwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax, current)
+	}
+	for k := int32(1); k <= maxs; k++ {
+		for j := int32(1); j <= maxd; j++ {
+			for i := minp; i <= maxp; i++ {
+				output := findreverseoutputdim(y, w, k, i, j)
+				if withinboundsx(index, output, index0goalx, lastindexgoaly) {
+					current[index].set(i, j, k)
+					return backwardspd(x, output, index0goalx, lastindexgoaly, index-1, padmin, stridemax, dilmax, current)
+
 				}
 			}
 		}
 	}
 
-	if noterrorflag {
-		return louts, ldimlayers, nil
+	return fmt.Errorf("backward reached end of the line at index %d", index)
+}
+
+func forwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax int32, current []dimlayer) error {
+
+	w := current[index].w
+	maxp := maxpad(w, -1)
+	maxd := maxdilation(w, stridemax)
+	maxs := maxstride(w, dilmax)
+
+	if index == int32(len(current)-1) {
+		y = lastindexgoaly
+		return backwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax, current)
+
+	} else if index == 0 {
+		x = index0goalx
+		output := index0goalx
+		for i := range current {
+			output = current[i].out(output)
+			if output < 1 {
+				break
+			}
+		}
+		if output == lastindexgoaly {
+			return nil
+		}
+		output = current[0].out(output)
 
 	}
-	return louts, ldimlayers, errors.New("Not Found")
+
+	for k := maxs; k >= int32(1); k-- {
+		for j := maxd; j >= int32(1); j-- {
+			for i := maxp; i >= padmin; i-- {
+				output := findoutputdim(x, w, k, i, j)
+				if withinboundsy(index, output, index0goalx, lastindexgoaly) {
+					current[index].set(i, j, k)
+					return forwardspd(output, y, index0goalx, lastindexgoaly, index+1, padmin, stridemax, dilmax, current)
+				}
+			}
+		}
+	}
+	return fmt.Errorf("forward reached end of the line at index %d", index)
+
+}
+func backwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
+	output := xgoal
+	dlayer[0].layer.set(0, 1, 1)
+	for i := range dlayer {
+		dlayer[i].layer.out(output)
+		if output < 1 {
+			break
+		}
+	}
+	if output == ygoal {
+		return nil
+	}
+	output = dlayer[0].layer.w
+	var err error
+
+	for i := len(dlayer) - 2; i >= 1; i-- {
+		output, err = dlayer[i].backwardspd(output)
+		if err != nil {
+			return err
+		}
+	}
+	return forwardspdv2(xgoal, ygoal, dlayer)
+}
+
+func forwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
+	output := xgoal
+	for i := range dlayer {
+		dlayer[i].layer.out(output)
+		if output < 1 {
+			break
+		}
+	}
+	if output == ygoal {
+		return nil
+	}
+	var err error
+	for i := 0; i < len(dlayer)-1; i++ {
+		output, err = dlayer[i].forwardspd(output)
+		if err != nil {
+			return err
+		}
+	}
+	return backwardspdv2(xgoal, ygoal, dlayer)
+
+}
+func makeoutputfinderhelper(index, globalxgoal, globalygoal, mins, mind, minp, maxs, maxd, maxp int32, layer *dimlayer) *ofhlpr {
+	fwd := indexes{s: maxs, d: maxd, p: maxp}
+	bwd := indexes{s: mins, d: mind, p: minp}
+	min := indexes{s: mins, d: mind, p: minp}
+	max := indexes{s: maxs, d: maxd, p: maxp}
+
+	return &ofhlpr{
+		index: index,
+		gbyg:  globalygoal,
+		gbxg:  globalxgoal,
+		max:   max,
+		min:   min,
+		layer: layer,
+		fwd:   fwd,
+		bwd:   bwd,
+	}
+}
+
+func (h *ofhlpr) backwardspd(input int32) (output int32, err error) {
+	for ; h.bwd.s <= h.max.s; h.bwd.s++ {
+		for ; h.bwd.d <= h.max.d; h.bwd.d++ {
+			for ; h.bwd.p <= h.max.p; h.bwd.p++ {
+				output = findreverseoutputdim(input, h.layer.w, h.bwd.s, h.bwd.p, h.bwd.d)
+				if withinboundsx(h.index, output, h.gbxg, h.gbyg) {
+					h.layer.set(h.bwd.p, h.bwd.d, h.bwd.s)
+					return output, nil
+				}
+
+			}
+		}
+	}
+	return -1, fmt.Errorf("bwd reached end of the line")
+}
+
+func (h *ofhlpr) forwardspd(input int32) (output int32, err error) {
+	for ; h.fwd.s >= h.min.s; h.fwd.s-- {
+		for ; h.fwd.d >= h.min.d; h.fwd.d-- {
+			for ; h.fwd.p >= h.min.p; h.fwd.p-- {
+				output = findoutputdim(input, h.layer.w, h.fwd.s, h.fwd.p, h.fwd.d)
+				if withinboundsy(h.index, output, h.gbxg, h.gbyg) {
+					h.layer.set(h.fwd.p, h.fwd.d, h.fwd.s)
+					return output, nil
+				}
+			}
+		}
+	}
+	return -1, fmt.Errorf("forward reached end of the line")
+}
+
+type ofhlpr struct {
+	gbxg, gbyg, index int32
+	max               indexes
+	min               indexes
+	bwd               indexes
+	fwd               indexes
+	layer             *dimlayer
+}
+type indexes struct {
+	s, d, p int32
+}
+
+func recursivenotreason(x, y, padmin, stridemax, dilmax int32, current []dimlayer) (int32, []dimlayer, error) {
+
+	index := int32(len(current) - 1)
+	err := backwardspd(x, y, x, y, index, padmin, stridemax, dilmax, current)
+	if err == nil {
+
+		output := x
+
+		for i := range current {
+			fmt.Println(output)
+			output = current[i].out(output)
+
+		}
+		fmt.Println(output)
+		if output == 1 {
+			return 1, current, nil
+
+		}
+		return 0, nil, errors.New("Error in recursive function backwardspd")
+
+	}
+	err2 := forwardspd(x, y, x, y, 0, padmin, stridemax, dilmax, current)
+	if err2 == nil {
+
+		output := x
+		for i := range current {
+			output = current[i].out(output)
+
+		}
+		if output == 1 {
+			return 1, current, nil
+
+		}
+		return 0, nil, errors.New("Error in recursive function forwardspd")
+	}
+	return 0, nil, err
 }
 func distancecheck(goal, actual int32) int32 {
 	if actual < 0 {
@@ -421,11 +580,11 @@ func FindAllCombos(x, w []int32, NCHW bool, minpadding, maxpadding, minstrides, 
 			minp := minpad(wd, minpadding)
 			maxp := maxpad(wd, maxpadding)
 			for j := minp; j <= maxp; j++ {
-				mind := mindilation(td, wd, j, mindil)
-				maxd := maxdilation(td, wd, j, maxdil)
+				mind := mindilation(wd, mindil)
+				maxd := maxdilation(wd, maxdil)
 				for k := mind; k <= maxd; k++ {
-					mins := minstride(td, wd, j, k, minstrides)
-					maxs := maxstride(td, wd, j, k, maxstrides)
+					mins := minstride(wd, minstrides)
+					maxs := maxstride(wd, maxstrides)
 					for l := mins; l <= maxs; l++ {
 						val := findoutputdim(td, wd, l, j, k)
 						if val != -1 {
@@ -489,11 +648,11 @@ func FindMinOutputs(x, w []int32, NCHW bool, minpadding, maxpadding, minstrides,
 			minp := minpad(wd, minpadding)
 			maxp := maxpad(wd, maxpadding)
 			for j := minp; j <= maxp; j++ {
-				mind := mindilation(td, wd, j, mindil)
-				maxd := maxdilation(td, wd, j, maxdil)
+				mind := mindilation(wd, mindil)
+				maxd := maxdilation(wd, maxdil)
 				for k := mind; k <= maxd; k++ {
-					mins := minstride(td, wd, j, k, minstrides)
-					maxs := maxstride(td, wd, j, k, maxstrides)
+					mins := minstride(wd, minstrides)
+					maxs := maxstride(wd, maxstrides)
 					for l := mins; l <= maxs; l++ {
 
 						val := findoutputdim(td, wd, l, j, k)

@@ -148,7 +148,7 @@ func findoutputfromworkingvalues(workingoutput, x, w []int32, NCHW bool) (output
 	}
 	return output
 }
-func findreverseoutputdim(x, w, s, p, d int32) int32 {
+func findreverseoutputdim(y, w, s, p, d int32) int32 {
 	// output = 1+ ((input + (2*padding) - (((filter-1)*dilation)+1))/slide)
 	// *now input<==>output
 	//input=  1+ ((output + (2*padding) - (((filter-1)*dilation)+1))/slide)
@@ -157,7 +157,7 @@ func findreverseoutputdim(x, w, s, p, d int32) int32 {
 	// input = 1 + (output + (2*padding) - (((filter-1)*dilation)+1))/slide
 	//  slide *(input-1) = output + (2*padding) - (((filter-1)*dilation)+1)
 	//  output = (slide *(input-1)) - (2*padding) + (((filter-1)*dilation)+1)
-	return (s * (x - 1)) - (2 * p) + (((w - 1) * d) + 1)
+	return (s * (y - 1)) - (2 * p) + (((w - 1) * d) + 1)
 }
 func findoutputdim(x, w, s, p, d int32) int32 {
 	y := x + (2 * p) - (((w - 1) * d) + 1)
@@ -178,59 +178,45 @@ func maxpad(w, limit int32) int32 {
 	}
 	return limit
 }
-func minstride(x, w, p, d, limit int32) int32 {
-	val := x + (2 * p) - (((w - 1) * d) + 1)
-	if val == 0 {
-		return 1
+func minstride(w, limit int32) int32 {
+	if limit > w {
+		return w
 	}
-	if val < 0 {
-		return -1
-	}
-
-	if limit < 1 || limit > val {
+	if limit < 1 {
 		return 1
 	}
 	return limit
 }
 
 //maxstride can't be larger than the weights itself(self imposed)
-func maxstride(x, w, p, d, limit int32) int32 {
-
-	val := x + (2 * p) - (((w - 1) * d) + 1)
-	if val == 0 {
-		return 1
-	}
-	if val < 0 {
-		return -1
-	}
-	if limit > val || limit < 1 {
-		if val < w {
-			return val
-		}
+func maxstride(w, limit int32) int32 {
+	if limit > w {
 		return w
+	}
+	if limit < 1 {
+		return w
+	}
+	return limit
 
+}
+
+func mindilation(w, limit int32) int32 {
+
+	if limit > w {
+		return w
+	}
+	if limit < 1 {
+		return 1
 	}
 	return limit
 }
 
-func mindilation(x, w, p, limit int32) int32 {
-
-	val := (x + (2 * p) - 1) / (w - 1)
-	if limit < 0 || limit > val {
-		return 1
-	} else if limit < w {
-		return limit
-	}
-	return w
-}
-
 //max dilation can't be larger than weights(self imposed)
-func maxdilation(x, w, p, limit int32) int32 {
-	val := (x + (2 * p) - 1) / (w - 1)
-	if limit < 0 || limit > val {
-		if val < w {
-			return val
-		}
+func maxdilation(w, limit int32) int32 {
+	if limit > w {
+		return w
+	}
+	if limit < 1 {
 		return w
 	}
 	return limit
