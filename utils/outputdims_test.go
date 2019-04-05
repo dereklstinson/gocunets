@@ -57,6 +57,8 @@ func TestFindReasonAbleCombosForPath(t *testing.T) {
 		{20, 20, 5, 5},
 		{20, 20, 5, 5},
 		{20, 20, 5, 5},
+		{20, 20, 5, 5},
+		{20, 20, 5, 5},
 	}
 	for i := range xs {
 		vals, err := FindReasonAbleCombosForPath(xs[i], y, layers, true, 2, 1, 2, true)

@@ -163,6 +163,12 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 
 	return css, nil
 }
+func distancecheck(goal, actual int32) int32 {
+	if actual < 0 {
+		actual = -actual
+	}
+	return goal - actual
+}
 
 //reasonablepath tries to find a path where all the layers share the same pad, stride and dim. The deeper the network the more likely this is to work.
 //if minp is larger than the maxp in one of the layers. Then minp will be set to zero. This is to maximize the chance that this will work correctly.
@@ -311,69 +317,45 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 	}
 	return output, closestdimlayers, errors.New("Couldn't find anything")
 }
+
+/*
 func withinboundsy(index, y, startx, endy int32) bool {
-	if y > (startx-endy)/(index+1) || y < (startx-endy)/(index+1) {
+	if y == (startx-endy-1)/(index+1) {
 		return true
 	}
 	return false
 }
+*/
 func withinboundsx(index, x, startx, endy int32) bool {
-	if x < (startx-endy)/(index) || x > (startx-endy)/(index+1) {
+	if x >= (startx)/(index+1) {
 		return true
 	}
 	return false
 }
-func backwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
-	fmt.Println("Back")
-	output := xgoal
-	dlayer[0].layer.set(0, 1, 1)
-	for i := range dlayer {
-		dlayer[i].layer.out(output)
-		if output < 1 {
-			return errors.New("negative output")
-		}
-	}
-	if output == ygoal {
-		return nil
-	}
-	output = dlayer[0].layer.w
+func backwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) (int32, error) {
+	output := []int32{ygoal}
+
 	var err error
 
-	for i := len(dlayer) - 2; i >= 1; i-- {
-		output, err = dlayer[i].backwardspd(output)
+	for i := len(dlayer) - 1; i >= 0; i-- {
+		output, err = dlayer[i].backwardmultinputs(output)
+		for i := range output {
+			fmt.Println(output[i])
+		}
 		if err != nil {
-			return err
+			return -1, err
 		}
 	}
-	if output == ygoal {
-		return nil
+	for i := range output {
+		fmt.Println(output[i])
+		if output[i] == xgoal {
+			return xgoal, nil
+		}
 	}
-	return forwardspdv2(xgoal, ygoal, dlayer)
+
+	return -1, errors.New("backwardspdv2 Didn't work")
 }
 
-func forwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
-	fmt.Println("Forward")
-	output := xgoal
-	for i := range dlayer {
-		dlayer[i].layer.out(output)
-		if output < 1 {
-			return errors.New("negative output")
-		}
-	}
-	if output == ygoal {
-		return nil
-	}
-	var err error
-	for i := 0; i < len(dlayer)-1; i++ {
-		output, err = dlayer[i].forwardspd(output)
-		if err != nil {
-			return err
-		}
-	}
-
-	return backwardspdv2(xgoal, ygoal, dlayer)
-
-}
 func makeoutputfinderhelper(index, globalxgoal, globalygoal, mins, mind, minp, maxs, maxd, maxp int32, layer *dimlayer) *ofhlpr {
 	fwd := indexes{s: maxs, d: maxd, p: maxp}
 	bwd := indexes{s: mins, d: mind, p: minp}
@@ -391,36 +373,43 @@ func makeoutputfinderhelper(index, globalxgoal, globalygoal, mins, mind, minp, m
 		bwd:   bwd,
 	}
 }
+func (h *ofhlpr) backwardmultinputs(yinputs []int32) (outputs []int32, err error) {
 
-func (h *ofhlpr) backwardspd(input int32) (output int32, err error) {
+	for i := range yinputs {
+		h.backwardspd(yinputs[i])
+	}
+	outputarray := h.getreverseoutputsvals()
+	if len(outputarray) < 1 || outputarray == nil {
+		return outputarray, fmt.Errorf("nothing found")
+	}
+	return outputarray, nil
+}
+func (h *ofhlpr) backwardspd(yinput int32) (output []int32, err error) {
+
 	for ; h.bwd.s <= h.max.s; h.bwd.s++ {
 		for ; h.bwd.d <= h.max.d; h.bwd.d++ {
 			for ; h.bwd.p <= h.max.p; h.bwd.p++ {
-				output = findreverseoutputdim(input, h.layer.w, h.bwd.s, h.bwd.p, h.bwd.d)
+				output := findreverseoutputdim(yinput, h.layer.w, h.bwd.s, h.bwd.p, h.bwd.d)
 				if withinboundsx(h.index, output, h.gbxg, h.gbyg) {
-					h.layer.set(h.bwd.p, h.bwd.d, h.bwd.s)
-					return output, nil
+					fmt.Println(output)
+					h.append(yinput, output, h.bwd.s, h.bwd.d, h.bwd.d)
 				}
 
 			}
 		}
 	}
-	return -1, fmt.Errorf("bwd reached end of the line")
+	outputarray := h.getreverseoutputsvals()
+	if len(outputarray) < 1 || outputarray == nil {
+		return outputarray, fmt.Errorf("nothing found")
+	}
+	return outputarray, nil
 }
-
-func (h *ofhlpr) forwardspd(input int32) (output int32, err error) {
-	for ; h.fwd.s >= h.min.s; h.fwd.s-- {
-		for ; h.fwd.d >= h.min.d; h.fwd.d-- {
-			for ; h.fwd.p >= h.min.p; h.fwd.p-- {
-				output = findoutputdim(input, h.layer.w, h.fwd.s, h.fwd.p, h.fwd.d)
-				if withinboundsy(h.index, output, h.gbxg, h.gbyg) {
-					h.layer.set(h.fwd.p, h.fwd.d, h.fwd.s)
-					return output, nil
-				}
-			}
-		}
+func (h *ofhlpr) getreverseoutputsvals() []int32 {
+	outputs := make([]int32, len(h.outputs))
+	for i := range h.outputs {
+		outputs[i] = h.outputs[i].output
 	}
-	return -1, fmt.Errorf("forward reached end of the line")
+	return outputs
 }
 
 type ofhlpr struct {
@@ -430,6 +419,97 @@ type ofhlpr struct {
 	bwd               indexes
 	fwd               indexes
 	layer             *dimlayer
+	outputs           []routputs
+}
+
+func compairpdswithindex(a indexes, s, d, p int32) bool {
+	if a.s == s && a.p == p && a.d == d {
+		return true
+	}
+	return false
+}
+func compairindexes(a, b indexes) bool {
+	if a.s == b.s && a.p == b.p && a.d == b.d {
+		return true
+	}
+	return false
+}
+func makeroutput(output, input, s, d, p int32) routputs {
+	inputs := make([]rinput, 1)
+	inputs[0] = makeinput(input, s, d, p)
+	return routputs{
+		output: output,
+		inputs: inputs,
+	}
+}
+func makeinput(input, s, d, p int32) rinput {
+	combo := make([]indexes, 1)
+	combo[0] = indexes{s: s, d: d, p: p}
+	return rinput{
+		input:  input,
+		combos: combo,
+	}
+}
+
+type rinput struct {
+	input  int32
+	combos []indexes
+}
+
+func (r *routputs) append(input, s, d, p int32) {
+	var hasinput bool
+	if len(r.inputs) < 1 || r.inputs == nil {
+		r.inputs = make([]rinput, 0)
+	}
+	for i := range r.inputs {
+		if r.inputs[i].input == input {
+			hasinput = true
+			r.inputs[i].append(s, d, p)
+			break
+		}
+	}
+	if !hasinput {
+		r.inputs = append(r.inputs, makeinput(input, s, d, p))
+	}
+}
+func (r *rinput) append(s, d, p int32) {
+
+	var hascombo bool
+	if len(r.combos) < 1 || r.combos == nil {
+		r.combos = make([]indexes, 0)
+		hascombo = false
+
+	}
+	for i := range r.combos {
+		if r.combos[i].s == s && r.combos[i].d == d && r.combos[i].p == p {
+			hascombo = true
+			break
+		}
+	}
+	if !hascombo {
+		r.combos = append(r.combos, indexes{s: s, d: d, p: p})
+	}
+}
+func (h *ofhlpr) append(input, output, s, d, p int32) {
+	var hasoutput bool
+	if h.outputs == nil || len(h.outputs) < 1 {
+		h.outputs = make([]routputs, 0)
+	}
+	for i := range h.outputs {
+		if h.outputs[i].output == output {
+			hasoutput = true
+			h.outputs[i].append(input, s, d, p)
+			break
+		}
+	}
+	if !hasoutput {
+		h.outputs = append(h.outputs, makeroutput(output, input, s, d, p))
+	}
+}
+
+type routputs struct {
+	output int32
+	inputs []rinput
 }
 type indexes struct {
 	s, d, p int32
@@ -445,25 +525,15 @@ func recursivenotreason(x, y, padmin, stridemax, dilmax int32, current []dimlaye
 		dmax := maxdilation(w, dilmax)
 		hlper[i] = makeoutputfinderhelper(int32(i), x, y, 1, 1, minp, smax, dmax, mp, &current[i])
 	}
-	var err error
-	err = backwardspdv2(x, y, hlper)
-	if err == nil {
-		output := x
-		for i := range current {
-			output = current[i].out(x)
-		}
-		if output != y {
-			return -1, nil, errors.New("Didn't work")
-		}
-		return output, current, nil
+	if int(x)%len(current) != 0 {
+		return -1, nil, errors.New("len of current needs to be a common factor of x")
 	}
-	return -1, nil, err
-}
-func distancecheck(goal, actual int32) int32 {
-	if actual < 0 {
-		actual = -actual
+	output, err := backwardspdv2(x, y, hlper)
+	if err != nil {
+		return -1, nil, err
 	}
-	return goal - actual
+	return output, current, nil
+	//return output, nil, err
 }
 
 //FindAllCombos will set hard limits on minpad,maxpad, maxstride,minstride,mindilation and maxdilation passed.  If those values are < 0. Then default will be set.
