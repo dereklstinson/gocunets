@@ -323,98 +323,14 @@ func withinboundsx(index, x, startx, endy int32) bool {
 	}
 	return false
 }
-func backwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax int32, current []dimlayer) error {
-
-	w := current[index].w
-	maxp := maxpad(w, -1)
-	minp := minpad(w, padmin)
-	maxd := maxdilation(w, stridemax)
-	maxs := maxstride(w, dilmax)
-
-	if index == int32(len(current)-1) {
-		current[index].set(0, 1, 1)
-		output := index0goalx
-		for i := range current {
-			output = current[i].out(output)
-			if output < 1 {
-				break
-			}
-		}
-		if output == lastindexgoaly {
-			return nil
-		}
-
-		y = lastindexgoaly
-
-		return backwardspd(x, output, index0goalx, lastindexgoaly, index-1, padmin, stridemax, dilmax, current)
-	} else if index == 0 {
-		x = index0goalx
-		return forwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax, current)
-	}
-	for k := int32(1); k <= maxs; k++ {
-		for j := int32(1); j <= maxd; j++ {
-			for i := minp; i <= maxp; i++ {
-				output := findreverseoutputdim(y, w, k, i, j)
-				if withinboundsx(index, output, index0goalx, lastindexgoaly) {
-					current[index].set(i, j, k)
-					return backwardspd(x, output, index0goalx, lastindexgoaly, index-1, padmin, stridemax, dilmax, current)
-
-				}
-			}
-		}
-	}
-
-	return fmt.Errorf("backward reached end of the line at index %d", index)
-}
-
-func forwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax int32, current []dimlayer) error {
-
-	w := current[index].w
-	maxp := maxpad(w, -1)
-	maxd := maxdilation(w, stridemax)
-	maxs := maxstride(w, dilmax)
-
-	if index == int32(len(current)-1) {
-		y = lastindexgoaly
-		return backwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax, current)
-
-	} else if index == 0 {
-		x = index0goalx
-		output := index0goalx
-		for i := range current {
-			output = current[i].out(output)
-			if output < 1 {
-				break
-			}
-		}
-		if output == lastindexgoaly {
-			return nil
-		}
-		output = current[0].out(output)
-
-	}
-
-	for k := maxs; k >= int32(1); k-- {
-		for j := maxd; j >= int32(1); j-- {
-			for i := maxp; i >= padmin; i-- {
-				output := findoutputdim(x, w, k, i, j)
-				if withinboundsy(index, output, index0goalx, lastindexgoaly) {
-					current[index].set(i, j, k)
-					return forwardspd(output, y, index0goalx, lastindexgoaly, index+1, padmin, stridemax, dilmax, current)
-				}
-			}
-		}
-	}
-	return fmt.Errorf("forward reached end of the line at index %d", index)
-
-}
 func backwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
+	fmt.Println("Back")
 	output := xgoal
 	dlayer[0].layer.set(0, 1, 1)
 	for i := range dlayer {
 		dlayer[i].layer.out(output)
 		if output < 1 {
-			break
+			return errors.New("negative output")
 		}
 	}
 	if output == ygoal {
@@ -429,15 +345,19 @@ func backwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
 			return err
 		}
 	}
+	if output == ygoal {
+		return nil
+	}
 	return forwardspdv2(xgoal, ygoal, dlayer)
 }
 
 func forwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
+	fmt.Println("Forward")
 	output := xgoal
 	for i := range dlayer {
 		dlayer[i].layer.out(output)
 		if output < 1 {
-			break
+			return errors.New("negative output")
 		}
 	}
 	if output == ygoal {
@@ -450,6 +370,7 @@ func forwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) error {
 			return err
 		}
 	}
+
 	return backwardspdv2(xgoal, ygoal, dlayer)
 
 }
@@ -515,41 +436,28 @@ type indexes struct {
 }
 
 func recursivenotreason(x, y, padmin, stridemax, dilmax int32, current []dimlayer) (int32, []dimlayer, error) {
-
-	index := int32(len(current) - 1)
-	err := backwardspd(x, y, x, y, index, padmin, stridemax, dilmax, current)
+	hlper := make([]*ofhlpr, len(current))
+	for i := range current {
+		w := current[i].w
+		mp := maxpad(w, w-1)
+		minp := minpad(w, padmin)
+		smax := maxstride(w, stridemax)
+		dmax := maxdilation(w, dilmax)
+		hlper[i] = makeoutputfinderhelper(int32(i), x, y, 1, 1, minp, smax, dmax, mp, &current[i])
+	}
+	var err error
+	err = backwardspdv2(x, y, hlper)
 	if err == nil {
-
-		output := x
-
-		for i := range current {
-			fmt.Println(output)
-			output = current[i].out(output)
-
-		}
-		fmt.Println(output)
-		if output == 1 {
-			return 1, current, nil
-
-		}
-		return 0, nil, errors.New("Error in recursive function backwardspd")
-
-	}
-	err2 := forwardspd(x, y, x, y, 0, padmin, stridemax, dilmax, current)
-	if err2 == nil {
-
 		output := x
 		for i := range current {
-			output = current[i].out(output)
-
+			output = current[i].out(x)
 		}
-		if output == 1 {
-			return 1, current, nil
-
+		if output != y {
+			return -1, nil, errors.New("Didn't work")
 		}
-		return 0, nil, errors.New("Error in recursive function forwardspd")
+		return output, current, nil
 	}
-	return 0, nil, err
+	return -1, nil, err
 }
 func distancecheck(goal, actual int32) int32 {
 	if actual < 0 {
@@ -727,3 +635,91 @@ func FindMaxOutput(x, w []int32, NCHW bool) (cc ConvolutionCombo, err error) {
 	}
 	return cc, nil
 }
+
+/*
+func backwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax int32, current []dimlayer) error {
+
+	w := current[index].w
+	maxp := maxpad(w, -1)
+	minp := minpad(w, padmin)
+	maxd := maxdilation(w, stridemax)
+	maxs := maxstride(w, dilmax)
+
+	if index == int32(len(current)-1) {
+		current[index].set(0, 1, 1)
+		output := index0goalx
+		for i := range current {
+			output = current[i].out(output)
+			if output < 1 {
+				break
+			}
+		}
+		if output == lastindexgoaly {
+			return nil
+		}
+
+		y = lastindexgoaly
+
+		return backwardspd(x, output, index0goalx, lastindexgoaly, index-1, padmin, stridemax, dilmax, current)
+	} else if index == 0 {
+		x = index0goalx
+		return forwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax, current)
+	}
+	for k := int32(1); k <= maxs; k++ {
+		for j := int32(1); j <= maxd; j++ {
+			for i := minp; i <= maxp; i++ {
+				output := findreverseoutputdim(y, w, k, i, j)
+				if withinboundsx(index, output, index0goalx, lastindexgoaly) {
+					current[index].set(i, j, k)
+					return backwardspd(x, output, index0goalx, lastindexgoaly, index-1, padmin, stridemax, dilmax, current)
+
+				}
+			}
+		}
+	}
+
+	return fmt.Errorf("backward reached end of the line at index %d", index)
+}
+
+func forwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax int32, current []dimlayer) error {
+
+	w := current[index].w
+	maxp := maxpad(w, -1)
+	maxd := maxdilation(w, stridemax)
+	maxs := maxstride(w, dilmax)
+
+	if index == int32(len(current)-1) {
+		y = lastindexgoaly
+		return backwardspd(x, y, index0goalx, lastindexgoaly, index, padmin, stridemax, dilmax, current)
+
+	} else if index == 0 {
+		x = index0goalx
+		output := index0goalx
+		for i := range current {
+			output = current[i].out(output)
+			if output < 1 {
+				break
+			}
+		}
+		if output == lastindexgoaly {
+			return nil
+		}
+		output = current[0].out(output)
+
+	}
+
+	for k := maxs; k >= int32(1); k-- {
+		for j := maxd; j >= int32(1); j-- {
+			for i := maxp; i >= padmin; i-- {
+				output := findoutputdim(x, w, k, i, j)
+				if withinboundsy(index, output, index0goalx, lastindexgoaly) {
+					current[index].set(i, j, k)
+					return forwardspd(output, y, index0goalx, lastindexgoaly, index+1, padmin, stridemax, dilmax, current)
+				}
+			}
+		}
+	}
+	return fmt.Errorf("forward reached end of the line at index %d", index)
+
+}
+*/
