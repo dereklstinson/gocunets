@@ -2,9 +2,12 @@
 package nvutil
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 
 	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
@@ -23,11 +26,99 @@ func ImageToNppi(img *jpeg.Image) (planar []*npp.Uint8, sizes []npp.Size) {
 
 }
 
+type Handle struct {
+	ctx      *npp.StreamContext
+	polation npp.InterpolationMode
+}
+
+func CreateHandle(ctx *npp.StreamContext, polation npp.InterpolationMode) *Handle {
+	return &Handle{
+		ctx:      ctx,
+		polation: polation,
+	}
+}
+func ResizeNppi(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size) error {
+	var srcROI npp.Rect
+	var destROI npp.Rect
+
+	switch len(src) {
+	case 1:
+		return npp.Resize8uC1R(src[0], srcSize, 0, srcROI, dest[0], destSize, 0, destROI, h.polation, h.ctx)
+	case 3:
+		return npp.Resize8uP3R(src, srcSize, 0, srcROI, dest, destSize, 0, destROI, h.polation, h.ctx)
+	case 4:
+		return npp.Resize8uP4R(src, srcSize, 0, srcROI, dest, destSize, 0, destROI, h.polation, h.ctx)
+	}
+	return errors.New("Unsupported src,dest size")
+}
+
+//MirrorVolumeByBatch will take a tensor.Volume and mirror the batches in the batch index.
+//supports only uint8 and float tensor dtypes. and 4d tensors
+func MirrorVolumeByBatch(h *Handle, x *tensor.Volume, flip []npp.Axis, batchindex []int) error {
+	if len(flip) != len(batchindex) {
+		return errors.New(" MirrorVolumeByBatch - len(flip)!=len(batchindex)")
+	}
+	frmt, dtype, dims, err := x.Properties()
+	if err != nil {
+		return err
+	}
+	if len(dims) != 4 {
+		return errors.New("MirrorVolumeByBatch- len(dims) for x is not 4")
+	}
+
+	dflg := dtype
+	fflg := frmt
+	fmt.Println(dflg, fflg)
+	return errors.New("Need to complete")
+}
+
+func cudnnbatchchannelsize(x *tensor.Volume) (batch int, channel int, err error) {
+	frmt, _, dims, err := x.Properties()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	fflg := frmt
+	switch frmt {
+	case fflg.NCHW():
+		return int(dims[0]), int(dims[1]), nil
+	case fflg.NHWC():
+		return int(dims[0]), int(dims[len(dims)-1]), nil
+
+	default:
+		return -1, -1, errors.New("Unsupported Format")
+
+	}
+}
+
+//Mirror - flips images according to axis. If dest is nil then function is done in place
+func Mirror(h *Handle, src, dest []*npp.Uint8, sizes npp.Size, flip npp.Axis) error {
+	var err error
+	if dest == nil {
+		for i := range src {
+			err = npp.Mirror8uC1IR(src[i], 0, sizes, flip, h.ctx)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+	for i := range src {
+		err = npp.Mirror8uC1R(src[i], 0, dest[i], 0, sizes, flip, h.ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 type BatchMaker struct {
-	memraw   *npp.Uint8
-	t        *gocudnn.TensorD
-	memfloat *npp.Float32
-	length   int
+	memraw          *npp.Uint8
+	batchchansuint8 [][]*npp.Uint8
+	t               *tensor.Volume
+	batchchansflt   [][]*npp.Float32
+	length          int
 }
 
 func convertNppitoNppsCHW(channel []*npp.Uint8, sizes []npp.Size, mem *npp.Uint8) (n uint, err error) {
@@ -59,6 +150,7 @@ func convertsCHWstoNCHW(srcs []*npp.Uint8, srcsSIBs []uint, dest *npp.Uint8) (n 
 	}
 	return n, nil
 }
+
 func convertNppitoNppsNCHW(channels [][]*npp.Uint8, sizes [][]npp.Size, mem *npp.Uint8) error {
 	coffsets := make([][]int, 0)
 	boffsets := make([]int, 0)

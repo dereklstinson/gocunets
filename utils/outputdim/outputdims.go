@@ -1,9 +1,12 @@
-package utils
+package outputdim
 
 import (
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/dereklstinson/GoCuNets/utils/outputdim/dimlayer"
 )
 
 type ConvolutionCombo struct {
@@ -23,10 +26,6 @@ func createconvolutionsettings(workingws, pad, dilation, stride []int32) Convolu
 	}
 }
 
-type dimlayer struct {
-	w       int32
-	p, d, s int32
-}
 type workinglayer struct {
 	w, p, d, s []int32
 }
@@ -39,45 +38,15 @@ func createworkinglayer() (w workinglayer) {
 	w.s = make([]int32, 0)
 	return w
 }
-func (w *workinglayer) append(d dimlayer) {
-	w.w = append(w.w, d.w)
-	w.p = append(w.p, d.p)
-	w.d = append(w.d, d.d)
-	w.s = append(w.s, d.s)
+func (w *workinglayer) append(dl dimlayer.DimLayer) {
+	wt, p, d, s := dl.Get()
+	w.w = append(w.w, wt)
+	w.p = append(w.p, p)
+	w.d = append(w.d, d)
+	w.s = append(w.s, s)
 }
 func (w *workinglayer) get() (ww, wp, wd, ws []int32) {
 	return w.w, w.p, w.d, w.s
-}
-func createdimlayer(w, p, d, s int32) dimlayer {
-
-	return dimlayer{
-		w: w,
-		p: p,
-		d: d,
-		s: s,
-	}
-}
-func copydimslayer(src []dimlayer) (copy []dimlayer) {
-	copy = make([]dimlayer, len(src))
-	for i := range src {
-		copy[i] = createdimlayer(src[i].get())
-	}
-	return copy
-}
-
-func (l *dimlayer) set(p, d, s int32) {
-
-	l.p, l.d, l.s = p, d, s
-}
-func (l *dimlayer) get() (w, p, d, s int32) {
-	w, p, d, s = l.w, l.p, l.d, l.s
-	return w, p, d, s
-}
-func (l *dimlayer) out(x int32) (y int32) {
-	return findoutputdim(x, l.w, l.s, l.p, l.d)
-}
-func (l *dimlayer) reverseout(y int32) (x int32) {
-	return findreverseoutputdim(y, l.w, l.s, l.p, l.d)
 }
 
 type dimpath struct {
@@ -97,6 +66,21 @@ func makedimpaths(wx, wy []int32, ww [][]int32) (dimpaths []dimpath) {
 	}
 	return dimpaths
 }
+func FindMaxOutputPath(x []int32, layers [][]int32, NCHW bool) (output []int32, ccs []ConvolutionCombo, err error) {
+	ccs = make([]ConvolutionCombo, 0)
+	output = make([]int32, len(x))
+	copy(output, x)
+	for i := range layers {
+		cc, err := FindMaxOutput(output, layers[i], NCHW)
+		if err != nil {
+			return nil, nil, err
+		}
+		ccs = append(ccs, cc)
+		output = cc.Output
+
+	}
+	return output, ccs, nil
+}
 
 //FindReasonAbleCombosForPath not operational
 func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp, maxs, maxd int32, favordilation bool) (css []ConvolutionSettings, err error) {
@@ -104,7 +88,7 @@ func FindReasonAbleCombosForPath(x, y []int32, layers [][]int32, NCHW bool, minp
 	wx, wy, ww := findworkingpathvalues(x, y, layers, NCHW)
 	dimpaths := makedimpaths(wx, wy, ww)
 	workingoutputs := make([]int32, len(wx))
-	dimpathlayers := make([][]dimlayer, len(wx))
+	dimpathlayers := make([][]dimlayer.DimLayer, len(wx))
 	var wg sync.WaitGroup
 	errchans := make([]chan error, len(wx))
 	for i, dim := range dimpaths {
@@ -173,14 +157,14 @@ func distancecheck(goal, actual int32) int32 {
 //reasonablepath tries to find a path where all the layers share the same pad, stride and dim. The deeper the network the more likely this is to work.
 //if minp is larger than the maxp in one of the layers. Then minp will be set to zero. This is to maximize the chance that this will work correctly.
 //Error will return if it couldn't find  a path  that share all the same vals, but it will return the closest.  with the least amount of padding,stride,and dilation
-func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool) (output int32, dimlayers []dimlayer, err error) {
-	dimlayers = make([]dimlayer, len(w))
-	closestdimlayers := make([]dimlayer, len(w))
+func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool) (output int32, dimlayers []dimlayer.DimLayer, err error) {
+	dimlayers = make([]dimlayer.DimLayer, len(w))
+	closestdimlayers := make([]dimlayer.DimLayer, len(w))
 	smallestmaxp := int32(9999999)
 
 	for i := range w {
-		closestdimlayers[i] = createdimlayer(w[i], 1, 1, 1)
-		dimlayers[i] = createdimlayer(w[i], 1, 1, 1)
+		closestdimlayers[i] = dimlayer.CreateDimLayer(w[i], 1, 1, 1)
+		dimlayers[i] = dimlayer.CreateDimLayer(w[i], 1, 1, 1)
 		if w[i]-1 < smallestmaxp {
 			smallestmaxp = w[i] - 1
 		}
@@ -211,8 +195,8 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 				for k := smallestmaxs; k >= int32(1); k-- {
 					output = x
 					for l := range dimlayers {
-						dimlayers[l].set(i, j, k)
-						output = dimlayers[l].out(output)
+						dimlayers[l].Set(i, j, k)
+						output = dimlayers[l].Out(output)
 						if output < 0 {
 							break
 						}
@@ -225,8 +209,8 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 					if closestchecker < closestdist {
 						closestdist = closestchecker
 						for l := range dimlayers {
-							closestdimlayers[l].set(i, j, k)
-							output = dimlayers[l].out(output)
+							closestdimlayers[l].Set(i, j, k)
+							output = dimlayers[l].Out(output)
 						}
 
 					}
@@ -240,8 +224,8 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 				for k := smallestmaxd; k >= int32(1); k-- {
 					output = x
 					for l := range dimlayers {
-						dimlayers[l].set(i, k, j)
-						output = dimlayers[l].out(output)
+						dimlayers[l].Set(i, k, j)
+						output = dimlayers[l].Out(output)
 						if output < 0 {
 							break
 						}
@@ -253,8 +237,8 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 					if closestchecker < closestdist {
 						closestdist = closestchecker
 						for l := range dimlayers {
-							closestdimlayers[l].set(i, k, j)
-							output = dimlayers[l].out(output)
+							closestdimlayers[l].Set(i, k, j)
+							output = dimlayers[l].Out(output)
 						}
 
 					}
@@ -267,15 +251,15 @@ func reasonablepath(x, y, minp, maxs, maxd int32, w []int32, favordilation bool)
 }
 
 //mostreasonableunreasonable I think I am going to get rid of it.  I like the recursive one better.  This one only changes one layer as it goes down the layer
-func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32, dimslayer []dimlayer, err error) {
-	dimslayer = copydimslayer(reasonable)
-	closestdimlayers := make([]dimlayer, len(reasonable))
+func mostreasonableunreasonable(x, y int32, reasonable []dimlayer.DimLayer) (output int32, dimslayer []dimlayer.DimLayer, err error) {
+	dimslayer = dimlayer.CopyDimsLayer(reasonable)
+	closestdimlayers := make([]dimlayer.DimLayer, len(reasonable))
 
 	closestdist := int32(9999999)
 	closestchecker := int32(0)
 	for h := range dimslayer {
-		dimslayer = copydimslayer(reasonable)
-		w := dimslayer[h].w
+		dimslayer = dimlayer.CopyDimsLayer(reasonable)
+		w, _, _, _ := dimslayer[h].Get()
 		maxp := maxpad(w, -1)
 		maxd := maxdilation(w, -1)
 		maxs := maxstride(x, -1)
@@ -283,13 +267,13 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 		for i := int32(0); i <= maxp; i++ {
 			for j := int32(1); j <= maxd; j++ {
 				for k := int32(1); k <= maxs; k++ {
-					dimslayer[h].set(i, j, k)
-					output = dimslayer[h].out(x)
+					dimslayer[h].Set(i, j, k)
+					output = dimslayer[h].Out(x)
 					if output < 0 {
 						break
 					}
 					for l := range dimslayer[h+1:] {
-						output = dimslayer[l].out(output)
+						output = dimslayer[l].Out(output)
 
 						if output < 0 {
 							break
@@ -304,8 +288,8 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 						if closestchecker < closestdist {
 							closestdist = closestchecker
 							for l := range dimslayer {
-								closestdimlayers[l].set(i, j, k)
-								output = dimslayer[l].out(output)
+								closestdimlayers[l].Set(i, j, k)
+								output = dimslayer[l].Out(output)
 							}
 
 						}
@@ -318,217 +302,20 @@ func mostreasonableunreasonable(x, y int32, reasonable []dimlayer) (output int32
 	return output, closestdimlayers, errors.New("Couldn't find anything")
 }
 
-/*
-func withinboundsy(index, y, startx, endy int32) bool {
-	if y == (startx-endy-1)/(index+1) {
-		return true
-	}
-	return false
-}
-*/
-func withinboundsx(index, x, startx, endy int32) bool {
-	if x >= (startx)/(index+1) {
-		return true
-	}
-	return false
-}
-func backwardspdv2(xgoal, ygoal int32, dlayer []*ofhlpr) (int32, error) {
-	output := []int32{ygoal}
-
-	var err error
-
-	for i := len(dlayer) - 1; i >= 0; i-- {
-		output, err = dlayer[i].backwardmultinputs(output)
-		for i := range output {
-			fmt.Println(output[i])
-		}
-		if err != nil {
-			return -1, err
-		}
-	}
-	for i := range output {
-		fmt.Println(output[i])
-		if output[i] == xgoal {
-			return xgoal, nil
-		}
-	}
-
-	return -1, errors.New("backwardspdv2 Didn't work")
-}
-
-func makeoutputfinderhelper(index, globalxgoal, globalygoal, mins, mind, minp, maxs, maxd, maxp int32, layer *dimlayer) *ofhlpr {
-	fwd := indexes{s: maxs, d: maxd, p: maxp}
-	bwd := indexes{s: mins, d: mind, p: minp}
-	min := indexes{s: mins, d: mind, p: minp}
-	max := indexes{s: maxs, d: maxd, p: maxp}
-
-	return &ofhlpr{
-		index: index,
-		gbyg:  globalygoal,
-		gbxg:  globalxgoal,
-		max:   max,
-		min:   min,
-		layer: layer,
-		fwd:   fwd,
-		bwd:   bwd,
-	}
-}
-func (h *ofhlpr) backwardmultinputs(yinputs []int32) (outputs []int32, err error) {
-
-	for i := range yinputs {
-		h.backwardspd(yinputs[i])
-	}
-	outputarray := h.getreverseoutputsvals()
-	if len(outputarray) < 1 || outputarray == nil {
-		return outputarray, fmt.Errorf("nothing found")
-	}
-	return outputarray, nil
-}
-func (h *ofhlpr) backwardspd(yinput int32) (output []int32, err error) {
-
-	for ; h.bwd.s <= h.max.s; h.bwd.s++ {
-		for ; h.bwd.d <= h.max.d; h.bwd.d++ {
-			for ; h.bwd.p <= h.max.p; h.bwd.p++ {
-				output := findreverseoutputdim(yinput, h.layer.w, h.bwd.s, h.bwd.p, h.bwd.d)
-				if withinboundsx(h.index, output, h.gbxg, h.gbyg) {
-					fmt.Println(output)
-					h.append(yinput, output, h.bwd.s, h.bwd.d, h.bwd.d)
-				}
-
-			}
-		}
-	}
-	outputarray := h.getreverseoutputsvals()
-	if len(outputarray) < 1 || outputarray == nil {
-		return outputarray, fmt.Errorf("nothing found")
-	}
-	return outputarray, nil
-}
-func (h *ofhlpr) getreverseoutputsvals() []int32 {
-	outputs := make([]int32, len(h.outputs))
-	for i := range h.outputs {
-		outputs[i] = h.outputs[i].output
-	}
-	return outputs
-}
-
-type ofhlpr struct {
-	gbxg, gbyg, index int32
-	max               indexes
-	min               indexes
-	bwd               indexes
-	fwd               indexes
-	layer             *dimlayer
-	outputs           []routputs
-}
-
-func compairpdswithindex(a indexes, s, d, p int32) bool {
-	if a.s == s && a.p == p && a.d == d {
-		return true
-	}
-	return false
-}
-func compairindexes(a, b indexes) bool {
-	if a.s == b.s && a.p == b.p && a.d == b.d {
-		return true
-	}
-	return false
-}
-func makeroutput(output, input, s, d, p int32) routputs {
-	inputs := make([]rinput, 1)
-	inputs[0] = makeinput(input, s, d, p)
-	return routputs{
-		output: output,
-		inputs: inputs,
-	}
-}
-func makeinput(input, s, d, p int32) rinput {
-	combo := make([]indexes, 1)
-	combo[0] = indexes{s: s, d: d, p: p}
-	return rinput{
-		input:  input,
-		combos: combo,
-	}
-}
-
-type rinput struct {
-	input  int32
-	combos []indexes
-}
-
-func (r *routputs) append(input, s, d, p int32) {
-	var hasinput bool
-	if len(r.inputs) < 1 || r.inputs == nil {
-		r.inputs = make([]rinput, 0)
-	}
-	for i := range r.inputs {
-		if r.inputs[i].input == input {
-			hasinput = true
-			r.inputs[i].append(s, d, p)
-			break
-		}
-	}
-	if !hasinput {
-		r.inputs = append(r.inputs, makeinput(input, s, d, p))
-	}
-}
-func (r *rinput) append(s, d, p int32) {
-
-	var hascombo bool
-	if len(r.combos) < 1 || r.combos == nil {
-		r.combos = make([]indexes, 0)
-		hascombo = false
-
-	}
-	for i := range r.combos {
-		if r.combos[i].s == s && r.combos[i].d == d && r.combos[i].p == p {
-			hascombo = true
-			break
-		}
-	}
-	if !hascombo {
-		r.combos = append(r.combos, indexes{s: s, d: d, p: p})
-	}
-}
-func (h *ofhlpr) append(input, output, s, d, p int32) {
-	var hasoutput bool
-	if h.outputs == nil || len(h.outputs) < 1 {
-		h.outputs = make([]routputs, 0)
-	}
-	for i := range h.outputs {
-		if h.outputs[i].output == output {
-			hasoutput = true
-			h.outputs[i].append(input, s, d, p)
-			break
-		}
-	}
-	if !hasoutput {
-		h.outputs = append(h.outputs, makeroutput(output, input, s, d, p))
-	}
-}
-
-type routputs struct {
-	output int32
-	inputs []rinput
-}
-type indexes struct {
-	s, d, p int32
-}
-
-func recursivenotreason(x, y, padmin, stridemax, dilmax int32, current []dimlayer) (int32, []dimlayer, error) {
-	hlper := make([]*ofhlpr, len(current))
+func recursivenotreason(x, y, padmin, stridemax, dilmax int32, current []dimlayer.DimLayer) (int32, []dimlayer.DimLayer, error) {
+	hlper := make([]*dimlayer.Ofhlpr, len(current))
 	for i := range current {
-		w := current[i].w
+		w, _, _, _ := current[i].Get()
 		mp := maxpad(w, w-1)
 		minp := minpad(w, padmin)
 		smax := maxstride(w, stridemax)
 		dmax := maxdilation(w, dilmax)
-		hlper[i] = makeoutputfinderhelper(int32(i), x, y, 1, 1, minp, smax, dmax, mp, &current[i])
+		hlper[i] = dimlayer.Makeoutputfinderhelper(int32(i), int32(len(current)), x, y, 1, 1, minp, smax, dmax, mp, &current[i])
 	}
 	if int(x)%len(current) != 0 {
 		return -1, nil, errors.New("len of current needs to be a common factor of x")
 	}
-	output, err := backwardspdv2(x, y, hlper)
+	output, err := dimlayer.Backwardspdv2(x, y, hlper)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -678,8 +465,9 @@ func FindMinOutputs(x, w []int32, NCHW bool, minpadding, maxpadding, minstrides,
 }
 
 func (c *ConvolutionCombo) OutputVol() int32 {
-	return FindVolumeInt32(c.Output, nil)
+	return utils.FindVolumeInt32(c.Output, nil)
 }
+
 func FindMaxOutput(x, w []int32, NCHW bool) (cc ConvolutionCombo, err error) {
 	wx, ww, wo := findworkingvalues(x, w, NCHW)
 	dilation := make([]int32, len(wx))

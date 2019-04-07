@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/dereklstinson/GoCuNets/utils/outputdim"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 		{20, 20, 5, 5},
 	}
 	for i := range xs {
-		vals, err := utils.FindReasonAbleCombosForPath(xs[i], y, layers, true, 2, -1, -1, true)
+		vals, err := outputdim.FindReasonAbleCombosForPath(xs[i], y, layers, true, 2, -1, -1, true)
 
 		fmt.Println(vals)
 		if err != nil {

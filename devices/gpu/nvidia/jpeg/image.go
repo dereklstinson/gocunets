@@ -27,7 +27,7 @@ func (img *Image) GetChannels() []Channel {
 }
 
 //CreateDestImage returns an empty Image used to place data from stream into it
-func (h *nvjpeg.Handle, frmt nvjpeg.OutputFormat, r io.Reader, allocator gocu.Allocator) (*Image, error) {
+func CreateDestImage(h *nvjpeg.Handle, frmt nvjpeg.OutputFormat, r io.Reader, allocator gocu.Allocator) (*Image, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err

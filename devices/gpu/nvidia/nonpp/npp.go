@@ -1,4 +1,4 @@
-package npp
+package nonpp
 
 /*
 func getUint8pointertype(src interface{}) *npp.Uint8 {

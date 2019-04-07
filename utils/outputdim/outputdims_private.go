@@ -1,4 +1,4 @@
-package utils
+package outputdim
 
 type convprop struct {
 	input, weight, output int32
