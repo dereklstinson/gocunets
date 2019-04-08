@@ -3,7 +3,7 @@ package nvutil
 
 import (
 	"errors"
-	"fmt"
+	"github.com/dereklstinson/GoCuNets/utils"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
@@ -52,26 +52,6 @@ func ResizeNppi(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size) e
 	return errors.New("Unsupported src,dest size")
 }
 
-//MirrorVolumeByBatch will take a tensor.Volume and mirror the batches in the batch index.
-//supports only uint8 and float tensor dtypes. and 4d tensors
-func MirrorVolumeByBatch(h *Handle, x *tensor.Volume, flip []npp.Axis, batchindex []int) error {
-	if len(flip) != len(batchindex) {
-		return errors.New(" MirrorVolumeByBatch - len(flip)!=len(batchindex)")
-	}
-	frmt, dtype, dims, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	if len(dims) != 4 {
-		return errors.New("MirrorVolumeByBatch- len(dims) for x is not 4")
-	}
-
-	dflg := dtype
-	fflg := frmt
-	fmt.Println(dflg, fflg)
-	return errors.New("Need to complete")
-}
-
 func cudnnbatchchannelsize(x *tensor.Volume) (batch int, channel int, err error) {
 	frmt, _, dims, err := x.Properties()
 	if err != nil {
@@ -113,12 +93,34 @@ func Mirror(h *Handle, src, dest []*npp.Uint8, sizes npp.Size, flip npp.Axis) er
 	return nil
 }
 
-type BatchMaker struct {
-	memraw          *npp.Uint8
+//CreateBatchMaker is NCHW. And works for stand alone images
+func CreateBatchBuffer(dims []int32) *BatchBuffer {
+	strides := utils.FindStridesInt32(dims)
+	head := npp.Malloc8u(utils.FindVolumeInt32(dims, nil))
+
+	return &BatchBuffer{
+		dims:    dims,
+		strides: strides,
+		head:    head,
+		nchw:    true,
+	}
+}
+func (b *BatchBuffer) batchchannel(batch, channel int32) gocu.Mem {
+	if b.nchw {
+		return gocu.Offset(b.head, uint(batch*b.strides[0]+channel*b.strides[1]))
+	}
+	return gocu.Offset(b.head, uint(batch*b.strides[0]))
+
+}
+
+type BatchBuffer struct {
+	currentimages   []*jpeg.Image
+	rois            []npp.Rect
+	head            *npp.Uint8
 	batchchansuint8 [][]*npp.Uint8
-	t               *tensor.Volume
-	batchchansflt   [][]*npp.Float32
-	length          int
+	strides         []int32
+	nchw            bool
+	dims            []int32
 }
 
 func convertNppitoNppsCHW(channel []*npp.Uint8, sizes []npp.Size, mem *npp.Uint8) (n uint, err error) {
