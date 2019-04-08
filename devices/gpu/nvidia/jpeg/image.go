@@ -13,6 +13,7 @@ type Image struct {
 	img      *nvjpeg.Image
 	frmt     nvjpeg.OutputFormat
 	channels []Channel
+	pitch,height int32
 }
 
 //Channel contains a pointer to cuda memory along with Pitch and Height

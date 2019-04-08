@@ -3,6 +3,7 @@ package nvutil
 
 import (
 	"errors"
+
 	"github.com/dereklstinson/GoCuNets/utils"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
@@ -37,10 +38,7 @@ func CreateHandle(ctx *npp.StreamContext, polation npp.InterpolationMode) *Handl
 		polation: polation,
 	}
 }
-func ResizeNppi(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size) error {
-	var srcROI npp.Rect
-	var destROI npp.Rect
-
+func resizenpp(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size, srcROI, destROI npp.Rect) error {
 	switch len(src) {
 	case 1:
 		return npp.Resize8uC1R(src[0], srcSize, 0, srcROI, dest[0], destSize, 0, destROI, h.polation, h.ctx)
@@ -93,34 +91,127 @@ func Mirror(h *Handle, src, dest []*npp.Uint8, sizes npp.Size, flip npp.Axis) er
 	return nil
 }
 
-//CreateBatchMaker is NCHW. And works for stand alone images
-func CreateBatchBuffer(dims []int32) *BatchBuffer {
+//CreateBatchBuffer is NCHW. And works for stand alone images
+func CreateBatchBuffer(dims []int32, averagepixel float32) *BatchBuffer {
 	strides := utils.FindStridesInt32(dims)
-	head := npp.Malloc8u(utils.FindVolumeInt32(dims, nil))
-
+	volume := utils.FindVolumeInt32(dims, nil)
+	head := npp.Malloc8u(volume)
+	var size npp.Size
+	size.Set(dims[3], dims[2])
 	return &BatchBuffer{
 		dims:    dims,
 		strides: strides,
 		head:    head,
 		nchw:    true,
+		size:    size,
+		average: (npp.Float32)(averagepixel),
+		volume:  volume,
 	}
 }
-func (b *BatchBuffer) batchchannel(batch, channel int32) gocu.Mem {
-	if b.nchw {
-		return gocu.Offset(b.head, uint(batch*b.strides[0]+channel*b.strides[1]))
+
+func (b *BatchBuffer) GetProperties() (dims []int32, nchw bool) {
+	return b.dims, b.nchw
+}
+
+//Load will take the images and resize them considering the srcROIs,and destROIs to the buffer.
+//
+//if srcROIS and/or destROIs are nil, then it will make the ROIs that are null the size of the src and dest space.
+//
+//if src or dest is not nil. Then the length needs to be the same as imgs.
+func (b *BatchBuffer) LoadImages(h *Handle, imgs []*jpeg.Image, srcROIs, destROIs []npp.Rect) (err error) {
+
+	if srcROIs == nil {
+		//do stuff
+		srcROIs = make([]npp.Rect, len(imgs))
+		for i := range imgs {
+			chans := imgs[i].GetChannels()
+			srcROIs[i].Set(0, 0, chans[0].Pitch, chans[0].Height)
+		}
+		//ok i did the stuff
 	}
-	return gocu.Offset(b.head, uint(batch*b.strides[0]))
+	if destROIs == nil {
+		//do stuff
+		destROIs = make([]npp.Rect, len(imgs))
+		for i := range imgs {
+			if b.nchw {
+				destROIs[i].Set(0, 0, b.dims[3], b.dims[2])
+			} else {
+				destROIs[i].Set(0, 0, b.dims[2], b.dims[1])
+			}
+
+		}
+		//ok I did the stuff
+	}
+	if len(srcROIs) != len(imgs) || len(srcROIs) != len(imgs) {
+		return errors.New("srcROIs and destROIs and imgs need to be the same length")
+	}
+	imgchanptrs := make([][]*npp.Uint8, len(imgs))
+	sizes := make([][]npp.Size, len(imgs))
+	for i := range imgs {
+		imgchannels, size := ImageToNppi(imgs[i])
+		imgchanptrs[i] = append(imgchanptrs[i], imgchannels...)
+		sizes[i] = append(sizes[i], size...)
+	}
+	for i, channels := range imgchanptrs {
+		err = resizenpp(h, channels, b.getbatcheschannelsptrs(int32(i)), sizes[i][0], b.size, srcROIs[i], destROIs[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (b *BatchBuffer) Mirror(batches []int32, onaxis []npp.Axis) error {
+	return errors.New("Not Done")
+}
+func (b *BatchBuffer) FillTensor(h *Handle, t *tensor.Volume) error {
+	dtype := t.DataType()
+	dflg := dtype
+	switch dtype {
+	case dflg.Float():
+		err := npp.Convert8u32f(b.head, (*npp.Float32)(t.Memer().Ptr()), b.volume)
+		if err != nil {
+			return err
+		}
+		return npp.DivC32fI(b.average, (*npp.Float32)(t.Memer().Ptr()), b.volume, h.ctx)
+	default:
+		return errors.New("Only Float supported")
+
+	}
+}
+
+//this will only work if in nchw
+func (b *BatchBuffer) getbatcheschannelsptrs(batch int32) (channels []*npp.Uint8) {
+
+	if !b.nchw {
+		channels := make([]*npp.Uint8, 1)
+		channels[0] = b.getptrat(batch, 0)
+	}
+	chans := b.dims[1]
+	channels = make([]*npp.Uint8, chans)
+	for i := range channels {
+		channels[i] = b.getptrat(batch, int32(i))
+	}
+	return channels
+}
+func (b *BatchBuffer) getptrat(batch, channel int32) *npp.Uint8 {
+	if b.nchw {
+		gomem := gocu.Offset(b.head, uint(batch*b.strides[0]+channel*b.strides[1]))
+		return (*npp.Uint8)(gomem.Ptr())
+	}
+	gomem := gocu.Offset(b.head, uint(batch*b.strides[0]))
+	return (*npp.Uint8)(gomem.Ptr())
 
 }
 
 type BatchBuffer struct {
-	currentimages   []*jpeg.Image
-	rois            []npp.Rect
 	head            *npp.Uint8
 	batchchansuint8 [][]*npp.Uint8
+	size            npp.Size
 	strides         []int32
 	nchw            bool
 	dims            []int32
+	average         npp.Float32
+	volume          int32
 }
 
 func convertNppitoNppsCHW(channel []*npp.Uint8, sizes []npp.Size, mem *npp.Uint8) (n uint, err error) {
