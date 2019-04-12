@@ -77,8 +77,8 @@ func Memcpy(dest, src gocu.Mem, sizeinbytes uint) error {
 	return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
 }
 
-//Set sets the memory to whatever integer value passed
-func (m *Malloced) Set(val int32) error {
+//SetAll sets the memory to whatever integer value passed
+func (m *Malloced) SetAll(val int32) error {
 	return cudart.Memset(m, val, m.TotalBytes())
 }
 
