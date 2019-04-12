@@ -70,7 +70,7 @@ func cudnnbatchchannelsize(x *tensor.Volume) (batch int, channel int, err error)
 }
 
 //Mirror - flips images according to axis. If dest is nil then function is done in place
-func Mirror(h *Handle, src, dest []*npp.Uint8, sizes npp.Size, flip npp.Axis) error {
+func mirror(h *Handle, src, dest []*npp.Uint8, sizes npp.Size, flip npp.Axis) error {
 	var err error
 	if dest == nil {
 		for i := range src {
@@ -113,7 +113,7 @@ func (b *BatchBuffer) GetProperties() (dims []int32, nchw bool) {
 	return b.dims, b.nchw
 }
 
-//Load will take the images and resize them considering the srcROIs,and destROIs to the buffer.
+//LoadImages will take the images and resize them considering the srcROIs,and destROIs to the buffer.
 //
 //if srcROIS and/or destROIs are nil, then it will make the ROIs that are null the size of the src and dest space.
 //
@@ -160,15 +160,31 @@ func (b *BatchBuffer) LoadImages(h *Handle, imgs []*jpeg.Image, srcROIs, destROI
 	}
 	return nil
 }
-func (b *BatchBuffer) Mirror(batches []int32, onaxis []npp.Axis) error {
-	return errors.New("Not Done")
+
+//Mirror will mirror the batches indicated in batches.  len(onaxis)==len(batches) else it will cause an error
+func (b *BatchBuffer) Mirror(h *Handle, batches []int32, onaxis []npp.Axis) (err error) {
+	if len(batches) != len(onaxis) {
+		return errors.New("(b *BatchBuffer) Mirror -- len(batches)!=len(onxis)")
+	}
+
+	for i, axis := range onaxis {
+		if batches[i] > b.dims[0]-1 {
+			return errors.New("(b *BatchBuffer) Mirror -- batches[i]>b.dims[0]-1")
+		}
+		chans := b.getbatcheschannelsptrs(batches[i])
+		err = mirror(h, chans, nil, b.size, axis)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (b *BatchBuffer) FillTensor(h *Handle, t *tensor.Volume) error {
 	dtype := t.DataType()
 	dflg := dtype
 	switch dtype {
 	case dflg.Float():
-		err := npp.Convert8u32f(b.head, (*npp.Float32)(t.Memer().Ptr()), b.volume)
+		err := npp.Convert8u32f(b.head, (*npp.Float32)(t.Memer().Ptr()), b.volume, h.ctx)
 		if err != nil {
 			return err
 		}
@@ -271,8 +287,8 @@ func convertNppitoNppsNCHW(channels [][]*npp.Uint8, sizes [][]npp.Size, mem *npp
 	return nil
 }
 
-func nppuint8tonppfloat32(src *npp.Uint8, dst *npp.Float32, length int32) error {
-	return npp.Convert8u32f(src, dst, length)
+func nppuint8tonppfloat32(h *Handle, src *npp.Uint8, dst *npp.Float32, length int32) error {
+	return npp.Convert8u32f(src, dst, length, h.ctx)
 }
 
 func chanoffset(size npp.Size) int {
