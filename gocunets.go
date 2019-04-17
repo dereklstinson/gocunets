@@ -486,7 +486,7 @@ func (m *Network) ZeroHiddenInferenceIOs(handle *cudnn.Handler) error {
 		return err
 	}
 	for i := range m.inference.mem {
-		err = m.inference.mem[i].T().Memer().Set(0)
+		err = m.inference.mem[i].T().Memer().SetAll(0)
 		if err != nil {
 			return err
 		}
@@ -502,11 +502,11 @@ func (m *Network) ZeroHiddenTrainingIOs(handle *cudnn.Handler) error {
 		return err
 	}
 	for i := range m.training.mem {
-		err = m.training.mem[i].T().Memer().Set(0)
+		err = m.training.mem[i].T().Memer().SetAll(0)
 		if err != nil {
 			return err
 		}
-		err = m.training.mem[i].T().Memer().Set(0)
+		err = m.training.mem[i].T().Memer().SetAll(0)
 		if err != nil {
 			return err
 		}
@@ -522,17 +522,17 @@ func (m *Network) ZeroHiddenIOs(handle *cudnn.Handler) error {
 		return err
 	}
 	for i := range m.inference.mem {
-		err = m.inference.mem[i].T().Memer().Set(0)
+		err = m.inference.mem[i].T().Memer().SetAll(0)
 		if err != nil {
 			return err
 		}
 	}
 	for i := range m.training.mem {
-		err = m.training.mem[i].T().Memer().Set(0)
+		err = m.training.mem[i].T().Memer().SetAll(0)
 		if err != nil {
 			return err
 		}
-		err = m.training.mem[i].T().Memer().Set(0)
+		err = m.training.mem[i].T().Memer().SetAll(0)
 		if err != nil {
 			return err
 		}

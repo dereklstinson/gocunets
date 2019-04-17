@@ -17,6 +17,6 @@ func (m *Malloced) FillSlice(input interface{}) error {
 		return errors.New("Nil sent as input for FillSlice")
 	}
 
-	return cudart.MemcpyUnsafe(ptr, m.Ptr(), m.TotalBytes(), defaultmemcopykind)
+	return cudart.MemcpyUS(ptr, m.Ptr(), m.TotalBytes(), defaultmemcopykind)
 
 }

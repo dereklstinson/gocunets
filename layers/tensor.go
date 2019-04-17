@@ -61,7 +61,7 @@ func (i *IO) StoreDeltas(x bool) {
 
 //ClearDeltas allows the user to clear the deltas of the IO
 func (i *IO) ClearDeltas() error {
-	return i.dx.Memer().Set(0)
+	return i.dx.Memer().SetAll(0)
 
 }
 

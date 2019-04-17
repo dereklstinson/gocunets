@@ -85,7 +85,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			}
 			return err
 		}
-		err = a.xsum.Set(0)
+		err = a.xsum.SetAll(0)
 		if err != nil {
 			if debuggingadam {
 				fmt.Println("Dims are", dims)
@@ -94,7 +94,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 				panic(err)
 			}
 		}
-		err = a.gsum.Set(0)
+		err = a.gsum.SetAll(0)
 		if err != nil {
 			if debuggingadam {
 				fmt.Println("a.gsum Cudasize", a.gsum.TotalBytes())
@@ -123,42 +123,6 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 	}
 	return nil
 }
-
-/*
-func (a *Adam) freememer() error {
-	memerrorstrings := "FreeingMem"
-	flag := false
-	if a.goptr1 != nil {
-		memerrorstrings = memerrorstrings + a.goptr1.Free().Error() + " , "
-		flag = true
-	}
-	if a.goptr2 != nil {
-		memerrorstrings = memerrorstrings + a.goptr2.Free().Error() + " , "
-		flag = true
-	}
-	if a.gpuloss1 != nil {
-		memerrorstrings = memerrorstrings + a.gpuloss1.Free().Error() + " , "
-		flag = true
-	}
-	if a.gpuloss2 != nil {
-		memerrorstrings = memerrorstrings + a.gpuloss2.Free().Error() + " , "
-		flag = true
-
-	}
-	if a.gsum != nil {
-		memerrorstrings = memerrorstrings + a.gsum.Free().Error() + " , "
-		flag = true
-	}
-	if a.xsum != nil {
-		memerrorstrings = memerrorstrings + a.xsum.Free().Error() + " , "
-		flag = true
-	}
-	if flag {
-		return errors.New(memerrorstrings)
-	}
-	return nil
-}
-*/
 
 //Dims returns the dims of the training parameter holders
 func (a *Adam) Dims() []int32 {
@@ -309,18 +273,3 @@ func (a *Adam) SetEps(eps float32) {
 	a.params.SetEps(eps)
 
 }
-
-/*
-func (a *Adam)Loss1()float32{
-	return a.loss1
-}
-
-*/
-/*
-//CreateAdamHandle creates a handle for adam
-func CreateAdamHandle(dev *gocudnn.Device, kerneldir string) (*gocudnn.XHandle, error) {
-	var x gocudnn.Xtra
-	return x.MakeXHandle(kerneldir, dev)
-
-}
-*/
