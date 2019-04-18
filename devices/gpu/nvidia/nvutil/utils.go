@@ -195,26 +195,67 @@ func (b *BatchBuffer) FillTensor(h *Handle, t *tensor.Volume) error {
 	}
 }
 
+func findfittingpad(src, dst, stride int32) int32 {
+
+	sections := intceiling(src-dst, stride) + 1
+	return (1 - src%sections) * sections
+
+}
+
+func intceiling(a, b int32) int32 {
+	return ((a - int32(1)) / b) + int32(1)
+}
+
+/*
+func findSrcROIandDstROI(srcH, srcW, strideH, strideW, dstH, dstW int32) (srcROI, dstROI []npp.Rect) {
+	srcROI := make([]npp.Rect, 0)
+	dstROI := make([]npp.Rect, 0)
+	for i := 0; i < srcH; strideH {
+		for j := 0; j < srcW; j += strideW {
+
+		}
+	}
+}
+
+//NCSHW==numbatches,channels,sections,height,width
+func imgto4dsignalNCSHW(img jpeg.Image, window, stride []int32, imagesignal *npp.Uint8) error {
+	imagechan := img.GetChannels()
+	for i, im := range imagechan {
+		h := im.Height
+		w := im.Pitch
+		ptr := im.Ptr
+	}
+}
+*/
 //this will only work if in nchw
 func (b *BatchBuffer) getbatcheschannelsptrs(batch int32) (channels []*npp.Uint8) {
+	batchchan := make([]int32, len(b.dims))
 
+	batchchan[0] = batch
+
+	for i := range batchchan {
+		batchchan[i] = 1
+	}
 	if !b.nchw {
 		channels := make([]*npp.Uint8, 1)
-		channels[0] = b.getptrat(batch, 0)
+
+		channels[0] = b.getptrat(batchchan)
 	}
 	chans := b.dims[1]
 	channels = make([]*npp.Uint8, chans)
 	for i := range channels {
-		channels[i] = b.getptrat(batch, int32(i))
+		batchchan[1] = int32(i)
+		channels[i] = b.getptrat(batchchan)
 	}
 	return channels
 }
-func (b *BatchBuffer) getptrat(batch, channel int32) *npp.Uint8 {
-	if b.nchw {
-		gomem := gocu.Offset(b.head, uint(batch*b.strides[0]+channel*b.strides[1]))
-		return (*npp.Uint8)(gomem.Ptr())
+func (b *BatchBuffer) getptrat(location []int32) *npp.Uint8 {
+
+	loc := int32(0)
+	for i := range location {
+		loc += location[i] * b.strides[i]
 	}
-	gomem := gocu.Offset(b.head, uint(batch*b.strides[0]))
+	gomem := gocu.Offset(b.head, uint(loc))
 	return (*npp.Uint8)(gomem.Ptr())
 
 }

@@ -27,6 +27,8 @@ type ScalarOptimizer struct {
 	index          int
 	numofparticles int
 	alpha          bool
+	alphaglobal    bool
+	betaglobal     bool
 }
 
 func (m *Network) initializeslphascalarstuff() ([]*layer, int) {
@@ -88,7 +90,7 @@ func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed int, cognative, soc
 }
 
 //SetupScalarBetaPSO returns a pso to optimize the beta scalars in the network
-func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, mse *loss.MSE, x ...*Network) ScalarOptimizer {
+func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, mse *loss.MSE, x ...*Network) ScalarOptimizer {
 	hasscalars := make([]*layer, 0)
 	totalscalars := 0
 	for i := range x {
@@ -133,6 +135,16 @@ func (m *ScalarOptimizer) AllFitnesses(previousfitnesses []pso.FitnessIndex64) [
 	return m.pso.AllFitnesses(previousfitnesses)
 }
 
+//SetGlobal sets the global best.
+func (m *ScalarOptimizer) SetGlobal() error {
+	if m.alpha {
+
+		return m.alphaglobalset()
+
+	}
+	return m.betaglobalset()
+}
+
 //AsyncUpdating does an asyncronus update of the scalar parameters
 func (m *ScalarOptimizer) AsyncUpdating(fitness float32) error {
 	if m.alpha {
@@ -163,6 +175,43 @@ func (m *ScalarOptimizer) asyncupdatebeta(fitness float32) error {
 		panic("position should be one here")
 	}
 	m.mse.SetBetaScalars(position)
+	m.betaglobal = false
+	return nil
+}
+
+//AsyncUpdating updates the Swarm after each particle use
+func (m *ScalarOptimizer) betaglobalset() error {
+	if !m.betaglobal {
+		position := m.pso.GlobalPosition()
+
+		for i := range m.hasscalars {
+			position = m.hasscalars[i].updateabetascalar(position)
+
+		}
+		if len(position) != 1 {
+			panic("position should be one here")
+		}
+		m.mse.SetBetaScalars(position)
+		m.betaglobal = true
+	}
+	return nil
+}
+
+//AsyncUpdating updates the Swarm after each particle use
+func (m *ScalarOptimizer) alphaglobalset() error {
+	if !m.alphaglobal {
+		position := m.pso.GlobalPosition()
+		for i := range m.hasscalars {
+			position = m.hasscalars[i].updatealphascalar(position)
+
+		}
+		if len(position) != 1 {
+			panic("position should be one here")
+		}
+		m.mse.SetAlphaScalars(position)
+
+		m.alphaglobal = true
+	}
 	return nil
 }
 
@@ -188,6 +237,7 @@ func (m *ScalarOptimizer) asyncupdatealpha(fitness float32) error {
 		panic("position should be one here")
 	}
 	m.mse.SetAlphaScalars(position)
+	m.alphaglobal = false
 	return nil
 }
 
@@ -197,6 +247,7 @@ type MetaOptimizer struct {
 	pso            *pso.Swarm32
 	index          int
 	numofparticles int
+	global         bool
 }
 
 //AsyncUpdating updates the Swarm after each particle use
@@ -218,6 +269,23 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 		m.trainers[i].SetDecays(position[pctr+2], position[pctr+3])
 		pctr += 4
 	}
+	m.global = false
+	return nil
+}
+
+//SetGlobal updates the Swarm after each particle use
+func (m *MetaOptimizer) SetGlobal() error {
+	if !m.global {
+		pctr := 0
+		position := m.pso.GlobalPosition()
+		for i := range m.trainers {
+			m.trainers[i].SetRates(position[pctr], position[pctr+1])
+			m.trainers[i].SetDecays(position[pctr+2], position[pctr+3])
+			pctr += 4
+		}
+		m.global = true
+	}
+
 	return nil
 }
 
