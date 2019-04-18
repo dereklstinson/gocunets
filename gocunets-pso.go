@@ -3,7 +3,7 @@ package gocunets
 import (
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/trainer"
-	"github.com/dereklstinson/GoCuNets/trainer/pso"
+	"github.com/dereklstinson/pso"
 )
 
 func (m *Network) totalnumofscalarsalpha() int {
@@ -55,7 +55,7 @@ func (m *Network) initializebetascalarstuff() ([]*layer, int) {
 }
 
 //SetupScalarAlphaPSO returns a pso to optimize the alpha scalars in the network
-func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, mse *loss.MSE, x ...*Network) ScalarOptimizer {
+func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float64, mse *loss.MSE, x ...*Network) ScalarOptimizer {
 	hasscalars := make([]*layer, 0)
 	totalscalars := 0
 	for i := range x {
@@ -70,7 +70,9 @@ func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognativ
 		}
 	}
 	totalscalars++ //mse has only one alpha
-	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
+	swarm := pso.CreateSwarm64(seed)
+	swarm.GenericSet(mode, numofparticles, totalscalars, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
+
 	position := swarm.ParticlePosition(0)
 
 	for i := range hasscalars {
@@ -101,7 +103,8 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 		}
 	}
 	totalscalars++ //mse has only one beta
-	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
+	swarm := pso.CreateSwarm64(seed)
+	swarm.GenericSet(mode, numofparticles, totalscalars, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.ParticlePosition(0)
 
 	for i := range hasscalars {
@@ -116,7 +119,7 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 }
 
 //Reset resets the Optimizer and resets a percent (between 0 and 1..1 being 100%) of the partilces
-func (m *ScalarOptimizer) Reset(indexes []int, resetglobalposition bool) error {
+func (m *ScalarOptimizer) Reset(indexes []pso.FitnessIndex64, resetglobalposition bool) error {
 	err := m.pso.ResetParticles(indexes, resetglobalposition)
 	if err != nil {
 		return err
@@ -126,7 +129,7 @@ func (m *ScalarOptimizer) Reset(indexes []int, resetglobalposition bool) error {
 }
 
 //AllFitnesses gets all the fitnesses
-func (m *ScalarOptimizer) AllFitnesses(previousfitnesses []float64) []float64 {
+func (m *ScalarOptimizer) AllFitnesses(previousfitnesses []pso.FitnessIndex64) []pso.FitnessIndex64 {
 	return m.pso.AllFitnesses(previousfitnesses)
 }
 
@@ -219,7 +222,7 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 }
 
 //Reset resets the Optimizer and resets a percent (between 0 and 1..1 being 100%) of the partilces
-func (m *MetaOptimizer) Reset(indexes []int, resetglobalposition bool) error {
+func (m *MetaOptimizer) Reset(indexes []pso.FitnessIndex32, resetglobalposition bool) error {
 	err := m.pso.ResetParticles(indexes, resetglobalposition)
 	if err != nil {
 		return err
@@ -229,19 +232,20 @@ func (m *MetaOptimizer) Reset(indexes []int, resetglobalposition bool) error {
 }
 
 //AllFitnesses gets all the fitnesses
-func (m *MetaOptimizer) AllFitnesses(previousfitnesses []float32) []float32 {
+func (m *MetaOptimizer) AllFitnesses(previousfitnesses []pso.FitnessIndex32) []pso.FitnessIndex32 {
 	return m.pso.AllFitnesses(previousfitnesses)
 }
 
 //SetUpPSO will set up the pso
-func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
+func SetUpPSO(mode pso.Mode, numofparticles, seed int, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax float32, x ...[]trainer.Trainer) MetaOptimizer {
 
 	trainers := make([]trainer.Trainer, 0)
 	for i := range x {
 		trainers = append(trainers, x[i]...)
 	}
 	totaldims := len(trainers) * 4
-	swarm := pso.CreateSwarm32(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
+	swarm := pso.CreateSwarm32(seed)
+	swarm.GenericSet(mode, numofparticles, totaldims, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
 	position := swarm.ParticlePosition(0)
 	pctr := 0
 	for i := range trainers {
