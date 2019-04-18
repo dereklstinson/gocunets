@@ -23,7 +23,7 @@ func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
 type ScalarOptimizer struct {
 	hasscalars     []*layer
 	mse            *loss.MSE
-	pso            pso.Swarm64
+	pso            *pso.Swarm64
 	index          int
 	numofparticles int
 	alpha          bool
@@ -71,7 +71,7 @@ func SetupScalarAlphaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognativ
 	}
 	totalscalars++ //mse has only one alpha
 	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
-	position := swarm.GetParticlePosition(0)
+	position := swarm.ParticlePosition(0)
 
 	for i := range hasscalars {
 
@@ -102,7 +102,7 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 	}
 	totalscalars++ //mse has only one beta
 	swarm := pso.CreateSwarm64(mode, numofparticles, totalscalars, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
-	position := swarm.GetParticlePosition(0)
+	position := swarm.ParticlePosition(0)
 
 	for i := range hasscalars {
 
@@ -115,24 +115,19 @@ func SetupScalarBetaPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative
 	}
 }
 
-//ReachedKmax will let the outside world know if max num of k was reached
-func (m *ScalarOptimizer) ReachedKmax() bool {
-	return m.pso.ReachedKmax()
-}
-
-//ResetInnerKCounter resets the inner k counter
-func (m *ScalarOptimizer) ResetInnerKCounter() {
-	m.pso.ResetInnerKCounter()
-}
-
 //Reset resets the Optimizer and resets a percent (between 0 and 1..1 being 100%) of the partilces
-func (m *ScalarOptimizer) Reset(percent float32) error {
-	err := m.pso.ResetSwarm(percent)
+func (m *ScalarOptimizer) Reset(indexes []int, resetglobalposition bool) error {
+	err := m.pso.ResetParticles(indexes, resetglobalposition)
 	if err != nil {
 		return err
 	}
-	m.pso.ResetInnerKCounter()
+
 	return nil
+}
+
+//AllFitnesses gets all the fitnesses
+func (m *ScalarOptimizer) AllFitnesses(previousfitnesses []float64) []float64 {
+	return m.pso.AllFitnesses(previousfitnesses)
 }
 
 //AsyncUpdating does an asyncronus update of the scalar parameters
@@ -156,7 +151,7 @@ func (m *ScalarOptimizer) asyncupdatebeta(fitness float32) error {
 		m.index = 0
 	}
 
-	position := m.pso.GetParticlePosition(m.index)
+	position := m.pso.ParticlePosition(m.index)
 	for i := range m.hasscalars {
 		position = m.hasscalars[i].updateabetascalar(position)
 
@@ -181,7 +176,7 @@ func (m *ScalarOptimizer) asyncupdatealpha(fitness float32) error {
 		m.index = 0
 	}
 
-	position := m.pso.GetParticlePosition(m.index)
+	position := m.pso.ParticlePosition(m.index)
 	for i := range m.hasscalars {
 		position = m.hasscalars[i].updatealphascalar(position)
 
@@ -196,7 +191,7 @@ func (m *ScalarOptimizer) asyncupdatealpha(fitness float32) error {
 //MetaOptimizer uses a PSO to optimize meta values
 type MetaOptimizer struct {
 	trainers       []trainer.Trainer
-	pso            pso.Swarm
+	pso            *pso.Swarm32
 	index          int
 	numofparticles int
 }
@@ -214,7 +209,7 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 	}
 
 	pctr := 0
-	position := m.pso.GetParticlePosition(m.index)
+	position := m.pso.ParticlePosition(m.index)
 	for i := range m.trainers {
 		m.trainers[i].SetRates(position[pctr], position[pctr+1])
 		m.trainers[i].SetDecays(position[pctr+2], position[pctr+3])
@@ -223,24 +218,19 @@ func (m *MetaOptimizer) AsyncUpdating(fitness float32) error {
 	return nil
 }
 
-//ReachedKmax will let the outside world know if max num of k was reached
-func (m *MetaOptimizer) ReachedKmax() bool {
-	return m.pso.ReachedKmax()
-}
-
-//ResetInnerKCounter resets the inner k counter
-func (m *MetaOptimizer) ResetInnerKCounter() {
-	m.pso.ResetInnerKCounter()
-}
-
 //Reset resets the Optimizer and resets a percent (between 0 and 1..1 being 100%) of the partilces
-func (m *MetaOptimizer) Reset(percent float32) error {
-	err := m.pso.ResetSwarm(percent)
+func (m *MetaOptimizer) Reset(indexes []int, resetglobalposition bool) error {
+	err := m.pso.ResetParticles(indexes, resetglobalposition)
 	if err != nil {
 		return err
 	}
-	m.pso.ResetInnerKCounter()
+
 	return nil
+}
+
+//AllFitnesses gets all the fitnesses
+func (m *MetaOptimizer) AllFitnesses(previousfitnesses []float32) []float32 {
+	return m.pso.AllFitnesses(previousfitnesses)
 }
 
 //SetUpPSO will set up the pso
@@ -251,8 +241,8 @@ func SetUpPSO(mode pso.Mode, numofparticles, seed, kmax int, cognative, social, 
 		trainers = append(trainers, x[i]...)
 	}
 	totaldims := len(trainers) * 4
-	swarm := pso.CreateSwarm(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
-	position := swarm.GetParticlePosition(0)
+	swarm := pso.CreateSwarm32(mode, numofparticles, totaldims, seed, kmax, cognative, social, vmax, minstartposition, maxstartposition, alphamax, inertiamax)
+	position := swarm.ParticlePosition(0)
 	pctr := 0
 	for i := range trainers {
 		trainers[i].SetRates(position[pctr], position[pctr+1])
