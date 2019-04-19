@@ -10,10 +10,15 @@ import (
 
 //Image contains the data used for nvjpeg images
 type Image struct {
-	img      *nvjpeg.Image
-	frmt     nvjpeg.OutputFormat
-	channels []Channel
-	pitch,height int32
+	img           *nvjpeg.Image
+	frmt          nvjpeg.OutputFormat
+	channels      []Channel
+	pitch, height int32
+}
+
+//Size returns the pitch and height
+func (img *Image) Size() (p, h int32) {
+	return img.pitch, img.height
 }
 
 //Channel contains a pointer to cuda memory along with Pitch and Height

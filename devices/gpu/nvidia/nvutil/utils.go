@@ -3,6 +3,8 @@ package nvutil
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
 
 	"github.com/dereklstinson/GoCuNets/utils"
 
@@ -15,15 +17,16 @@ import (
 )
 
 //ImageToNppi Converts an jpeg.Image to a npp.type with its npp.Size
-func ImageToNppi(img *jpeg.Image) (planar []*npp.Uint8, sizes []npp.Size) {
+func ImageToNppi(img *jpeg.Image) (planar []*npp.Uint8, size npp.Size) {
 	chans := img.GetChannels()
 	planar = make([]*npp.Uint8, len(chans))
-	sizes = make([]npp.Size, len(chans))
+	w, h := img.Size()
+	size.Set(w, h)
 	for i := range chans {
 		planar[i] = (*npp.Uint8)(chans[i].Ptr.Ptr())
-		sizes[i].Set(chans[i].Height, chans[i].Pitch)
+
 	}
-	return planar, sizes
+	return planar, size
 
 }
 
@@ -150,7 +153,7 @@ func (b *BatchBuffer) LoadImages(h *Handle, imgs []*jpeg.Image, srcROIs, destROI
 	for i := range imgs {
 		imgchannels, size := ImageToNppi(imgs[i])
 		imgchanptrs[i] = append(imgchanptrs[i], imgchannels...)
-		sizes[i] = append(sizes[i], size...)
+		sizes[i] = append(sizes[i], size)
 	}
 	for i, channels := range imgchanptrs {
 		err = resizenpp(h, channels, b.getbatcheschannelsptrs(int32(i)), sizes[i][0], b.size, srcROIs[i], destROIs[i])
@@ -195,38 +198,134 @@ func (b *BatchBuffer) FillTensor(h *Handle, t *tensor.Volume) error {
 	}
 }
 
-func findfittingpad(src, dst, stride int32) int32 {
-
-	sections := intceiling(src-dst, stride) + 1
-	return (1 - src%sections) * sections
-
+func finddimpadandsections(src, dst, stride int32) (padL, padU int32) {
+	padding := stride - ((src - dst) % stride)
+	//	sections = intceiling(src+padding, stride)
+	padL = padding / 2
+	padU = padL
+	if padding%2 == 1 {
+		if rand.Int31n(1) == 1 {
+			padU++
+		} else {
+			padL++
+		}
+	}
+	//fmt.Println(padL, padU)
+	return -padL, padU
 }
 
 func intceiling(a, b int32) int32 {
 	return ((a - int32(1)) / b) + int32(1)
 }
 
-/*
-func findSrcROIandDstROI(srcH, srcW, strideH, strideW, dstH, dstW int32) (srcROI, dstROI []npp.Rect) {
-	srcROI := make([]npp.Rect, 0)
-	dstROI := make([]npp.Rect, 0)
-	for i := 0; i < srcH; strideH {
-		for j := 0; j < srcW; j += strideW {
+//FindSrcROIandDstROI will return an array of srcROIs that will be used to tile the dstsize.
+func FindSrcROIandDstROI(src, dst npp.Size, strideW, strideH int32) (srcROI []npp.Rect, dstROI npp.Rect, err error) {
+	srcW, srcH := src.Get()
+	dstW, dstH := dst.Get()
+	padT, padB := finddimpadandsections(srcH, dstH, strideH)
+	padL, padR := finddimpadandsections(srcW, dstW, strideW)
+
+	srcROI = make([]npp.Rect, 0)
+	dstROI.Set(0, 0, dstW, dstH)
+	for i := padT; i < srcH+padB-(dstH-strideH); i += strideH {
+		for j := padL; j < srcW+padR-(dstW-strideW); j += strideW {
+			fmt.Println(i, j)
+			var srcrect npp.Rect
+			srcrect.Set(j, i, dstW, dstH)
+
+			offset, err := npp.GetResizeTiledSourceOffset(srcrect, dstROI)
+			if err != nil {
+				return nil, dstROI, err
+			}
+			sx, sy := offset.Get()
+			srcrect.Set(i+sx, j+sy, dstW, dstH)
+			srcROI = append(srcROI, srcrect)
 
 		}
 	}
+
+	return srcROI, dstROI, nil
+}
+func findPlanarChansForUint8(x *npp.Uint8, size, n int) ([]*npp.Uint8, error) {
+	if size%n != 0 {
+		return nil, errors.New(" size%n != 0")
+	}
+	xplanar := make([]*npp.Uint8, n)
+	for i := 0; i < n; i++ {
+		offsetmem := (gocu.Offset(x, uint(i*size/n)))
+		xplanar[i] = (*npp.Uint8)(offsetmem.Ptr())
+	}
+	return xplanar, nil
+
 }
 
-//NCSHW==numbatches,channels,sections,height,width
-func imgto4dsignalNCSHW(img jpeg.Image, window, stride []int32, imagesignal *npp.Uint8) error {
-	imagechan := img.GetChannels()
-	for i, im := range imagechan {
-		h := im.Height
-		w := im.Pitch
-		ptr := im.Ptr
-	}
+//TileHelper will help tile an image
+type TileHelper struct {
+	srcROIs []npp.Rect
+	dstROI  npp.Rect
+	srcchan int32
+	img     *jpeg.Image
 }
-*/
+
+//Set sets the tilehelper
+func (t *TileHelper) Set(img *jpeg.Image, tilesize npp.Size, stridew, strideh int32) (err error) {
+	w, h := img.Size()
+	var srcsize npp.Size
+	srcsize.Set(w, h)
+	chans := img.GetChannels()
+	t.srcchan = int32(len(chans))
+	t.srcROIs, t.dstROI, err = FindSrcROIandDstROI(srcsize, tilesize, stridew, strideh)
+	return err
+}
+
+//GetDestNumOfElements returns the number of elements the dest location will need
+func (t *TileHelper) GetDestNumOfElements() (n int32) {
+	return findTileDestSize(t.srcROIs, t.dstROI, t.srcchan)
+}
+func findTileDestSize(srcROI []npp.Rect, dstROI npp.Rect, imagechans int32) (elements int32) {
+	tiles := (int32)(len(srcROI))
+	_, _, w, h := dstROI.Get()
+	return w * h * tiles * imagechans
+}
+
+func (t *TileHelper) determindestinationsize() {
+
+}
+
+func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) error {
+	chans := t.img.GetChannels()
+
+	var srcsize npp.Size
+	srcsize.Set(t.img.Size())
+	_, _, wd, ht := t.dstROI.Get()
+	var destsize npp.Size
+	destsize.Set(wd, ht)
+	nchans := len(chans)
+	destsections := make([][]*npp.Uint8, nchans)
+	destchanptrs, err := findPlanarChansForUint8(dest, destnelements, nchans)
+	if err !=nil{
+		return err
+	}
+	for i := range destsections {
+		roiptrs, err := findPlanarChansForUint8(destchanptrs[i], destnelements/nchans, len(t.srcROIs))
+		destsections[i] = append(destsections[i], roiptrs...)
+		for j := range destsections[i] {
+			if err != nil {
+				return err
+			}
+			srcchans := []*npp.Uint8{(*npp.Uint8)(chans[i].Ptr.Ptr())}
+			destchans := []*npp.Uint8{destsections[i][j]}
+
+			err = resizenpp(h, srcchans, destchans, srcsize, destsize, t.srcROIs[j], t.dstROI)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
 //this will only work if in nchw
 func (b *BatchBuffer) getbatcheschannelsptrs(batch int32) (channels []*npp.Uint8) {
 	batchchan := make([]int32, len(b.dims))
