@@ -303,7 +303,7 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 	nchans := len(chans)
 	destsections := make([][]*npp.Uint8, nchans)
 	destchanptrs, err := findPlanarChansForUint8(dest, destnelements, nchans)
-	if err !=nil{
+	if err != nil {
 		return err
 	}
 	for i := range destsections {
