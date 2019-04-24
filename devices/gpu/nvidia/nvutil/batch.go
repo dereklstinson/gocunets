@@ -87,8 +87,9 @@ func (b *BatchBuffer) LoadImages(h *Handle, imgs []*jpeg.Image, srcROIs, destROI
 		//do stuff
 		srcROIs = make([]npp.Rect, len(imgs))
 		for i := range imgs {
-			chans := imgs[i].GetChannels()
-			srcROIs[i].Set(0, 0, chans[0].Pitch, chans[0].Height)
+			//chans := imgs[i].GetChannels()
+			w, h := imgs[i].Size()
+			srcROIs[i].Set(0, 0, w, h)
 		}
 		//ok i did the stuff
 	}

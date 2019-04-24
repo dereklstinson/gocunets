@@ -29,6 +29,7 @@ func CreateDecoder(h *nvjpeg.Handle, s gocu.Streamer) (*Decoder, error) {
 }
 
 //DecodeAIO decodes one jpeg through all the phases in on function
+
 func (d *Decoder) DecodeAIO(r io.Reader, frmt nvjpeg.OutputFormat, allocator gocu.Allocator) (*Image, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {

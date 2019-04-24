@@ -6,19 +6,29 @@ import (
 )
 
 //MakeHandle creates an jpeg handle
+//if devbuff == 0 then default setting will be used
+//if pinnedbuff == 0 then default setting will be used
 func MakeHandle(devbuff, pinnedbuff uint) (*nvjpeg.Handle, error) {
 	h, err := nvjpeg.CreateSimple()
 	if err != nil {
+
 		return nil, err
 	}
-	err = h.SetDeviceMemoryPadding(devbuff)
-	if err != nil {
-		return nil, err
+	if devbuff != 0 {
+		err = h.SetDeviceMemoryPadding(devbuff)
+		if err != nil {
+
+			return nil, err
+		}
 	}
-	err = h.SetPinnedMemoryPadding(pinnedbuff)
-	if err != nil {
-		return nil, err
+	if pinnedbuff != 0 {
+		err = h.SetPinnedMemoryPadding(pinnedbuff)
+		if err != nil {
+
+			return nil, err
+		}
 	}
+
 	return h, nil
 }
 

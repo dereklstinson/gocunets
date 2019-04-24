@@ -12,19 +12,37 @@ import (
 type Image struct {
 	img           *nvjpeg.Image
 	frmt          nvjpeg.OutputFormat
+	subsampling   nvjpeg.ChromaSubsampling
 	channels      []Channel
-	pitch, height int32
+	width, height int32
 }
 
 //Size returns the pitch and height
-func (img *Image) Size() (p, h int32) {
-	return img.pitch, img.height
+func (img *Image) Size() (w, h int32) {
+	return img.width, img.height
 }
 
 //Channel contains a pointer to cuda memory along with Pitch and Height
 type Channel struct {
-	Ptr           gocu.Mem
-	Pitch, Height int32
+	ptr  gocu.Mem
+	h, w int32
+}
+
+//Set sets the channels
+func (c *Channel) Set(ptr gocu.Mem, w, h int32) {
+	c.ptr = ptr
+	c.h = h
+	c.w = w
+}
+
+//Size returns the w, h values of channel
+func (c *Channel) Size() (w, h int32) {
+	return c.w, c.h
+}
+
+//Mem returns the gocu.Mem of the channel
+func (c *Channel) Mem() gocu.Mem {
+	return c.ptr
 }
 
 //GetChannels returns the channels being held by img
@@ -41,25 +59,30 @@ func CreateDestImage(h *nvjpeg.Handle, frmt nvjpeg.OutputFormat, r io.Reader, al
 	return createEmptyImage(h, frmt, data, allocator)
 }
 func createEmptyImage(handle *nvjpeg.Handle, frmt nvjpeg.OutputFormat, data []byte, allocator gocu.Allocator) (*Image, error) {
-	cpnts, _, w, h, err := nvjpeg.GetImageInfo(handle, data)
+	chromasubsampling, w, h, err := nvjpeg.GetImageInfo(handle, data)
 	if err != nil {
 		return nil, err
 	}
-	img, err := nvjpeg.CreateImageDest(frmt, cpnts, w, h, allocator)
+	img, err := nvjpeg.CreateImageDest(frmt, w, h, allocator)
 	if err != nil {
 		return nil, err
 	}
-	ptrs, pitch := img.Get()
+	ptrs, _ := img.Get()
 	chans := make([]Channel, len(ptrs))
+	wactual, hactual := nvjpeg.ChannelDimHelper(frmt, w, h)
 	for i := range ptrs {
-		chans[i].Ptr = ptrs[i]
-		chans[i].Height = h[i]
-		chans[i].Pitch = (int32)(pitch[i])
+		chans[i].ptr = ptrs[i]
+		chans[i].h = hactual[i]
+
+		chans[i].w = wactual[i]
 	}
 	return &Image{
-		img:      img,
-		frmt:     frmt,
-		channels: chans,
+		img:         img,
+		frmt:        frmt,
+		channels:    chans,
+		subsampling: chromasubsampling,
+		height:      h[0],
+		width:       w[0],
 	}, nil
 }
 func getnvjpegimagearrays(imgs []*Image) []*nvjpeg.Image {

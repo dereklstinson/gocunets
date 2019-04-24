@@ -11,8 +11,23 @@ type TileHelper struct {
 	dstROI  npp.Rect
 	srcchan int32
 	img     *jpeg.Image
+	tiles   [][]*npp.Uint8
 }
 
+/*
+func SetTileHelpers(helpers []*TileHelper, imgs []*jpeg.Image, tsizes []npp.Size, stridew, strideh []int32) (err error) {
+	if len(helpers) != len(imgs) || len(helpers) != len(tsizes) || len(helpers) != len(stridew) || len(helpers) != len(strideh) {
+		return errors.New("all the arrays need to be the same size")
+	}
+	for i, th := range helpers {
+		err = th.Set(imgs[i], tsizes[i], stridew[i], strideh[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+*/
 //Set sets the tilehelper
 func (t *TileHelper) Set(img *jpeg.Image, tilesize npp.Size, stridew, strideh int32) (err error) {
 	w, h := img.Size()
@@ -59,7 +74,7 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 			if err != nil {
 				return err
 			}
-			srcchans := []*npp.Uint8{(*npp.Uint8)(chans[i].Ptr.Ptr())}
+			srcchans := []*npp.Uint8{(*npp.Uint8)(chans[i].Mem().Ptr())}
 			destchans := []*npp.Uint8{destsections[i][j]}
 
 			err = resizenpp(h, srcchans, destchans, srcsize, destsize, t.srcROIs[j], t.dstROI)
