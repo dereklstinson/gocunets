@@ -73,7 +73,7 @@ func MallocHost(h Handler, sizebytes uint) (*Malloced, error) {
 }
 
 //Memcpy is like cudart.Memcpy but it is using the cudart.Memcpykind{}.Default() flag
-func Memcpy(dest, src gocu.Mem, sizeinbytes uint) error {
+func Memcpy(dest, src gocu.Pointer, sizeinbytes uint) error {
 	return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
 }
 

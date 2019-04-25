@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
@@ -16,7 +17,8 @@ import (
 )
 
 func main() {
-
+	runtime.LockOSThread()
+	fmt.Println("Start")
 	jpeghandle, err := jpeg.MakeHandle(0, 0)
 	if err != nil {
 		panic(err)
@@ -104,9 +106,11 @@ func main() {
 	tiledspace := npp.Malloc8u(totalelements)
 	offsets := make([]*npp.Uint8, 3)
 	for i := range offsets {
-		oset := gocu.Offset(tiledspace, uint(elementsperimage[i]*int32(i)))
-		offsets[i] = (*npp.Uint8)(oset.Ptr())
+		fmt.Println(i)
+
+		offsets[i] = tiledspace.Offset(elementsperimage[i] * int32(i))
 		hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]))
+
 	}
 
 	/*

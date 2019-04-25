@@ -33,7 +33,8 @@ func (t *TileHelper) Set(img *jpeg.Image, tilesize npp.Size, stridew, strideh in
 	w, h := img.Size()
 	var srcsize npp.Size
 	srcsize.Set(w, h)
-	chans := img.GetChannels()
+	t.img = img
+	chans := t.img.GetChannels()
 	t.srcchan = int32(len(chans))
 	t.srcROIs, t.dstROI, err = FindSrcROIandDstROI(srcsize, tilesize, stridew, strideh)
 	return err
