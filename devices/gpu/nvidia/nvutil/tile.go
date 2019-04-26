@@ -75,7 +75,8 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 			if err != nil {
 				return err
 			}
-			srcchans := []*npp.Uint8{(*npp.Uint8)(chans[i].Mem().Ptr())}
+
+			srcchans := []*npp.Uint8{npp.MakeUint8Unsafe(chans[i].Mem().Ptr())}
 			destchans := []*npp.Uint8{destsections[i][j]}
 
 			err = resizenpp(h, srcchans, destchans, srcsize, destsize, t.srcROIs[j], t.dstROI)
@@ -87,3 +88,5 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 	}
 	return nil
 }
+
+//func (t TileHelper)

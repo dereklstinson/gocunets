@@ -14,8 +14,8 @@ func findPlanarChansForUint8(x *npp.Uint8, size, n int) ([]*npp.Uint8, error) {
 	}
 	xplanar := make([]*npp.Uint8, n)
 	for i := 0; i < n; i++ {
-		offsetmem := (gocu.Offset(x, uint(i*size/n)))
-		xplanar[i] = (*npp.Uint8)(offsetmem.Ptr())
+		xplanar[i] = x.Offset((int32)((i * size) / n))
+
 	}
 	return xplanar, nil
 
@@ -30,7 +30,7 @@ func convertNppitoNppsCHW(channel []*npp.Uint8, sizes []npp.Size, mem *npp.Uint8
 		srcsize = uint(h * w)
 		destoffset = srcsize * uint(i)
 
-		err = nvidia.Memcpy(gocu.Offset(mem, (destoffset)), channel[i], srcsize)
+		err = nvidia.Memcpy(mem.Offset((int32)(destoffset)), channel[i], srcsize)
 		if err != nil {
 			return n, err
 		}
@@ -68,7 +68,7 @@ func convertNppitoNppsNCHW(channels [][]*npp.Uint8, sizes [][]npp.Size, mem *npp
 	for i := range channels {
 
 		for j := range channels[i] {
-			err = nvidia.Memcpy(gocu.Offset(mem, uint((i*boffsets[i])+(j*coffsets[i][j]))), channels[i][j], (uint)(coffsets[i][j]))
+			err = nvidia.Memcpy(mem.Offset(int32((i*boffsets[i])+(j*coffsets[i][j]))), channels[i][j], (uint)(coffsets[i][j]))
 			if err != nil {
 				return err
 			}

@@ -17,7 +17,7 @@ type BatchBuffer struct {
 	strides         []int32
 	nchw            bool
 	dims            []int32
-	average         npp.Float32
+	average         float32
 	volume          int32
 }
 
@@ -34,7 +34,7 @@ func CreateBatchBuffer(dims []int32, averagepixel float32) *BatchBuffer {
 		head:    head,
 		nchw:    true,
 		size:    size,
-		average: (npp.Float32)(averagepixel),
+		average: (averagepixel),
 		volume:  volume,
 	}
 }

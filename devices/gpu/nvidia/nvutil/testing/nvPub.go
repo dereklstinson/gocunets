@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/dereklstinson/GoCudnn/gocu"
+	//"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
 
 	"github.com/dereklstinson/GoCudnn/nvjpeg"
