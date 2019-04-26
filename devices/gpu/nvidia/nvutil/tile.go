@@ -1,6 +1,8 @@
 package nvutil
 
 import (
+	"fmt"
+
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
 	"github.com/dereklstinson/GoCudnn/npp"
 )
@@ -69,8 +71,8 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 		return err
 	}
 	for i := range destsections {
-		roiptrs, err := findPlanarChansForUint8(destchanptrs[i], destnelements/nchans, len(t.srcROIs))
-		destsections[i] = append(destsections[i], roiptrs...)
+		destsections[i], err = findPlanarChansForUint8(destchanptrs[i], destnelements/nchans, len(t.srcROIs))
+
 		for j := range destsections[i] {
 			if err != nil {
 				return err
@@ -78,7 +80,7 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 
 			srcchans := []*npp.Uint8{npp.MakeUint8Unsafe(chans[i].Mem().Ptr())}
 			destchans := []*npp.Uint8{destsections[i][j]}
-
+			fmt.Printf("Printing i: %d/%d, and j: %d/%d\n\n", i, len(destsections), j, len(destsections[i]))
 			err = resizenpp(h, srcchans, destchans, srcsize, destsize, t.srcROIs[j], t.dstROI)
 			if err != nil {
 				return err

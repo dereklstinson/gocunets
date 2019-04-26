@@ -3,6 +3,7 @@ package nvutil
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
@@ -36,14 +37,27 @@ func CreateHandle(ctx *npp.StreamContext, polation npp.InterpolationMode) *Handl
 		polation: polation,
 	}
 }
-func resizenpp(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size, srcROI, destROI npp.Rect) error {
+func resizenpp(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size, srcROI, destROI npp.Rect) (err error) {
+
 	switch len(src) {
 	case 1:
-		return npp.Resize8uC1R(src[0], srcSize, 0, srcROI, dest[0], destSize, 0, destROI, h.polation, h.ctx)
+		err = npp.Resize8uC1R(src[0], srcSize, 1024, srcROI, dest[0], destSize, 32, destROI, h.polation, h.ctx)
+		if err != nil {
+			fmt.Println("Error in case 1: Resize8uC1R")
+		}
+		return err
 	case 3:
-		return npp.Resize8uP3R(src, srcSize, 0, srcROI, dest, destSize, 0, destROI, h.polation, h.ctx)
+		err = npp.Resize8uP3R(src, srcSize, 1, srcROI, dest, destSize, 1, destROI, h.polation, h.ctx)
+		if err != nil {
+			fmt.Println("Error in case 3: Resize8uP3R")
+		}
+		return err
 	case 4:
-		return npp.Resize8uP4R(src, srcSize, 0, srcROI, dest, destSize, 0, destROI, h.polation, h.ctx)
+		err = npp.Resize8uP4R(src, srcSize, 1, srcROI, dest, destSize, 1, destROI, h.polation, h.ctx)
+		if err != nil {
+			fmt.Println("Error in case 4: Resize8uP4R")
+		}
+		return err
 	}
 	return errors.New("Unsupported src,dest size")
 }

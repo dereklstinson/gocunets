@@ -6,12 +6,14 @@ import (
 	"runtime"
 
 	//"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
 
 	"github.com/dereklstinson/GoCudnn/nvjpeg"
 
 	"github.com/dereklstinson/GoCudnn/cudart"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/nvutil"
 )
@@ -109,20 +111,20 @@ func main() {
 		fmt.Println(i)
 
 		offsets[i] = tiledspace.Offset(elementsperimage[i] * int32(i))
-		hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]))
-
-	}
-
-	/*
-		var src npp.Size
-		src.Set(108, 108)
-		var dst npp.Size
-		dst.Set(32, 32)
-
+		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]))
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("Src:", srcr)
-		fmt.Println("Dst:", dstr)
-	*/
+
+	}
+	databack := make([]byte, totalelements)
+	databackptr, err := gocu.MakeGoMem(databack)
+	if err != nil {
+		panic(err)
+	}
+	err = nvidia.Memcpy(databackptr, tiledspace, (uint)(totalelements))
+	fmt.Println(databack)
+	if err != nil {
+		panic(err)
+	}
 }
