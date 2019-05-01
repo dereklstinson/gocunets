@@ -9,7 +9,8 @@ import (
 //if devbuff == 0 then default setting will be used
 //if pinnedbuff == 0 then default setting will be used
 func MakeHandle(devbuff, pinnedbuff uint) (*nvjpeg.Handle, error) {
-	h, err := nvjpeg.CreateSimple()
+	var beflag nvjpeg.Backend
+	h, err := nvjpeg.CreateEx(beflag.Default())
 	if err != nil {
 
 		return nil, err
