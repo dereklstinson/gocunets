@@ -40,12 +40,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	encoder, err := jpeg.CreateEncoder(jpeghandle, stream)
-	if err != nil {
-		panic(err)
-	}
-	encoder.SetQuality(100)
-
+	/*
+		encoder, err := jpeg.CreateEncoder(jpeghandle, stream)
+		if err != nil {
+			panic(err)
+		}
+		encoder.SetQuality(100)
+	*/
 	imgs := make([]*jpeg.Image, 3)
 	for i := 0; i < 3; i++ {
 		var imgreader *os.File
@@ -105,17 +106,44 @@ func main() {
 		totalelements += x
 	}
 	fmt.Println(totalelements)
-	tiledspace := npp.Malloc8u(totalelements)
+	tiledspace := new(npp.Uint8) //tiledspace := npp.Malloc8u(totalelements)
+	err = cudart.MallocManagedGlobal(tiledspace, (uint)(totalelements))
+	if err != nil {
+		panic(err)
+	}
 	offsets := make([]*npp.Uint8, 3)
 	for i := range offsets {
 		fmt.Println(i)
 
 		offsets[i] = tiledspace.Offset(elementsperimage[i] * int32(i))
-		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]))
+		/*
+			ptratrib, err := cudart.PointerGetAttributes(offsets[i])
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf(
+				"*********************************\n"+
+					"Offset Pointer Attributes:\n\n"+
+					"Device For Pointer: %d\n"+
+					"Managed: %t\n"+
+					"Type: %d\n"+
+					"*********************************\n", ptratrib.Device, ptratrib.Managed, ptratrib.Type)
+		*/
+		err = stream.Sync()
 		if err != nil {
 			panic(err)
 		}
 
+		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]))
+
+		if err != nil {
+			panic(err)
+		}
+		err = stream.Sync()
+		if err != nil {
+			fmt.Println("Error On image:", i)
+			panic(err)
+		}
 	}
 	databack := make([]byte, totalelements)
 	databackptr, err := gocu.MakeGoMem(databack)
