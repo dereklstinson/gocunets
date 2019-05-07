@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 	var imode npp.InterpolationMode
-	nvutilhandle := nvutil.CreateHandle(nil, imode.LINEAR())
+	nvutilhandle := nvutil.CreateHandle(nil, imode.NN())
 	decoder, err := jpeg.CreateDecoder(jpeghandle, stream)
 	if err != nil {
 		panic(err)
@@ -97,15 +97,16 @@ func main() {
 		}
 		var size npp.Size
 		size.Set(32, 32)
-		err = hlpers[i].Set(imgs[i], size, 16, 16)
+		err = hlpers[i].Set(imgs[i], size, 8, 8)
 		if err != nil {
 			panic(err)
 		}
 		x := hlpers[i].GetDestNumOfElements()
+		fmt.Println("Image ", i, "has", x, "elements")
 		elementsperimage[i] = x
 		totalelements += x
 	}
-	fmt.Println(totalelements)
+	fmt.Println("Total Amount of Elemenets,", totalelements)
 	tiledspace := new(npp.Uint8) //tiledspace := npp.Malloc8u(totalelements)
 	err = cudart.MallocManagedGlobal(tiledspace, (uint)(totalelements))
 	if err != nil {
@@ -113,7 +114,7 @@ func main() {
 	}
 	offsets := make([]*npp.Uint8, 3)
 	for i := range offsets {
-		fmt.Println(i)
+		fmt.Println("Doing Image", i)
 
 		offsets[i] = tiledspace.Offset(elementsperimage[i] * int32(i))
 		/*
@@ -134,7 +135,7 @@ func main() {
 			panic(err)
 		}
 
-		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]))
+		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]), stream)
 
 		if err != nil {
 			panic(err)

@@ -17,7 +17,7 @@ type Decoder struct {
 
 //CreateDecoder creates a decoder
 func CreateDecoder(h *nvjpeg.Handle, s gocu.Streamer) (*Decoder, error) {
-	state, err := nvjpeg.JpegStateCreate(h)
+	state, err := nvjpeg.CreateJpegState(h)
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +42,7 @@ func (d *Decoder) DecodeAIO(r io.Reader, frmt nvjpeg.OutputFormat, allocator goc
 	if err != nil {
 		return nil, err
 	}
+
 	return img, nil
 }
 
@@ -86,6 +87,7 @@ func (d *Decoder) DecodeBatchedAIO(r []io.Reader, maxCPUthreads int, frmt nvjpeg
 	if err != nil {
 		return nil, err
 	}
+
 	return imgs, nil
 }
 

@@ -38,22 +38,23 @@ func CreateHandle(ctx *npp.StreamContext, polation npp.InterpolationMode) *Handl
 	}
 }
 func resizenpp(h *Handle, src, dest []*npp.Uint8, srcSize, destSize npp.Size, srcROI, destROI npp.Rect) (err error) {
-
+	ws, _ := srcSize.Get()
+	wd, _ := destSize.Get()
 	switch len(src) {
 	case 1:
-		err = npp.Resize8uC1R(src[0], srcSize, 1024, srcROI, dest[0], destSize, 32, destROI, h.polation, h.ctx)
+		err = npp.Resize8uC1R(src[0], srcSize, ws, srcROI, dest[0], destSize, wd, destROI, h.polation, h.ctx)
 		if err != nil {
 			fmt.Println("Error in case 1: Resize8uC1R")
 		}
 		return err
 	case 3:
-		err = npp.Resize8uP3R(src, srcSize, 1, srcROI, dest, destSize, 1, destROI, h.polation, h.ctx)
+		err = npp.Resize8uP3R(src, srcSize, ws, srcROI, dest, destSize, wd, destROI, h.polation, h.ctx)
 		if err != nil {
 			fmt.Println("Error in case 3: Resize8uP3R")
 		}
 		return err
 	case 4:
-		err = npp.Resize8uP4R(src, srcSize, 1, srcROI, dest, destSize, 1, destROI, h.polation, h.ctx)
+		err = npp.Resize8uP4R(src, srcSize, ws, srcROI, dest, destSize, wd, destROI, h.polation, h.ctx)
 		if err != nil {
 			fmt.Println("Error in case 4: Resize8uP4R")
 		}
@@ -82,8 +83,11 @@ func cudnnbatchchannelsize(x *tensor.Volume) (batch int, channel int, err error)
 }
 
 func finddimpadandsections(src, dst, stride int32) (padL, padU int32) {
-	padding := stride - ((src - dst) % stride)
+	padding := stride - (stride - ((src - dst) % stride))
 	//	sections = intceiling(src+padding, stride)
+	if padding == 0 {
+		return 0, 0
+	}
 	padL = padding / 2
 	padU = padL
 	if padding%2 == 1 {
@@ -107,11 +111,11 @@ func FindSrcROIandDstROI(src, dst npp.Size, strideW, strideH int32) (srcROI []np
 	dstW, dstH := dst.Get()
 	padT, padB := finddimpadandsections(srcH, dstH, strideH)
 	padL, padR := finddimpadandsections(srcW, dstW, strideW)
-
+	fmt.Println("Padding --> padT,padB,padL,padR", padT, padB, padL, padR)
 	srcROI = make([]npp.Rect, 0)
 	dstROI.Set(0, 0, dstW, dstH)
-	for i := padT; i < srcH+padB-(dstH-strideH); i += strideH {
-		for j := padL; j < srcW+padR-(dstW-strideW); j += strideW {
+	for i := padT; i < srcH+padB-(dstH+strideH); i += strideH {
+		for j := padL; j < srcW+padR-(dstW+strideW); j += strideW {
 			//	fmt.Println(i, j)
 			var srcrect npp.Rect
 			srcrect.Set(j, i, dstW, dstH)
@@ -121,7 +125,7 @@ func FindSrcROIandDstROI(src, dst npp.Size, strideW, strideH int32) (srcROI []np
 				return nil, dstROI, err
 			}
 			sx, sy := offset.Get()
-			srcrect.Set(i+sx, j+sy, dstW, dstH)
+			srcrect.Set(i-sx, j-sy, dstW, dstH)
 			srcROI = append(srcROI, srcrect)
 
 		}

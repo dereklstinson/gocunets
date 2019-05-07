@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
+	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
 )
 
@@ -13,6 +14,7 @@ type TileHelper struct {
 	dstROI  npp.Rect
 	srcchan int32
 	img     *jpeg.Image
+	imgsize npp.Size
 	tiles   [][]*npp.Uint8
 }
 
@@ -35,6 +37,7 @@ func (t *TileHelper) Set(img *jpeg.Image, tilesize npp.Size, stridew, strideh in
 	w, h := img.Size()
 	var srcsize npp.Size
 	srcsize.Set(w, h)
+	t.imgsize.Set(w, h)
 	t.img = img
 	chans := t.img.GetChannels()
 	t.srcchan = int32(len(chans))
@@ -56,11 +59,9 @@ func (t *TileHelper) determindestinationsize() {
 
 }
 
-func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) error {
+func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int, s gocu.Streamer) error {
 	chans := t.img.GetChannels()
 
-	var srcsize npp.Size
-	srcsize.Set(t.img.Size())
 	_, _, wd, ht := t.dstROI.Get()
 	var destsize npp.Size
 	destsize.Set(wd, ht)
@@ -71,18 +72,27 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int) er
 		return err
 	}
 	for i := range destsections {
+		fmt.Println("Starting Next destsections")
 		destsections[i], err = findPlanarChansForUint8(destchanptrs[i], destnelements/nchans, len(t.srcROIs))
-
+		if err != nil {
+			return err
+		}
+		err = s.Sync()
+		if err != nil {
+			return err
+		}
 		for j := range destsections[i] {
-			if err != nil {
-				return err
-			}
 
 			srcchans := []*npp.Uint8{npp.MakeUint8Unsafe(chans[i].Mem().Ptr())}
 			destchans := []*npp.Uint8{destsections[i][j]}
-			fmt.Printf("Printing i: %d/%d, and j: %d/%d\n\n", i, len(destsections), j, len(destsections[i]))
-			err = resizenpp(h, srcchans, destchans, srcsize, destsize, t.srcROIs[j], t.dstROI)
+
+			err = resizenpp(h, srcchans, destchans, t.imgsize, destsize, t.srcROIs[j], t.dstROI)
 			if err != nil {
+				return err
+			}
+			err = s.Sync()
+			if err != nil {
+				fmt.Printf("error at : i: %d/%d, and j: %d/%d\n\n", i, len(destsections), j, len(destsections[i]))
 				return err
 			}
 		}
