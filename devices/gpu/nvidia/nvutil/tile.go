@@ -50,9 +50,14 @@ func (t *TileHelper) GetDestNumOfElements() (n int32) {
 	return findTileDestSize(t.srcROIs, t.dstROI, t.srcchan)
 }
 func findTileDestSize(srcROI []npp.Rect, dstROI npp.Rect, imagechans int32) (elements int32) {
-	tiles := (int32)(len(srcROI))
-	_, _, w, h := dstROI.Get()
-	return w * h * tiles * imagechans
+	//tiles := (int32)(len(srcROI))
+	var areas int32
+	for i := range srcROI {
+		_, _, w, h := srcROI[i].Get()
+		areas += w * h
+	}
+
+	return areas * imagechans
 }
 
 func (t *TileHelper) determindestinationsize() {
@@ -92,6 +97,7 @@ func (t *TileHelper) TiledCSHW(h *Handle, dest *npp.Uint8, destnelements int, s 
 			}
 			err = s.Sync()
 			if err != nil {
+				fmt.Println("SourceROI is: ", t.srcROIs[j])
 				fmt.Printf("error at : i: %d/%d, and j: %d/%d\n\n", i, len(destsections), j, len(destsections[i]))
 				return err
 			}

@@ -97,7 +97,7 @@ func main() {
 		}
 		var size npp.Size
 		size.Set(32, 32)
-		err = hlpers[i].Set(imgs[i], size, 8, 8)
+		err = hlpers[i].Set(imgs[i], size, 24, 24)
 		if err != nil {
 			panic(err)
 		}
@@ -116,7 +116,7 @@ func main() {
 	for i := range offsets {
 		fmt.Println("Doing Image", i)
 
-		offsets[i] = tiledspace.Offset(elementsperimage[i] * int32(i))
+		offsets[i] = tiledspace.Offset((totalelements * int32(i)) / 3)
 		/*
 			ptratrib, err := cudart.PointerGetAttributes(offsets[i])
 			if err != nil {
@@ -135,16 +135,18 @@ func main() {
 			panic(err)
 		}
 
-		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(elementsperimage[i]), stream)
+		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(totalelements/3), stream)
 
 		if err != nil {
 			panic(err)
 		}
+
 		err = stream.Sync()
 		if err != nil {
 			fmt.Println("Error On image:", i)
 			panic(err)
 		}
+
 	}
 	databack := make([]byte, totalelements)
 	databackptr, err := gocu.MakeGoMem(databack)
@@ -152,7 +154,7 @@ func main() {
 		panic(err)
 	}
 	err = nvidia.Memcpy(databackptr, tiledspace, (uint)(totalelements))
-	fmt.Println(databack)
+	//fmt.Println(databack)
 	if err != nil {
 		panic(err)
 	}

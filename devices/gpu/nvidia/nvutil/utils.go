@@ -83,10 +83,18 @@ func cudnnbatchchannelsize(x *tensor.Volume) (batch int, channel int, err error)
 }
 
 func finddimpadandsections(src, dst, stride int32) (padL, padU int32) {
-	padding := stride - (stride - ((src - dst) % stride))
+	nstride := ((src - dst) / stride) //number of strides that start within the the src.
+	fmt.Println("nstride: ", nstride)
+	fmt.Println("nStride Remainder: ", (src-dst)%stride)
+	laststridestart := (nstride) * stride
+	fmt.Println("Laststride: ", laststridestart)
+	padding := src - (laststridestart + dst)
 	//	sections = intceiling(src+padding, stride)
 	if padding == 0 {
 		return 0, 0
+	}
+	if padding < 0 {
+		panic("padding <0")
 	}
 	padL = padding / 2
 	padU = padL
@@ -114,18 +122,47 @@ func FindSrcROIandDstROI(src, dst npp.Size, strideW, strideH int32) (srcROI []np
 	fmt.Println("Padding --> padT,padB,padL,padR", padT, padB, padL, padR)
 	srcROI = make([]npp.Rect, 0)
 	dstROI.Set(0, 0, dstW, dstH)
-	for i := padT; i < srcH+padB-(dstH+strideH); i += strideH {
-		for j := padL; j < srcW+padR-(dstW+strideW); j += strideW {
-			//	fmt.Println(i, j)
-			var srcrect npp.Rect
-			srcrect.Set(j, i, dstW, dstH)
+	//for i := padT; i < srcH+padB-(dstH+strideH); i += strideH {
+	//	for j := padL; j < srcW+padR-(dstW+strideW); j += strideW {
 
-			offset, err := npp.GetResizeTiledSourceOffset(srcrect, dstROI)
-			if err != nil {
-				return nil, dstROI, err
+	//	bottompad := (srcH - dstH) - padB
+	//	rightpad := (srcW - dstW) - padR
+	for i := padT; i < srcH+padB-(dstH); i += strideH {
+		for j := padL; j < srcW+padR-(dstW); j += strideW {
+			var (
+				tempW int32
+				tempH int32
+				hflag bool
+				wflag bool
+			)
+
+			if i < 0 {
+				tempH = dstH + i
+				i = 0
+
+			} else if i+dstH+strideH > srcH {
+				tempH = srcH - i
+				//fmt.Println("Got to H")
+				hflag = true
+			} else {
+				tempH = dstH
 			}
-			sx, sy := offset.Get()
-			srcrect.Set(i-sx, j-sy, dstW, dstH)
+			if j < 0 {
+				tempW = dstW + j
+				j = 0
+			} else if j+dstW+strideW > srcW {
+				tempW = srcW - j
+				//fmt.Println("Got To W")
+				wflag = true
+			} else {
+				tempW = dstW
+			}
+			if hflag && wflag {
+				fmt.Println("The Corner", tempH, tempW, i, j)
+			}
+
+			var srcrect npp.Rect
+			srcrect.Set(j, i, tempW, tempH)
 			srcROI = append(srcROI, srcrect)
 
 		}
