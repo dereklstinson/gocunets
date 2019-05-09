@@ -40,13 +40,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	/*
-		encoder, err := jpeg.CreateEncoder(jpeghandle, stream)
-		if err != nil {
-			panic(err)
-		}
-		encoder.SetQuality(100)
-	*/
+
 	imgs := make([]*jpeg.Image, 3)
 	for i := 0; i < 3; i++ {
 		var imgreader *os.File
@@ -71,82 +65,32 @@ func main() {
 
 		defer imgreader.Close()
 
-		/*
-			data, err := ioutil.ReadAll(imgreader)
-			if err != nil {
-				panic(err)
-			}
-			chroma, w, h, err := nvjpeg.GetImageInfo(jpeghandle, data)
-			fmt.Println(chroma.String(), w, h, err)
-		*/
 		var frmt nvjpeg.OutputFormat
 		imgs[i], err = decoder.DecodeAIO(imgreader, frmt.RGB(), allocator)
 		if err != nil {
 			panic(err)
 		}
 	}
-	hlpers := make([]nvutil.TileHelper, len(imgs))
-	totalelements := int32(0)
-	elementsperimage := make([]int32, 3)
-	for i := range imgs {
-		//	h, w := imgs[i].Size()
-		//	fmt.Println("imgs[i].Size():", h, w)
-		chans := imgs[i].GetChannels()
-		for _, channel := range chans {
-			fmt.Println("Chans for imgs[i]", channel)
-		}
-		var size npp.Size
-		size.Set(32, 32)
-		err = hlpers[i].Set(imgs[i], size, 24, 24)
-		if err != nil {
-			panic(err)
-		}
-		x := hlpers[i].GetDestNumOfElements()
-		fmt.Println("Image ", i, "has", x, "elements")
-		elementsperimage[i] = x
-		totalelements += x
+	hlpers := nvutil.CreateTileHelpers(len(imgs))
+
+	var window npp.Size
+	window.Set(32, 32)
+
+	err = nvutil.BatchTileSet(hlpers, imgs, window)
+	if err != nil {
+		panic(err)
 	}
+	totalelements := nvutil.BatchTileTotalElements(hlpers)
 	fmt.Println("Total Amount of Elemenets,", totalelements)
-	tiledspace := new(npp.Uint8) //tiledspace := npp.Malloc8u(totalelements)
+	tiledspace := new(npp.Uint8)
 	err = cudart.MallocManagedGlobal(tiledspace, (uint)(totalelements))
 	if err != nil {
 		panic(err)
 	}
-	offsets := make([]*npp.Uint8, 3)
-	for i := range offsets {
-		fmt.Println("Doing Image", i)
 
-		offsets[i] = tiledspace.Offset((totalelements * int32(i)) / 3)
-		/*
-			ptratrib, err := cudart.PointerGetAttributes(offsets[i])
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf(
-				"*********************************\n"+
-					"Offset Pointer Attributes:\n\n"+
-					"Device For Pointer: %d\n"+
-					"Managed: %t\n"+
-					"Type: %d\n"+
-					"*********************************\n", ptratrib.Device, ptratrib.Managed, ptratrib.Type)
-		*/
-		err = stream.Sync()
-		if err != nil {
-			panic(err)
-		}
-
-		err = hlpers[i].TiledCSHW(nvutilhandle, offsets[i], int(totalelements/3), stream)
-
-		if err != nil {
-			panic(err)
-		}
-
-		err = stream.Sync()
-		if err != nil {
-			fmt.Println("Error On image:", i)
-			panic(err)
-		}
-
+	err = nvutil.BatchTiles(nvutilhandle, hlpers, tiledspace, stream)
+	if err != nil {
+		panic(err)
 	}
 	databack := make([]byte, totalelements)
 	databackptr, err := gocu.MakeGoMem(databack)
@@ -154,7 +98,7 @@ func main() {
 		panic(err)
 	}
 	err = nvidia.Memcpy(databackptr, tiledspace, (uint)(totalelements))
-	//fmt.Println(databack)
+	fmt.Println(databack)
 	if err != nil {
 		panic(err)
 	}

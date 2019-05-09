@@ -83,7 +83,7 @@ func cudnnbatchchannelsize(x *tensor.Volume) (batch int, channel int, err error)
 }
 
 func finddimpadandsections(src, dst, stride int32) (padL, padU int32) {
-	nstride := ((src - dst) / stride) //number of strides that start within the the src.
+	nstride := (src - dst) / stride
 	fmt.Println("nstride: ", nstride)
 	fmt.Println("nStride Remainder: ", (src-dst)%stride)
 	laststridestart := (nstride) * stride
@@ -110,59 +110,88 @@ func finddimpadandsections(src, dst, stride int32) (padL, padU int32) {
 }
 
 func intceiling(a, b int32) int32 {
-	return ((a - int32(1)) / b) + int32(1)
+	return ((a - 1) / b) + 1
+}
+
+//findSrcTilesfromDstROI will return an array of srcROIs that will be used to tile the dstsize.
+func findSrcTilesfromDstROI(src, dst npp.Size) (srcROI []npp.Rect, dstROI npp.Rect) {
+	srcW, srcH := src.Get()
+	dstW, dstH := dst.Get()
+	srcROI = make([]npp.Rect, 0)
+	dstROI.Set(0, 0, dstW, dstH)
+
+	for i := int32(0); i <= srcH-(dstH); i += dstH {
+
+		for j := int32(0); j <= srcW-(dstW); j += dstW {
+			var srcrect npp.Rect
+			srcrect.Set(j, i, dstW, dstH)
+			//	fmt.Println(i, j, srcH-(dstH), srcH-(dstH))
+			srcROI = append(srcROI, srcrect)
+
+		}
+	}
+
+	return srcROI, dstROI //, (srcW - dstW) / dstW, (srcH - dstH) / dstH
 }
 
 //FindSrcROIandDstROI will return an array of srcROIs that will be used to tile the dstsize.
-func FindSrcROIandDstROI(src, dst npp.Size, strideW, strideH int32) (srcROI []npp.Rect, dstROI npp.Rect, err error) {
+func oldFindSrcROIandDstROI(src, dst npp.Size, strideW, strideH int32) (srcROI []npp.Rect, dstROI npp.Rect, err error) {
 	srcW, srcH := src.Get()
 	dstW, dstH := dst.Get()
-	padT, padB := finddimpadandsections(srcH, dstH, strideH)
-	padL, padR := finddimpadandsections(srcW, dstW, strideW)
-	fmt.Println("Padding --> padT,padB,padL,padR", padT, padB, padL, padR)
+	//	padT, padB := finddimpadandsections(srcH, dstH, strideH)
+	//	padL, padR := finddimpadandsections(srcW, dstW, strideW)
+	//fmt.Println("Padding --> padT,padB,padL,padR", padT, padB, padL, padR)
 	srcROI = make([]npp.Rect, 0)
 	dstROI.Set(0, 0, dstW, dstH)
-	//for i := padT; i < srcH+padB-(dstH+strideH); i += strideH {
-	//	for j := padL; j < srcW+padR-(dstW+strideW); j += strideW {
+	//	for i := padT; i < srcH+padB-(dstH); i += strideH {
+	//	for j := padL; j < srcW+padR-(dstW); j += strideW {
+	for i := int32(0); i <= srcH-(dstH); i += strideH {
+		for j := int32(0); j <= srcW-(dstW); j += strideW {
+			/*
+				var (
+					tempW int32
+					tempH int32
+					hflag bool
+					wflag bool
+				)
 
-	//	bottompad := (srcH - dstH) - padB
-	//	rightpad := (srcW - dstW) - padR
-	for i := padT; i < srcH+padB-(dstH); i += strideH {
-		for j := padL; j < srcW+padR-(dstW); j += strideW {
-			var (
-				tempW int32
-				tempH int32
-				hflag bool
-				wflag bool
-			)
+				if i < 0 {
+					tempH = dstH + i
+					i = 0
 
-			if i < 0 {
-				tempH = dstH + i
-				i = 0
+				} else if i > srcH-dstH-strideH {
+					tempH = (srcH - i)
 
-			} else if i+dstH+strideH > srcH {
-				tempH = srcH - i
-				//fmt.Println("Got to H")
-				hflag = true
-			} else {
-				tempH = dstH
-			}
-			if j < 0 {
-				tempW = dstW + j
-				j = 0
-			} else if j+dstW+strideW > srcW {
-				tempW = srcW - j
-				//fmt.Println("Got To W")
-				wflag = true
-			} else {
-				tempW = dstW
-			}
-			if hflag && wflag {
-				fmt.Println("The Corner", tempH, tempW, i, j)
-			}
+					hflag = true
+				} else {
+					tempH = dstH
+				}
+				if j < 0 {
+					tempW = dstW + j
+					j = 0
+				} else if j > srcW-dstW-strideW {
+					tempW = (srcW - j)
 
+					wflag = true
+				} else {
+					tempW = dstW
+				}
+				if j+tempW > srcW {
+					panic("too wide")
+				}
+				if i+tempH > srcH {
+					panic("too tall")
+				}
+				if hflag && wflag {
+					fmt.Println("The Corner", tempH, tempW, i, j)
+				}
+
+				var srcrect npp.Rect
+				srcrect.Set(j, i, tempW, tempH)
+			*/
 			var srcrect npp.Rect
-			srcrect.Set(j, i, tempW, tempH)
+			srcrect.Set(j, i, dstW, dstH)
+			fmt.Println(i, j, srcH-(dstH), srcH-(dstH))
 			srcROI = append(srcROI, srcrect)
 
 		}

@@ -18,9 +18,18 @@ func findPlanarChansForUint8(x *npp.Uint8, size, n int) ([]*npp.Uint8, error) {
 
 	}
 	return xplanar, nil
-
 }
+func findOffsetsforROISinPlane(x *npp.Uint8, ROIs []npp.Rect) ([]*npp.Uint8, error) {
+	roioffset := make([]*npp.Uint8, len(ROIs))
+	var accumulatingoffset int32
+	for i, roi := range ROIs {
+		_, _, w, h := roi.Get()
 
+		roioffset[i] = x.Offset(accumulatingoffset)
+		accumulatingoffset += w * h
+	}
+	return roioffset, nil
+}
 func convertNppitoNppsCHW(channel []*npp.Uint8, sizes []npp.Size, mem *npp.Uint8) (n uint, err error) {
 
 	var destoffset, srcsize uint
