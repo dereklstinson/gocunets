@@ -157,7 +157,7 @@ func (t *TileHelper) TiledCTHW(h *Handle, dest *npp.Uint8, s gocu.Streamer) erro
 		}
 		for j, section := range destsections[i] {
 
-			srcchans := []*npp.Uint8{npp.MakeUint8Unsafe(chans[i].Mem().Ptr())}
+			srcchans := []*npp.Uint8{npp.MakeUint8FromUnsafe(chans[i].Mem().Ptr())}
 			destchans := []*npp.Uint8{section}
 
 			err = resizenpp(h, srcchans, destchans, t.imgsize, destsize, t.srcROIs[j], t.dstROI)

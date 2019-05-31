@@ -5,7 +5,7 @@ import (
 	"image"
 	"math/rand"
 
-	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/loss"
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"

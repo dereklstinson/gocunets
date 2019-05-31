@@ -23,8 +23,8 @@ type IO struct {
 	dims                                  []int32
 	weights                               bool
 	mux                                   sync.Mutex
-	gxptr                                 *gocu.GoMem
-	gdxptr                                *gocu.GoMem
+	gxptr                                 *gocu.Wrapper
+	gdxptr                                *gocu.Wrapper
 }
 
 //Settings contains the info that is needed to build an IO

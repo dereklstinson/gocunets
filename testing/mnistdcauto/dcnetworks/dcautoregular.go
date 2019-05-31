@@ -2,7 +2,7 @@ package dcnetworks
 
 import (
 	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/trainer"
@@ -12,8 +12,8 @@ import (
 
 //DcAutoNoConvTrans using regular method of increasing size of convolution...by just increasing the outer padding
 func DcAutoNoConvTrans(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
 	batchsize int32) *gocunets.Network {
@@ -34,7 +34,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 	*/
 	const numofneurons = int32(50)
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 200),
 	) //28-8+1 = 21
 	/*
 		Activation Layer E2    2
@@ -46,7 +46,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer E3    3
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 234),
 	) //21-8+1 =14
 	/*
 		Activation Layer E4    4
@@ -59,7 +59,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer E5    5
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 1),
 	) // 14-8+1=7
 	/*
 		Activation Layer E6    6
@@ -71,7 +71,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer E7    7
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 5),
 	) // 1
 
 	/*
@@ -86,7 +86,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D1       9
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 4, 7, 7), CMode, padding(6, 6), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, 4, 7, 7), CMode, padding(6, 6), stride(1, 1), dilation(1, 1), 6),
 	) //7
 	/*
 		Activation Layer D2       10
@@ -98,7 +98,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D3      11
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), 9),
 	) //7-8+(14)+1 =14
 	/*
 		Activation Layer D4        12
@@ -111,7 +111,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D5       13
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), 150),
 	) //14-8 +14 +1 =21
 	/*
 		Activation Layer D6       14
@@ -124,7 +124,7 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 		Convoultion Layer D7         15
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(1, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(1, numofneurons, 8, 8), CMode, padding(7, 7), stride(1, 1), dilation(1, 1), 13),
 	) //28
 
 	//var err error
@@ -134,8 +134,9 @@ func DcAutoNoConvTrans(handle *cudnn.Handler,
 	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
 	for i := 0; i < numoftrainers; i++ {
 		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .00001, .00001, batchsize)
-		a.SetRate(.001) //This is here to change the rate if you so want to
-		b.SetRate(.001)
+		a.SetRates(.001, .001)
+
+		b.SetRates(.001, .001)
 
 		trainersbatch[i], trainerbias[i] = a, b
 

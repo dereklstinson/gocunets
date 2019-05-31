@@ -12,7 +12,7 @@ import (
 type reduceop struct {
 	op          *reduce.Ops
 	mem         *tensor.Volume
-	gptr        *gocu.GoMem
+	gptr        *gocu.Wrapper
 	indicies    *nvidia.Malloced
 	wspace      *nvidia.Malloced
 	val         []float32

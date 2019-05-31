@@ -148,11 +148,12 @@ func (b *BatchBuffer) FillTensor(h *Handle, t *tensor.Volume) error {
 	dflg := dtype
 	switch dtype {
 	case dflg.Float():
-		err := npp.Convert8u32f(b.head, (*npp.Float32)(t.Memer().Ptr()), b.volume, h.ctx)
+		flt32 := npp.MakeFloat32FromUnsafe(t.Memer().Ptr())
+		err := npp.Convert8u32f(b.head, flt32, b.volume, h.ctx)
 		if err != nil {
 			return err
 		}
-		return npp.DivC32fI(b.average, (*npp.Float32)(t.Memer().Ptr()), b.volume, h.ctx)
+		return npp.DivC32fI(b.average, flt32, b.volume, h.ctx)
 	default:
 		return errors.New("Only Float supported")
 

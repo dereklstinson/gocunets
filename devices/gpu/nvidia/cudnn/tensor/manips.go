@@ -10,6 +10,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/cutil"
 )
 
 //SetValues sets all the values in the tensor to whatever is passed. It does this by looking at the format that is held in the tensor descriptor and auto retypes it.
@@ -35,7 +36,7 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Ascalar, tscalar float6
 }
 
 //LoadMem will Load the volume with the inputed mem.  Input mem with the size of size
-func (t *Volume) LoadMem(handle *cudnn.Handler, input gocu.Mem, size uint) error {
+func (t *Volume) LoadMem(handle *cudnn.Handler, input cutil.Mem, size uint) error {
 
 	if t.CurrentSizeT() != size {
 

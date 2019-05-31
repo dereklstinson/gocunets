@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/cutil"
 	"github.com/dereklstinson/half"
 
 	"github.com/dereklstinson/GoCuNets/devices"
@@ -18,7 +19,7 @@ type CudaSlice struct {
 	device    bool
 	length    uint
 	capacity  uint
-	memcpyflg gocu.Mem
+	memcpyflg cutil.Mem
 }
 
 //MallocDevice allocates memory to set device

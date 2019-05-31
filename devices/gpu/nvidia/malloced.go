@@ -7,6 +7,7 @@ import (
 
 	"github.com/dereklstinson/GoCudnn/cudart"
 	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/cutil"
 )
 
 //Handler is a gpu device handler that can set the device and tell if the memory is under the nvidia unified memory management
@@ -73,7 +74,7 @@ func MallocHost(h Handler, sizebytes uint) (*Malloced, error) {
 }
 
 //Memcpy is like cudart.Memcpy but it is using the cudart.Memcpykind{}.Default() flag
-func Memcpy(dest, src gocu.Pointer, sizeinbytes uint) error {
+func Memcpy(dest, src cutil.Pointer, sizeinbytes uint) error {
 	return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
 }
 

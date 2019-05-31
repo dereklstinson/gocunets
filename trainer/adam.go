@@ -18,8 +18,8 @@ const debuggingadam = false
 type Adam struct {
 	loss1     []float32
 	loss2     []float32
-	goptr1    *gocu.GoMem
-	goptr2    *gocu.GoMem
+	goptr1    *gocu.Wrapper
+	goptr2    *gocu.Wrapper
 	gpuloss1  *nvidia.Malloced
 	gpuloss2  *nvidia.Malloced
 	gsum      *nvidia.Malloced

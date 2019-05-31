@@ -10,7 +10,7 @@ import (
 )
 
 //ForwardProp does the forward prop for a layer
-func (l *layer) forwardprop(handle *cudnn.Handler, fwdws,bwdws *nvidia.Malloced, x, y *layers.IO) error {
+func (l *layer) forwardprop(handle *cudnn.Handler, fwdws, bwdws *nvidia.Malloced, x, y *layers.IO) error {
 
 	err := handle.Sync()
 	if err != nil {

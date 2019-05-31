@@ -2,7 +2,7 @@ package dcnetworks
 
 import (
 	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"github.com/dereklstinson/GoCuNets/layers/cnn"
 	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
@@ -13,8 +13,8 @@ import (
 
 //DCAutoReverse using regular method of increasing size of convolution...by just increasing the outer padding
 func DCAutoReverse(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
 	CMode gocudnn.ConvolutionMode,
 	memmanaged bool,
 	batchsize int32) *gocunets.Network {
@@ -26,7 +26,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 	//var tmdf gocudnn.TrainingModeFlag
 	//tmode := tmdf.Adam()
 	//var aflg gocudnn.ActivationModeFlag //
-	var cflg gocudnn.ConvolutionModeFlag
+	var cflg gocudnn.ConvolutionMode
 	reversecmode := cflg.Convolution()
 	network := gocunets.CreateNetwork()
 	//Setting Up Network
@@ -36,7 +36,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 	*/
 	const numofneurons = int32(30)
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 1),
 	) //28-8+1 = 21
 	/*
 		Activation Layer E2    1
@@ -48,7 +48,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer E3    2
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 2),
 	) //21-8+1 =14
 	/*
 		Activation Layer E4    3
@@ -61,7 +61,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer E5    4
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 3),
 	) // 14-8+1=7
 	/*
 		Activation Layer E6    5
@@ -73,7 +73,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer E7    6
 	*/
 	network.AddLayer(
-		cnn.SetupDynamic(handle, frmt, dtype, filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
+		cnn.Setup(handle, frmt, dtype, filter(4, numofneurons, 7, 7), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 4),
 	) // 1
 
 	/*
@@ -88,7 +88,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D1       8
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(4, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(4, numofneurons, 7, 7), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, 5),
 	) //7
 	/*
 		Activation Layer D2       9
@@ -100,7 +100,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D3      10
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, 6),
 	) //7-8+(14)+1 =14
 	/*
 		Activation Layer D4        11
@@ -113,7 +113,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D5       12
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, 7),
 	) //14-8 +14 +1 =21
 	/*
 		Activation Layer D6       13
@@ -126,7 +126,7 @@ func DCAutoReverse(handle *cudnn.Handler,
 		Convoultion Layer D7         14
 	*/
 	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, memmanaged),
+		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 8, 8), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, 8),
 	) //28
 
 	//var err error
@@ -136,8 +136,8 @@ func DCAutoReverse(handle *cudnn.Handler,
 	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
 	for i := 0; i < numoftrainers; i++ {
 		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), .00001, .00001, batchsize)
-		a.SetRate(.001) //This is here to change the rate if you so want to
-		b.SetRate(.001)
+		a.SetRates(.001, .001) //This is here to change the rate if you so want to
+		b.SetRates(.001, .001)
 
 		trainersbatch[i], trainerbias[i] = a, b
 

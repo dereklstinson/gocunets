@@ -247,8 +247,8 @@ func (c *Layer) SetAlphaScalars(alphas []float64) error {
 	}
 
 	c.fwd.alpha = alphas[0]
-	c.bwdd.alpha = alphas[0]
-	c.bwdf.alpha = alphas[0]
+	c.bwdd.alpha = alphas[1]
+	c.bwdf.alpha = alphas[2]
 	return nil
 }
 
@@ -259,11 +259,48 @@ func (c *Layer) SetBetaScalars(betas []float64) error {
 	}
 
 	c.fwd.beta = betas[0]
+	c.bwdd.beta = betas[1]
+	c.bwdf.beta = betas[2]
+	return nil
+}
+
+/*
+func (c *Layer) GetNumForwardScalarsAlpha() int {
+	return 1
+}
+func (c *Layer) GetNumForwardScalarsBeta() int {
+	return 1
+}
+func (c *Layer) GetNumBackwardScalarsBeta() int {
+	return 2
+}
+func (c *Layer) GetNumBackwardScalarsAlpha() int {
+	return 2
+}
+//SetAlphaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
+func (c *Layer) SetForwardAlphaScalars(alphas []float64) error {
+	if len(alphas) != 1 {
+		return errors.New("alpha Scalar length needs to be 3")
+	}
+
+	c.fwd.alpha = alphas[0]
+	c.bwdd.alpha = alphas[0]
+	c.bwdf.alpha = alphas[0]
+	return nil
+}
+
+//SetBetaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
+func (c *Layer) SetForwardBetaScalars(betas []float64) error {
+	if len(betas) != 3 {
+		return errors.New("alpha Scalar length needs to be 3")
+	}
+
+	c.fwd.beta = betas[0]
 	c.bwdd.beta = betas[0]
 	c.bwdf.beta = betas[0]
 	return nil
 }
-
+*/
 //NumAlphaScalars returns the number of alpha scalars which is used for fwd,bwd-data,bwd-filter.
 func (c *Layer) NumAlphaScalars() int {
 	return 3

@@ -48,36 +48,6 @@ func errorstacker(original, newerr error) error {
 	return errors.New(x + "..." + y)
 }
 
-/*
-//Free Frees the mem
-func (o *Ops) Free() error {
-	var err error
-	var errstack error
-
-	err = o.rrm.Free()
-	if err != nil {
-		errstack = errorstacker(errstack, err)
-	}
-	err = o.rrv.Free()
-	if err != nil {
-		errstack = errorstacker(errstack, err)
-	}
-	err = o.rsm.Free()
-	if err != nil {
-		errstack = errorstacker(errstack, err)
-	}
-	err = o.rsv.Free()
-	if err != nil {
-		errstack = errorstacker(errstack, err)
-	}
-	err = o.bnsbmvd.DestroyDescriptor()
-	if err != nil {
-		errstack = errorstacker(errstack, err)
-	}
-	return errstack
-}
-*/
-
 //PreStageSpatial Normalization is performed over N+spatial dimensions.
 //This mode is intended for use after convolutional layers (where spatial invariance is desired).
 //In this mode the bnBias, bnScale tensor dimensions are 1xCx1x1.
