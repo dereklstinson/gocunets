@@ -17,10 +17,6 @@ type Ops struct {
 	nan   gocudnn.NANProp
 }
 
-//const defaultparachantrainingmode = gocudnn.TrainingMode(4) //This is adam
-//const defaultcoefforleaky = .01
-//const defaultcoefforclipped = 6
-
 //Stage creates an activation struct given the properties passed in function
 func Stage(handle *cudnn.Handler, mode Mode, nan gocudnn.NANProp, coef float64) (*Ops, error) {
 	var dtype gocudnn.DataType

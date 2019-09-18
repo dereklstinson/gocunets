@@ -9,14 +9,8 @@ import (
 
 //Ops is a struct
 type Ops struct {
-	op    *gocudnn.ConvolutionD
-	group int32
-	/*
-		bwdddesc     *gocudnn.ConvolutionD
-		bwddgroup    int32
-		bwdfdesc     *gocudnn.ConvolutionD
-		bwdfgroup    int32
-	*/
+	op           *gocudnn.ConvolutionD
+	group        int32
 	setfilt      bool
 	pwspacesize  uint
 	perfforward  ForwardPerformance
