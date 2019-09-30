@@ -173,7 +173,7 @@ func (m *Network) performance(handle *cudnn.Handler, x, y *layers.IO, workspace 
 }
 
 func dbprt(comment string) {
-	fmt.Sprint()
+
 	fmt.Printf("Dubbing:{\n"+
 		"File: gocunets_performance.go{\n"+
 		"%s\n"+
