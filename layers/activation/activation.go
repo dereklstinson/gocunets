@@ -56,9 +56,9 @@ const defaultleakycoef = float64(.01)
 //You can change the values by using the Layer methods.
 //The way that alpha and beta work is this Y=(alpha *ActivationOp)+(beta*Y).
 //It's best to keep the defaults of alpha and beta, but you can values in the methods that Layer holds
-func setup(handle *cudnn.Handler, mode activation.Mode, nanproped gocudnn.NANProp, af, bf, ab, bb, coef float64) (*Layer, error) {
+func setup(handle *cudnn.Handler, mode activation.Mode,dtype gocudnn.DataType, nanproped gocudnn.NANProp, af, bf, ab, bb, coef float64) (*Layer, error) {
 
-	act, err := activation.Stage(handle, mode, nanproped, coef)
+	act, err := activation.Stage(handle, mode, dtype,nanproped, coef)
 	if err != nil {
 		return nil, err
 	}
@@ -116,46 +116,46 @@ func (a *Layer) ResetWeightsHiddenMem(h *cudnn.Handler) error {
 }
 
 //Leaky returns an activation layer set to leaky
-func Leaky(handle *cudnn.Handler) (*Layer, error) {
+func Leaky(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
 	var flg activation.ModeFlag
-	return setup(handle, flg.Leaky(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultleakycoef)
+	return setup(handle, flg.Leaky(),dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultleakycoef)
 }
 
 //Relu returns an activation layer set to Elu
-func Relu(handle *cudnn.Handler) (*Layer, error) {
+func Relu(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
 	var flg activation.ModeFlag
-	return setup(handle, flg.Relu(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
+	return setup(handle, flg.Relu(),dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Elu returns an activation layer set to Elu
-func Elu(handle *cudnn.Handler) (*Layer, error) {
+func Elu(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
 	var flg activation.ModeFlag
-	return setup(handle, flg.Elu(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
+	return setup(handle, flg.Elu(),dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //ClippedRelu returns an activation layer set to ClippedRelu
-func ClippedRelu(handle *cudnn.Handler) (*Layer, error) {
+func ClippedRelu(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
 	var flg activation.ModeFlag
-	return setup(handle, flg.ClippedRelu(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
+	return setup(handle, flg.ClippedRelu(), dtype,defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Sigmoid returns an activation layer set to Sigmoid
-func Sigmoid(handle *cudnn.Handler) (*Layer, error) {
+func Sigmoid(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
 	var flg activation.ModeFlag
-	return setup(handle, flg.Sigmoid(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
+	return setup(handle, flg.Sigmoid(), dtype,defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Tanh returns an activation layer set to Tanh
-func Tanh(handle *cudnn.Handler) (*Layer, error) {
+func Tanh(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
 	var flg activation.ModeFlag
-	return setup(handle, flg.Tanh(), defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
+	return setup(handle, flg.Tanh(), dtype,defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Info Returns layer info if error is not nil then values will be set to golang default
 func (a *Layer) Info() (Info, error) {
 	op, err := a.act.Info()
 	if err != nil {
-		return Info{}, err
+		return Info{}, err 
 	}
 	return Info{
 		Ops: op,

@@ -18,8 +18,8 @@ type Ops struct {
 }
 
 //Stage creates an activation struct given the properties passed in function
-func Stage(handle *cudnn.Handler, mode Mode, nan gocudnn.NANProp, coef float64) (*Ops, error) {
-	var dtype gocudnn.DataType
+func Stage(handle *cudnn.Handler, mode Mode,dtype gocudnn.DataType, nan gocudnn.NANProp, coef float64) (*Ops, error) {
+	
 	var mflg ModeFlag
 	x, err := gocudnn.CreateActivationDescriptor()
 	if err != nil {
@@ -27,7 +27,7 @@ func Stage(handle *cudnn.Handler, mode Mode, nan gocudnn.NANProp, coef float64) 
 	}
 	switch mode {
 	case mflg.Threshhold():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan, coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype, nan, coef)
 		if err != nil {
 			return nil, err
 		}
@@ -36,7 +36,7 @@ func Stage(handle *cudnn.Handler, mode Mode, nan gocudnn.NANProp, coef float64) 
 			mode:  mode,
 		}, err
 	case mflg.Leaky():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan, coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype, nan, coef)
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +45,7 @@ func Stage(handle *cudnn.Handler, mode Mode, nan gocudnn.NANProp, coef float64) 
 			mode:  mode,
 		}, err
 	case mflg.PRelu():
-		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype.Float(), nan, coef)
+		desc, err := xtra.NewXActivationDescriptor(handle.XHandle(), mode.x(), dtype, nan, coef)
 		if err != nil {
 			return nil, err
 		}

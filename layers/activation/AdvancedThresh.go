@@ -15,7 +15,7 @@ func Threshhold(handle *cudnn.Handler, dtype gocudnn.DataType, minneg, maxneg, m
 
 	var flg activation.ModeFlag
 
-	layer, err := setup(handle, flg.Threshhold(), defaultnanprop, 0, 0, 0, 0, defaultcoef)
+	layer, err := setup(handle, flg.Threshhold(),dtype, defaultnanprop, 0, 0, 0, 0, defaultcoef)
 	if err != nil {
 		return nil, err
 	}
