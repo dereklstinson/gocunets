@@ -3,7 +3,14 @@
 
 The kame ha me ha of neural networks in go.
 
-
+packages needed
+'''
+go get github.com/nfnt/resize
+go get github.com/dereklstinson/gpu-monitoring-tools/bindings/go/nvml
+go get github.com/pkg/browser
+go get -u gonum.org/v1/gonum/...
+go get gonum.org/v1/plot/...
+'''
 GoCuNets is basically 100% cuda computing using the GoCudnn package.  So, you will need to go get that. I eventually want to get this to the point were I can straight up build a system through a json file/files.  
 
 Each of the layers has its own package.  I like doing that way to keep things seperated. Because a lot of neural network parts are similar, and I didn't want to have to keep on comming up with elaborate names for structs.  Its just easier to call up the packages to set up the different layers. cnn1:= cnn.LayerSetup(blah blah blah), and then act1:=activation.LayerSetup(bla bla bla). Then you get a cool flow with cnn1.ForwardProp(x,y) act1.ForwardProp(x,y).
