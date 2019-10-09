@@ -296,9 +296,7 @@ func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error
 		newdims[0] = newinput[0]
 		//Since it should only be the batch changing we will just change the batch
 		err = m.training.mem[i].ResizeIO(handle, newdims)
-		if err != nil {
-			return err
-		}
+		if err != nil {	return err;	}
 
 	}
 	return nil
