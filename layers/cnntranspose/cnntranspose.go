@@ -27,8 +27,6 @@ type Layer struct {
 	resizeddims []int32
 	previouss2b []int32
 	s2bwindow   []int32
-
-	inputlayer bool
 }
 type convtransposemode int
 
@@ -66,27 +64,17 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, 
 	}
 	return errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
+//BackPropFilter performs the backprop for the filter.
+func (l *Layer)BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x,y *layers.IO)error{
+	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
+}
 
 //BackPropFilterData does the back propigation filter and data of convolution transpose
 func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
-	if l.inputlayer == true {
-		switch l.mode {
-
-		case convtransposereverse:
-			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspacefilter, x, y))
-		}
-
-	} else {
-
-		switch l.mode {
-
-		case convtransposereverse:
-			return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y))
-		}
-
+	if x.IsInput(){
+		return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspacefilter, x, y))
 	}
-
-	return errors.New("ConvTranspose BackProp - Shouldn't have reached here")
+	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y))
 }
 
 //Transform sets up a transform version of cnn transpose
@@ -100,7 +88,6 @@ func build(handle *cudnn.Handler,
 	stride,
 	dilation []int32,
 	mode convtransposemode,
-	inputlayer bool,
 	seed uint64) (*Layer, error) {
 	conv, err := cnn.Setup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, seed)
 	if err != nil {
@@ -111,8 +98,7 @@ func build(handle *cudnn.Handler,
 		conv:        conv,
 		mode:        mode,
 		resizeddims: upscaleddims,
-		inputlayer:  inputlayer,
-	}, nil
+		}, nil
 }
 
 //MakeRandom makes the weights random
