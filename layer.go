@@ -29,7 +29,7 @@ type layer struct {
 	cnntranspose                  *cnntranspose.Layer
 	scalarnumalpha, scalarnumbeta int
 }
- 
+
 func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
 	if l.cnn != nil {
 		return l.cnn.LoadTrainer(handle, trainerweights, trainerbias)

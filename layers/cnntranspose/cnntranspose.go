@@ -64,14 +64,15 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, 
 	}
 	return errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
+
 //BackPropFilter performs the backprop for the filter.
-func (l *Layer)BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x,y *layers.IO)error{
+func (l *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
 	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
 }
 
 //BackPropFilterData does the back propigation filter and data of convolution transpose
 func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
-	if x.IsInput(){
+	if x.IsInput() {
 		return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspacefilter, x, y))
 	}
 	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y))
@@ -98,7 +99,7 @@ func build(handle *cudnn.Handler,
 		conv:        conv,
 		mode:        mode,
 		resizeddims: upscaleddims,
-		}, nil
+	}, nil
 }
 
 //MakeRandom makes the weights random

@@ -64,8 +64,8 @@ func ReverseBuild(handle *cudnn.Handler,
 		return nil, err
 	}
 	return &Layer{
-		conv:       conv,
-		mode:       convtransposereverse,
+		conv: conv,
+		mode: convtransposereverse,
 	}, nil
 }
 

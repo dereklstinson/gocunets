@@ -2,9 +2,10 @@ package nvutil
 
 import (
 	"errors"
+	"github.com/dereklstinson/cutil"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	//	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
 )
 
@@ -51,7 +52,7 @@ func convertsCHWstoNCHW(srcs []*npp.Uint8, srcsSIBs []uint, dest *npp.Uint8) (n 
 	var destoffset uint
 	for i := range srcs {
 		destoffset = srcsSIBs[i] * uint(i)
-		err = nvidia.Memcpy(gocu.Offset(dest, destoffset), srcs[i], srcsSIBs[i])
+		err = nvidia.Memcpy(cutil.Offset(dest, destoffset), srcs[i], srcsSIBs[i])
 		if err != nil {
 			return n, err
 		}

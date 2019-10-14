@@ -5,15 +5,15 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/reshapes"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
+	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 //Layer is the that type that handles reshape methods
 type Layer struct {
 	op                        *reshapes.Ops
 	mode                      Mode
-	dtype gocudnn.DataType
+	dtype                     gocudnn.DataType
 	window                    []int32
 	stride                    []int32
 	networkinput              bool
@@ -26,7 +26,7 @@ const defaultbeta = float64(1.0)
 //Build builds the layer mode picks the mode window has to be passed if S2B it is a set size that you want each batch to be.
 //window will be ignored if mode was picked to transpose
 //All will be ignored of you pick transform
-func Build(handle *cudnn.Handler, mode Mode,dtype gocudnn.DataType, window []int32, networkinput bool) (*Layer, error) {
+func Build(handle *cudnn.Handler, mode Mode, dtype gocudnn.DataType, window []int32, networkinput bool) (*Layer, error) {
 	//var lmf ModeFlag
 
 	op, err := reshapes.Stage(handle)

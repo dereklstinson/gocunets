@@ -6,7 +6,8 @@ import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
 	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/cutil"
+	//"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
 )
 
@@ -67,7 +68,7 @@ func (b *BatchBuffer) getpointerat(location []int32) *npp.Uint8 {
 	for i := range location {
 		loc += location[i] * b.strides[i]
 	}
-	gomem := gocu.Offset(b.head, uint(loc))
+	gomem := cutil.Offset(b.head, uint(loc))
 	return (*npp.Uint8)(gomem.Ptr())
 
 }

@@ -3,10 +3,11 @@ package nvutil
 import (
 	"errors"
 	"fmt"
+	"github.com/dereklstinson/cutil"
 
 	"github.com/dereklstinson/GoCuNets/utils"
 
-	"github.com/dereklstinson/GoCudnn/gocu"
+	//"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/npp"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
@@ -14,7 +15,7 @@ import (
 )
 
 type MemCopier interface {
-	MemCopy(src, dst gocu.Mem, sib uint) error
+	MemCopy(src, dst cutil.Mem, sib uint) error
 }
 
 //Convert will convert the data of A to the datatype of B and put it into B. A datatype == B datatype memory will be copied from A to B

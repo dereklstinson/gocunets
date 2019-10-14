@@ -20,5 +20,5 @@ func Flags() (act gocudnn.ActivationMode, Nan gocudnn.NANProp) {
 
 //Stage builds and returns *Op from the info inside of the info type
 func (input OpInfo) Stage(h *cudnn.Handler) (*Ops, error) {
-	return Stage(h, input.Mode, input.DataType,input.NanProp, input.Coef)
+	return Stage(h, input.Mode, input.DataType, input.NanProp, input.Coef)
 }

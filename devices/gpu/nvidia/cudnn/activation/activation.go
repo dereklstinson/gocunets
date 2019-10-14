@@ -18,8 +18,8 @@ type Ops struct {
 }
 
 //Stage creates an activation struct given the properties passed in function
-func Stage(handle *cudnn.Handler, mode Mode,dtype gocudnn.DataType, nan gocudnn.NANProp, coef float64) (*Ops, error) {
-	
+func Stage(handle *cudnn.Handler, mode Mode, dtype gocudnn.DataType, nan gocudnn.NANProp, coef float64) (*Ops, error) {
+
 	var mflg ModeFlag
 	x, err := gocudnn.CreateActivationDescriptor()
 	if err != nil {

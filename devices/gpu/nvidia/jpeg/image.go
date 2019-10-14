@@ -1,11 +1,11 @@
 package jpeg
 
 import (
-	"io"
-	"io/ioutil"
-
 	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/nvjpeg"
+	"github.com/dereklstinson/cutil"
+	"io"
+	"io/ioutil"
 )
 
 //Image contains the data used for nvjpeg images
@@ -24,12 +24,12 @@ func (img *Image) Size() (w, h int32) {
 
 //Channel contains a pointer to cuda memory along with Pitch and Height
 type Channel struct {
-	ptr  gocu.Mem
+	ptr  cutil.Mem
 	h, w int32
 }
 
 //Set sets the channels
-func (c *Channel) Set(ptr gocu.Mem, w, h int32) {
+func (c *Channel) Set(ptr cutil.Mem, w, h int32) {
 	c.ptr = ptr
 	c.h = h
 	c.w = w
@@ -41,7 +41,7 @@ func (c *Channel) Size() (w, h int32) {
 }
 
 //Mem returns the gocu.Mem of the channel
-func (c *Channel) Mem() gocu.Mem {
+func (c *Channel) Mem() cutil.Mem {
 	return c.ptr
 }
 
