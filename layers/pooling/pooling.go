@@ -74,6 +74,59 @@ func SetupNoOutput(mode gocudnn.PoolingMode, nan gocudnn.NANProp, window, paddin
 	}, nil
 }
 
+//SetupNoOutputReverse will setup the pooling layer but not provide an output
+func SetupNoOutputReverse(mode gocudnn.PoolingMode, nan gocudnn.NANProp, window, padding, stride []int32, managedmem bool) (*Layer, error) {
+	pD, err := pool.StageOperationReverse(mode, nan, window, padding, stride)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Layer{
+		pD: pD,
+		fwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+		bwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+	}, nil
+}
+
+//SetupReverse sets up a reverse pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
+func SetupReverse(handle *cudnn.Handler, mode gocudnn.PoolingMode, nan gocudnn.NANProp, input *layers.IO, window, padding, stride []int32) (*Layer, *layers.IO, error) {
+	pD, err := pool.StageOperationReverse(mode, nan, window, padding, stride)
+
+	if err != nil {
+		return nil, nil, err
+	}
+	fmt, dtype, _, err := input.Properties()
+	if err != nil {
+		return nil, nil, err
+	}
+	dims, err := pD.OutputDims(input.T())
+	if err != nil {
+		return nil, nil, err
+	}
+	output, err := layers.BuildIO(handle, fmt, dtype, dims)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &Layer{
+		pD: pD,
+		fwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+		bwd: xtras{
+			alpha: 1.0,
+			beta:  0.0,
+		},
+	}, output, nil
+}
+
 //Setup setsup the pooling layer and returns a pointer to the struct. Scalars are set to the default alpha =1.0 and beta =0.0 for both fwd and bwd.
 func Setup(handle *cudnn.Handler, mode gocudnn.PoolingMode, nan gocudnn.NANProp, input *layers.IO, window, padding, stride []int32) (*Layer, *layers.IO, error) {
 	pD, err := pool.StageOperation(mode, nan, window, padding, stride)
