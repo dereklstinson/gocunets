@@ -26,6 +26,8 @@ func Threshhold(handle *cudnn.Handler, dtype gocudnn.DataType, minneg, maxneg, m
 	layer.posmax = maxpos
 	layer.posmin = minpos
 	layer.updatable = true
+	layer.numofios = 3
+
 	return layer, nil
 }
 
@@ -56,7 +58,7 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 				return nil, err
 			}
 			l.posCoefs.T().SetRandomNormal(handle, l.posmin, l.posmax)
-			l.threshold, err = layers.BuildIOWeightsT(handle, frmt, dtype, adims)
+			l.threshold, err = layers.BuildIOWeights(handle, frmt, dtype, adims)
 			if err != nil {
 				return nil, err
 			}

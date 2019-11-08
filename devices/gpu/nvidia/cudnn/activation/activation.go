@@ -172,6 +172,7 @@ func (act *Ops) BwdProp(
 	negcoef *tensor.Volume,
 	dnegcoef *tensor.Volume,
 	thresh *tensor.Volume,
+	dthresh *tensor.Volume,
 	poscoef *tensor.Volume,
 	dposcoef *tensor.Volume) error {
 	_, dtypedx, _, err := dx.Properties()
@@ -198,11 +199,11 @@ func (act *Ops) BwdProp(
 	var mflg ModeFlag
 	switch act.mode {
 	case mflg.Threshhold():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), poscoef.Memer(), dposcoef.Memer(), a, b)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), dthresh.Memer(), poscoef.Memer(), dposcoef.Memer(), a, b)
 	case mflg.Leaky():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil, nil, a, b)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil, nil, nil, a, b)
 	case mflg.PRelu():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), nil, nil, nil, a, b)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), nil, nil, nil, nil, a, b)
 	case mflg.ClippedRelu():
 		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
 	case mflg.Elu():

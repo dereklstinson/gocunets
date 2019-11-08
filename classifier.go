@@ -17,26 +17,26 @@ func outputerror(desired float32, actual float32) float32 {
 	return desired - actual
 }
 
-//ActivationMode are the activationmode flags
-type ActivationMode int
+//ActMode are the activationmode flags
+type ActMode int
 
 //ActivaitonModeFlag passes ActivationMode flags
 type ActivaitonModeFlag struct {
 }
 
 //SoftMax returns ActivationMode flag for softmax
-func (a ActivaitonModeFlag) SoftMax() ActivationMode {
-	return ActivationMode(1)
+func (a ActivaitonModeFlag) SoftMax() ActMode {
+	return ActMode(1)
 }
 
 //Tanh returns ActivationMode flag for Tanh
-func (a ActivaitonModeFlag) Tanh() ActivationMode {
-	return ActivationMode(2)
+func (a ActivaitonModeFlag) Tanh() ActMode {
+	return ActMode(2)
 }
 
 //Logistic returns ActivationMode flag for Logistic
-func (a ActivaitonModeFlag) Logistic() ActivationMode {
-	return ActivationMode(3)
+func (a ActivaitonModeFlag) Logistic() ActMode {
+	return ActMode(3)
 }
 
 //LossMode is the flags for loss mode

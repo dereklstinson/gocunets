@@ -83,7 +83,10 @@ func (l *layer) hasweights() bool {
 		return true
 	}
 	if l.activation != nil {
-		return l.activation.HasWeights()
+		if l.activation.TrainersNeeded() > 0 {
+			return true
+		}
+
 	}
 	return false
 }
@@ -134,7 +137,7 @@ func (l *layer) params() (*Params, error) {
 		}, nil
 	}
 	if l.activation != nil {
-		if l.activation.HasWeights() {
+		if l.activation.TrainersNeeded() > 0 {
 
 			negcoef, err := getTensor(l.activation.NegCoefs().T())
 			if err != nil {

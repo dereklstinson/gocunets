@@ -25,14 +25,14 @@ TODO:  1)  Take SoftMax out of here.  It should in another section for calculati
 import (
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"math/rand"
+	"strconv"
 )
 
 const debuggingmaingocunets = true
@@ -60,6 +60,11 @@ type Flag struct {
 
 //Network holds pointers to layers and the hidden memory between the layers
 type Network struct {
+	handle            *cudnn.Handler
+	dtype             gocudnn.DataType
+	frmt              gocudnn.TensorFormat
+	cmode             gocudnn.ConvolutionMode
+	nanprop           gocudnn.NANProp
 	layer             []*layer
 	usingwsfwd        bool
 	usingwsbwdd       bool
@@ -82,8 +87,11 @@ type Network struct {
 	totalionetsinit   bool
 	wtrainers         []trainer.Trainer
 	btrainers         []trainer.Trainer
+	othertrainers     []trainer.Trainer
 	savedparams       *NetworkSavedTensor
 	loadedsaved       bool
+	rng               *rand.Rand
+	rngsource         rand.Source
 }
 type hiddenio struct {
 	mem          []*layers.IO
@@ -150,16 +158,16 @@ func (m *Network) UnSetDescriminator() {
 func (m *Network) TrainersNeeded() int {
 	var counter int
 	for i := range m.layer {
-		if m.layer[i].needstrainer() == true {
-			counter++
-		}
+
+		counter += m.layer[i].trainersneeded()
+
 	}
-	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
+
 	return counter
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
-func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbias []trainer.Trainer) error {
+func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbias, othertrainers []trainer.Trainer) error {
 	if len(trainerweights) != len(trainerbias) {
 		return errors.New("(*Network)LoadTrainers -- Sizes Don't Match with trainers and bias")
 	}
@@ -172,14 +180,15 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 		if debuggingmaingocunets {
 			//	fmt.Println("Going Through Layer at Index", i)
 		}
-		if m.layer[i].needstrainer() == true {
+		trainersneeded := m.layer[i].trainersneeded()
+		if trainersneeded > 0 {
 
 			if debuggingmaingocunets {
 				//	fmt.Println("Loading Trainer at Index", i)
 			}
 			m.wtrainers = append(m.wtrainers, trainerweights[counter])
 			m.btrainers = append(m.btrainers, trainerbias[counter])
-
+			m.othertrainers = append(m.othertrainers, othertrainers[counter])
 			err = m.layer[i].loadtrainer(handle, trainerweights[counter], trainerbias[counter])
 			if err != nil {
 				panic(err)
@@ -187,33 +196,8 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbia
 			counter++
 		}
 	}
+	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
 	return nil
-}
-
-//AddLayers will take a list of layers and shove them into the network
-func (m *Network) AddLayers(layer ...interface{}) {
-	for i := range layer {
-		switch x := layer[i].(type) {
-		case error:
-			if x != nil {
-				m.err <- x
-			}
-		default:
-			l, hasweights := wraplayer(x)
-			if l == nil {
-
-				m.err <- errors.New("Unsupported Layer")
-			}
-			if hasweights {
-				m.totalionetcounter += 2
-			} else {
-				m.totalionetcounter++
-			}
-			m.layer = append(m.layer, l)
-		}
-
-	}
-
 }
 
 //AddLayer adds a layer without setting the mem
@@ -225,12 +209,7 @@ func (m *Network) AddLayer(layer interface{}, err error) {
 	l, hasweights := wraplayer(layer)
 	if l != nil {
 		m.layer = append(m.layer, l)
-		if hasweights {
-			m.totalionetcounter += 2
-
-		} else {
-			m.totalionetcounter++
-		}
+		m.totalionetcounter += hasweights
 		return
 	}
 	m.err <- errors.New("Unsupported Layer")

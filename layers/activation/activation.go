@@ -13,23 +13,25 @@ import (
 
 //Layer is an activation layer
 type Layer struct {
-	act                  *activation.Ops
-	reduce               *reduce.Ops
-	fwd                  Scalars
-	bwd                  Scalars
-	memmanaged           bool
-	updatable            bool
-	nanproped            gocudnn.NANProp
-	threshandpreludims   []int32
-	posmin, posmax       float32
-	negmin, negmax       float32
-	threshmin, threshmax float32
-	negcotrain           trainer.Trainer
-	poscotrain           trainer.Trainer
-	l1n, l2n, l1p, l2p   float32
-	posCoefs             *layers.IO
-	negCoefs             *layers.IO
-	threshold            *layers.IO
+	act                          *activation.Ops
+	reduce                       *reduce.Ops
+	fwd                          Scalars
+	bwd                          Scalars
+	memmanaged                   bool
+	updatable                    bool
+	nanproped                    gocudnn.NANProp
+	threshandpreludims           []int32
+	posmin, posmax               float32
+	negmin, negmax               float32
+	threshmin, threshmax         float32
+	negcotrain                   trainer.Trainer
+	poscotrain                   trainer.Trainer
+	thresholdtrain               trainer.Trainer
+	l1n, l2n, l1p, l2p, l1t, l2t float32
+	posCoefs                     *layers.IO
+	negCoefs                     *layers.IO
+	threshold                    *layers.IO
+	numofios                     int
 }
 
 //Info is a struct that contains the info that is needed to build the activation layer
@@ -232,13 +234,13 @@ func (a *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
 	var flg activation.ModeFlag
 	switch a.act.Mode() {
 	case flg.Leaky():
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil)
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil, nil)
 	case flg.Threshhold():
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), a.threshold.T(), a.posCoefs.T(), a.posCoefs.DeltaT())
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), a.threshold.T(), a.threshold.DeltaT(), a.posCoefs.T(), a.posCoefs.DeltaT())
 	case flg.PRelu():
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), nil, nil, nil)
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), nil, nil, nil, nil)
 	default:
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil)
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil, nil)
 	}
 
 }

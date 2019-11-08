@@ -30,91 +30,107 @@ type layer struct {
 	scalarnumalpha, scalarnumbeta int
 }
 
-func (l *layer) loadtrainer(handle *cudnn.Handler, trainerweights, trainerbias trainer.Trainer) error {
+func (l *layer) loadtrainer(handle *cudnn.Handler, trainers ...trainer.Trainer) error {
 	if l.cnn != nil {
-		return l.cnn.LoadTrainer(handle, trainerweights, trainerbias)
+		if len(trainers) != 2 {
+			return errors.New("l.cnn should get 2 trainers")
+		}
+		return l.cnn.LoadTrainer(handle, trainers[0], trainers[1])
 	}
 
 	if l.batch != nil {
-		return l.batch.LoadTrainer(handle, trainerweights, trainerbias)
+		if len(trainers) != 2 {
+			return errors.New("l.cnn should get 2 trainers")
+		}
+		return l.batch.LoadTrainer(handle, trainers[0], trainers[1])
 	}
 	if l.cnntranspose != nil {
-		return l.cnntranspose.LoadTrainer(handle, trainerweights, trainerbias)
+		if len(trainers) != 2 {
+			return errors.New("l.cnn should get 2 trainers")
+		}
+		return l.cnntranspose.LoadTrainer(handle, trainers[0], trainers[1])
 	}
 	if l.activation != nil {
-		if l.activation.Updateable() {
-			return l.activation.LoadTrainer(handle, trainerweights, trainerbias)
+		tneed := l.activation.TrainersNeeded()
+		if tneed > 0 {
+
 		}
+		if len(trainers) != tneed {
+			return errors.New("this l.activation in how many trainers getting")
+		}
+		return l.activation.LoadTrainer(handle, trainers)
 	}
+
 	return errors.New("inbedded error doesn't support trainers")
 }
 
-func (l *layer) needstrainer() bool {
+func (l *layer) trainersneeded() int {
 	if l.cnn != nil {
 
-		return true
+		return 2
 	}
 
 	if l.cnntranspose != nil {
-		return true
+		return 2
 	}
 	if l.batch != nil {
-		return true
+		return 2
 	}
 	if l.activation != nil {
-		return l.activation.Updateable()
+		return l.activation.TrainersNeeded()
+
 	}
-	return false
+	return 0
 
 }
 
-func wraplayer(input interface{}) (*layer, bool) { //the bool is for a counter to count the layers that contain weights
+func wraplayer(input interface{}) (hidden *layer, ios int) {
 	switch l := input.(type) {
 
 	case *activation.Layer:
 		return &layer{
 			activation: l,
 			name:       "Activation",
-		}, false
+		}, l.TrainersNeeded()
 	case *cnn.Layer:
 		return &layer{
 			cnn:  l,
 			name: "CNN",
-		}, true
+		}, 2
 
 	case *softmax.Layer:
 		return &layer{
 			softmax: l,
 			name:    "SoftMax",
-		}, false
+		}, 1
 	case *pooling.Layer:
 		return &layer{
 			pool: l,
 			name: "Pooling",
-		}, false
+		}, 1
 	case *dropout.Layer:
 		return &layer{
 			drop: l,
 			name: "DropOut",
-		}, false
+		}, 1
 	case *batchnorm.Layer:
 		return &layer{
 			batch: l,
 			name:  "BatchNorm",
-		}, false
+		}, 1
 	case *reshape.Layer:
 		return &layer{
 			reshape: l,
 			name:    "Reshape",
-		}, false
+		}, 1
 	case *cnntranspose.Layer:
 		return &layer{
 			cnntranspose: l,
 			name:         "CNN-Transpose",
-		}, true
+		}, 1
 
 	default:
-		return nil, false
+		return nil, -1
 	}
 }
 
@@ -418,7 +434,7 @@ func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
 		return l.batch.UpdateWeights(handle, batch)
 	}
 	if l.activation != nil {
-		if l.activation.Updateable() {
+		if l.activation.TrainersNeeded() > 0 {
 			return l.activation.UpdateWeights(handle, batch)
 
 		}

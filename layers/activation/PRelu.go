@@ -6,17 +6,9 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//Updateable returns a true if the layer contains parameters that are updateable
-func (l *Layer) Updateable() bool {
-	return l.updatable
-}
-
-//HasWeights is kind of like Updateable, but not all activations that have weights are updateable. They might just be randomly set.
-func (l *Layer) HasWeights() bool {
-	if l.negCoefs != nil {
-		return true
-	}
-	return false
+//TrainersNeeded returns the number of trainers needed
+func (l *Layer) TrainersNeeded() int {
+	return l.numofios
 }
 
 //PRelu returns an activation layer set to PRelu
@@ -30,6 +22,6 @@ func PRelu(handle *cudnn.Handler, dtype gocudnn.DataType, managedmem bool) (*Lay
 	}
 	layer.memmanaged = managedmem
 	layer.updatable = true
-
+	layer.numofios = 1
 	return layer, nil
 }
