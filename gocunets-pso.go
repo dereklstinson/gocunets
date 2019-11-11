@@ -15,8 +15,10 @@ func (m *Network) totalnumofscalarsalpha() int {
 }
 
 //GetTrainers returns the trainers for the network.  ...convienence function
-func (m *Network) GetTrainers() (weights, bias []trainer.Trainer) {
-	return m.wtrainers, m.btrainers
+func (m *Network) GetTrainers() (trainers []trainer.Trainer) {
+	return m.trainers
+
+	//	return m.wtrainers, m.btrainers
 }
 
 //ScalarOptimizer optimizes the scalars of the operators

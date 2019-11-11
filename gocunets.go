@@ -85,13 +85,13 @@ type Network struct {
 	l1losses          []float32
 	l2losses          []float32
 	totalionetsinit   bool
-	wtrainers         []trainer.Trainer
-	btrainers         []trainer.Trainer
-	othertrainers     []trainer.Trainer
-	savedparams       *NetworkSavedTensor
-	loadedsaved       bool
-	rng               *rand.Rand
-	rngsource         rand.Source
+	trainers          []trainer.Trainer
+	//	btrainers         []trainer.Trainer
+	//	othertrainers     []trainer.Trainer
+	savedparams *NetworkSavedTensor
+	loadedsaved bool
+	rng         *rand.Rand
+	rngsource   rand.Source
 }
 type hiddenio struct {
 	mem          []*layers.IO
@@ -167,33 +167,32 @@ func (m *Network) TrainersNeeded() int {
 }
 
 //LoadTrainers will load the trainers in the order that the layers were placed in the network
-func (m *Network) LoadTrainers(handle *cudnn.Handler, trainerweights, trainerbias, othertrainers []trainer.Trainer) error {
-	if len(trainerweights) != len(trainerbias) {
-		return errors.New("(*Network)LoadTrainers -- Sizes Don't Match with trainers and bias")
-	}
-	if len(trainerweights) != m.TrainersNeeded() {
+func (m *Network) LoadTrainers(handle *cudnn.Handler, trainers []trainer.Trainer) error {
+
+	if len(trainers) != m.TrainersNeeded() {
 		return errors.New("(*Network)LoadTrainers -- TrainersNeeded don't match the length of trainers passed")
 	}
+	m.trainers = trainers
 	counter := 0
 	var err error
-	for i := 0; i < len(m.layer); i++ {
+	for i := 0; i < len(m.layer); {
 		if debuggingmaingocunets {
 			//	fmt.Println("Going Through Layer at Index", i)
 		}
 		trainersneeded := m.layer[i].trainersneeded()
 		if trainersneeded > 0 {
-
-			if debuggingmaingocunets {
-				//	fmt.Println("Loading Trainer at Index", i)
-			}
-			m.wtrainers = append(m.wtrainers, trainerweights[counter])
-			m.btrainers = append(m.btrainers, trainerbias[counter])
-			m.othertrainers = append(m.othertrainers, othertrainers[counter])
-			err = m.layer[i].loadtrainer(handle, trainerweights[counter], trainerbias[counter])
+			//	m.trainers=append(m.trainers,trainers)
+			//	m.wtrainers = append(m.wtrainers, trainerweights[counter])
+			//	m.btrainers = append(m.btrainers, trainerbias[counter])
+			//	m.othertrainers = append(m.othertrainers, othertrainers[counter])
+			err = m.layer[i].loadtrainer(handle, m.trainers[i:trainersneeded-1]...)
 			if err != nil {
 				panic(err)
 			}
 			counter++
+			i += trainersneeded
+		} else {
+			i++
 		}
 	}
 	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)

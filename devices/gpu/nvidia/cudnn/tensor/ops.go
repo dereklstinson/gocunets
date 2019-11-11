@@ -45,7 +45,7 @@ func (o *optensorop) isset() bool {
 	return true
 }
 
-//OpAdd adds the op
+//OpAdd adds the op into t
 func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta float64) error {
 
 	if !t.op.add.isset() {
