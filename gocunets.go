@@ -76,6 +76,8 @@ type Network struct {
 	inference         hiddenio
 	totalionets       []*netios
 	totalionetcounter int
+	hiddeniocount     int
+	weightcount       int
 	err               chan error
 	position          int
 	resizecounter     int
@@ -174,25 +176,20 @@ func (m *Network) LoadTrainers(handle *cudnn.Handler, trainers []trainer.Trainer
 	}
 	m.trainers = trainers
 	counter := 0
+	traineroffset := 0
 	var err error
-	for i := 0; i < len(m.layer); {
+	for i := 0; i < len(m.layer); i++ {
 		if debuggingmaingocunets {
 			//	fmt.Println("Going Through Layer at Index", i)
 		}
 		trainersneeded := m.layer[i].trainersneeded()
 		if trainersneeded > 0 {
-			//	m.trainers=append(m.trainers,trainers)
-			//	m.wtrainers = append(m.wtrainers, trainerweights[counter])
-			//	m.btrainers = append(m.btrainers, trainerbias[counter])
-			//	m.othertrainers = append(m.othertrainers, othertrainers[counter])
-			err = m.layer[i].loadtrainer(handle, m.trainers[i:trainersneeded-1]...)
+			err = m.layer[i].loadtrainer(handle, m.trainers[traineroffset:traineroffset+trainersneeded]...)
 			if err != nil {
 				panic(err)
 			}
 			counter++
-			i += trainersneeded
-		} else {
-			i++
+			traineroffset += trainersneeded
 		}
 	}
 	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
@@ -208,6 +205,7 @@ func (m *Network) AddLayer(layer interface{}, err error) {
 	l, hasweights := wraplayer(layer)
 	if l != nil {
 		m.layer = append(m.layer, l)
+
 		m.totalionetcounter += hasweights
 		return
 	}

@@ -33,20 +33,23 @@ type layer struct {
 func (l *layer) loadtrainer(handle *cudnn.Handler, trainers ...trainer.Trainer) error {
 	if l.cnn != nil {
 		if len(trainers) != 2 {
-			return errors.New("l.cnn should get 2 trainers")
+			fmt.Println(len(trainers))
+			return fmt.Errorf("l.cnn got %d should get %d", len(trainers), 2)
 		}
 		return l.cnn.LoadTrainer(handle, trainers[0], trainers[1])
 	}
 
 	if l.batch != nil {
 		if len(trainers) != 2 {
-			return errors.New("l.cnn should get 2 trainers")
+			return fmt.Errorf("l.batch got %d should get %d", len(trainers), 2)
 		}
 		return l.batch.LoadTrainer(handle, trainers[0], trainers[1])
 	}
 	if l.cnntranspose != nil {
 		if len(trainers) != 2 {
-			return errors.New("l.cnn should get 2 trainers")
+
+			return fmt.Errorf("l.cnntranspose got %d should get %d", len(trainers), 2)
+
 		}
 		return l.cnntranspose.LoadTrainer(handle, trainers[0], trainers[1])
 	}
@@ -54,9 +57,10 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainers ...trainer.Trainer) 
 		tneed := l.activation.TrainersNeeded()
 		if tneed > 0 {
 
-		}
-		if len(trainers) != tneed {
-			return errors.New("this l.activation in how many trainers getting")
+			if len(trainers) != tneed {
+
+				return fmt.Errorf("l.activation got %d should get %d", len(trainers), tneed)
+			}
 		}
 		return l.activation.LoadTrainer(handle, trainers)
 	}
@@ -66,10 +70,8 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainers ...trainer.Trainer) 
 
 func (l *layer) trainersneeded() int {
 	if l.cnn != nil {
-
 		return 2
 	}
-
 	if l.cnntranspose != nil {
 		return 2
 	}
@@ -88,10 +90,17 @@ func wraplayer(input interface{}) (hidden *layer, ios int) {
 	switch l := input.(type) {
 
 	case *activation.Layer:
+		if l.TrainersNeeded() > 0 {
+			return &layer{
+				activation: l,
+				name:       "Activation",
+			}, 1 + l.TrainersNeeded()
+		}
 		return &layer{
 			activation: l,
 			name:       "Activation",
-		}, l.TrainersNeeded()
+		}, 1
+
 	case *cnn.Layer:
 		return &layer{
 			cnn:  l,
@@ -127,7 +136,7 @@ func wraplayer(input interface{}) (hidden *layer, ios int) {
 		return &layer{
 			cnntranspose: l,
 			name:         "CNN-Transpose",
-		}, 1
+		}, 2
 
 	default:
 		return nil, -1
@@ -358,7 +367,6 @@ func (l *layer) getoutputdims(handle *cudnn.Handler, input *layers.IO) ([]int32,
 func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 
 	if l.cnn != nil {
-
 		io, err := l.cnn.MakeOutputTensor(handle, input)
 		fmt.Println("DIMS Regular", io.T().Dims())
 		if err != nil {
@@ -366,15 +374,12 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 		}
 		return io, err
 	}
-
 	if l.pool != nil {
 		return l.pool.MakeOutputLayer(handle, input)
 	}
 	if l.drop != nil {
-
 		err := l.drop.BuildFromPreset(handle, input)
 		if err != nil {
-
 			return nil, err
 		}
 		return input.ZeroClone(handle)
@@ -385,10 +390,8 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 			fmt.Println("Error in activation Make Output Tensor input is:", input)
 		}
 		return io, err
-
 	}
 	if l.batch != nil {
-
 		err := l.batch.SetupPreset(handle, input)
 		if err != nil {
 			fmt.Println("error in batch initialization")

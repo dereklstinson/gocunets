@@ -3,6 +3,7 @@ package gocunets
 import (
 	"errors"
 	"fmt"
+	"github.com/dereklstinson/GoCuNets/layers/activation"
 	"image"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
@@ -31,15 +32,16 @@ type IOStats struct {
 
 //ImagesLIO is used to hold and label the images of a section of the network.
 type ImagesLIO struct {
-	Layer bool        `json:"layer,omitempty"`
-	Name  string      `json:"name,omitempty"`
-	X     image.Image `json:"x,omitempty"`
+	Layer bool          `json:"layer,omitempty"`
+	Name  string        `json:"name,omitempty"`
+	X     []image.Image `json:"x,omitempty"`
 }
 type netios struct {
-	name    string
-	cnn     *cnn.Layer
-	cnntran *cnntranspose.Layer
-	io      *layers.IO
+	name       string
+	cnn        *cnn.Layer
+	cnntran    *cnntranspose.Layer
+	activation *activation.Layer
+	io         *layers.IO
 }
 
 //GetLayerImages will return an array of images of the io of the network
@@ -85,7 +87,7 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 		return &ImagesLIO{
 			Layer: true,
 			Name:  "CNN",
-			X:     img,
+			X:     []image.Image{img},
 			//	DX:    dimg,
 		}, nil
 	case n.cnntran != nil:
@@ -103,8 +105,26 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 		return &ImagesLIO{
 			Layer: true,
 			Name:  "TransCNN",
-			X:     img,
+			X:     []image.Image{img},
 			//	DX:    dimg,
+		}, nil
+	case n.activation != nil:
+		img, err := n.activation.PosCoefs().T().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		img1, err := n.activation.NegCoefs().T().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		img2, err := n.activation.Threshhold().T().ToOneImageColor(x, y)
+		if err != nil {
+			return nil, err
+		}
+		return &ImagesLIO{
+			Layer: true,
+			Name:  "Activation",
+			X:     []image.Image{img, img1, img2},
 		}, nil
 	case n.io != nil:
 
@@ -119,7 +139,7 @@ func (n *netios) images(handle *cudnn.Handler, x, y int) (*ImagesLIO, error) {
 		return &ImagesLIO{
 			Layer: false,
 			Name:  "IO",
-			X:     img,
+			X:     []image.Image{img},
 			//	DX:    dimg,
 		}, nil
 	}
@@ -131,6 +151,11 @@ func (l *layer) wrapnetio() *netios {
 		return &netios{name: "CNN", cnn: l.cnn}
 	case l.cnntranspose != nil:
 		return &netios{name: "CNN-TransPose", cnntran: l.cnntranspose}
+	case l.activation != nil:
+		if l.activation.TrainersNeeded() > 0 {
+			return &netios{name: "Activation Thresh", activation: l.activation}
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -138,7 +163,6 @@ func (l *layer) wrapnetio() *netios {
 }
 func wrapnetio(input interface{}) *netios {
 	switch l := input.(type) {
-
 	case *layer:
 		return l.wrapnetio()
 	case *layers.IO:

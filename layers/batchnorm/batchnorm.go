@@ -198,7 +198,6 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) (err error) {
 		fmt.Println("Creating Training Mem for scale")
 		return err
 	}
-
 	err = trainer.CreateTrainingMem(handle, l.biastrain, l.bias)
 	if err != nil {
 		fmt.Println("Creating Training Mem for bias")
@@ -260,7 +259,12 @@ func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 
 //LoadTrainer sets up the momentum trainer
 func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias trainer.Trainer) error {
-
+	if trainerscale == nil {
+		fmt.Println("Batch Norm load trainer scale nil")
+	}
+	if trainerscale == nil {
+		fmt.Println("Batch Norm load trainer bias nil")
+	}
 	l.scaletrain = trainerscale
 	l.biastrain = trainerbias
 	l.scaletrain.SetDecays(0.0, 0.0)
