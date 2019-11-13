@@ -43,6 +43,9 @@ func (l *Layer) Weights() *layers.IO {
 func (l *Layer) Bias() *layers.IO {
 	return l.conv.Bias()
 }
+func (l *Layer) SetMathType(mtype gocudnn.MathType) error {
+	return l.conv.SetMathType(mtype)
+}
 
 //ForwardProp does the forward propagation of convolution transpose
 func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {

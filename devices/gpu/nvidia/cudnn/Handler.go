@@ -106,7 +106,7 @@ func (h *Handler) SetDevice() error {
 //CreateHandler creates a the handlers
 //The handler is used in managing memory for all the packages that use cudnn.Handler. This function will raise a flag that will tell the program
 //to use unified memory management.  If that is not wanted call MakeNotUnified immediately to turn this off.
-func CreateHandler(dev cudart.Device, xtrakernsfolder string) *Handler {
+func CreateHandler(dev cudart.Device) *Handler {
 	err := dev.Set()
 	if err != nil {
 		panic(err)
@@ -120,7 +120,7 @@ func CreateHandler(dev cudart.Device, xtrakernsfolder string) *Handler {
 		unified = true
 	}
 	x := gocudnn.CreateHandle(true)
-	y, err := xtra.MakeHandle(xtrakernsfolder, dev, unified)
+	y, err := xtra.MakeHandle(dev, unified)
 	if err != nil {
 		panic(err)
 	}

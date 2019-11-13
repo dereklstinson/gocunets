@@ -64,6 +64,7 @@ type Network struct {
 	dtype             gocudnn.DataType
 	frmt              gocudnn.TensorFormat
 	cmode             gocudnn.ConvolutionMode
+	mathtype          gocudnn.MathType
 	nanprop           gocudnn.NANProp
 	layer             []*layer
 	usingwsfwd        bool

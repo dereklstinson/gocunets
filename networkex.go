@@ -5,6 +5,7 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	"github.com/dereklstinson/GoCuNets/trainer"
+	"github.com/dereklstinson/GoCudnn/cudart"
 
 	"github.com/dereklstinson/GoCuNets/layers/dropout"
 
@@ -99,6 +100,11 @@ type SoftmaxMode struct {
 	gocudnn.SoftMaxMode
 }
 
+//MathType is math type for tensor cores
+type MathType struct {
+	gocudnn.MathType
+}
+
 //Workspace is workspace used by the hidden layers
 type Workspace struct {
 	*nvidia.Malloced
@@ -135,6 +141,7 @@ var Flags struct {
 	AMode  ActivationMode
 	SMMode SoftmaxMode
 	SMAlgo SoftmaxAlgo
+	MType  MathType
 	//EleOp  ElementwiseOp
 }
 var pflags struct { //This is just in case someone was stupid enough to use Flags other than its intended purpose
@@ -151,6 +158,52 @@ var pflags struct { //This is just in case someone was stupid enough to use Flag
 	//EleOp  gocudnn.OpTensorOp
 }
 
+//Handle handles the functions of the libraries used in gocunet
+type Handle struct {
+	*cudnn.Handler
+}
+
+//Stream is a stream for gpu instructions
+type Stream struct {
+	*cudart.Stream
+}
+
+//CreateHandle creates a handle for gocunets
+func CreateHandle(d Device) (h *Handle) {
+	h = new(Handle)
+	h.Handler = cudnn.CreateHandler(d.Device)
+	return h
+}
+
+//CreateStream creates a stream
+func CreateStream() (s *Stream, err error) {
+	s = new(Stream)
+	s.Stream, err = cudart.CreateBlockingStream()
+	return s, err
+}
+
+//Device is a gpu device
+type Device struct {
+	cudart.Device
+}
+
+//GetDeviceList gets a device from a list
+func GetDeviceList() (devices []Device, err error) {
+	n, err := cudart.GetDeviceCount()
+	if err != nil {
+		return nil, err
+	}
+	devices = make([]Device, n)
+	for i := (int32)(0); i < n; i++ {
+		devices[i].Device, err = cudart.CreateDevice(i)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return devices, nil
+}
+
+//CreateWorkSpace creates a workspace
 func (n *Network) CreateWorkSpace(sib uint) (w *Workspace, err error) {
 	w.Malloced, err = nvidia.MallocGlobal(n.handle, sib)
 	return w, err
@@ -160,18 +213,20 @@ func (n *Network) CreateWorkSpace(sib uint) (w *Workspace, err error) {
 //Use Flags global variable to pass flags into function
 //
 //example x:=CreateNetworkEX(h,Flags.Format.NHWC(), Flags.Dtype.Float32(),Flags.Cmode.CrossCorilation())
-func CreateNetworkEX(handle *cudnn.Handler, frmt TensorFormat, dtype DataType, cmode ConvolutionMode) *Network {
+func CreateNetworkEX(handle *Handle, frmt TensorFormat, dtype DataType, cmode ConvolutionMode, mtype MathType) *Network {
 	var x DataType
 	y := x.Int8()
 	fmt.Println(y)
 	n := CreateNetwork()
-	n.handle = handle
+	n.handle = handle.Handler
 	n.cmode = cmode.ConvolutionMode
 	n.frmt = frmt.TensorFormat
 	n.dtype = dtype.DataType
+	n.mathtype = mtype.MathType
 	n.rngsource = rand.NewSource(time.Now().Unix())
 	n.rng = rand.New(n.rngsource)
 	n.nanprop = Flags.Nan.NotPropigate()
+
 	return n
 }
 
@@ -253,6 +308,7 @@ func (n *Network) AppendSoftMax(sm SoftmaxMode, sa SoftmaxAlgo) (err error) {
 //AppendConvolution appends a convolution layer to the network
 func (n *Network) AppendConvolution(filter, padding, stride, dilation []int32) (err error) {
 	conv, err := cnn.Setup(n.handle, n.frmt, n.dtype, filter, n.cmode, padding, stride, dilation, n.rng.Uint64())
+	conv.SetMathType(n.mathtype)
 	n.AddLayer(conv, err)
 	return err
 }

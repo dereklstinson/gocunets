@@ -9,13 +9,18 @@ import (
 
 //Ops is a struct
 type Ops struct {
-	op           *gocudnn.ConvolutionD
+	opfwd        *gocudnn.ConvolutionD
+	opbwdd       *gocudnn.ConvolutionD
+	opbwdf       *gocudnn.ConvolutionD
 	group        int32
 	setfilt      bool
 	pwspacesize  uint
 	perfforward  ForwardPerformance
 	perfbackdata BackDataPerformance
 	perfbackfilt BackFilterPerformance
+	mtforward    gocudnn.MathType
+	mtbwdd       gocudnn.MathType
+	mtbwdf       gocudnn.MathType
 	pad          []int32
 	dilation     []int32
 	stride       []int32
@@ -39,38 +44,56 @@ func (c *Ops) Dilation() []int32 {
 //StageOperation set sets a convolution struct default algos go as follows fwd: direct, bwdfilt: algo0, bwddata:algo0
 func StageOperation(mode gocudnn.ConvolutionMode, data gocudnn.DataType, pad, stride, dilation []int32) (*Ops, error) {
 
-	desc, err := gocudnn.CreateConvolutionDescriptor()
+	forward, err := gocudnn.CreateConvolutionDescriptor()
 	if err != nil {
 		return nil, err
 	}
-	err = desc.Set(mode, data, pad, stride, dilation)
+	err = forward.Set(mode, data, pad, stride, dilation)
+	if err != nil {
+		return nil, err
+	}
+	backwardfilter, err := gocudnn.CreateConvolutionDescriptor()
+	if err != nil {
+		return nil, err
+	}
+	err = backwardfilter.Set(mode, data, pad, stride, dilation)
+	if err != nil {
+		return nil, err
+	}
+	backwarddata, err := gocudnn.CreateConvolutionDescriptor()
+	if err != nil {
+		return nil, err
+	}
+	err = backwarddata.Set(mode, data, pad, stride, dilation)
 	if err != nil {
 		return nil, err
 	}
 	return &Ops{
-		op: desc,
+		opfwd:  forward,
+		opbwdd: backwarddata,
+		opbwdf: backwardfilter,
 	}, nil
 }
 
 //Group links the convolution with a group number
 func (c *Ops) Group(group int32) error {
 	c.group = group
-	return c.op.SetGroupCount(group)
+	var err error
+	err = c.opfwd.SetGroupCount(group)
+	if err != nil {
+		return err
+	}
+	err = c.opbwdd.SetGroupCount(group)
+	if err != nil {
+		return err
+	}
+	err = c.opbwdd.SetGroupCount(group)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-/*
-//BwdFilterGroup links the convolution with a group number
-func (c *Ops) BwdFilterGroup(group int32) error {
-	c.bwdfgroup = group
-	return c.bwdfdesc.SetGroupCount(group)
-}
-
-//BwdDataGroup links the convolution with a group number
-func (c *Ops) BwdDataGroup(group int32) error {
-	c.bwddgroup = group
-	return c.bwdddesc.SetGroupCount(group)
-}
-*/
 //Group is a group of convolution functions
 type Group struct {
 	g   []*Ops
@@ -124,22 +147,20 @@ func BwdFiltMakeGroup(groupnumber int32, group []*Ops) (Group, error) {
 }
 */
 
-//SetMathType sets the mathtype
-func (c *Ops) SetMathType(math gocudnn.MathType) error {
-	return c.op.SetMathType(math)
+//SetMathTypeForward sets the mathtype
+func (c *Ops) SetMathTypeForward(math gocudnn.MathType) error {
+	return c.opfwd.SetMathType(math)
 }
 
-/*
-//SetBwdDataMathType sets the mathtype
-func (c *Ops) SetBwdDataMathType(math gocudnn.MathType) error {
-	return c.bwdddesc.SetMathType(math)
+//SetMathTypeBackwardData sets the mathtype
+func (c *Ops) SetMathTypeBackwardData(math gocudnn.MathType) error {
+	return c.opbwdd.SetMathType(math)
 }
 
-//SetBwdFiltType sets the mathtype
-func (c *Ops) SetBwdFiltType(math gocudnn.MathType) error {
-	return c.bwdfdesc.SetMathType(math)
+//SetMathTypeBackwardFilter sets the mathtype
+func (c *Ops) SetMathTypeBackwardFilter(math gocudnn.MathType) error {
+	return c.opbwdf.SetMathType(math)
 }
-*/
 
 //BackwardData dx = alpha * BwdPropData(w,dy)+beta*dx
 func (c *Ops) BackwardData(
@@ -151,7 +172,7 @@ func (c *Ops) BackwardData(
 	beta float64,
 	dx *tensor.Volume) error {
 
-	return c.op.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
+	return c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
 }
 
 //BackwardFilter dw = alpha * BwdPropFilt(x,dy)+beta*dw
@@ -163,7 +184,7 @@ func (c *Ops) BackwardFilter(
 	wspace *nvidia.Malloced,
 	beta float64,
 	dw *tensor.Volume) error {
-	return c.op.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), beta, dw.FD(), dw.Memer())
+	return c.opbwdf.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), beta, dw.FD(), dw.Memer())
 }
 
 //Forward    y= alpha * Convolution(x,w)+ beta*y
@@ -191,7 +212,7 @@ func (c *Ops) Forward(
 		fmt.Println("13: ", y.Memer())
 	*/
 
-	return c.op.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), beta, y.TD(), y.Memer())
+	return c.opfwd.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), beta, y.TD(), y.Memer())
 }
 
 //BackwardBias does the backward bias calculation
@@ -202,7 +223,7 @@ func (c *Ops) BackwardBias(
 	beta float64,
 	dbias *tensor.Volume) error {
 
-	return c.op.BackwardBias(
+	return c.opbwdf.BackwardBias(
 		handle.Cudnn(),
 		alpha,
 		dy.TD(),

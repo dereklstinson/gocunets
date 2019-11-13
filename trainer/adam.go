@@ -3,6 +3,7 @@ package trainer
 import (
 	"errors"
 	"fmt"
+	"github.com/dereklstinson/half"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
@@ -16,6 +17,9 @@ const debuggingadam = false
 
 //Adam is a struct that does the holds the params for adam optimization
 type Adam struct {
+	dtype     gocudnn.DataType
+	loss1h    []half.Float16
+	loss2h    []half.Float16
 	loss1     []float32
 	loss2     []float32
 	goptr1    *gocu.Wrapper
@@ -52,6 +56,7 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 	switch dtype {
 
 	case dflg.Float():
+		a.dtype.Float()
 		a.loss1 = make([]float32, 1)
 		a.loss2 = make([]float32, 1)
 		a.goptr1, err = gocu.MakeGoMem(a.loss1)
@@ -116,6 +121,73 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			}
 			return err
 		}
+	case dflg.Half():
+
+		a.dtype.Half()
+		a.loss1h = make([]half.Float16, 1)
+		a.loss2h = make([]half.Float16, 1)
+		a.goptr1, err = gocu.MakeGoMem(a.loss1h)
+		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
+			return err
+		}
+		a.goptr2, err = gocu.MakeGoMem(a.loss2h)
+		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
+			return err
+		}
+		//asize := dimsize()
+		sizet := gocudnn.FindSizeTfromVol(dims, dtype)
+
+		a.gsum, err = nvidia.MallocGlobal(han, sizet)
+		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
+			return err
+		}
+		a.xsum, err = nvidia.MallocGlobal(han, sizet)
+		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
+			return err
+		}
+		err = a.xsum.SetAll(0)
+		if err != nil {
+			if debuggingadam {
+				fmt.Println("Dims are", dims)
+				fmt.Println("Adress for a.xsum,and a.gsum", a.xsum, a.gsum)
+				fmt.Println("a.xsum Cudasize", a.gsum.TotalBytes())
+				panic(err)
+			}
+		}
+		err = a.gsum.SetAll(0)
+		if err != nil {
+			if debuggingadam {
+				fmt.Println("a.gsum Cudasize", a.gsum.TotalBytes())
+				panic(err)
+			}
+		}
+
+		a.gpuloss1, err = nvidia.MallocGlobal(han, 2)
+		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
+			return err
+		}
+		a.gpuloss2, err = nvidia.MallocGlobal(han, 2)
+		if err != nil {
+			if debuggingadam {
+				panic(err)
+			}
+			return err
+		}
 
 	default:
 
@@ -136,27 +208,56 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 	if err != nil {
 		return err
 	}
-	a.SetBatch(float32(batchsize))
-	err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
-	if err != nil {
-		return err
-	}
+	flg := a.dtype
+	switch a.dtype {
+	case flg.Float():
+		a.SetBatch(float32(batchsize))
+		err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+		if err != nil {
+			return err
+		}
 
-	err = handle.Sync()
-	if err != nil {
-		return err
-	}
-	err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
-	if err != nil {
-		return err
-	}
-	err = handle.Sync()
-	if err != nil {
-		return err
-	}
-	err = a.l1l2loss()
-	if err != nil {
-		return err
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+		if err != nil {
+			return err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = a.l1l2loss()
+		if err != nil {
+			return err
+		}
+
+	case flg.Half():
+		a.SetBatch(float32(batchsize))
+		err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+		if err != nil {
+			return err
+		}
+
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+		if err != nil {
+			return err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return err
+		}
+		err = a.l1l2loss()
+		if err != nil {
+			return err
+		}
+
 	}
 	return handle.Sync()
 }

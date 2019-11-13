@@ -3,6 +3,7 @@ package tensor
 import (
 	"errors"
 	"fmt"
+	"github.com/dereklstinson/half"
 	"strconv"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
@@ -148,7 +149,27 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 			return err
 		}
 		return nil
+	case fflg.Half():
+		randomizedvol := make([]half.Float16, vol)
+		for i := 0; i < vol1; i++ {
+			x := float32(utils.RandWeightSet(mean, max, fanin))
+			randomizedvol[i] = half.NewFloat16(x)
+		}
 
+		ptr, err := gocu.MakeGoMem(randomizedvol)
+		if err != nil {
+			return prependerror("SetRandom", err)
+		}
+
+		err = nvidia.Memcpy(t.memgpu, ptr, size)
+		if err != nil {
+			fmt.Println("Size Value is ", size)
+			fmt.Println("Size of vol is ", vol)
+			fmt.Println("Vol * 4 is ", vol*4)
+			fmt.Println("t.memgpu is", t.memgpu)
+			return err
+		}
+		return nil
 	}
 	return errors.New("SetRandom: Unreachable Area has been reached")
 }

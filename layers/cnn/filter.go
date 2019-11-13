@@ -141,6 +141,18 @@ func Setup(handle *cudnn.Handler,
 	layer.pad, layer.stride, layer.dilation = pad, stride, dilation
 	return layer, nil
 }
+func (c *Layer) SetMathType(mtype gocudnn.MathType) error {
+	err := c.conv.SetMathTypeForward(mtype)
+	if err != nil {
+		return err
+	}
+	err = c.conv.SetMathTypeBackwardData(mtype)
+	if err != nil {
+		return err
+	}
+	return c.conv.SetMathTypeBackwardFilter(mtype)
+
+}
 
 //MakeRandom does what it says it will make the weights random considering the fanin
 func (c *Layer) MakeRandom(handle *cudnn.Handler) error {
