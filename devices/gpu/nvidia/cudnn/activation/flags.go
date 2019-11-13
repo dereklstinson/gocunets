@@ -5,72 +5,83 @@ import (
 	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
-//ModeFlag passes Mode flags
-type ModeFlag struct {
-	m gocudnn.ActivationMode
-	x xtra.XActivationModeFlag
+//Mode passes Mode flags
+type Mode struct {
+	m  gocudnn.ActivationMode
+	xt xtra.XActivationMode
 }
 
-//Mode is the flag that holds the activation mode
-type Mode uint
-
 //Relu returns relu flag
-func (m ModeFlag) Relu() Mode {
-	return Mode(m.m.Relu())
+func (m *Mode) Relu() Mode {
+	m.m.Relu()
+	return *m
 }
 
 //Identity passes identity.  It is used for bwd and fwd convolutionactivationbiasfwd
-func (m ModeFlag) Identity() Mode {
-	return Mode(m.m.Identity())
+func (m *Mode) Identity() Mode {
+	m.m.Identity()
+	return *m
 }
 
 //Tanh sends a flag for the tanh activation
-func (m ModeFlag) Tanh() Mode {
-	return Mode(m.m.Tanh())
+func (m *Mode) Tanh() Mode {
+	m.m.Tanh()
+	return *m
 }
 
 //ClippedRelu places a ceiling on the output
-func (m ModeFlag) ClippedRelu() Mode {
-	return Mode(m.m.ClippedRelu())
+func (m *Mode) ClippedRelu() Mode {
+	m.m.ClippedRelu()
+	return *m
 }
 
 //Elu is the exponential linear unit
-func (m ModeFlag) Elu() Mode {
-	return Mode(m.m.Elu())
+func (m *Mode) Elu() Mode {
+	m.m.Elu()
+	return *m
+
 }
 
 //Sigmoid returns sigmoid flag
-func (m ModeFlag) Sigmoid() Mode {
-	return Mode(m.m.Sigmoid())
+func (m *Mode) Sigmoid() Mode {
+	m.m.Sigmoid()
+	return *m
+
 }
 
 //Leaky is the leaky linear unit
-func (m ModeFlag) Leaky() Mode {
-	return Mode(m.x.Leaky())
+func (m *Mode) Leaky() Mode {
+	m.xt.Leaky()
+	return *m
+
 }
 
 //Threshhold passes a Threshhold mode flag.
 //It is an experimental function.
-func (m ModeFlag) Threshhold() Mode {
-	return Mode(m.x.Threshhold())
+func (m *Mode) Threshhold() Mode {
+	m.xt.Threshhold()
+	return *m
+
 }
 
 //PRelu is the Parametric activation function.
 //This is an experimental function
-func (m ModeFlag) PRelu() Mode {
-	return Mode(m.x.Prelu())
+func (m *Mode) PRelu() Mode {
+	m.xt.Prelu()
+	return *m
+
 }
 
 //Flag is a helper struct used to pass flags
 type Flag struct {
-	Mode    ModeFlag
+	Mode    Mode
 	NanFlag gocudnn.NANProp
 }
 
 //private
 func (m Mode) c() gocudnn.ActivationMode {
-	return gocudnn.ActivationMode(m)
+	return gocudnn.ActivationMode(m.m)
 }
 func (m Mode) x() xtra.XActivationMode {
-	return xtra.XActivationMode(m)
+	return xtra.XActivationMode(m.xt)
 }

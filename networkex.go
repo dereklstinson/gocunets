@@ -87,7 +87,7 @@ type PoolingMode struct {
 
 //ActivationMode struct wrapper for gocudnn.ActivationMode.  Look up methods in gocudnn.
 type ActivationMode struct {
-	act.Mode
+	act.ModeFlag
 }
 
 //SoftmaxAlgo determins what algo to use for softmax

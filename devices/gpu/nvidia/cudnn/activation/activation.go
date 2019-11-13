@@ -20,7 +20,7 @@ type Ops struct {
 //Stage creates an activation struct given the properties passed in function
 func Stage(handle *cudnn.Handler, mode Mode, dtype gocudnn.DataType, nan gocudnn.NANProp, coef float64) (*Ops, error) {
 
-	var mflg ModeFlag
+	var mflg Mode
 	x, err := gocudnn.CreateActivationDescriptor()
 	if err != nil {
 		return nil, err
@@ -109,7 +109,9 @@ func (act *Ops) Mode() Mode {
 //Properties returns the values that were used to Create the Activation struct
 func (act *Ops) Properties() (Mode, gocudnn.NANProp, float64, error) {
 	a, b, c, err := act.desc.Get()
-	return Mode(a), b, c, err
+	return Mode{
+		m: a,
+	}, b, c, err
 
 }
 
@@ -137,7 +139,7 @@ func (act *Ops) FwdProp(
 	}
 	a := alpha
 	b := beta
-	var mflg ModeFlag
+	var mflg Mode
 	switch act.mode {
 	case mflg.Threshhold():
 		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), thresh.Memer(), poscoef.Memer(), a, b)
@@ -196,7 +198,7 @@ func (act *Ops) BwdProp(
 	}
 	a := alpha
 	b := beta
-	var mflg ModeFlag
+	var mflg Mode
 	switch act.mode {
 	case mflg.Threshhold():
 		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), dthresh.Memer(), poscoef.Memer(), dposcoef.Memer(), a, b)
