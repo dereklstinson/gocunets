@@ -13,7 +13,7 @@ import (
 //Threshhold returns an activation layer set to AdvancedThreshRandRelu
 func Threshhold(handle *cudnn.Handler, dtype gocudnn.DataType, minneg, maxneg, minthresh, maxthresh, minpos, maxpos float32, managedmem bool) (*Layer, error) {
 
-	var flg activation.ModeFlag
+	var flg activation.Mode
 
 	layer, err := setup(handle, flg.Threshhold(), dtype, defaultnanprop, 0, 0, 0, 0, defaultcoef)
 	if err != nil {
@@ -38,7 +38,7 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 	if err != nil {
 		return nil, err
 	}
-	var flg activation.ModeFlag
+	var flg activation.Mode
 
 	switch l.act.Mode() {
 	case flg.Threshhold():

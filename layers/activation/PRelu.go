@@ -14,7 +14,7 @@ func (l *Layer) TrainersNeeded() int {
 //PRelu returns an activation layer set to PRelu
 func PRelu(handle *cudnn.Handler, dtype gocudnn.DataType, managedmem bool) (*Layer, error) {
 	//SetupParaChan sets up a static parametric HWC takes up a ton of mem especially if adam and adagrad is the trainmode
-	var aflg activation.ModeFlag
+	var aflg activation.Mode
 
 	layer, err := setup(handle, aflg.PRelu(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 	if err != nil {

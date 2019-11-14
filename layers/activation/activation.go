@@ -119,37 +119,37 @@ func (a *Layer) ResetWeightsHiddenMem(h *cudnn.Handler) error {
 
 //Leaky returns an activation layer set to leaky
 func Leaky(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	return setup(handle, flg.Leaky(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultleakycoef)
 }
 
 //Relu returns an activation layer set to Elu
 func Relu(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	return setup(handle, flg.Relu(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Elu returns an activation layer set to Elu
 func Elu(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	return setup(handle, flg.Elu(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //ClippedRelu returns an activation layer set to ClippedRelu
 func ClippedRelu(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	return setup(handle, flg.ClippedRelu(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Sigmoid returns an activation layer set to Sigmoid
 func Sigmoid(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	return setup(handle, flg.Sigmoid(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
 //Tanh returns an activation layer set to Tanh
 func Tanh(handle *cudnn.Handler, dtype gocudnn.DataType) (*Layer, error) {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	return setup(handle, flg.Tanh(), dtype, defaultnanprop, defaultalpha, defaultbeta, defaultalpha, defaultbeta, defaultcoef)
 }
 
@@ -215,7 +215,7 @@ func (a *Layer) UpDateBwdCScalars(alpha, beta float64) {
 
 //ForwardProp does the forward propigation of the activation layer
 func (a *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	switch a.act.Mode() {
 	case flg.Leaky():
 		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
@@ -231,7 +231,7 @@ func (a *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 
 //BackProp does the backward propigation of the activation layer
 func (a *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	var flg activation.ModeFlag
+	var flg activation.Mode
 	switch a.act.Mode() {
 	case flg.Leaky():
 		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil, nil)
