@@ -31,6 +31,24 @@ func (m *MSE) ErrorCPU(generated, target []float32) []float32 {
 	return der
 }
 
+//ErrorGPUEX y is the target values.  x is the network output. errors will be put into x.DeltaT(). The target values are in y.T()
+func (m *MSE) ErrorGPUEX(h *cudnn.Handler, x, y *layers.IO) error {
+	err := h.Sync()
+	if err != nil {
+		return err
+	}
+	err = m.op.Error(h.XHandle(), x.DeltaT(), x.T(), y.T(), m.alpha, m.beta)
+	if err != nil {
+		return err
+	}
+	err = h.Sync()
+	if err != nil {
+		return err
+	}
+	m.loss = m.op.Loss()
+	return err
+}
+
 //ErrorGPU does the error calculation y will have to contain y.T()=NetworkOutput  y.DeltaT() = target,  X returns the errors in  x.DeltaT()
 func (m *MSE) ErrorGPU(h *cudnn.Handler, x, y *layers.IO) error {
 	/*err := h.SyncContext()

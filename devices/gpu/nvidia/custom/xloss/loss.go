@@ -22,6 +22,8 @@ func Stage(handle *xtra.Handle, mode xtra.XLossMode, managed bool) (*Ops, error)
 		desc: xloss,
 	}, nil
 }
+
+//Error calculates the MSE error dx will get the errors y is the target values dy is the network output
 func (o *Ops) Error(handle *xtra.Handle, dx, y, dy *tensor.Volume, alpha, beta float64) error {
 	var err error
 	o.loss, err = o.desc.CalculateErrorAndLoss(handle, dx.TD(), dx.Memer(), y.TD(), y.Memer(), dy.TD(), dy.Memer(), alpha, beta)
