@@ -185,6 +185,12 @@ func CreateStream() (s *Stream, err error) {
 //Device is a gpu device
 type Device struct {
 	cudart.Device
+	num int32
+}
+
+//Num is the numerical id of the device
+func (d Device) Num() int32 {
+	return d.num
 }
 
 //GetDeviceList gets a device from a list
@@ -199,6 +205,7 @@ func GetDeviceList() (devices []Device, err error) {
 		if err != nil {
 			return nil, err
 		}
+		devices[i].num = i
 	}
 	return devices, nil
 }
