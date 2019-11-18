@@ -40,7 +40,7 @@ func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Ascalar, tscalar float6
 func (t *Volume) LoadMem(handle *cudnn.Handler, input cutil.Mem, size uint) error {
 
 	if t.CurrentSizeT() != size {
-
+		println("currentsize vs input size", t.CurrentSizeT(), size)
 		destsize := strconv.Itoa(int(t.memgpu.TotalBytes()))
 		currentsize := strconv.Itoa(int(t.CurrentSizeT()))
 

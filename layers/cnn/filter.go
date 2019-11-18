@@ -29,6 +29,7 @@ type Layer struct {
 	bwdd       xtras
 	bwdf       xtras
 	datatype   gocudnn.DataType
+	mathtype   gocudnn.MathType
 	train      trainer.Trainer
 	btrain     trainer.Trainer
 	pad        []int32

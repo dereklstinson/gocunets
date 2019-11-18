@@ -26,26 +26,27 @@ import (
 
 //IO is contains 2 tensors the x and dx.  Input IOs will contain only the X tensor.
 type IO struct {
-	*layers.IO
+	X *layers.IO
 }
 
 //CreateInputIO creates the input IO that only contains an x tensor
 func (n *Network) CreateInputIO(dims []int32) (input *IO, err error) {
-	x, err := layers.BuildNetworkInputIO(n.handle, n.frmt, n.dtype, dims)
-	input.IO = x
+	input = new(IO)
+	input.X, err = layers.BuildNetworkInputIO(n.handle, n.frmt, n.dtype, dims)
+
 	return input, err
 }
 
 //CreateIO creates an IO that holds both the x and dx tensor
 func (n *Network) CreateIO(dims []int32) (output *IO, err error) {
-	x, err := layers.BuildIO(n.handle, n.frmt, n.dtype, dims)
-	output.IO = x
+	output = new(IO)
+	output.X, err = layers.BuildIO(n.handle, n.frmt, n.dtype, dims)
 	return output, err
 }
 
 //CreateInferenceIO creates an inference IO
 func (n *Network) CreateInferenceIO(dims []int32) (inference *IO, err error) {
-	inference.IO, err = layers.BuildInferenceIO(n.handle, n.frmt, n.dtype, dims)
+	inference.X, err = layers.BuildInferenceIO(n.handle, n.frmt, n.dtype, dims)
 
 	return inference, err
 }
@@ -216,6 +217,11 @@ func (n *Network) CreateWorkSpace(sib uint) (w *Workspace, err error) {
 	return w, err
 }
 
+//SetWSpaceSizeEx sets the fastest algorithm for the convolution based on the limit of the workspace.
+func (n *Network) SetWSpaceSizeEx(wspacefwd, wspacebwdd, wspacebwdf uint, perfs []ConvolutionPerformance) {
+	n.SetWSpaceSize(n.handle, wspacefwd, wspacebwdd, wspacebwdf, perfs)
+}
+
 //CreateNetworkEX is a new way to create a network
 //Use Flags global variable to pass flags into function
 //
@@ -239,7 +245,10 @@ func CreateNetworkEX(handle *Handle, frmt TensorFormat, dtype DataType, cmode Co
 
 //InitializeEx uses the handler set in n
 func (n *Network) InitializeEx(input, output *IO, wspace *Workspace) ([]ConvolutionPerformance, error) {
-	return n.Initialize(n.handle, input.IO, output.IO, wspace.Malloced)
+	if wspace == nil {
+		return n.Initialize(n.handle, input.X, output.X, nil)
+	}
+	return n.Initialize(n.handle, input.X, output.X, wspace.Malloced)
 }
 
 //LoadTrainersEx loads trainers
@@ -251,12 +260,12 @@ func (n *Network) LoadTrainersEx(trainers []Trainer) error {
 
 //ForwardPropEx does the forward prop for a prebuilt network
 func (n *Network) ForwardPropEx(x, y *IO) error {
-	return n.ForwardProp(n.handle, x.IO, y.IO)
+	return n.ForwardProp(n.handle, x.X, y.X)
 }
 
 //BackPropFilterDataEX does the backprop of the hidden layers
 func (n *Network) BackPropFilterDataEX(x, y *IO) error {
-	return n.BackPropFilterData(n.handle, x.IO, y.IO)
+	return n.BackPropFilterData(n.handle, x.X, y.X)
 }
 
 //ZeroHiddenInferenceIOsEX zeros out the hidden inference ios
@@ -315,7 +324,7 @@ func (n *Network) AppendSoftMax(sm SoftmaxMode, sa SoftmaxAlgo) (err error) {
 //AppendConvolution appends a convolution layer to the network
 func (n *Network) AppendConvolution(filter, padding, stride, dilation []int32) (err error) {
 	conv, err := cnn.Setup(n.handle, n.frmt, n.dtype, filter, n.cmode, padding, stride, dilation, n.rng.Uint64())
-	conv.SetMathType(n.mathtype)
+	//conv.SetMathType(n.mathtype)
 	n.AddLayer(conv, err)
 	return err
 }
@@ -397,7 +406,7 @@ func (n *Network) AppendDropout(drop float32) (err error) {
 
 //OpAddForward performs the op into off the sources into dest.  dest elements will be set to zero before operation begins.
 func (n *Network) OpAddForward(srcs []*IO, dest *IO) (err error) {
-	err = dest.T().Memer().SetAll(0)
+	err = dest.X.T().Memer().SetAll(0)
 	if err != nil {
 		return err
 	}
@@ -410,14 +419,14 @@ func (n *Network) OpAddForward(srcs []*IO, dest *IO) (err error) {
 	}
 	for i := 0; i < size; i += 2 {
 		n.handle.Sync()
-		err = dest.T().OpAdd(n.handle, srcs[i].T(), dest.T(), 1, 1, 1)
+		err = dest.X.T().OpAdd(n.handle, srcs[i].X.T(), dest.X.T(), 1, 1, 1)
 		if err != nil {
 			return err
 		}
 	}
 	if !iseven {
 		n.handle.Sync()
-		err = dest.T().OpAdd(n.handle, srcs[size].T(), dest.T(), 1, 1, 0)
+		err = dest.X.T().OpAdd(n.handle, srcs[size].X.T(), dest.X.T(), 1, 1, 0)
 		if err != nil {
 			return err
 		}
@@ -427,13 +436,13 @@ func (n *Network) OpAddForward(srcs []*IO, dest *IO) (err error) {
 
 //OpAddBackward doesn't perform an add operation.  It just backpropigates the errors back to the srcs Delta T.
 func (n *Network) OpAddBackward(Dsrcs []*IO, Ddest *IO) (err error) {
-	sib := Ddest.DeltaT().CurrentSizeT()
+	sib := Ddest.X.DeltaT().CurrentSizeT()
 	err = n.handle.Sync()
 	if err != nil {
 		return err
 	}
 	for i := range Dsrcs {
-		err = Dsrcs[i].DeltaT().LoadMem(n.handle, Ddest.DeltaT().Memer(), sib)
+		err = Dsrcs[i].X.DeltaT().LoadMem(n.handle, Ddest.X.DeltaT().Memer(), sib)
 		if err != nil {
 			return err
 		}

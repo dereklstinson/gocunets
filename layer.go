@@ -368,7 +368,7 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 
 	if l.cnn != nil {
 		io, err := l.cnn.MakeOutputTensor(handle, input)
-		fmt.Println("DIMS Regular", io.T().Dims())
+
 		if err != nil {
 			fmt.Println("Error in CNN Make Output Tensor input is:", input)
 		}

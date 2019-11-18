@@ -228,6 +228,7 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	var previous *layers.IO
 	previous = input
 	for i := 0; i < len(m.layer)-1; i++ {
+		fmt.Println("building hidden io", i)
 		layerwbs := wrapnetio(m.layer[i])
 		if layerwbs != nil {
 			m.totalionets = append(m.totalionets, layerwbs)
