@@ -17,64 +17,104 @@ func (l *layer) backpropfilterdata(handle *cudnn.Handler, wspacefwd, wspacedata,
 	if l.cnn != nil {
 		err = l.cnn.BackPropFilterData(handle, wspacedata, wspacefilter, x, y)
 		if err != nil {
+			println("bpfd error in cnn")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in cnn sync")
+		}
+		return nil
 
 	}
 
 	if l.activation != nil {
 		err = l.activation.BackProp(handle, x, y)
 		if err != nil {
+			println("bpfd error in activation")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in activation sync")
+		}
+		return nil
 	}
 
 	if l.softmax != nil {
 		err = l.softmax.BackProp(handle, x, y)
 		if err != nil {
+			println("bpfd error in softmax")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in softmax sync")
+		}
+		return nil
 	}
 
 	if l.drop != nil {
 		err = l.drop.BackProp(handle, x, y)
 		if err != nil {
+			println("bpfd error in drop")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in drop sync")
+		}
+		return nil
 	}
 
 	if l.pool != nil {
 		err = l.pool.BackProp(handle, x, y)
 		if err != nil {
+			println("bpfd error in pool")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in pool sync")
+		}
+		return nil
 	}
 
 	if l.reshape != nil {
 		err = l.reshape.BackProp(handle, x, y)
 		if err != nil {
+			println("bpfd error in reshape")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in reshape sync")
+		}
+		return nil
 	}
 	if l.batch != nil {
 		err = l.batch.BackProp(handle, x, y)
 		if err != nil {
+			println("bpfd error in batch")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in batch sync")
+		}
+		return nil
 	}
 	if l.cnntranspose != nil {
 		err = l.cnntranspose.BackPropFilterData(handle, wspacefwd, wspacefilter, x, y)
 		if err != nil {
+			println("bpfd error in cnntranspose")
 			return err
 		}
-		return handle.Sync()
+		err = handle.Sync()
+		if err != nil {
+			println("bpfd error in cnntranspose sync")
+		}
+		return nil
 	}
 	return errors.New("Layer Not Set Up")
 }

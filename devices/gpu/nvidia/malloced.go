@@ -26,11 +26,17 @@ const defaultmemcopykind = cudart.MemcpyKind(4) //enum of 4 is the default memco
 
 //Ptr is an unsafe pointer to nvidia memory
 func (m *Malloced) Ptr() unsafe.Pointer {
+	if m == nil {
+		return nil
+	}
 	return m.ptr
 }
 
 //DPtr is a double pointer to nvidia device memory
 func (m *Malloced) DPtr() *unsafe.Pointer {
+	if m == nil {
+		return nil
+	}
 	return &m.ptr
 }
 
@@ -50,6 +56,9 @@ func (m *Malloced) OffSet(bybytes uint) *Malloced {
 
 //TotalBytes returns the total bytes the malloced has
 func (m *Malloced) TotalBytes() uint {
+	if m == nil {
+		return 0
+	}
 	return m.numbytes
 }
 

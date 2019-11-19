@@ -227,16 +227,15 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 	m.totalionets = make([]*netios, 0)
 	var previous *layers.IO
 	previous = input
+
 	for i := 0; i < len(m.layer)-1; i++ {
-		fmt.Println("building hidden io", i)
+
 		layerwbs := wrapnetio(m.layer[i])
 		if layerwbs != nil {
 			m.totalionets = append(m.totalionets, layerwbs)
 		}
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
-
-			fmt.Println("error in get output")
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
 		netiomem := wrapnetio(mem)
@@ -437,19 +436,23 @@ func (m *Network) backpropfilterdata(handle *cudnn.Handler, x, y *layers.IO) err
 	err = m.layer[lnum-1].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, m.training.mem[lnum-2], y)
 
 	if err != nil {
+		println("error on len(layer)-1")
 		return err
+
 	}
 
 	for i := lnum - 2; i > 0; i-- {
 
 		err = m.layer[i].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, m.training.mem[i-1], m.training.mem[i])
 		if err != nil {
+			println("error on layer", i)
 			return err
 		}
 	}
 
 	err = m.layer[0].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, x, m.training.mem[0])
 	if err != nil {
+		println("error on layer", 0)
 		return err
 	}
 	return nil

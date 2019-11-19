@@ -172,6 +172,9 @@ func (c *Ops) BackwardData(
 	beta float64,
 	dx *tensor.Volume) error {
 
+	if wspace == nil {
+		return c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, nil, 0, beta, dx.TD(), dx.Memer())
+	}
 	return c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
 }
 
@@ -184,6 +187,9 @@ func (c *Ops) BackwardFilter(
 	wspace *nvidia.Malloced,
 	beta float64,
 	dw *tensor.Volume) error {
+	if wspace == nil {
+		return c.opbwdf.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, nil, 0, beta, dw.FD(), dw.Memer())
+	}
 	return c.opbwdf.BackwardFilter(handle.Cudnn(), alpha, x.TD(), x.Memer(), dy.TD(), dy.Memer(), c.perfbackfilt.Algo, wspace, wspace.TotalBytes(), beta, dw.FD(), dw.Memer())
 }
 
@@ -211,7 +217,9 @@ func (c *Ops) Forward(
 		fmt.Println("12: ", y.TD())
 		fmt.Println("13: ", y.Memer())
 	*/
-
+	if wspace == nil {
+		c.opfwd.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, nil, 0, beta, y.TD(), y.Memer())
+	}
 	return c.opfwd.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), w.FD(), w.Memer(), c.perfforward.Algo, wspace, wspace.TotalBytes(), beta, y.TD(), y.Memer())
 }
 

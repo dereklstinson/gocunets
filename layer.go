@@ -413,8 +413,8 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 	}
 	if l.cnntranspose != nil {
 		io, err := l.cnntranspose.MakeOutputTensor(handle, input)
-		fmt.Println("DIMS Reverse", io.T().Dims())
 		if err != nil {
+			fmt.Println("DIMS Reverse", io.T().Dims())
 			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
 		}
 		return io, err
