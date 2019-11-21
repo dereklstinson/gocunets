@@ -352,17 +352,43 @@ func (m *Network) BackPropFilterData(handle *cudnn.Handler, x, y *layers.IO) err
 
 }
 
-/*
 //BackPropData only does the data backprop
-func (m *Network) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	err := m.backpropdata(handle, wspace, x, y)
+func (m *Network) BackPropData(handle *cudnn.Handler, x, y *layers.IO) error {
+	err := m.backpropdata(handle, x, y)
 	if err != nil {
 		return err
 	}
 	return handle.Sync()
 
 }
-*/
+
+//BackPropFilter does the backprop for the filter
+func (m *Network) BackPropFilter(handle *cudnn.Handler, x, y *layers.IO) error {
+	var err error
+	if err != nil {
+		return err
+	}
+	lnum := len(m.layer)
+	err = m.layer[lnum-1].backpropfilter(handle, m.wsbwdf, m.training.mem[lnum-2], y)
+
+	if err != nil {
+		return err
+	}
+
+	for i := lnum - 2; i > 0; i-- {
+		err = m.layer[i].backpropfilter(handle, m.wsbwdf, m.training.mem[i-1], m.training.mem[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	err = m.layer[0].backpropfilter(handle, m.wsbwdf, x, m.training.mem[0])
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
 func wraperror(comment string, err error) error {
 	return errors.New(comment + "-" + err.Error())
 }

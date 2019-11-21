@@ -268,6 +268,16 @@ func (n *Network) BackPropFilterDataEX(x, y *IO) error {
 	return n.BackPropFilterData(n.handle, x.X, y.X)
 }
 
+//BackPropDataEx does the backprop on data only.  Please run all back prop datas first
+func (n *Network) BackPropDataEx(x, y *IO) error {
+	return n.BackPropData(n.handle, x.X, y.X)
+}
+
+//BackPropFilterEx does the backprop filter only.  Please run all back prop datas first
+func (n *Network) BackPropFilterEx(x, y *IO) error {
+	return n.BackPropFilter(n.handle, x.X, y.X)
+}
+
 //ZeroHiddenInferenceIOsEX zeros out the hidden inference ios
 func (n *Network) ZeroHiddenInferenceIOsEX() error {
 	return n.ZeroHiddenInferenceIOs(n.handle)

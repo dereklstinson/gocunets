@@ -1,9 +1,25 @@
 package loss
 
-import "math"
+import (
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/dereklstinson/GoCudnn/gocu"
+
+	"math"
+)
 
 //SoftMax Holds the methods to do softmax loss
 type SoftMax struct {
+	reducetensor *tensor.Volume
+	hostmem      []float32
+	hostptr      *gocu.Wrapper
+	wspace       *nvidia.Malloced
+	op           *reduce.Ops
+	wspacesib    uint
 }
 
 //MakeSoftMaxLossCalculator returns a loss calculator for softmax
@@ -81,4 +97,70 @@ func (s SoftMax) batchlossandpercent(actual, desired []float32, numofbatches, cl
 		panic("reach NAN")
 	}
 	return percent / float32(numofbatches), batchloss / float32(numofbatches)
+}
+
+func (s *SoftMax) SoftMaxLoss(h *cudnn.Handler, target, actual *layers.IO) (float32, error) {
+	var err error
+	if s.op == nil {
+		frmt, dtype, dims, err := target.Properties()
+		if err != nil {
+			return 0, err
+		}
+		frmtflg := frmt
+		if frmt == frmtflg.NCHW() {
+			for i := 2; i < len(dims); i++ {
+				dims[i] = 1
+			}
+		} else {
+			for i := 1; i < len(dims)-1; i++ {
+				dims[i] = 1
+			}
+		}
+		s.hostmem = make([]float32, utils.FindVolumeInt32(dims, nil))
+		s.hostptr, err = gocu.MakeGoMem(s.hostmem)
+		if err != nil {
+			return 0, err
+		}
+		err = actual.T().OpMult(h, actual.T(), target.T(), 1, 1, 0)
+		s.reducetensor, err = tensor.Build(h, frmt, dtype, dims)
+		s.op, err = reduce.Stage(reduce.Flags.ReduceMode.MulNoZeros(), reduce.Flags.DType.Float(), reduce.Flags.NanProp.NotPropigate(), reduce.Flags.IndFlag.NoIndices(), reduce.Flags.IndType.Type32Bit())
+		if err != nil {
+			return 0, err
+		}
+		s.wspacesib, err = s.op.GetWorkSpaceSize(h, actual.T(), s.reducetensor)
+		if err != nil {
+			return 0, err
+		}
+		s.wspace, err = nvidia.MallocGlobal(h, s.wspacesib)
+		if err != nil {
+			return 0, err
+		}
+		err = s.op.Reduce(h, nil, s.wspace, 1, actual.T(), 0, s.reducetensor)
+		if err != nil {
+			return 0, err
+		}
+		h.Sync()
+		s.reducetensor.FillSlice(s.hostmem, (int32)(len(s.hostmem)))
+		h.Sync()
+		var storage float64
+		for i := range s.hostmem {
+			storage += math.Log(float64(s.hostmem[i]))
+		}
+		return float32(-storage), nil
+	}
+
+	err = actual.T().OpMult(h, actual.T(), target.T(), 1, 1, 0)
+	err = s.op.Reduce(h, nil, s.wspace, 1, actual.T(), 0, s.reducetensor)
+	if err != nil {
+		return 0, err
+	}
+
+	h.Sync()
+	s.reducetensor.FillSlice(s.hostmem, (int32)(len(s.hostmem)))
+	h.Sync()
+	var storage float64
+	for i := range s.hostmem {
+		storage += math.Log(float64(s.hostmem[i]))
+	}
+	return float32(-storage), nil
 }
