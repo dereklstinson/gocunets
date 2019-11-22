@@ -1,6 +1,7 @@
 package cnn
 
 import (
+	"fmt"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
@@ -12,6 +13,9 @@ import (
 func (c *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
 	dims, err := c.conv.OutputDim(input.T(), c.w.T())
 	if err != nil {
+		fmt.Println(input.Properties())
+
+		fmt.Println(c.w.Properties())
 		return nil, err
 	}
 	frmt, dtype, _, err := c.w.Properties()

@@ -364,31 +364,47 @@ func (l *layer) getoutputdims(handle *cudnn.Handler, input *layers.IO) ([]int32,
 
 }
 */
-func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.IO, err error) {
 
 	if l.cnn != nil {
-		io, err := l.cnn.MakeOutputTensor(handle, input)
+		io, err = l.cnn.MakeOutputTensor(handle, input)
+		if io == nil {
+			fmt.Println("input is", input.T().Dims())
 
+		}
 		if err != nil {
 			fmt.Println("Error in CNN Make Output Tensor input is:", input)
 		}
 		return io, err
 	}
 	if l.pool != nil {
-		return l.pool.MakeOutputLayer(handle, input)
+		io, err = l.pool.MakeOutputLayer(handle, input)
+		if io == nil {
+			panic("IO IS NILL")
+		}
+		return io, err
 	}
 	if l.drop != nil {
-		err := l.drop.BuildFromPreset(handle, input)
+		err = l.drop.BuildFromPreset(handle, input)
 		if err != nil {
 			return nil, err
 		}
-		return input.ZeroClone(handle)
+		io, err = input.ZeroClone(handle)
+		if io == nil {
+			panic("IO IS NILL")
+		}
+		return io, err
+
 	}
 	if l.activation != nil {
-		io, err := input.ZeroClone(handle)
+		io, err = input.ZeroClone(handle)
 		if err != nil {
 			fmt.Println("Error in activation Make Output Tensor input is:", input)
 		}
+		if io == nil {
+			panic("IO IS NILL")
+		}
+
 		return io, err
 	}
 	if l.batch != nil {
@@ -398,24 +414,40 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (*layers.IO, 
 			return nil, err
 		}
 
-		io, err := input.ZeroClone(handle)
+		io, err = input.ZeroClone(handle)
 		if err != nil {
 			fmt.Println("Error in batch Make Output Tensor input is:", input)
 		}
+		if io == nil {
+			panic("IO IS NILL")
+		}
+
 		return io, err
 	}
 
 	if l.softmax != nil {
-		return input.ZeroClone(handle)
+		io, err = input.ZeroClone(handle)
+		if io == nil {
+			panic("IO IS NILL")
+		}
+		return io, err
+
 	}
 	if l.reshape != nil {
-		return l.reshape.MakeOutputTensor(handle, input)
+		io, err = l.reshape.MakeOutputTensor(handle, input)
+		if io == nil {
+			panic("IO IS NILL")
+		}
+		return io, err
 	}
 	if l.cnntranspose != nil {
-		io, err := l.cnntranspose.MakeOutputTensor(handle, input)
+		io, err = l.cnntranspose.MakeOutputTensor(handle, input)
 		if err != nil {
 			fmt.Println("DIMS Reverse", io.T().Dims())
 			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
+		}
+		if io == nil {
+			panic("IO IS NILL")
 		}
 		return io, err
 	}

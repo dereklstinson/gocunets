@@ -225,19 +225,23 @@ func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error 
 		return errors.New("Mem Already Set")
 	}
 	m.totalionets = make([]*netios, 0)
+
 	var previous *layers.IO
 	previous = input
-
 	for i := 0; i < len(m.layer)-1; i++ {
 
 		layerwbs := wrapnetio(m.layer[i])
 		if layerwbs != nil {
 			m.totalionets = append(m.totalionets, layerwbs)
 		}
+		if previous == nil {
+			panic("previous is nil")
+		}
 		mem, err := m.layer[i].getoutput(handle, previous)
 		if err != nil {
 			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
 		}
+
 		netiomem := wrapnetio(mem)
 		netiomem.name = m.layer[i].name + "-Output"
 		m.totalionets = append(m.totalionets, netiomem)
@@ -403,6 +407,9 @@ func (m *Network) forwardprop(handle *cudnn.Handler, x, y *layers.IO) error {
 
 	err = m.layer[0].forwardprop(handle, m.wsfwd, m.wsbwdd, x, m.training.mem[0])
 	if err != nil {
+		if err != nil {
+			panic(err)
+		}
 		return wraperror("forward index:"+strconv.Itoa(0), err)
 	}
 	lnum := len(m.layer)

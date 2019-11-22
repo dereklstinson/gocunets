@@ -54,6 +54,7 @@ func (c *Layer) ReverseForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloce
 		y.T(), //x.DeltaT(),
 	)
 	if err != nil {
+		panic(err)
 		return utils.ErrorWrapper("BackPropData(reverse so its forwardprop): ", err)
 	}
 

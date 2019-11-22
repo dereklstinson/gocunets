@@ -137,5 +137,15 @@ func (s *Ops) ForwardProp(handle *cudnn.Handler, alpha float64, x *tensor.Volume
 
 //BackProp performs the backward propigation
 func (s *Ops) BackProp(handle *cudnn.Handler, alpha float64, y, dy *tensor.Volume, beta float64, dx *tensor.Volume) error {
+	if y == nil {
+		panic("Y is nil")
+
+	}
+	if dy == nil {
+		panic("dy is nil")
+	}
+	if dx == nil {
+		panic("dx is nil")
+	}
 	return s.op.Backward(handle.Cudnn(), alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), beta, dx.TD(), dx.Memer())
 }

@@ -1,6 +1,7 @@
 package convolution
 
 import (
+	"fmt"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
@@ -173,9 +174,19 @@ func (c *Ops) BackwardData(
 	dx *tensor.Volume) error {
 
 	if wspace == nil {
-		return c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, nil, 0, beta, dx.TD(), dx.Memer())
+		err := c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, nil, 0, beta, dx.TD(), dx.Memer())
+		if err != nil {
+			fmt.Println("dx,dy,w dims", dx.Dims(), dy.Dims(), w.Dims())
+			panic(err)
+		}
+		return err
 	}
-	return c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
+	err := c.opbwdd.BackwardData(handle.Cudnn(), alpha, w.FD(), w.Memer(), dy.TD(), dy.Memer(), c.perfbackdata.Algo, wspace, wspace.TotalBytes(), beta, dx.TD(), dx.Memer())
+	if err != nil {
+		fmt.Println("dx,dy,w dims", dx.Dims(), dy.Dims(), w.Dims())
+		panic(err)
+	}
+	return err
 }
 
 //BackwardFilter dw = alpha * BwdPropFilt(x,dy)+beta*dw
