@@ -20,7 +20,7 @@ func (o *Ops) TransformForward(handle *cudnn.Handler, alpha, beta float64, x, y 
 		fmt.Println(h, hh, hhh, hhhh)
 		fmt.Println(g, gg, ggg, gggg)
 	*/
-	return gocudnn.TransformTensor(handle.Cudnn(), alpha, x.TDStrided(), x.Memer(), beta, yhelper.desc, y.Memer())
+	return gocudnn.TransformTensor(handle.Cudnn(), alpha, x.TDStrided(), x, beta, yhelper.desc, y)
 }
 
 //TransformBackward fills tensor x with the values of y to the best of its ability
@@ -36,7 +36,7 @@ func (o *Ops) TransformBackward(handle *cudnn.Handler, alpha, beta float64, x, y
 		fmt.Println(h, hh, hhh, hhhh)
 		fmt.Println(g, gg, ggg, gggg)
 	*/
-	return gocudnn.TransformTensor(handle.Cudnn(), alpha, yhelper.desc, y.Memer(), beta, x.TDStrided(), x.Memer())
+	return gocudnn.TransformTensor(handle.Cudnn(), alpha, yhelper.desc, y, beta, x.TDStrided(), x)
 }
 
 //TransFormHelper helps with the transform

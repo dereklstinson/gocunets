@@ -22,7 +22,6 @@ func GetDevices() ([]*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Number of devices", amount)
 	devices := make([]*Device, 0)
 	for i := uint(0); i < amount; i++ {
 		fmt.Println(i)

@@ -2,14 +2,17 @@ package cnn
 
 import (
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 )
+
+//"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
+//	"github.com/dereklstinson/GoCuNets/layers"
 
 //Info contains the info that is needed to build a CNN layer
 type Info struct {
 	Convolution convolution.Info `json:"convolution,omitempty"`
-	Weights     layers.Info      `json:"weights,omitempty"`
-	Bias        layers.Info      `json:"bias,omitempty"`
+	Weights     tensor.Info      `json:"weights,omitempty"`
+	Bias        tensor.Info      `json:"bias,omitempty"`
 }
 
 //Info returns the info struct for the convolution

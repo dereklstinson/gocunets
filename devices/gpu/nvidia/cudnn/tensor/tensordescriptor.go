@@ -37,15 +37,16 @@ func maketensordescriptor(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dim
 		return nil, err
 	}
 	err = tenstrided.Set(flg.Strided(), dtype, dims, utils.FindStridesInt32(dims))
-
 	if err != nil {
 		return nil, err
 	}
+	cdims := make([]int32, len(dims))
+	copy(cdims, dims)
 	return &tensordescriptor{
 		tD:        tens,
 		tDstrided: tenstrided,
 		fD:        filts,
-		dims:      dims,
+		dims:      cdims,
 		strides:   utils.FindStridesInt32(dims),
 	}, nil
 

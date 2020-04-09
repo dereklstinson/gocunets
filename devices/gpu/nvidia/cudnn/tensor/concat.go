@@ -1,158 +1,84 @@
 package tensor
 
 import (
-	"errors"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/cutil"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-//CreateOutputConcatVolume creates a volume out of the concat values
-func CreateOutputConcatVolume(h *cudnn.Handler, src []*Volume) (dest *Volume, err error) {
-	var tfp gocudnn.TensorFormat
-
-	var tfflag gocudnn.TensorFormat
-	for i := range src {
-		if i == 0 {
-			tfp = src[i].TD().Format()
-
-		}
-		if tfp != src[i].TD().Format() {
-			return nil, errors.New("CreateOutputConcatVolume: src tensor descriptors not all matching")
-		}
-
-	}
-
-	switch tfp {
-	case tfflag.NHWC():
-		return createconcatNHWC(h, src)
-	case tfflag.NCHW():
-		return createconcatNCHW(h, src)
-
-	}
-	return nil, errors.New("Not supported Tensor Format")
+//Concat concats the channels of multiple tensors into a new tensor. Concats are seperated by batch.
+type Concat struct {
+	//	h  *cudnn.Handler
+	c  *xtra.ConcatEx
+	fa float64
+	fb float64
+	ba float64
+	bb float64
 }
 
-func createconcatNCHW(h *cudnn.Handler, src []*Volume) (dst *Volume, err error) {
-	var dims []int32
-	var fmtf gocudnn.TensorFormat
-	var channels []int32
-	for i := range src {
-		if i == 0 {
-			dims = src[i].TD().Dims()
-		}
+//CreateConcat creates a concat handler.  It contains the kernel that does the concat operation on the gpu
+func CreateConcat(h *cudnn.Handler) (c *Concat, err error) {
+	c = new(Concat)
 
-		cdims := src[i].Dims()
-		if cdims[0] != dims[0] {
-			return nil, errors.New("Concat batchsize needs to be the same")
-		}
-		for j := 2; j < len(cdims); j++ {
-			if dims[j] != cdims[j] {
-				return nil, errors.New("Concat all dim sizes(except for channel) need to be the same")
-			}
-		}
-
-		channels = append(channels, cdims[1])
-	}
-	var sum int32
-	for i := range channels {
-		sum += channels[i]
-	}
-	dims[1] = sum
-
-	return Build(h, fmtf.NCHW(), src[0].DataType(), dims)
-}
-func createconcatNHWC(h *cudnn.Handler, src []*Volume) (dst *Volume, err error) {
-	var dims []int32
-	var fmtf gocudnn.TensorFormat
-	var channels []int32
-	for i := range src {
-		if i == 0 {
-			dims = src[i].TD().Dims()
-		}
-
-		cdims := src[i].Dims()
-		if cdims[0] != dims[0] {
-			return nil, errors.New("Concat batchsize needs to be the same")
-		}
-		for j := 1; j < len(cdims)-1; j++ {
-			if dims[j] != cdims[j] {
-				return nil, errors.New("Concat all dim sizes(except for channel) need to be the same")
-			}
-		}
-
-		channels = append(channels, cdims[len(cdims)-1])
-	}
-	var sum int32
-	for i := range channels {
-		sum += channels[i]
-	}
-	dims[len(dims)-1] = sum
-
-	return Build(h, fmtf.NHWC(), src[0].DataType(), dims)
+	c.c, err = xtra.CreateConcatEx(h.XHandle())
+	return c, err
 }
 
-//Concat does a concat run CreateOutputConcatVolume before using.
-func Concat(srcs []*Volume, dest *Volume) error {
-	destdims := dest.Dims()
-	destbatches := destdims[0]
-	destbatchoffset := gocudnn.FindSizeTfromVol(destdims[1:], dest.dtype)
-	var mckf cudart.MemcpyKind
-
-	var tff gocudnn.TensorFormat
-	switch dest.Format() {
-	case tff.NCHW():
-		for j := (int32)(0); j < destbatches; j++ {
-			var uisrcoffset uint
-			for i := range srcs {
-				srcdims := srcs[i].Dims()
-				srcbatchoffset := gocudnn.FindSizeTfromVol(srcdims[1:], dest.dtype)
-				srcchanoffset := gocudnn.FindSizeTfromVol(srcdims[2:], dest.dtype)
-				uj := uint(j)
-				ui := uint(i)
-				uisrcoffset += srcchanoffset
-				cudart.MemCpy(dest.memgpu.OffSet((uj*destbatchoffset)+uisrcoffset), srcs[i].memgpu.OffSet((uj*srcbatchoffset)+(ui*srcchanoffset)), srcchanoffset, mckf.Default())
-
-			}
-
-		}
-
-	case tff.NHWC():
-		return errors.New("NHWC not supported")
-	}
-	return nil
+//SetForwardAlpha sets the forward alpha
+func (c *Concat) SetForwardAlpha(alpha float64) {
+	c.fa = alpha
 }
 
-//ReverseConcat does it reverse style run CreateOutputConcatVolume before using.
-func ReverseConcat(src *Volume, dests []*Volume) error {
-	srcs := dests
-	dest := src
-	destdims := dest.Dims()
-	destbatches := destdims[0]
-	destbatchoffset := gocudnn.FindSizeTfromVol(destdims[1:], dest.dtype)
-	var mckf cudart.MemcpyKind
+//SetForwardBeta sets the forward beta
+func (c *Concat) SetForwardBeta(beta float64) {
+	c.fb = beta
+}
 
-	var tff gocudnn.TensorFormat
-	switch dest.Format() {
-	case tff.NCHW():
-		for j := (int32)(0); j < destbatches; j++ {
-			var uisrcoffset uint
-			for i := range srcs {
-				srcdims := srcs[i].Dims()
-				srcbatchoffset := gocudnn.FindSizeTfromVol(srcdims[1:], dest.dtype)
-				srcchanoffset := gocudnn.FindSizeTfromVol(srcdims[2:], dest.dtype)
-				uj := uint(j)
-				ui := uint(i)
-				uisrcoffset += srcchanoffset
-				cudart.MemCpy(srcs[i].memgpu.OffSet((uj*srcbatchoffset)+(ui*srcchanoffset)), dest.memgpu.OffSet((uj*destbatchoffset)+uisrcoffset), srcchanoffset, mckf.Default())
+//SetBackwardAlpha sets the backward alpha
+func (c *Concat) SetBackwardAlpha(alpha float64) {
+	c.ba = alpha
+}
 
-			}
+//SetBackwardBeta sets the backward beta
+func (c *Concat) SetBackwardBeta(beta float64) {
+	c.bb = beta
+}
 
-		}
+//GetOutputDimsfromInputDims gets the outputdims from the inputdims.  If srcs dims other than the channel dims not equal. Function will return an error.
+func (c *Concat) GetOutputDimsfromInputDims(srcs [][]int32, frmt gocudnn.TensorFormat) ([]int32, error) {
+	return c.c.GetOutputDimsFromInputDims(srcs, frmt)
+}
 
-	case tff.NHWC():
-		return errors.New("NHWC not supported")
+//GetOutputdims returns the output dims of the tensor for the outputed Volume.
+func (c *Concat) GetOutputdims(srcs []*Volume) (outputdims []int32, err error) {
+	descriptors := make([]*gocudnn.TensorD, len(srcs))
+	for i := range srcs {
+		descriptors[i] = srcs[i].TD()
 	}
-	return nil
+	outputdims, err = c.c.GetOutputdims(descriptors)
+	return outputdims, err
+}
+
+//Forward does the forward where data in srcs goes to dest
+func (c *Concat) Forward(h *cudnn.Handler, srcs []*Volume, dest *Volume) error {
+	sdescriptors := make([]*gocudnn.TensorD, len(srcs))
+	smemory := make([]cutil.Mem, len(srcs))
+	for i := range srcs {
+		sdescriptors[i] = srcs[i].TD()
+		smemory[i] = srcs[i].Malloced
+	}
+	return c.c.Op(h.XHandle(), sdescriptors, smemory, c.fa, dest.TD(), dest, c.fb, true)
+}
+
+//Backward does the backward algorithm where the data in dest goes to the srcs.
+func (c *Concat) Backward(h *cudnn.Handler, srcs []*Volume, dest *Volume) error {
+	sdescriptors := make([]*gocudnn.TensorD, len(srcs))
+	smemory := make([]cutil.Mem, len(srcs))
+	for i := range srcs {
+		sdescriptors[i] = srcs[i].TD()
+		smemory[i] = srcs[i].Malloced
+	}
+	return c.c.Op(h.XHandle(), sdescriptors, smemory, c.ba, dest.TD(), dest, c.bb, false)
 }

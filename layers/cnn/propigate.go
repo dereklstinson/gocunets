@@ -7,28 +7,50 @@ import (
 	"github.com/dereklstinson/GoCuNets/utils"
 )
 
+//func (c *Layer)GetStats(handle *cudnn.Handler)
+
 //ForwardProp performs the ForwardProp
-func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.Tensor) error {
 	err := c.conv.Forward(handle, c.fwd.alpha,
-		x.T(),
-		c.w.T(),
+		x.Volume,
+		c.w.Volume,
 		wspace,
 		c.fwd.beta,
-		y.T(),
+		y.Volume,
 	)
 	if err != nil {
 		return err
 	}
-	return y.T().AddTo(handle, c.bias.T(), 1.0, 1.0)
+	return y.Volume.AddTo(handle, c.bias.Volume, 1.0, 1.0)
 }
 
 //BackPropFilterData does the backprop for the data and the filter
-func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
+//
+//Dx and X can be the same.
+func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, dx, dy *layers.Tensor) error {
 	var err error
-	if x.IsInput() == true {
-		return c.BackPropFilter(handle, wspacefilter, x, y)
+	if x == nil {
+		panic("X is nil")
 	}
-	err = c.BackPropData(handle, wspacedata, x, y)
+	if dy == nil {
+		panic("dy is nil")
+	}
+	if dx != nil {
+		err = handle.Stream().Sync()
+		if err != nil {
+			return err
+		}
+		err = c.BackPropData(handle, wspacedata, dx, dy)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = handle.Stream().Sync()
+	if err != nil {
+		return err
+	}
+	err = c.BackPropFilter(handle, wspacefilter, x, dy)
 	if err != nil {
 		return err
 	}
@@ -36,36 +58,37 @@ func (c *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilt
 	if err != nil {
 		return err
 	}
-	return c.BackPropFilter(handle, wspacefilter, x, y)
+
+	return nil
 }
 
 //BackPropData performs the BackPropData
-func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
-	if x.IsInput() == true {
+func (c *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, dx, dy *layers.Tensor) error {
+	if dx == nil {
 		return nil
 	}
 	return c.conv.BackwardData(
 		handle,
 		c.bwdd.alpha,
-		c.w.T(),
-		y.DeltaT(),
+		c.w.Volume,
+		dy.Volume,
 		wspace,
 		c.bwdd.beta,
-		x.DeltaT(),
+		dx.Volume,
 	)
 
 }
 
 //BackPropFilter does the backward propagation for the filter You will pass a handle workspace memory x,dy layer.io
-func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, dy *layers.Tensor) error {
 	err := c.conv.BackwardFilter(
 		handle,
 		c.bwdf.alpha,
-		x.T(),
-		y.DeltaT(),
+		x.Volume,
+		dy.Volume,
 		wspace,
 		c.bwdf.beta,
-		c.w.DeltaT())
+		c.dw.Volume)
 	if err != nil {
 		return utils.ErrorWrapper("Filter", err)
 	}
@@ -73,9 +96,9 @@ func (c *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x
 	err = c.conv.BackwardBias(
 		handle,
 		c.bwdf.alpha,
-		y.DeltaT(),
+		dy.Volume,
 		c.bwdf.beta,
-		c.bias.DeltaT())
+		c.dbias.Volume)
 	if err != nil {
 		return utils.ErrorWrapper("Bias", err)
 	}

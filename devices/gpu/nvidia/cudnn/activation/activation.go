@@ -142,27 +142,31 @@ func (act *Ops) FwdProp(
 	var mflg Mode
 	switch act.mode {
 	case mflg.Threshhold():
-		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), thresh.Memer(), poscoef.Memer(), a, b)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x, y.TD(), y, negcoef, thresh, poscoef, a, b)
 	case mflg.Leaky():
-		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), nil, nil, nil, a, b)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x, y.TD(), y, nil, nil, nil, a, b)
 	case mflg.PRelu():
-		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x.Memer(), y.TD(), y.Memer(), negcoef.Memer(), nil, nil, a, b)
+		return act.xdesc.ForwardProp(handle.XHandle(), x.TD(), x, y.TD(), y, negcoef, nil, nil, a, b)
 	case mflg.ClippedRelu():
-		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x, b, y.TD(), y)
 	case mflg.Elu():
-		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x, b, y.TD(), y)
 	case mflg.Relu():
-		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x, b, y.TD(), y)
 	case mflg.Sigmoid():
-		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x, b, y.TD(), y)
 	case mflg.Tanh():
-		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x.Memer(), b, y.TD(), y.Memer())
+		return act.desc.Forward(handle.Cudnn(), a, x.TD(), x, b, y.TD(), y)
 
 	}
 	return errors.New("unsupported Activation Mode")
 }
 
 //BwdProp is the backwards propigation of the activation struct
+//
+//In-place operation is allowed for this routine; meaning dy and dx pointers may be equal. However, this requires the corresponding tensor descriptors to be identical (particularly, the strides of the input and output must match for an in-place operation to be allowed).
+//
+//All tensor formats are supported for 4 and 5 dimensions, however, the best performance is obtained when the strides of yDesc and xDesc are equal and HW-packed. For more than 5 dimensions the tensors must have their spatial dimensions packed.
 func (act *Ops) BwdProp(
 	handle *cudnn.Handler,
 	alpha float64,
@@ -201,21 +205,21 @@ func (act *Ops) BwdProp(
 	var mflg Mode
 	switch act.mode {
 	case mflg.Threshhold():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), thresh.Memer(), dthresh.Memer(), poscoef.Memer(), dposcoef.Memer(), a, b)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x, dx.TD(), dx, dy.TD(), dy, negcoef, dnegcoef, thresh, dthresh, poscoef, dposcoef, a, b)
 	case mflg.Leaky():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), nil, nil, nil, nil, nil, nil, a, b)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x, dx.TD(), dx, dy.TD(), dy, nil, nil, nil, nil, nil, nil, a, b)
 	case mflg.PRelu():
-		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x.Memer(), dx.TD(), dx.Memer(), dy.TD(), dy.Memer(), negcoef.Memer(), dnegcoef.Memer(), nil, nil, nil, nil, a, b)
+		return act.xdesc.BackProp(handle.XHandle(), x.TD(), x, dx.TD(), dx, dy.TD(), dy, negcoef, dnegcoef, nil, nil, nil, nil, a, b)
 	case mflg.ClippedRelu():
-		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y, dy.TD(), dy, x.TD(), x, b, dx.TD(), dx)
 	case mflg.Elu():
-		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y, dy.TD(), dy, x.TD(), x, b, dx.TD(), dx)
 	case mflg.Relu():
-		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y, dy.TD(), dy, x.TD(), x, b, dx.TD(), dx)
 	case mflg.Sigmoid():
-		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y, dy.TD(), dy, x.TD(), x, b, dx.TD(), dx)
 	case mflg.Tanh():
-		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), b, dx.TD(), dx.Memer())
+		return act.desc.Backward(handle.Cudnn(), a, y.TD(), y, dy.TD(), dy, x.TD(), x, b, dx.TD(), dx)
 
 	}
 	return errors.New("unsupported Activation Mode")

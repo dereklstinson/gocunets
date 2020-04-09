@@ -3,6 +3,7 @@ package trainer
 import (
 	"errors"
 	"fmt"
+
 	"github.com/dereklstinson/half"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
@@ -13,7 +14,12 @@ import (
 	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
-const debuggingadam = false
+var debuggingadam bool
+
+//DebuggingAdam is for debugging purposes
+func DebuggingAdam() {
+	debuggingadam = true
+}
 
 //Adam is a struct that does the holds the params for adam optimization
 type Adam struct {
@@ -40,9 +46,9 @@ const defaultadameps = float32(1e-8)
 const defaultadamrate = .001
 
 //SetTrainingMem creates the training mem for the adam trainer
-func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
+func (a *Adam) SetTrainingMem(han *cudnn.Handler, w *layers.Tensor) error {
 	// /a.freememer()
-	_, dtype, dims, err := weights.Properties()
+	_, dtype, dims, err := w.Properties()
 	if err != nil {
 		if debuggingadam {
 			panic(err)
@@ -95,14 +101,14 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			if debuggingadam {
 				fmt.Println("Dims are", dims)
 				fmt.Println("Adress for a.xsum,and a.gsum", a.xsum, a.gsum)
-				fmt.Println("a.xsum Cudasize", a.gsum.TotalBytes())
+				fmt.Println("a.xsum Cudasize", a.gsum.SIB())
 				panic(err)
 			}
 		}
 		err = a.gsum.SetAll(0)
 		if err != nil {
 			if debuggingadam {
-				fmt.Println("a.gsum Cudasize", a.gsum.TotalBytes())
+				fmt.Println("a.gsum Cudasize", a.gsum.SIB())
 				panic(err)
 			}
 		}
@@ -162,14 +168,14 @@ func (a *Adam) SetTrainingMem(han *cudnn.Handler, weights *layers.IO) error {
 			if debuggingadam {
 				fmt.Println("Dims are", dims)
 				fmt.Println("Adress for a.xsum,and a.gsum", a.xsum, a.gsum)
-				fmt.Println("a.xsum Cudasize", a.gsum.TotalBytes())
+				fmt.Println("a.xsum Cudasize", a.gsum.SIB())
 				panic(err)
 			}
 		}
 		err = a.gsum.SetAll(0)
 		if err != nil {
 			if debuggingadam {
-				fmt.Println("a.gsum Cudasize", a.gsum.TotalBytes())
+				fmt.Println("a.gsum Cudasize", a.gsum.SIB())
 				panic(err)
 			}
 		}
@@ -202,7 +208,7 @@ func (a *Adam) Dims() []int32 {
 }
 
 //UpdateWeights updates the weights
-func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsize int) error {
+func (a *Adam) UpdateWeights(handle *cudnn.Handler, dw, w *layers.Tensor, batchsize, counter int) error {
 	var err error
 	err = handle.Sync()
 	if err != nil {
@@ -212,7 +218,7 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 	switch a.dtype {
 	case flg.Float():
 		a.SetBatch(float32(batchsize))
-		err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+		err = a.trainer.L1L2Regularization(handle.XHandle(), dw.TD(), dw, w, a.gpuloss1, a.gpuloss2, a.regparams)
 		if err != nil {
 			return err
 		}
@@ -221,9 +227,49 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 		if err != nil {
 			return err
 		}
-		err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+		if debuggingadam {
+			fmt.Println(a.params)
+			//gsum, err := gocudnn.GetStringer(w.TD(), a.gsum)
+			//if err != nil {
+			//	panic(err)
+			//}
+			//fmt.Println("GsumBefore", gsum)
+			//xsum, err := gocudnn.GetStringer(w.TD(), a.xsum)
+			//if err != nil {
+			//	panic(err)
+			//}
+			//fmt.Println("xsum before", xsum)
+			fmt.Println("Before Update")
+			dw.TogglePrintValueForStringer()
+			fmt.Println(dw)
+			w.TogglePrintValueForStringer()
+			fmt.Println("Weights", w)
+
+		}
+		err = a.trainer.TrainValues(handle.XHandle(), dw.TD(), dw, w, a.gsum, a.xsum, a.params, (int32)(counter))
 		if err != nil {
 			return err
+		}
+		if debuggingadam {
+
+			//gsum, err := gocudnn.GetStringer(w.TD(), a.gsum)
+			//if err != nil {
+			//	panic(err)
+			//}
+			//fmt.Println("GsumAfter", gsum)
+			//xsum, err := gocudnn.GetStringer(w.TD(), a.xsum)
+			//if err != nil {
+			//	panic(err)
+			//}
+			//fmt.Println("xsum after", xsum)
+			fmt.Println("After Update")
+			fmt.Println("Weights", w)
+			fmt.Println(dw)
+			fmt.Println("(a *Adam) UpdateWeights")
+
+			for {
+
+			}
 		}
 		err = handle.Sync()
 		if err != nil {
@@ -236,7 +282,7 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 
 	case flg.Half():
 		a.SetBatch(float32(batchsize))
-		err = a.trainer.L1L2Regularization(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gpuloss1, a.gpuloss2, a.regparams)
+		err = a.trainer.L1L2Regularization(handle.XHandle(), dw.TD(), dw, w, a.gpuloss1, a.gpuloss2, a.regparams)
 		if err != nil {
 			return err
 		}
@@ -245,7 +291,7 @@ func (a *Adam) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batchsiz
 		if err != nil {
 			return err
 		}
-		err = a.trainer.TrainValues(handle.XHandle(), weights.DeltaT().TD(), weights.DeltaT().Memer(), weights.T().Memer(), a.gsum, a.xsum, a.params)
+		err = a.trainer.TrainValues(handle.XHandle(), dw.TD(), dw, w, a.gsum, a.xsum, a.params, (int32)(counter))
 		if err != nil {
 			return err
 		}

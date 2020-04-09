@@ -1,592 +1,452 @@
 package gocunets
 
-/*
-TODO:  1)  Take SoftMax out of here.  It should in another section for calculating the errors of the network.
-	   2)  Make a more "robust" hidden IO system.  With the inclusion of multiple sets of different sized inputs with hidden io equivilant.
-			   And also the ability for the neural network to dynamically change (at least the input layer). The slide and padding to help fit already existing sizes.
-
-
-			 		  --Thoughts while writing--
-			   		  **Probably need to make a new struct of ios that can be pooled with a flag of in use.
-					   eg  type hiddleio struct{
-						   io layers.IO
-						   inuse bool
-						   timesused int64
-					   }.
-					   **Put these in a pool to use.
-					  **Convolution will need a rotating set of descriptors.
-					  **Need to set a limit on the size of pool.
-					  **With this implementation will need to have multiple batch norm layers that can be swapped out due to the nature of it.
-
-
-
-*/
-
 import (
-	"errors"
-	"fmt"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/layers/reshape"
 	"github.com/dereklstinson/GoCuNets/trainer"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"math/rand"
-	"strconv"
+	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
-const debuggingmaingocunets = true
-
-//Settings are the setttings for the topology of the network
-type Settings struct {
-	Format gocudnn.TensorFormat `json:"format,omitempty"`
-	DType  gocudnn.DataType     `json:"d_type,omitempty"`
-	Manage bool                 `json:"manage,omitempty"`
-	Layers []Layer              `json:"layers,omitempty"`
+//Tensor is contains 2 tensors the x and dx.  Input IOs will contain only the X tensor.
+type Tensor struct {
+	*layers.Tensor
+}
+type Workspace struct {
+	*nvidia.Malloced
 }
 
-//Layer is a layer that has the name the dims and what flags it needs
-type Layer struct {
-	Dims  []int  `json:"dims,omitempty"`
-	Flags []Flag `json:"flags,omitempty"`
+//Trainer is a trainer.Trainer
+type Trainer interface {
+	trainer.Trainer
 }
 
-//Flag is a flag that has a new and value and such.
-type Flag struct {
-	FlagType  string `json:"flag_type,omitempty"`
-	Valuename string `json:"valuename,omitempty"`
-	Valueint  int32  `json:"valueint,omitempty"`
+//Handle handles the functions of the libraries used in gocunet
+type Handle struct {
+	*cudnn.Handler
+	w *gocu.Worker
 }
 
-//Network holds pointers to layers and the hidden memory between the layers
-type Network struct {
-	handle            *cudnn.Handler
-	dtype             gocudnn.DataType
-	frmt              gocudnn.TensorFormat
-	cmode             gocudnn.ConvolutionMode
-	mathtype          gocudnn.MathType
-	nanprop           gocudnn.NANProp
-	layer             []*layer
-	usingwsfwd        bool
-	usingwsbwdd       bool
-	usingwsbwdf       bool
-	wsfwd             *nvidia.Malloced
-	wsbwdd            *nvidia.Malloced
-	wsbwdf            *nvidia.Malloced
-	training          hiddenio
-	inference         hiddenio
-	totalionets       []*netios
-	totalionetcounter int
-	hiddeniocount     int
-	weightcount       int
-	err               chan error
-	position          int
-	resizecounter     int
-	hybridsize        int
-	reshaper          *reshape.Layer
-	descriminator     bool
-	l1losses          []float32
-	l2losses          []float32
-	totalionetsinit   bool
-	trainers          []trainer.Trainer
-	//	btrainers         []trainer.Trainer
-	//	othertrainers     []trainer.Trainer
-	savedparams *NetworkSavedTensor
-	loadedsaved bool
-	rng         *rand.Rand
-	rngsource   rand.Source
-}
-type hiddenio struct {
-	mem          []*layers.IO
-	previousdims []int32
+//Stream is a stream for gpu instructions
+type Stream struct {
+	*cudart.Stream
 }
 
-func networkerrors(err <-chan error) {
-	for i := range err {
-		if i != nil {
-			panic(i)
-		}
-	}
+//CreateHandle creates a handle for gocunets
+func CreateHandle(w *gocu.Worker, d Device, seed uint64) (h *Handle) {
+	h = new(Handle)
+	h.Handler = cudnn.CreateHandler(w, d.Device, seed)
+	h.w = gocu.NewWorker(d.Device)
+
+	return h
 }
 
-//CreateNetwork creates an empty Netowrk
-func CreateNetwork() *Network {
-	err := make(chan error, 10)
-	go networkerrors(err)
-
-	return &Network{
-		err: err,
-		training: hiddenio{
-			previousdims: []int32{-1, -1, -1, -1}, //this initalizes the previous dims to be something that they would never be. and that is negative
-		},
-		inference: hiddenio{
-			previousdims: []int32{-1, -1, -1, -1}, //this initalizes the previous dims to be something that they would never be. and that is negative
-		},
-	}
+//Close closes the work thread
+func (h *Handle) Close() {
+	h.w.Close()
 }
 
-//Initialize initializes the IO between the hidden layers. It also returns some performance meterics that you can choose to increase the speed of the network at the cost of memory.
-func (m *Network) Initialize(handle *cudnn.Handler, input, output *layers.IO, workspace *nvidia.Malloced) ([]ConvolutionPerformance, error) {
-	m.training.previousdims = input.T().Dims()
-	m.inference.previousdims = input.T().Dims()
-	err := m.buildhiddenios(handle, input)
-	if err != nil {
-		fmt.Println("Error in buildinghiddenios")
-		return nil, err
-	}
-	err = m.buildhiddeniosinference(handle, input)
-	if err != nil {
-		fmt.Println("Error in buildinghiddeniosinference")
-		return nil, err
-	}
-	err = handle.DeviceSync()
+//CreateStream creates a stream
+func CreateStream() (s *Stream, err error) {
+	s = new(Stream)
+	s.Stream, err = cudart.CreateNonBlockingStream()
+	return s, err
+}
+
+//Device is a gpu device
+type Device struct {
+	cudart.Device
+	num int32
+}
+
+//Num is the numerical id of the device
+func (d Device) Num() int32 {
+	return d.num
+}
+
+//GetDeviceList gets a device from a list
+func GetDeviceList() (devices []Device, err error) {
+	n, err := cudart.GetDeviceCount()
 	if err != nil {
 		return nil, err
 	}
-	return m.performance(handle, input, output, workspace)
-}
-
-//SetDescriminatorFlag - Sets the network up as a descriminator network
-//This will require the network to have two outputs if using the softmax output
-func (m *Network) SetDescriminatorFlag() {
-	m.descriminator = true
-}
-
-//UnSetDescriminator This will turn the network descriminator flag off
-func (m *Network) UnSetDescriminator() {
-	m.descriminator = false
-}
-
-//TrainersNeeded returns the number of trainers that are needed.
-func (m *Network) TrainersNeeded() int {
-	var counter int
-	for i := range m.layer {
-
-		counter += m.layer[i].trainersneeded()
-
-	}
-
-	return counter
-}
-
-//LoadTrainers will load the trainers in the order that the layers were placed in the network
-func (m *Network) LoadTrainers(handle *cudnn.Handler, trainers []trainer.Trainer) error {
-
-	if len(trainers) != m.TrainersNeeded() {
-		return errors.New("(*Network)LoadTrainers -- TrainersNeeded don't match the length of trainers passed")
-	}
-	m.trainers = trainers
-	counter := 0
-	traineroffset := 0
-	var err error
-	for i := 0; i < len(m.layer); i++ {
-		if debuggingmaingocunets {
-			//	fmt.Println("Going Through Layer at Index", i)
-		}
-		trainersneeded := m.layer[i].trainersneeded()
-		if trainersneeded > 0 {
-			err = m.layer[i].loadtrainer(handle, m.trainers[traineroffset:traineroffset+trainersneeded]...)
-			if err != nil {
-				panic(err)
-			}
-			counter++
-			traineroffset += trainersneeded
-		}
-	}
-	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
-	return nil
-}
-
-//AddLayer adds a layer without setting the mem
-func (m *Network) AddLayer(layer interface{}, err error) {
-	if err != nil {
-		panic(err)
-		//	m.err <- err
-	}
-	l, hasweights := wraplayer(layer)
-	if l != nil {
-		m.layer = append(m.layer, l)
-
-		m.totalionetcounter += hasweights
-		return
-	}
-	m.err <- errors.New("Unsupported Layer")
-	return
-}
-
-//HiddenIOandWeightCount will return the number of hidden ios and weights that are not exposed to other networks
-func (m *Network) HiddenIOandWeightCount() int {
-	return m.totalionetcounter - 1
-}
-
-//buildhiddenios will build a hidden network layer based on the input given used for my generator network
-func (m *Network) buildhiddenios(handle *cudnn.Handler, input *layers.IO) error {
-	if len(m.training.mem) > 0 || m.training.mem != nil {
-		return errors.New("Mem Already Set")
-	}
-	m.totalionets = make([]*netios, 0)
-
-	var previous *layers.IO
-	previous = input
-	for i := 0; i < len(m.layer)-1; i++ {
-
-		layerwbs := wrapnetio(m.layer[i])
-		if layerwbs != nil {
-			m.totalionets = append(m.totalionets, layerwbs)
-		}
-		if previous == nil {
-			panic("previous is nil")
-		}
-		mem, err := m.layer[i].getoutput(handle, previous)
+	devices = make([]Device, n)
+	for i := (int32)(0); i < n; i++ {
+		devices[i].Device = cudart.CreateDevice(i)
 		if err != nil {
-			return wraperror("getoutputio index: "+strconv.Itoa(i)+" :", err)
+			return nil, err
 		}
-
-		netiomem := wrapnetio(mem)
-		netiomem.name = m.layer[i].name + "-Output"
-		m.totalionets = append(m.totalionets, netiomem)
-		previous = mem
-		m.training.mem = append(m.training.mem, mem)
+		devices[i].num = i
 	}
-	layerwbs := wrapnetio(m.layer[len(m.layer)-1])
-	if layerwbs != nil {
-		m.totalionets = append(m.totalionets, layerwbs)
-	}
-	if len(m.totalionets) != m.totalionetcounter-1 {
-		fmt.Println(len(m.totalionets), m.totalionetcounter-1)
-		panic("len(m.totalionets)!= m.totalionetcounter-1  please fix")
-
-	}
-	if m.savedparams != nil && !m.loadedsaved {
-		err := m.LoadNetworkTensorparams(handle, m.savedparams)
-		if err != nil {
-			fmt.Println("error in loading saved params")
-			return err
-		}
-		m.loadedsaved = true
-	}
-
-	return m.buildminmax(handle)
-}
-func (m *Network) resizehiddenios(handle *cudnn.Handler, newinput []int32) error {
-	var err error
-	for i := 0; i < len(m.training.mem); i++ {
-		olddims := m.training.mem[i].T().Dims()
-		newdims := make([]int32, len(olddims))
-		copy(newdims, olddims)
-		newdims[0] = newinput[0]
-		//Since it should only be the batch changing we will just change the batch
-		err = m.training.mem[i].ResizeIO(handle, newdims)
-		if err != nil {
-			return err
-		}
-
-	}
-	return nil
+	return devices, nil
 }
 
-//ForwardProp does the forward prop for a prebuilt Network
-func (m *Network) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	var err error
-
-	if m.training.mem == nil {
-
-		err = m.buildhiddenios(handle, x)
-		if err != nil {
-			fmt.Println("Error in building hidden os")
-			return err
-		}
-		m.training.previousdims = x.T().Dims()
-		return m.forwardprop(handle, x, y)
-
+func trainerstooriginal(t []Trainer) (x []trainer.Trainer) {
+	x = make([]trainer.Trainer, len(t))
+	for i := range t {
+		x[i] = t[i]
 	}
-	_, _, xdims, err := x.Properties()
-	if err != nil {
-		return err
-	}
-	if comparedims(m.training.previousdims, xdims) {
-		err = m.forwardprop(handle, x, y)
-		if err != nil {
-
-			fmt.Println("Error in doing the forward prop after compair dims")
-
-			return err
-		}
-		return nil
-	}
-
-	m.training.previousdims = xdims
-	err = m.resizehiddenios(handle, xdims)
-	if err != nil {
-		fmt.Println("Error in resize hiddenios")
-		return err
-	}
-	err = m.forwardprop(handle, x, y)
-	if err != nil {
-		fmt.Println("Error in doing the forward prop after resize")
-	}
-	err = handle.Sync()
-	if err != nil {
-		return err
-	}
-	return nil
-
+	return x
 }
 
-func comparedims(x, y []int32) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i := 0; i < len(x); i++ {
-		if x[i] != y[i] {
-			return false
-		}
-	}
-	return true
-}
-
-//BackPropFilterData does the backprop of the hidden layers
-func (m *Network) BackPropFilterData(handle *cudnn.Handler, x, y *layers.IO) error {
-
-	err := m.backpropfilterdata(handle, x, y)
-	if err != nil {
-		return err
-	}
-	return handle.Sync()
-
-}
-
-//BackPropData only does the data backprop
-func (m *Network) BackPropData(handle *cudnn.Handler, x, y *layers.IO) error {
-	err := m.backpropdata(handle, x, y)
-	if err != nil {
-		return err
-	}
-	return handle.Sync()
-
-}
-
-//BackPropFilter does the backprop for the filter
-func (m *Network) BackPropFilter(handle *cudnn.Handler, x, y *layers.IO) error {
-	var err error
-	if err != nil {
-		return err
-	}
-	lnum := len(m.layer)
-	err = m.layer[lnum-1].backpropfilter(handle, m.wsbwdf, m.training.mem[lnum-2], y)
-
-	if err != nil {
-		return err
-	}
-
-	for i := lnum - 2; i > 0; i-- {
-		err = m.layer[i].backpropfilter(handle, m.wsbwdf, m.training.mem[i-1], m.training.mem[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	err = m.layer[0].backpropfilter(handle, m.wsbwdf, x, m.training.mem[0])
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
-func wraperror(comment string, err error) error {
-	return errors.New(comment + "-" + err.Error())
-}
-func (m *Network) forwardprop(handle *cudnn.Handler, x, y *layers.IO) error {
-	var err error
-	if m.usingwsfwd && m.wsfwd == nil {
-		return errors.New("forward workspace performance is being used, but actual forward wspace memory has not been set")
-	}
-	if m.usingwsbwdd && m.wsbwdd == nil {
-		return errors.New("set network to use workspace for bwd data, but bwd data wspace is nil")
-	}
-
-	err = m.layer[0].forwardprop(handle, m.wsfwd, m.wsbwdd, x, m.training.mem[0])
-	if err != nil {
-		if err != nil {
-			panic(err)
-		}
-		return wraperror("forward index:"+strconv.Itoa(0), err)
-	}
-	lnum := len(m.layer)
-	for i := 1; i < lnum-1; i++ {
-
-		err = m.layer[i].forwardprop(handle, m.wsfwd, m.wsbwdd, m.training.mem[i-1], m.training.mem[i])
-		if err != nil {
-			return wraperror("forward index:"+strconv.Itoa(i), err)
-		}
-	}
-
-	err = m.layer[lnum-1].forwardprop(handle, m.wsfwd, m.wsbwdd, m.training.mem[lnum-2], y)
-	if err != nil {
-		fmt.Println("Dims for y and output", y.T().Dims())
-		return wraperror("forward index:"+strconv.Itoa(lnum-1), err)
-	}
-	return nil
-
-}
-
-func (m *Network) backpropdata(handle *cudnn.Handler, x, y *layers.IO) error {
-	var err error
-
-	//	err := handle.stream.Sync()
-	if err != nil {
-		return err
-	}
-	lnum := len(m.layer)
-	err = m.layer[lnum-1].backpropdata(handle, m.wsfwd, m.wsbwdd, m.training.mem[lnum-2], y)
-
-	if err != nil {
-		return err
-	}
-
-	for i := lnum - 2; i > 0; i-- {
-		err = m.layer[i].backpropdata(handle, m.wsfwd, m.wsbwdd, m.training.mem[i-1], m.training.mem[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	err = m.layer[0].backpropdata(handle, m.wsfwd, m.wsbwdd, x, m.training.mem[0])
-	if err != nil {
-		return err
-	}
-	return nil
-	//	return handle.stream.Sync()
-}
-
-//BackProp does the backprop of a Network
-func (m *Network) backpropfilterdata(handle *cudnn.Handler, x, y *layers.IO) error {
-	var err error
-	if m.usingwsbwdf && m.wsbwdf == nil {
-		return errors.New("set network to use workspace for bwd filter, but bwd filter wspace is nil")
-	}
-	lnum := len(m.layer)
-	err = m.layer[lnum-1].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, m.training.mem[lnum-2], y)
-
-	if err != nil {
-		println("error on len(layer)-1")
-		return err
-
-	}
-
-	for i := lnum - 2; i > 0; i-- {
-
-		err = m.layer[i].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, m.training.mem[i-1], m.training.mem[i])
-		if err != nil {
-			println("error on layer", i)
-			return err
-		}
-	}
-
-	err = m.layer[0].backpropfilterdata(handle, m.wsfwd, m.wsbwdd, m.wsbwdf, x, m.training.mem[0])
-	if err != nil {
-		println("error on layer", 0)
-		return err
-	}
-	return nil
-	//	return handle.stream.Sync()
-}
-
-//ZeroHiddenInferenceIOs zeros out the hidden inference ios
-func (m *Network) ZeroHiddenInferenceIOs(handle *cudnn.Handler) error {
-	var err error
-	err = handle.Sync()
-	if err != nil {
-		return err
-	}
-	for i := range m.inference.mem {
-		err = m.inference.mem[i].T().Memer().SetAll(0)
-		if err != nil {
-			return err
-		}
-	}
-	return handle.Sync()
-}
-
-//ZeroHiddenTrainingIOs zeros out the hidden training ios
-func (m *Network) ZeroHiddenTrainingIOs(handle *cudnn.Handler) error {
-	var err error
-	err = handle.Sync()
-	if err != nil {
-		return err
-	}
-	for i := range m.training.mem {
-		err = m.training.mem[i].T().Memer().SetAll(0)
-		if err != nil {
-			return err
-		}
-		err = m.training.mem[i].T().Memer().SetAll(0)
-		if err != nil {
-			return err
-		}
-	}
-	return handle.Sync()
-}
-
-//ZeroHiddenIOs will zero out the hidden ios. This is used for training the feedback loops for the scalars.
-func (m *Network) ZeroHiddenIOs(handle *cudnn.Handler) error {
-	var err error
-	err = handle.Sync()
-	if err != nil {
-		return err
-	}
-	for i := range m.inference.mem {
-		err = m.inference.mem[i].T().Memer().SetAll(0)
-		if err != nil {
-			return err
-		}
-	}
-	for i := range m.training.mem {
-		err = m.training.mem[i].T().Memer().SetAll(0)
-		if err != nil {
-			return err
-		}
-		err = m.training.mem[i].T().Memer().SetAll(0)
-		if err != nil {
-			return err
-		}
-	}
-	return handle.Sync()
-
-}
-
-//UpdateWeights updates the weights of a Network
-func (m *Network) UpdateWeights(handle *cudnn.Handler, batch int) error {
-	var err error
-	counter := 0
-	for i := 0; i < len(m.layer); i++ {
-
-		err = m.layer[i].updateWeights(handle, batch)
-		if err != nil {
-			return err
-		}
-		a, b := m.layer[i].l1l2loss()
-		if a > -1 && b > -1 {
-			m.l1losses[counter], m.l2losses[counter] = a, b
-			counter++
-		}
-
-	}
-	return nil
-}
-
-//TotalL1L2Loss returns the total l1l2 loss of the network
-func (m *Network) TotalL1L2Loss() (L1, L2 float32) {
-	L1, L2 = 0, 0
-	for i := range m.l1losses {
-		L1 += m.l1losses[i]
-		L2 += m.l2losses[i]
-	}
-
-	return L1, L2
-}
-
-//L1L2Loss returns the L1L2 loss arrays for every layer that has a trainer
-func (m *Network) L1L2Loss() (L1, L2 []float32) {
-	return m.l1losses, m.l2losses
-}
+//import (
+//	"errors"
+//	"math/rand"
+//
+//	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+//	"github.com/dereklstinson/GoCuNets/layers/reshape"
+//	"github.com/dereklstinson/GoCuNets/trainer"
+//	gocudnn "github.com/dereklstinson/GoCudnn"
+//	//	"strconv"
+//)
+//
+//const debuggingmaingocunets = true
+//
+////Settings are the setttings for the topology of the network
+//type Settings struct {
+//	Format gocudnn.TensorFormat `json:"format,omitempty"`
+//	DType  gocudnn.DataType     `json:"d_type,omitempty"`
+//	Manage bool                 `json:"manage,omitempty"`
+//	Layers []LayerInfo          `json:"layers,omitempty"`
+//}
+//
+////LayerInfo is a layer that has the name the dims and what flags it needs
+//type LayerInfo struct {
+//	Dims  []int  `json:"dims,omitempty"`
+//	Flags []Flag `json:"flags,omitempty"`
+//}
+//
+////Flag is a flag that has a new and value and such.
+//type Flag struct {
+//	FlagType  string `json:"flag_type,omitempty"`
+//	Valuename string `json:"valuename,omitempty"`
+//	Valueint  int32  `json:"valueint,omitempty"`
+//}
+//
+////Network holds pointers to layers and the hidden memory between the layers
+//type Network struct {
+//	handle          *Handle
+//	dtype           gocudnn.DataType
+//	frmt            gocudnn.TensorFormat
+//	cmode           gocudnn.ConvolutionMode
+//	mathtype        gocudnn.MathType
+//	nanprop         gocudnn.NANProp
+//	layers          []*Layer
+//	usingwsfwd      bool
+//	usingwsbwdd     bool
+//	usingwsbwdf     bool
+//	wsfwd           *nvidia.Malloced
+//	wsbwdd          *nvidia.Malloced
+//	wsbwdf          *nvidia.Malloced
+//	totalionets     []*netios
+//	err             chan error
+//	position        int
+//	reshaper        *reshape.Layer
+//	l1losses        []float32
+//	l2losses        []float32
+//	totalionetsinit bool
+//	trainers        []trainer.Trainer
+//	savedparams     *NetworkSavedTensor
+//	loadedsaved     bool
+//	rng             *rand.Rand
+//	rngsource       rand.Source
+//	idcounter       int64
+//}
+//
+///*
+//type hiddenio struct {
+//	mem          []*layers.Tensor
+//	dmem         []*layers.Tensor
+//	previousdims []int32
+//}
+//*/
+//func networkerrors(err <-chan error) {
+//	for i := range err {
+//		if i != nil {
+//			panic(i)
+//		}
+//	}
+//}
+//
+////CreateNetwork creates an empty Netowrk
+//func CreateNetwork(h *Handle) *Network {
+//	err := make(chan error, 10)
+//	go networkerrors(err)
+//
+//	return &Network{
+//		handle: h,
+//		err:    err,
+//	}
+//}
+//
+////SetInputandOutputTensors sets the input and output tensors
+//func (m *Network) SetInputandOutputTensors(x, dx, y, dy *Tensor) {
+//	m.layers[0].x = x
+//	m.layers[0].dx = dx
+//	m.layers[len(m.layers)-1].y = y
+//	m.layers[len(m.layers)-1].dy = dy
+//}
+//
+////SetInputTensorDX sets DX
+//func (m *Network) SetInputTensorDX(dx *Tensor) {
+//	m.layers[0].dx = dx
+//}
+//
+////SetOutputTensorY sets Y
+//func (m *Network) SetOutputTensorY(y *Tensor) {
+//	m.layers[len(m.layers)-1].y = y
+//}
+//
+////SetOutputTensorDY sets DY
+//func (m *Network) SetOutputTensorDY(dy *Tensor) {
+//	m.layers[len(m.layers)-1].dy = dy
+//}
+//
+////SetInputTensorX sets X
+//func (m *Network) SetInputTensorX(x *Tensor) {
+//	m.layers[0].x = x
+//}
+//
+////GetIndputTensorDX sets DX
+//func (m *Network) GetIndputTensorDX() (dx *Tensor) {
+//	dx = m.layers[0].dx
+//	return dx
+//}
+//
+////GetInputTensorX gets X
+//func (m *Network) GetInputTensorX() (x *Tensor) {
+//	x = m.layers[0].x
+//	return x
+//}
+//
+////GetOutputTensorY gets Y
+//func (m *Network) GetOutputTensorY() (y *Tensor) {
+//	y = m.layers[len(m.layers)-1].y
+//	return y
+//}
+//
+////GetOutputTensorDY gets DY
+//func (m *Network) GetOutputTensorDY() (dy *Tensor) {
+//	dy = m.layers[len(m.layers)-1].dy
+//	return dy
+//}
+//
+////GetOutputTensorDX gets DX
+//func (m *Network) GetOutputTensorDX() (dy *Tensor) {
+//	dy = m.layers[len(m.layers)-1].dy
+//	return dy
+//}
+//
+////ConnectHiddenLayersSimple simply connects the hidden layers.
+//func (m *Network) ConnectHiddenLayersSimple(x, dx, y, dy *Tensor, b *Builder) (err error) {
+//	m.layers[0].x = x
+//	m.layers[0].dx = dx
+//	m.layers[len(m.layers)-1].y = y
+//	m.layers[len(m.layers)-1].dy = dy
+//	for i := 0; i < len(m.layers)-1; i++ {
+//		err = b.ConnectLayers(m.layers[i], m.layers[i+1])
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//}
+//
+////TrainersNeeded returns the number of trainers that are needed.
+//func (m *Network) TrainersNeeded() int {
+//	var counter int
+//	for i := range m.layers {
+//
+//		counter += m.layers[i].trainersneeded()
+//
+//	}
+//
+//	return counter
+//}
+//
+////LoadTrainers will load the trainers in the order that the layers were placed in the network
+//func (m *Network) LoadTrainers(handle *Handle, batchsize int, trainers []trainer.Trainer) error {
+//
+//	if len(trainers) != m.TrainersNeeded() {
+//		return errors.New("(*Network)LoadTrainers -- TrainersNeeded don't match the length of trainers passed")
+//	}
+//	m.trainers = trainers
+//	counter := 0
+//	traineroffset := 0
+//	var err error
+//	for i := 0; i < len(m.layers); i++ {
+//		if debuggingmaingocunets {
+//			//	fmt.Println("Going Through Layer at Index", i)
+//		}
+//		trainersneeded := m.layers[i].trainersneeded()
+//		if trainersneeded > 0 {
+//			err = m.layers[i].loadtrainer(handle.Handler, batchsize, m.trainers[traineroffset:traineroffset+trainersneeded]...)
+//			if err != nil {
+//				panic(err)
+//			}
+//			counter++
+//			traineroffset += trainersneeded
+//		}
+//	}
+//	m.l1losses, m.l2losses = make([]float32, counter), make([]float32, counter)
+//	return nil
+//}
+//
+////AddLayer adds a layer without setting the mem
+//func (m *Network) AddLayer(layer *Layer) {
+//	m.layers = append(m.layers, layer)
+//	return
+//}
+//
+//const panicflag = true
+//
+////AddLayerEx is like AddLayer, but since most functions return errors, this will allow the building of a network to be condensed.
+//func (m *Network) AddLayerEx(layer *Layer, err error) error {
+//	m.layers = append(m.layers, layer)
+//	if panicflag {
+//		if err != nil {
+//			panic(err)
+//		}
+//
+//	}
+//	return err
+//}
+//
+////ForwardProp does the forward prop for a prebuilt Network
+//func (m *Network) ForwardProp() error {
+//	var err error
+//	if m.usingwsfwd && m.wsfwd == nil {
+//		return errors.New("forward workspace performance is being used, but actual forward wspace memory has not been set")
+//	}
+//	if m.usingwsbwdd && m.wsbwdd == nil {
+//		return errors.New("set network to use workspace for bwd data, but bwd data wspace is nil")
+//	}
+//	if m.usingwsbwdf && m.wsbwdf == nil {
+//		return errors.New("set network to use workspace for bwd filt, but bwd filt wspace is nil")
+//
+//	}
+//
+//	for i := range m.layers {
+//		err = m.layers[i].forwardprop()
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	err = m.handle.Sync()
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//
+//}
+//
+//func comparedims(x, y []int32) bool {
+//	if len(x) != len(y) {
+//		return false
+//	}
+//	for i := 0; i < len(x); i++ {
+//		if x[i] != y[i] {
+//			return false
+//		}
+//	}
+//	return true
+//}
+//
+////BackPropFilterData does the backprop of the hidden layers
+//func (m *Network) BackPropFilterData() (err error) {
+//
+//	for i := len(m.layers) - 1; i >= 0; i-- {
+//		err = m.layers[i].backpropfilterdata()
+//		if err != nil {
+//			return err
+//		}
+//
+//	}
+//
+//	return m.handle.Sync()
+//
+//}
+//
+////BackPropData only does the data backprop
+//func (m *Network) BackPropData() (err error) {
+//	for i := len(m.layers) - 1; i >= 0; i-- {
+//		err = m.layers[i].backpropdata()
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	return m.handle.Sync()
+//
+//}
+//
+////BackPropFilter does the backprop for the filter
+//func (m *Network) BackPropFilter() (err error) {
+//	for i := len(m.layers) - 1; i >= 0; i-- {
+//		err = m.layers[i].backpropfilter()
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	return m.handle.Sync()
+//
+//}
+//func wraperror(comment string, err error) error {
+//	return errors.New(comment + "-" + err.Error())
+//}
+//
+////ZeroHiddenIOs will zero out the hidden ios. This is used for training the feedback loops for the scalars.
+//func (m *Network) ZeroHiddenIOs() (err error) {
+//
+//	err = m.handle.Sync()
+//
+//	for i := 0; i < len(m.layers)-1; i++ {
+//		if m.layers[i].y != nil {
+//			m.layers[i].y.SetAll(0)
+//		}
+//		if m.layers[i].dy != nil {
+//			m.layers[i].dy.SetAll(0)
+//		}
+//
+//	}
+//	return m.handle.Sync()
+//
+//}
+//
+////UpdateWeights updates the weights of a Network
+//func (m *Network) UpdateWeights(epoch int) (err error) {
+//
+//	counter := 0
+//	for i := 0; i < len(m.layers); i++ {
+//
+//		err = m.layers[i].updateWeights(epoch)
+//		if err != nil {
+//			return err
+//		}
+//		a, b := m.layers[i].l1l2loss()
+//		if a > -1 && b > -1 {
+//			m.l1losses[counter], m.l2losses[counter] = a, b
+//			counter++
+//		}
+//
+//	}
+//	return nil
+//}
+//
+////TotalL1L2Loss returns the total l1l2 loss of the network
+//func (m *Network) TotalL1L2Loss() (L1, L2 float32) {
+//	L1, L2 = 0, 0
+//	for i := range m.l1losses {
+//		L1 += m.l1losses[i]
+//		L2 += m.l2losses[i]
+//	}
+//
+//	return L1, L2
+//}
+//
+////L1L2Loss returns the L1L2 loss arrays for every layer that has a trainer
+//func (m *Network) L1L2Loss() (L1, L2 []float32) {
+//	return m.l1losses, m.l2losses
+//}
+//

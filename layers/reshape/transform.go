@@ -6,27 +6,29 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers"
 )
 
-func (l *Layer) transformtensforward(handle *cudnn.Handler, x, y *layers.IO, hlpr *TransFormHelper) error {
-	err := l.op.TransformForward(handle, l.defaultalpha, l.defaultbeta, x.T(), y.T(), hlpr.hlpr)
+func (l *Layer) transformtensforward(handle *cudnn.Handler, x, y *layers.Tensor, hlpr *TransFormHelper) error {
+	err := l.op.TransformForward(handle, l.defaultalpha, l.defaultbeta, x.Volume, y.Volume, hlpr.hlpr)
 	if err != nil {
 		return err
 	}
-	return l.op.TransformForward(handle, l.defaultalpha, l.defaultbeta, x.DeltaT(), y.DeltaT(), hlpr.hlpr)
+	return nil
 }
-func (l *Layer) transformtensbackward(handle *cudnn.Handler, x, y *layers.IO, hlpr *TransFormHelper) error {
-	err := l.op.TransformBackward(handle, l.defaultalpha, l.defaultbeta, x.T(), y.T(), hlpr.hlpr)
+func (l *Layer) transformtensbackward(handle *cudnn.Handler, x, y *layers.Tensor, hlpr *TransFormHelper) error {
+	err := l.op.TransformBackward(handle, l.defaultalpha, l.defaultbeta, x.Volume, y.Volume, hlpr.hlpr)
 	if err != nil {
 		return err
 	}
-	return l.op.TransformBackward(handle, l.defaultalpha, l.defaultbeta, x.DeltaT(), y.DeltaT(), hlpr.hlpr)
+	return nil
 }
 
+//TransFormHelper helps reshaping
 type TransFormHelper struct {
 	hlpr *reshapes.TransFormHelper
 }
 
-func (l *Layer) MakeTranFormHelper(x, y *layers.IO) (*TransFormHelper, error) {
-	helper, err := l.op.MakeTransformHelper(x.T(), y.T())
+//MakeTranFormHelper create a transformhelper
+func (l *Layer) MakeTranFormHelper(x, y *layers.Tensor) (*TransFormHelper, error) {
+	helper, err := l.op.MakeTransformHelper(x.Volume, y.Volume)
 	if err != nil {
 		return nil, err
 	}

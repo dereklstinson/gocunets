@@ -22,8 +22,8 @@ type Settings struct {
 }
 
 //Setup sets up the layer
-func Setup(handle *cudnn.Handler, x *layers.IO, drpout float32, seed uint64) (*Layer, error) {
-	op, err := dropout.Stage(handle, x.T(), drpout, seed)
+func Setup(handle *cudnn.Handler, x *layers.Tensor, drpout float32, seed uint64) (*Layer, error) {
+	op, err := dropout.Stage(handle, x.Volume, drpout, seed)
 	return &Layer{
 		op: op,
 	}, err
@@ -43,7 +43,7 @@ func Preset(handle *cudnn.Handler, dropout float32, seed uint64) (*Layer, error)
 
 //BuildFromPreset will construct the dropout layer if preset was made. Both handle and input are needed.
 //This can also be called again if input size has changed
-func (l *Layer) BuildFromPreset(handle *cudnn.Handler, input *layers.IO) error {
+func (l *Layer) BuildFromPreset(handle *cudnn.Handler, input *layers.Tensor) error {
 	var err error
 	/*	if l.op != nil {
 			err = l.op.Destroy()
@@ -52,16 +52,16 @@ func (l *Layer) BuildFromPreset(handle *cudnn.Handler, input *layers.IO) error {
 			}
 		}
 	*/
-	l.op, err = dropout.Stage(handle, input.T(), l.dropout, l.seed)
+	l.op, err = dropout.Stage(handle, input.Volume, l.dropout, l.seed)
 	return err
 }
 
 //ForwardProp does the forward propagation
-func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.op.ForwardProp(handle, x.T(), y.T())
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.Tensor) error {
+	return l.op.ForwardProp(handle, x.Volume, y.Volume)
 }
 
 //BackProp does the back propagation
-func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.op.BackProp(handle, x.DeltaT(), y.DeltaT())
+func (l *Layer) BackProp(handle *cudnn.Handler, dx, dy *layers.Tensor) error {
+	return l.op.BackProp(handle, dx.Volume, dy.Volume)
 }

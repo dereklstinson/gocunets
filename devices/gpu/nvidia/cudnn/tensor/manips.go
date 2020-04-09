@@ -3,8 +3,9 @@ package tensor
 import (
 	"errors"
 	"fmt"
-	"github.com/dereklstinson/half"
 	"strconv"
+
+	"github.com/dereklstinson/half"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
@@ -18,13 +19,13 @@ import (
 //Documentation states that you have to pass a value that is the same type as the DataType.  input is typecase
 func (t *Volume) SetValues(handle *cudnn.Handler, input float64) error {
 
-	return gocudnn.SetTensor(handle.Cudnn(), t.current.tD, t.memgpu, input)
+	return gocudnn.SetTensor(handle.Cudnn(), t.current.tD, t, input)
 }
 
 //ScaleValues values will scale the values to the scalar passed
 func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
 
-	return gocudnn.ScaleTensor(handle.Cudnn(), t.current.tD, t.memgpu, alpha)
+	return gocudnn.ScaleTensor(handle.Cudnn(), t.current.tD, t, alpha)
 
 }
 
@@ -33,24 +34,24 @@ func (t *Volume) ScaleValues(handle *cudnn.Handler, alpha float64) error {
 //In the later case the same value from the A tensor for the dims will be used to blend into (t *Tensor).
 func (t *Volume) AddTo(handle *cudnn.Handler, A *Volume, Ascalar, tscalar float64) error {
 
-	return gocudnn.AddTensor(handle.Cudnn(), Ascalar, A.current.tD, A.memgpu, tscalar, t.current.tD, t.memgpu)
+	return gocudnn.AddTensor(handle.Cudnn(), Ascalar, A.current.tD, A, tscalar, t.current.tD, t)
 }
 
 //LoadMem will Load the volume with the inputed mem.  Input mem with the size of size
 func (t *Volume) LoadMem(handle *cudnn.Handler, input cutil.Mem, size uint) error {
 
-	if t.CurrentSizeT() != size {
+	if t.sizet != size {
 		fmt.Println("Dims of mem is: ", t.Dims())
 
-		println("currentsize vs input size", t.CurrentSizeT(), size)
-		destsize := strconv.Itoa(int(t.memgpu.TotalBytes()))
-		currentsize := strconv.Itoa(int(t.CurrentSizeT()))
+		println("currentsize vs input size", t.sizet, size)
+		destsize := strconv.Itoa(int(t.SIB()))
+		currentsize := strconv.Itoa(int(t.sizet))
 
 		return errors.New("LoadMem: MemSize Not same in bytes " + destsize + "  " + currentsize)
 	}
-	err := nvidia.Memcpy(t.memgpu, input, t.CurrentSizeT())
+	err := nvidia.Memcpy(t, input, t.sizet)
 	if err != nil {
-		fmt.Println("Loading Mem checking ointers", t.memgpu, input)
+		fmt.Println("Loading Mem checking ointers", t, input)
 		return err
 	}
 	return nil
@@ -106,7 +107,7 @@ func (t *Volume) SetRandomNormal(handle *cudnn.Handler, min, max float32) error 
 }
 
 //SetRandom sets Random Value to weights Double and Float datatype only supported
-func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) error {
+func (t *Volume) SetRandom(mean, max, fanin float64) error {
 	_, dtype, dims, err := t.Properties()
 	if err != nil {
 
@@ -114,7 +115,7 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 	}
 	vol := utils.FindVolumeInt32(dims, nil)
 	vol1 := int(vol)
-	size := t.CurrentSizeT()
+	size := t.sizet
 	var fflg gocudnn.DataType
 	switch dtype {
 
@@ -128,7 +129,7 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 			return prependerror("SetRandom", err)
 		}
 
-		return nvidia.Memcpy(t.memgpu, ptr, size)
+		return nvidia.Memcpy(t, ptr, size)
 	case fflg.Float():
 
 		randomizedvol := make([]float32, vol)
@@ -142,12 +143,12 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 			return prependerror("SetRandom", err)
 		}
 
-		err = nvidia.Memcpy(t.memgpu, ptr, size)
+		err = nvidia.Memcpy(t, ptr, size)
 		if err != nil {
 			fmt.Println("Size Value is ", size)
 			fmt.Println("Size of vol is ", vol)
 			fmt.Println("Vol * 4 is ", vol*4)
-			fmt.Println("t.memgpu is", t.memgpu)
+			fmt.Println("t.memgpu is", t)
 			return err
 		}
 		return nil
@@ -163,12 +164,12 @@ func (t *Volume) SetRandom(handle *cudnn.Handler, mean, max, fanin float64) erro
 			return prependerror("SetRandom", err)
 		}
 
-		err = nvidia.Memcpy(t.memgpu, ptr, size)
+		err = nvidia.Memcpy(t, ptr, size)
 		if err != nil {
 			fmt.Println("Size Value is ", size)
 			fmt.Println("Size of vol is ", vol)
 			fmt.Println("Vol * 4 is ", vol*4)
-			fmt.Println("t.memgpu is", t.memgpu)
+			fmt.Println("t.memgpu is", t)
 			return err
 		}
 		return nil

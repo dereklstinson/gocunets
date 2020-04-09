@@ -90,36 +90,39 @@ func (c *Ops) setfastestdescriptors(handle *cudnn.Handler, x, y *gocudnn.TensorD
 	prefbf.PreferFastest()
 
 	wspace := uint(0)
-	fwdalgo, err := c.opfwd.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := c.opfwd.GetForwardWorkspaceSize(handle.Cudnn(), x, w, y, fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x, w, y, fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := c.opbwdd.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := c.opbwdd.GetBackwardDataWorkspaceSize(handle.Cudnn(), w, y, x, bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := c.opbwdf.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w, y, x, bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := c.opbwdf.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, w, bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, w, bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
 	c.perfbackfilt.Algo = bwdfalgo
 	c.perfforward.Algo = fwdalgo
 	c.perfbackdata.Algo = bwddalgo
+	c.perfbackfiltset = true
+	c.perfbackdataset = true
+	c.perfforwardset = true
 	largest := fwdwspace
 	if bwddspace > largest {
 		largest = bwddspace
@@ -139,17 +142,17 @@ func (c *Ops) setnowspacedescriptors(handle *cudnn.Handler, x, y *gocudnn.Tensor
 	prefbf.NoWorkSpace()
 
 	wspace := uint(0)
-	fwdalgo, err := c.opfwd.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwddalgo, err := c.opbwdd.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwdfalgo, err := c.opbwdf.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
 	if err != nil {
 		return err
 	}
@@ -157,6 +160,9 @@ func (c *Ops) setnowspacedescriptors(handle *cudnn.Handler, x, y *gocudnn.Tensor
 	c.perfbackfilt.Algo = bwdfalgo
 	c.perfforward.Algo = fwdalgo
 	c.perfbackdata.Algo = bwddalgo
+	c.perfbackfiltset = true
+	c.perfbackdataset = true
+	c.perfforwardset = true
 	return nil
 }
 
@@ -170,37 +176,39 @@ func (c *Ops) setwspacelimitdescriptors(handle *cudnn.Handler, x, y *gocudnn.Ten
 	prefbf.SpecifyWorkSpaceLimit()
 
 	wspace := uint(wspacesize)
-	fwdalgo, err := c.opfwd.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x, w, y, preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := c.opfwd.GetForwardWorkspaceSize(handle.Cudnn(), x, w, y, fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x, w, y, fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := c.opbwdd.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := c.opbwdd.GetBackwardDataWorkspaceSize(handle.Cudnn(), w, y, x, bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w, y, x, prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := c.opbwdf.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w, y, x, bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := c.opbwdf.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, w, bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x, y, w, prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x, y, w, bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
 	c.perfbackfilt.Algo = bwdfalgo
 	c.perfforward.Algo = fwdalgo
 	c.perfbackdata.Algo = bwddalgo
-
+	c.perfbackfiltset = true
+	c.perfbackdataset = true
+	c.perfforwardset = true
 	largest := fwdwspace
 	if bwddspace > largest {
 		largest = bwddspace
@@ -221,17 +229,17 @@ func (c *Ops) setnowspace(handle *cudnn.Handler, x, y, w *tensor.Volume) error {
 	prefbf.NoWorkSpace()
 
 	wspace := uint(0)
-	fwdalgo, err := c.opfwd.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwddalgo, err := c.opbwdd.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
 	if err != nil {
 		return err
 	}
 
-	bwdfalgo, err := c.opbwdf.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
 	if err != nil {
 		return err
 	}
@@ -239,6 +247,9 @@ func (c *Ops) setnowspace(handle *cudnn.Handler, x, y, w *tensor.Volume) error {
 	c.perfbackfilt.Algo = bwdfalgo
 	c.perfforward.Algo = fwdalgo
 	c.perfbackdata.Algo = bwddalgo
+	c.perfbackfiltset = true
+	c.perfbackdataset = true
+	c.perfforwardset = true
 
 	return nil
 }
@@ -253,36 +264,39 @@ func (c *Ops) setwspacelimit(handle *cudnn.Handler, x, y, w *tensor.Volume, wspa
 	prefbf.SpecifyWorkSpaceLimit()
 
 	wspace := uint(wspacesize)
-	fwdalgo, err := c.opfwd.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := c.opfwd.GetForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), y.TD(), fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), y.TD(), fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := c.opbwdd.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := c.opbwdd.GetBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), x.TD(), bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := c.opbwdf.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), x.TD(), bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := c.opbwdf.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), w.FD(), bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), w.FD(), bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
 	c.perfbackfilt.Algo = bwdfalgo
 	c.perfforward.Algo = fwdalgo
 	c.perfbackdata.Algo = bwddalgo
+	c.perfbackfiltset = true
+	c.perfbackdataset = true
+	c.perfforwardset = true
 	largest := fwdwspace
 	if bwddspace > largest {
 		largest = bwddspace
@@ -303,36 +317,39 @@ func (c *Ops) setfastest(handle *cudnn.Handler, x, y, w *tensor.Volume) (uint, e
 	prefbf.PreferFastest()
 
 	wspace := uint(0)
-	fwdalgo, err := c.opfwd.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
+	fwdalgo, err := c.op.GetForwardAlgorithm(handle.Cudnn(), x.TD(), w.FD(), y.TD(), preff, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	fwdwspace, err := c.opfwd.GetForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), y.TD(), fwdalgo)
+	fwdwspace, err := c.op.GetForwardWorkspaceSize(handle.Cudnn(), x.TD(), w.FD(), y.TD(), fwdalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwddalgo, err := c.opbwdd.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
-	if err != nil {
-		return 0, err
-	}
-
-	bwddspace, err := c.opbwdd.GetBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), x.TD(), bwddalgo)
+	bwddalgo, err := c.op.GetBackwardDataAlgorithm(handle.Cudnn(), w.FD(), y.TD(), x.TD(), prefbd, wspace)
 	if err != nil {
 		return 0, err
 	}
 
-	bwdfalgo, err := c.opbwdf.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
+	bwddspace, err := c.op.GetBackwardDataWorkspaceSize(handle.Cudnn(), w.FD(), y.TD(), x.TD(), bwddalgo)
 	if err != nil {
 		return 0, err
 	}
-	bwdfspace, err := c.opbwdf.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), w.FD(), bwdfalgo)
+
+	bwdfalgo, err := c.op.GetBackwardFilterAlgorithm(handle.Cudnn(), x.TD(), y.TD(), w.FD(), prefbf, wspace)
+	if err != nil {
+		return 0, err
+	}
+	bwdfspace, err := c.op.GetBackwardFilterWorkspaceSize(handle.Cudnn(), x.TD(), y.TD(), w.FD(), bwdfalgo)
 	if err != nil {
 		return 0, err
 	}
 	c.perfbackfilt.Algo = bwdfalgo
 	c.perfforward.Algo = fwdalgo
 	c.perfbackdata.Algo = bwddalgo
+	c.perfbackfiltset = true
+	c.perfbackdataset = true
+	c.perfforwardset = true
 	largest := fwdwspace
 	if bwddspace > largest {
 		largest = bwddspace

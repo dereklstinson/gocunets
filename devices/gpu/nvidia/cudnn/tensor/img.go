@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
@@ -160,10 +161,10 @@ func MakeJPG(folder, subfldr string, index int, img image.Image) error {
 
 //ToImages makes a 2d array of images.  If it is a filter then it will be listed by the images[x][y] x is the neurons. y is the feature maps for neuron x
 //if it is a tensor then x is the batch. y is the channel. It doesn't matter what format was used
-func (t *Volume) ToImages() ([][]image.Image, error) {
-	return t.convert()
+func (t *Volume) ToImages(handle *cudnn.Handler) ([][]image.Image, error) {
+	return t.convert(handle)
 }
-func (t *Volume) convert() ([][]image.Image, error) {
+func (t *Volume) convert(handle *cudnn.Handler) ([][]image.Image, error) {
 	frmt, dtype, dims, err := t.Properties()
 	if len(dims) > 4 {
 		return nil, errors.New("Dims of 4 only supported")
@@ -178,7 +179,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 	switch dtype {
 	case dt.Double():
 		slice := make([]float64, arraysizefromdims(dims))
-		err = t.memgpu.FillSlice(slice)
+		err = t.FillSlice(handle, slice)
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +190,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 	case dt.Float():
 		slice := make([]float32, arraysizefromdims(dims))
 		fmt.Println("ToImages:convert:Length of Slice", len(slice))
-		err = t.memgpu.FillSlice(slice)
+		err = t.FillSlice(handle, slice)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +202,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 
 	case dt.Int32():
 		slice := make([]int32, arraysizefromdims(dims))
-		err = t.memgpu.FillSlice(slice)
+		err = t.FillSlice(handle, slice)
 		if err != nil {
 			return nil, err
 		}
@@ -213,7 +214,7 @@ func (t *Volume) convert() ([][]image.Image, error) {
 		return nil, errors.New("Conversion for Int8 Not supported")
 	case dt.UInt8():
 		conv = make([]uint8, arraysizefromdims(dims))
-		err = t.memgpu.FillSlice(conv)
+		err = t.FillSlice(handle, conv)
 		if err != nil {
 			return nil, err
 		}

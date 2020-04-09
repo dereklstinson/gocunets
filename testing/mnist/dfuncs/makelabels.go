@@ -124,6 +124,35 @@ func readLabelFile(r io.Reader) ([][]float32, []int, error) {
 	}
 	return labels, numbers, nil
 }
+
+//MakeEncodeeSoftmaxPerPixelCopy this is for NCHW
+func MakeEncodeeSoftmaxPerPixelCopy(data []LabeledData) (copydata []LabeledData) {
+	copydata = make([]LabeledData, len(data))
+	for i, d := range data {
+		copydata[i].Data = make([]float32, len(d.Data)*2)
+		/*for i:=range d.Data{
+			if d.Data[j]<128{
+				copydata[i].d.Data[j]
+			}
+		}*/
+		offset := len(d.Data)
+		for j := range d.Data {
+			if d.Data[j] < 128 {
+				copydata[i].Data[j] = 0
+				copydata[i].Data[offset+j] = 1
+			} else {
+				copydata[i].Data[j] = 1
+				copydata[i].Data[offset+j] = 0
+			}
+
+		}
+		copydata[i].Label = make([]float32, len(d.Label))
+		copy(copydata[i].Label, d.Label)
+		copydata[i].Number = d.Number
+	}
+	return copydata
+}
+
 func NormalizeData(data []LabeledData, average float32) []LabeledData {
 	size := len(data)
 	for i := 0; i < size; i++ {

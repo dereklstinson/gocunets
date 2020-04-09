@@ -21,8 +21,10 @@ const beta2default = 1.0
 //The memory for w, dw, bias, dbias. The algos for forward, backward (data, filter) and the scalars for those algos. 1
 type Layer struct {
 	conv       *convolution.Ops
-	w          *layers.IO
-	bias       *layers.IO
+	w          *layers.Tensor
+	bias       *layers.Tensor
+	dw         *layers.Tensor
+	dbias      *layers.Tensor
 	pindims    []int32
 	wspacesize uint
 	fwd        xtras
@@ -51,19 +53,45 @@ func appenderror(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
 }
 
+//ToggleDWeightsPrintValueForStringer toggles if DWeight values will be printed
+func (c *Layer) ToggleDWeightsPrintValueForStringer() {
+	c.dw.TogglePrintValueForStringer()
+}
+
+//ToggleWeightsPrintValueForStringer toggles if Weight values will be printed
+func (c *Layer) ToggleWeightsPrintValueForStringer() {
+	c.w.TogglePrintValueForStringer()
+}
+
+//ToggleDBiasPrintValueForStringer toggles if dBias values will be printed
+func (c *Layer) ToggleDBiasPrintValueForStringer() {
+	c.dbias.TogglePrintValueForStringer()
+}
+
+//ToggleBiasPrintValueForStringer toggles if Bias values will be printed
+func (c *Layer) ToggleBiasPrintValueForStringer() {
+	c.bias.TogglePrintValueForStringer()
+}
+
+func (c *Layer) String() string {
+	return fmt.Sprintf("CnnTranspose Layer {\n%v\nWeights: %v\nBias: %v\nDWeights: %v\nDBias: %v\n}\n", c.conv, c.w, c.bias, c.dw, c.dbias)
+}
+
 //UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
-	err := c.btrain.UpdateWeights(handle, c.bias, batch)
+func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch ,epoch int) error {
+
+	err := c.train.UpdateWeights(handle, c.dw, c.w, batch,epoch)
+
+	if err != nil {
+		return err
+	}
+	c.l1w, c.l2w = c.train.L1L2Loss()
+	err = c.btrain.UpdateWeights(handle, c.dbias, c.bias, batch,epoch)
 	if err != nil {
 		return err
 	}
 	c.l1b, c.l2b = c.btrain.L1L2Loss()
 
-	c.train.UpdateWeights(handle, c.w, batch)
-	c.l1w, c.l2w = c.train.L1L2Loss()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -89,12 +117,17 @@ func (c *Layer) LoadTrainer(handle *cudnn.Handler, forweights, forbias trainer.T
 }
 
 //Bias returns the Bias
-func (c *Layer) Bias() *layers.IO {
+func (c *Layer) Bias() *layers.Tensor {
 	return c.bias
 }
 
+//DeltaWeights returns the deltaweights
+func (c *Layer) DeltaWeights() *layers.Tensor {
+	return c.dw
+}
+
 //Weights returns the weights
-func (c *Layer) Weights() *layers.IO {
+func (c *Layer) Weights() *layers.Tensor {
 	return c.w
 }
 
@@ -103,37 +136,82 @@ func (c *Layer) OutputDims(inputdims []int32) []int32 {
 	if len(inputdims) != 4 {
 		return nil
 	}
+
 	frmt, _, dims, err := c.w.Properties()
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	return find4doutputdims(inputdims, dims, c.conv.Pad(), c.conv.Stride(), c.conv.Dilation(), frmt)
 
 }
 
+//SetupBasic sets up a convolution layer with the memory for the gpu added to it.
+//This can be used for layers that share the same memory, but might have different convolution properties.
+func SetupBasic(handle *cudnn.Handler,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	mtype gocudnn.MathType,
+	groupcount int32,
+	w, dw, b, db *layers.Tensor,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32) (*Layer, error) {
+
+	conv, err := convolution.StageOperation(convmode, dtype, mtype, groupcount, pad, stride, dilation)
+	if err != nil {
+		fmt.Println("Error in Stage Operation")
+		return nil, err
+	}
+	var fwd = xtras{
+		alpha: 1,
+		beta:  0,
+	}
+	var bwdd = xtras{
+		alpha: 1,
+		beta:  0,
+	}
+	var bwdf = xtras{
+		alpha: 1,
+		beta:  1,
+	}
+	return &Layer{
+		mathtype: mtype,
+		datatype: dtype,
+		w:        w,
+		dw:       dw,
+		bias:     b,
+		dbias:    db,
+		conv:     conv,
+		pad:      pad,
+		stride:   stride,
+		dilation: dilation,
+		fwd:      fwd,
+		bwdd:     bwdd,
+		bwdf:     bwdf,
+	}, nil
+}
+
 //Setup sets up the speed of the fwd and bwd algos dynamically.  guessinputdims is really for setting up the random weights.
 func Setup(handle *cudnn.Handler,
 	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
+	mtype gocudnn.MathType,
+	groupcount int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
 	dilation []int32,
 	seed uint64) (*Layer, error) {
-	layer, err := layersetup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation)
+	layer, err := layersetup(handle, frmt, dtype, mtype, groupcount, filterdims, convmode, pad, stride, dilation)
 	if err != nil {
 		fmt.Println("Error in layer setup")
 		return nil, err
 	}
-	err = layer.MakeRandom(handle)
-	if err != nil {
-		fmt.Println("Error in randomfanindims")
-		return nil, err
-	}
 
-	err = layer.bias.T().SetValues(handle, 0.00001)
+	err = layer.bias.SetValues(handle, 0.00001)
 	if err != nil {
 		fmt.Println("Error in setvals")
 		return nil, err
@@ -142,98 +220,103 @@ func Setup(handle *cudnn.Handler,
 	layer.pad, layer.stride, layer.dilation = pad, stride, dilation
 	return layer, nil
 }
+
+//SetMathType sets the mathtype
 func (c *Layer) SetMathType(mtype gocudnn.MathType) error {
-	err := c.conv.SetMathTypeForward(mtype)
-	if err != nil {
-		return err
-	}
-	err = c.conv.SetMathTypeBackwardData(mtype)
-	if err != nil {
-		return err
-	}
-	return c.conv.SetMathTypeBackwardFilter(mtype)
+	return c.conv.SetMathType(mtype)
 
-}
-
-//MakeRandom does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandom(handle *cudnn.Handler) error {
-	dims := c.w.T().Dims()
-	if len(dims) < 5 {
-
-		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
-		if err != nil {
-			return err
-		}
-	}
-	if len(dims) > 4 {
-		return errors.New("Not Available yet")
-	}
-
-	return nil
 }
 
 /*
-//MakeRandomFromFanin does what it says it will make the weights random considering the fanin
-func (c *Layer) MakeRandomFromFanin(handle *cudnn.Handler, input *layers.IO, seed uint64) error {
-	_, _, dims, err := input.Properties()
+//SetupEx creates a convolution layer
+func SetupEx(handle *cudnn.Handler,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	mtype gocudnn.MathType,
+	groupcount int32,
+	w, dw *layers.Tensor,
+	b, db *layers.Tensor,
+	cmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dialation []int32) (c *Layer, err error) {
+	c = new(Layer)
+	c.conv, err = convolution.StageOperation(cmode, dtype, mtype, groupcount, pad, stride, dialation)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if len(dims) < 5 {
-
-		fanin := float64(dims[1] * dims[2] * dims[3])
-		err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
-		//err := c.w.T().SetRandom(handle, 0, 1.0, fanin)
-		if err != nil {
-			return err
-		}
-	}
-	if len(dims) > 4 {
-		return errors.New("Not Available yet")
-	}
-
-	return nil
+	c.w, c.dw, c.bias, c.dbias = w, dw, b, db
+	return c, nil
 }
 */
+
+//MakeRandom does what it says it will make the weights random considering the fanin
+func (c *Layer) MakeRandom(h *cudnn.Handler, inputdims []int32) error {
+	//	dims := c.w.T().Dims()
+	fanin := int32(1)
+	for i := 1; i < len(inputdims); i++ {
+		fanin *= inputdims[i]
+	}
+	if h == nil {
+		return c.w.SetRandom(0, 2.0, (float64)(fanin))
+
+	}
+	flg := c.w.Volume.DataType()
+	if flg.Float() == c.w.Volume.DataType() {
+		//	return h.GetCuRNG().NormalFloat32(c.w, c.w.SIB(), 0, 2*float32(math.Sqrt((2.0)))/float32(fanin))
+	}
+	return c.w.SetRandom(0, 2.0, (float64)(fanin))
+
+}
+
 //LayerSetup sets up the cnn layer to be built. But doesn't build it yet.
 func layersetup(
 	handle *cudnn.Handler,
 	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
+	mtype gocudnn.MathType,
+	groupcount int32,
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
 	pad,
 	stride,
 	dialation []int32,
 ) (*Layer, error) {
-	conv, err := convolution.StageOperation(convmode, dtype, pad, stride, dialation)
+	conv, err := convolution.StageOperation(convmode, dtype, mtype, groupcount, pad, stride, dialation)
 	if err != nil {
 		fmt.Println("Error in Stage Operation")
 		return nil, err
 	}
-	w, err := layers.BuildIOWeights(handle, frmt, dtype, filterdims)
+	w, err := layers.CreateTensor(handle, frmt, dtype, filterdims)
 	if err != nil {
 		fmt.Println("FilterDims ", filterdims)
 		fmt.Println("error in building IO Weights")
 		return nil, err
 	}
-	/*
-		sizeinbytes, err := w.T().Size()
-		if err != nil {
-			return nil, err
-		}
-	*/
+
 	bias, err := buildbias(handle, w)
 	if err != nil {
 		fmt.Println("Error in building bias")
 		return nil, err
 	}
+	dw, err := layers.CreateTensor(handle, frmt, dtype, filterdims)
+	if err != nil {
+		fmt.Println("FilterDims ", filterdims)
+		fmt.Println("error in building IO Weights")
+		return nil, err
+	}
 
+	dbias, err := buildbias(handle, w)
+	if err != nil {
+		fmt.Println("Error in building bias")
+		return nil, err
+	}
 	return &Layer{
-		conv: conv,
-		w:    w,
-		bias: bias,
+		conv:  conv,
+		w:     w,
+		bias:  bias,
+		dw:    dw,
+		dbias: dbias,
 		fwd: xtras{
 			alpha: alphadefault,
 			//	alpha2: alphadefault,
@@ -253,6 +336,7 @@ func layersetup(
 	}, nil
 }
 
+/*
 //SetAlphaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
 func (c *Layer) SetAlphaScalars(alphas []float64) error {
 	if len(alphas) != 3 {
@@ -276,44 +360,6 @@ func (c *Layer) SetBetaScalars(betas []float64) error {
 	c.bwdf.beta = betas[2]
 	return nil
 }
-
-/*
-func (c *Layer) GetNumForwardScalarsAlpha() int {
-	return 1
-}
-func (c *Layer) GetNumForwardScalarsBeta() int {
-	return 1
-}
-func (c *Layer) GetNumBackwardScalarsBeta() int {
-	return 2
-}
-func (c *Layer) GetNumBackwardScalarsAlpha() int {
-	return 2
-}
-//SetAlphaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
-func (c *Layer) SetForwardAlphaScalars(alphas []float64) error {
-	if len(alphas) != 1 {
-		return errors.New("alpha Scalar length needs to be 3")
-	}
-
-	c.fwd.alpha = alphas[0]
-	c.bwdd.alpha = alphas[0]
-	c.bwdf.alpha = alphas[0]
-	return nil
-}
-
-//SetBetaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
-func (c *Layer) SetForwardBetaScalars(betas []float64) error {
-	if len(betas) != 3 {
-		return errors.New("alpha Scalar length needs to be 3")
-	}
-
-	c.fwd.beta = betas[0]
-	c.bwdd.beta = betas[0]
-	c.bwdf.beta = betas[0]
-	return nil
-}
-*/
 //NumAlphaScalars returns the number of alpha scalars which is used for fwd,bwd-data,bwd-filter.
 func (c *Layer) NumAlphaScalars() int {
 	return 3
@@ -323,19 +369,20 @@ func (c *Layer) NumAlphaScalars() int {
 func (c *Layer) NumBetaScalars() int {
 	return 3
 }
+*/
 
-//SetFwdScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetFwdScalars(alpha, beta float64) {
+//SetForwardScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetForwardScalars(alpha, beta float64) {
 	c.fwd.alpha, c.fwd.beta = alpha, beta
 }
 
-//SetBwdDataScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
-func (c *Layer) SetBwdDataScalars(alpha, beta float64) {
+//SetBackwardScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
+func (c *Layer) SetBackwardScalars(alpha, beta float64) {
 	c.bwdd.alpha, c.bwdd.beta = alpha, beta
 }
 
-//SetBwdFilterScalars sets the alpha and beta scalars, the defaults are alpha,  1, beta=1 and are initialized in the function FilterSetup
-func (c *Layer) SetBwdFilterScalars(alpha, beta float64) {
+//SetOtherScalars sets the alpha and beta scalars for the weights, the defaults are alpha,  1, beta=1 and are initialized in the function FilterSetup
+func (c *Layer) SetOtherScalars(alpha, beta float64) {
 	c.bwdf.alpha, c.bwdf.beta = alpha, beta
 }
 
@@ -379,7 +426,7 @@ for NHWC filter is KRSC
 func findoutputdim(x, w, s, p, d int32) int32 {
 	return 1 + (x+2*p-(((w-1)*d)+1))/s
 }
-func buildbias(handle *cudnn.Handler, weights *layers.IO) (*layers.IO, error) {
+func buildbias(handle *cudnn.Handler, weights *layers.Tensor) (*layers.Tensor, error) {
 	frmt, dtype, dims, err := weights.Properties()
 	if err != nil {
 		return nil, err
@@ -390,5 +437,5 @@ func buildbias(handle *cudnn.Handler, weights *layers.IO) (*layers.IO, error) {
 		dims[i] = int32(1)
 	}
 	dims[1] = outputmaps
-	return layers.BuildIOWeights(handle, frmt, dtype, dims)
+	return layers.CreateTensor(handle, frmt, dtype, dims)
 }

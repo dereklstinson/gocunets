@@ -65,6 +65,24 @@ func (r *Roman) Copy() (cpy Roman) {
 	return cpy
 
 }
+func EncodeSoftmaxPerPixel(data []Roman) []Roman {
+
+	for i := range data {
+		offset := len(data[i].Data)
+		newdata := make([]float32, len(data[i].Data)*2)
+		for j := range data[i].Data {
+			if data[i].Data[j] < 128 {
+				newdata[j] = 0
+				newdata[offset+j] = 1
+			} else {
+				newdata[j] = 1
+				newdata[offset+j] = 0
+			}
+		}
+		data[i].Data = newdata
+	}
+	return data
+}
 
 //Normalize Normalizes the data
 func Normalize(data []Roman, avg float32) []Roman {

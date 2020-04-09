@@ -1,7 +1,7 @@
 package tensor
 
 import (
-	"fmt"
+	"io/ioutil"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
@@ -38,11 +38,10 @@ func (t *Volume) Info() (Info, error) {
 	if err != nil {
 		return Info{}, err
 	}
+	rw := t.Malloced.NewReadWriter(nil)
 
-	vals := make([]byte, t.memgpu.TotalBytes())
-	writen, err := t.memgpu.Write(vals)
+	vals, err := ioutil.ReadAll(rw)
 	if err != nil {
-		fmt.Printf("Written Bytes:%d, Length of byte array %d\n", writen, len(vals))
 		return Info{}, err
 	}
 	return Info{
@@ -77,15 +76,15 @@ func (i Info) Build(handle *cudnn.Handler) (*Volume, error) {
 	}
 
 	vol := &Volume{
+		Malloced: newmemer,
 		current: &tensordescriptor{
 			tD:      tens,
 			fD:      filts,
 			dims:    i.Dims,
 			strides: utils.FindStridesInt32(i.Dims),
 		},
-		frmt:   i.Format,
-		dtype:  i.DataType,
-		memgpu: newmemer,
+		frmt:  i.Format,
+		dtype: i.DataType,
 	}
 	if i.Data == nil {
 		return vol, nil

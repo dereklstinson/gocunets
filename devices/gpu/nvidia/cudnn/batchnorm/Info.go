@@ -1,7 +1,9 @@
 package batchnorm
 
 import (
-	"fmt"
+	"io/ioutil"
+
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -23,34 +25,30 @@ type Info struct {
 }
 
 //Info returns the Info struct
-func (o *Ops) Info() (Info, error) {
-	sizet, err := o.bnsbmvd.GetSizeInBytes()
-	if err != nil {
-		return Info{}, err
-	}
+func (o *Ops) Info(h *cudnn.Handler) (Info, error) {
+	s := h.Stream()
+	rrmw := o.rrm.NewReadWriter(s)
 
-	rrm := make([]byte, sizet)
-	rrv := make([]byte, sizet)
-	rsm := make([]byte, sizet)
-	rsv := make([]byte, sizet)
-	rmmwritten, err := o.rrm.Write(rrm)
+	rrvw := o.rrv.NewReadWriter(s)
+
+	rsmw := o.rsm.NewReadWriter(s)
+
+	rsvw := o.rsv.NewReadWriter(s)
+
+	rrm, err := ioutil.ReadAll(rrmw)
 	if err != nil {
-		fmt.Println("Bytes Written rrm: ", rmmwritten)
 		return Info{}, err
 	}
-	rmmwritten, err = o.rrv.Write(rrv)
+	rrv, err := ioutil.ReadAll(rrvw)
 	if err != nil {
-		fmt.Println("Bytes Written rrv: ", rmmwritten)
 		return Info{}, err
 	}
-	rmmwritten, err = o.rsm.Write(rsm)
+	rsm, err := ioutil.ReadAll(rsmw)
 	if err != nil {
-		fmt.Println("Bytes Written rsm: ", rmmwritten)
 		return Info{}, err
 	}
-	rmmwritten, err = o.rsv.Write(rsv)
+	rsv, err := ioutil.ReadAll(rsvw)
 	if err != nil {
-		fmt.Println("Bytes Written rsv: ", rmmwritten)
 		return Info{}, err
 	}
 	frmt, dtype, dims, stride, err := o.bnsbmvd.Get()

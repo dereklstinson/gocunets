@@ -1,7 +1,6 @@
 package batchnorm
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
@@ -17,7 +16,7 @@ const alphabackwarddefault = 1
 const betabackwarddefault = 0
 const alphabackwardparamdefault = 1
 const betabackwardparamdefault = 1
-const trainingfactoringlimit = 1000
+const trainingfactoringlimit = 128
 
 //Layer the ops of a batch norm
 type Layer struct {
@@ -25,8 +24,10 @@ type Layer struct {
 	fw                     abscalars
 	bwp                    abscalars
 	bwd                    abscalars
-	bias                   *layers.IO
-	scale                  *layers.IO
+	bias                   *layers.Tensor
+	scale                  *layers.Tensor
+	dbias                  *layers.Tensor
+	dscale                 *layers.Tensor
 	eps                    float64
 	af                     float64
 	counter                uint64
@@ -41,6 +42,7 @@ type abscalars struct {
 	b float64
 }
 
+/*
 //Info contains saved info now like weights and stuff
 type Info struct {
 	Unified bool
@@ -48,6 +50,7 @@ type Info struct {
 	Bias    layers.Info
 	Scale   layers.Info
 }
+*/
 
 //Settings contains all the paramters needed to build a batchnorm layer
 type Settings struct {
@@ -86,7 +89,7 @@ func PerActivationPreset(handle *cudnn.Handler) (*Layer, error) {
 }
 
 //SpatialPreset will presetup some values for the batch norm Spatial Mode
-func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
+func SpatialPreset(handle *cudnn.Handler) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatial(handle, managed)
 
 	fw := abscalars{
@@ -106,19 +109,19 @@ func SpatialPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
 		return nil, err
 	}
 	return &Layer{
-		b:          op,
-		fw:         fw,
-		bwp:        bwp,
-		bwd:        bwd,
-		eps:        float64(1e-5),
-		managed:    managed,
+		b:   op,
+		fw:  fw,
+		bwp: bwp,
+		bwd: bwd,
+		eps: float64(1e-5),
+
 		countermax: trainingfactoringlimit,
 	}, nil
 
 }
 
 //SpatialPersistantPreset will presetup some values for the batch norm SpatialPersistantPreset Mode
-func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error) {
+func SpatialPersistantPreset(handle *cudnn.Handler) (*Layer, error) {
 	//	b, err := batchnorm.PreStageSpatialPersistant(handle, managed)
 
 	fw := abscalars{
@@ -143,19 +146,18 @@ func SpatialPersistantPreset(handle *cudnn.Handler, managed bool) (*Layer, error
 		bwp:        bwp,
 		bwd:        bwd,
 		eps:        float64(1e-5),
-		managed:    managed,
 		countermax: trainingfactoringlimit,
 	}, nil
 
 }
 
 //Bias returns the bias of the batch norm
-func (l *Layer) Bias() *layers.IO {
+func (l *Layer) Bias() *layers.Tensor {
 	return l.bias
 }
 
 //Scale returns the scale fo the batch norm
-func (l *Layer) Scale() *layers.IO {
+func (l *Layer) Scale() *layers.Tensor {
 	return l.scale
 }
 
@@ -165,30 +167,30 @@ func (l *Layer) Trainers() (scale, bias trainer.Trainer) {
 }
 
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
-func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) (err error) {
+func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.Tensor) (err error) {
 
-	err = l.b.Stage(handle, x.T())
+	err = l.b.Stage(handle, x.Volume)
 	if err != nil {
 		fmt.Println("Err in stage batch norm")
 		return err
 	}
 	frmt, dtype, dims := l.b.BiasScaleProperties()
-	l.bias, err = layers.BuildIOWeights(handle, frmt, dtype, dims)
+	l.bias, err = layers.CreateTensor(handle, frmt, dtype, dims)
 	if err != nil {
 		fmt.Println("Creating Bias mem...Dims are:", dims)
 		return err
 	}
-	l.scale, err = layers.BuildIOWeights(handle, frmt, dtype, dims)
+	l.scale, err = layers.CreateTensor(handle, frmt, dtype, dims)
 	if err != nil {
 		fmt.Println("Creating scale mem...Dims are:", dims)
 		return err
 	}
-	err = l.scale.T().SetRandomNormal(handle, .7, 1)
+	err = l.scale.Volume.SetRandomNormal(handle, .7, 1)
 	if err != nil {
 		fmt.Println("error in set random normal scale", l.scale)
 		return err
 	}
-	err = l.bias.T().SetRandomNormal(handle, .01, .1)
+	err = l.bias.Volume.SetRandomNormal(handle, .01, .1)
 	if err != nil {
 		fmt.Println("error in set random normal bias")
 		return err
@@ -208,48 +210,50 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.IO) (err error) {
 }
 
 //ForwardInference Does the Testing Forward Prop and used for production
-func (l *Layer) ForwardInference(handle *cudnn.Handler, x, y *layers.IO) error {
+func (l *Layer) ForwardInference(handle *cudnn.Handler, x, y *layers.Tensor) error {
 
-	return l.b.ForwardInference(handle, l.fw.a, l.fw.b, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
+	return l.b.ForwardInference(handle, l.fw.a, l.fw.b, l.eps, x.Volume, l.scale.Volume, l.bias.Volume, y.Volume)
 }
 
 //ForwardProp Does the Training Forward Prop of batch norm layer
 func (l *Layer) ForwardProp(
-	handle *cudnn.Handler, x, y *layers.IO) error {
+	handle *cudnn.Handler, x, y *layers.Tensor) error {
+
 	l.af = (1.0 / (1.0 + float64(l.counter)))
-	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.T(), l.scale.T(), l.bias.T(), y.T())
+	err := l.b.ForwardTraining(handle, l.fw.a, l.fw.b, l.af, l.eps, x.Volume, l.scale.Volume, l.bias.Volume, y.Volume)
 	if l.counter < l.countermax {
 		l.counter++
 	}
+
 	return err
 }
 
 //BackProp does the back propagation in training the layer
-func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
+func (l *Layer) BackProp(handle *cudnn.Handler, x, dx, dy *layers.Tensor) error {
 	return l.b.BackwardProp(handle,
 		l.bwd.a,
 		l.bwd.b,
 		l.bwp.a,
 		l.bwp.b,
 		l.eps,
-		x.T(),
-		l.scale.T(),
-		l.scale.DeltaT(),
-		l.bias.DeltaT(),
-		x.DeltaT(),
-		y.DeltaT())
+		x.Volume,
+		l.scale.Volume,
+		l.dscale.Volume,
+		l.dbias.Volume,
+		dx.Volume,
+		dy.Volume)
 }
 
 //UpdateWeights does the weight update
-func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
+func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch,epoch int) error {
 	var err error
 
-	err = l.biastrain.UpdateWeights(handle, l.bias, batch)
+	err = l.biastrain.UpdateWeights(handle, l.dbias, l.bias, batch,epoch)
 	if err != nil {
 		return err
 	}
 
-	err = l.scaletrain.UpdateWeights(handle, l.scale, batch)
+	err = l.scaletrain.UpdateWeights(handle, l.dscale, l.scale, batch,epoch)
 	if err != nil {
 		return err
 	}
@@ -272,53 +276,19 @@ func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias tra
 	return nil
 }
 
-//NumAlphaScalars returns the number of alpha scalars batch norm uses
-func (l *Layer) NumAlphaScalars() int {
-	return 3
+//SetForwardScalars sets the forward scalars
+func (l *Layer) SetForwardScalars(alpha, beta float64) {
+	l.fw.a, l.fw.b = alpha, beta
 }
 
-//NumBetaScalars returns the number of beta scalars batch norm uses
-func (l *Layer) NumBetaScalars() int {
-	return 3
+//SetBackwardScalars sets the backward scalars
+func (l *Layer) SetBackwardScalars(alpha, beta float64) {
+	l.bwd.a, l.bwd.b = alpha, beta
 }
 
-//SetAlphaScalars sets the forward backward and backward parameters alpha scalars in that order
-func (l *Layer) SetAlphaScalars(alphas []float64) error {
-	if len(alphas) != 3 {
-		return errors.New("Len of alphas needs to be 3")
-	}
-	l.fw.a = alphas[0]
-	l.bwd.a = alphas[1]
-	l.bwp.a = alphas[2]
-	return nil
-}
-
-//SetBetaScalars sets the forward backward and backward parameters beta scalars in that order
-func (l *Layer) SetBetaScalars(betas []float64) error {
-	if len(betas) != 3 {
-		return errors.New("Len of betas needs to be 3")
-	}
-
-	l.fw.b = betas[0]
-	l.bwd.b = betas[1]
-	l.bwp.b = betas[2]
-	return nil
-}
-
-//SetAllScalars sets all the scalars in this order eps 1 fwd 2, bwd 2, bwp 2.
-//Each of the scalars with 2 have an alpha and beta. and they will be put in the order of alpha then beta
-func (l *Layer) SetAllScalars(eps1fwd2bwd2bwp2 []float64) error {
-	if len(eps1fwd2bwd2bwp2) != 7 {
-		return errors.New("Length of scalars needs to be 5")
-	}
-	l.SetEps(eps1fwd2bwd2bwp2[0])
-	l.SetFWAlpha(eps1fwd2bwd2bwp2[1])
-	l.SetFWBeta(eps1fwd2bwd2bwp2[2])
-	l.SetBWDAlpha(eps1fwd2bwd2bwp2[3])
-	l.SetBWDBeta(eps1fwd2bwd2bwp2[4])
-	l.SetBWPAlpha(eps1fwd2bwd2bwp2[5])
-	l.SetBWPBeta(eps1fwd2bwd2bwp2[6])
-	return nil
+//SetOtherScalars these set the weights
+func (l *Layer) SetOtherScalars(alpha, beta float64) {
+	l.bwp.a, l.bwp.b = alpha, beta
 }
 
 //SetEps sets epsilon
@@ -327,34 +297,4 @@ func (l *Layer) SetEps(eps float64) {
 		l.eps = eps
 	}
 
-}
-
-//SetBWPAlpha sets the alpha for bwards params
-func (l *Layer) SetBWPAlpha(a float64) {
-	l.bwp.a = a
-}
-
-//SetBWPBeta sets the beta for bwards params
-func (l *Layer) SetBWPBeta(b float64) {
-	l.bwp.b = b
-}
-
-//SetBWDAlpha sets the alpha for bwards data
-func (l *Layer) SetBWDAlpha(a float64) {
-	l.bwd.a = a
-}
-
-//SetBWDBeta sets beta for bwards data beta
-func (l *Layer) SetBWDBeta(b float64) {
-	l.bwd.b = b
-}
-
-//SetFWAlpha sets fwd alpha
-func (l *Layer) SetFWAlpha(a float64) {
-	l.fw.a = a
-}
-
-//SetFWBeta Sets FwdBeta
-func (l *Layer) SetFWBeta(b float64) {
-	l.fw.b = b
 }

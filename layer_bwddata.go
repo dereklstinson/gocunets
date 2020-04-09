@@ -2,22 +2,22 @@ package gocunets
 
 import (
 	"errors"
-
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
 )
 
 //BackProp does the backprop of a layer
 // Transpose workspace backward is actually forward
-func (l *layer) backpropdata(handle *cudnn.Handler, fwdwspace, bwdwspace *nvidia.Malloced, x, y *layers.IO) error {
-
+func (l *Layer) backpropdata() error {
+	handle := l.h.Handler
+	bwdwspace := l.workspacebwd
 	err := handle.Sync()
+
 	if err != nil {
 		return err
 	}
+
 	if l.cnn != nil {
-		err = l.cnn.BackPropData(handle, bwdwspace, x, y)
+		dx, dy := l.dx.Tensor, l.dy.Tensor
+		err = l.cnn.BackPropData(handle, bwdwspace, dx, dy)
 		if err != nil {
 			return err
 		}
@@ -25,50 +25,55 @@ func (l *layer) backpropdata(handle *cudnn.Handler, fwdwspace, bwdwspace *nvidia
 	}
 
 	if l.activation != nil {
-		err = l.activation.BackProp(handle, x, y)
-		if err != nil {
-			return err
-		}
-		return handle.Sync()
-	}
-	if l.softmax != nil {
-		err = l.softmax.BackProp(handle, x, y)
+		x := l.x.Tensor
+		dx := l.dx.Tensor
+		y := l.y.Tensor
+		dy := l.dy.Tensor
+
+		err = l.activation.BackProp(handle, x, dx, y, dy)
 		if err != nil {
 			return err
 		}
 		return handle.Sync()
 	}
 	if l.drop != nil {
-
-		err = l.drop.BackProp(handle, x, y)
+		dx, dy := l.dx.Tensor, l.dy.Tensor
+		err = l.drop.BackProp(handle, dx, dy)
 		if err != nil {
 			return err
 		}
 		return handle.Sync()
 	}
 	if l.pool != nil {
-		err = l.pool.BackProp(handle, x, y)
+		x := l.x.Tensor
+		dx := l.dx.Tensor
+		y := l.y.Tensor
+		dy := l.dy.Tensor
+		err = l.pool.BackProp(handle, x, dx, y, dy)
 		if err != nil {
 			return err
 		}
 		return handle.Sync()
 	}
 	if l.reshape != nil {
-		err = l.reshape.BackProp(handle, x, y)
+		dx, dy := l.dx.Tensor, l.dy.Tensor
+		err = l.reshape.BackProp(handle, dx, dy)
 		if err != nil {
 			return err
 		}
 		return handle.Sync()
 	}
 	if l.batch != nil {
-		err = l.batch.BackProp(handle, x, y)
+		x, dx, dy := l.x.Tensor, l.dx.Tensor, l.dy.Tensor
+		err = l.batch.BackProp(handle, x, dx, dy)
 		if err != nil {
 			return err
 		}
 		return handle.Sync()
 	}
 	if l.cnntranspose != nil {
-		err = l.cnntranspose.BackPropData(handle, fwdwspace, x, y)
+		dx, dy := l.dx.Tensor, l.dy.Tensor
+		err = l.cnntranspose.BackPropData(handle, bwdwspace, dx, dy)
 		if err != nil {
 			return err
 		}

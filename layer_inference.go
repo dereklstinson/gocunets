@@ -6,10 +6,11 @@ import (
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
+	//"github.com/dereklstinson/GoCuNets/layers"
 )
 
-func (l *layer) inference(handle *cudnn.Handler, fwdwspace, bwddwspace *nvidia.Malloced, x, y *layers.IO) error {
+func (l *Layer) inference(handle *cudnn.Handler, fwdwspace, bwddwspace *nvidia.Malloced) error {
+	x, y := l.x.Tensor, l.y.Tensor
 	err := handle.Sync()
 	if err != nil {
 		fmt.Println("Error During First sync")
@@ -50,17 +51,7 @@ func (l *layer) inference(handle *cudnn.Handler, fwdwspace, bwddwspace *nvidia.M
 		}
 		return nil
 	}
-	if l.softmax != nil {
-		err = l.softmax.ForwardProp(handle, x, y)
-		if err != nil {
-			return err
-		}
-		err = handle.Sync()
-		if err != nil {
-			fmt.Println("Sync Error in Softmax")
-		}
-		return nil
-	}
+
 	if l.pool != nil {
 		err = l.pool.ForwardProp(handle, x, y)
 		if err != nil {
@@ -111,11 +102,21 @@ func (l *layer) inference(handle *cudnn.Handler, fwdwspace, bwddwspace *nvidia.M
 		}
 		return nil
 	}
+	if l.other != nil {
+		err = l.other.Inference(handle, x, y)
+		if err != nil {
+			fmt.Println("Error in l.other.Inference(handle, x,y) ")
+			return err
+		}
+		return handle.Sync()
+	}
+
 	return errors.New("Layer Not Set Up")
 }
 
+/*
 //Must run getoutput(training) before running this
-func (l *layer) getoutputinference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+func (l *layer) getoutputinference(handle *cudnn.Handler, input *layers.Tensor) (*layers.Tensor, error) {
 
 	if l.cnn != nil {
 		io, err := l.cnn.MakeOutputTensorInference(handle, input)
@@ -165,3 +166,4 @@ func (l *layer) getoutputinference(handle *cudnn.Handler, input *layers.IO) (*la
 	}
 	return nil, errors.New("Layer Needs Support")
 }
+*/

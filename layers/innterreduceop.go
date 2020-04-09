@@ -165,8 +165,8 @@ func checkifones(x []int32) bool {
 func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) (float32, error) {
 	if checkifones(x.Dims()) {
 
-		bsize := x.Memer().TotalBytes()
-		err := nvidia.Memcpy(r.gptr, x.Memer(), bsize)
+		bsize := x.SIB()
+		err := nvidia.Memcpy(r.gptr, x, bsize)
 		if err != nil {
 			return 0, err
 		}
@@ -179,8 +179,8 @@ func (r *reduceop) Reduce(handle *cudnn.Handler, x *tensor.Volume) (float32, err
 		return 0, err
 	}
 
-	bsize := x.Memer().TotalBytes()
-	err = nvidia.Memcpy(r.gptr, x.Memer(), bsize)
+	bsize := x.SIB()
+	err = nvidia.Memcpy(r.gptr, x, bsize)
 	if err != nil {
 		return 0, err
 	}

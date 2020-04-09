@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/utils"
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
@@ -38,8 +39,8 @@ func colornormal(params []float32) []int {
 
 //ToOneImageColor will return an image.Image of the volume in batch/neuron for the rows, and channels for the column
 //Y and X represent how much padding of (hopefully black) there is between the channels and neurons
-func (t *Volume) ToOneImageColor(X, Y int) (image.Image, error) {
-	images, err := t.ToImagesColor()
+func (t *Volume) ToOneImageColor(h *cudnn.Handler, X, Y int) (image.Image, error) {
+	images, err := t.ToImagesColor(h)
 	if err != nil {
 		return nil, err
 	}
@@ -47,11 +48,11 @@ func (t *Volume) ToOneImageColor(X, Y int) (image.Image, error) {
 }
 
 //ToImagesColor makes a 2d array of images. Negative will be Green. Positive will be purple it returns a double array of image.Image. Only Float32 support right now
-func (t *Volume) ToImagesColor() ([][]image.Image, error) {
+func (t *Volume) ToImagesColor(h *cudnn.Handler) ([][]image.Image, error) {
 	dims := t.current.tD.Dims()
 	vol := utils.FindVolumeInt32(dims, nil)
 	slice := make([]float32, vol)
-	err := t.memgpu.FillSlice(slice)
+	err := t.FillSlice(h, slice)
 	if err != nil {
 		return nil, err
 	}

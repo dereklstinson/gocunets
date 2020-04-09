@@ -58,10 +58,10 @@ func (t *Volume) OpAdd(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
-		return t.op.add.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+		return t.op.add.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 	}
 
-	return t.op.add.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+	return t.op.add.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 }
 func errorappend(comment string, err error) error {
 	return errors.New(comment + ": " + err.Error())
@@ -84,9 +84,9 @@ func (t *Volume) OpMult(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta flo
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
-		return t.op.mult.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+		return t.op.mult.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 	}
-	return t.op.mult.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+	return t.op.mult.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 
 }
 
@@ -107,10 +107,10 @@ func (t *Volume) OpNot(h *cudnn.Handler, A *Volume, alpha1, beta float64) error 
 		if err != nil {
 			return err
 		}
-		return t.op.not.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
+		return t.op.not.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, 0, nil, nil, beta, t.current.tD, t)
 	}
 
-	return t.op.not.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
+	return t.op.not.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, 0, nil, nil, beta, t.current.tD, t)
 }
 
 //OpMax does max comparison Operation C = op ( alpha1[0] * A, alpha2[0] * B ) + beta[0] * C,
@@ -131,9 +131,9 @@ func (t *Volume) OpMax(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
-		return t.op.max.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+		return t.op.max.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 	}
-	return t.op.max.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+	return t.op.max.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 
 }
 
@@ -155,9 +155,9 @@ func (t *Volume) OpMin(h *cudnn.Handler, A, B *Volume, alpha1, alpha2, beta floa
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
-		return t.op.min.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+		return t.op.min.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 	}
-	return t.op.min.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, alpha2, B.current.tD, B.memgpu, beta, t.current.tD, t.memgpu)
+	return t.op.min.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, alpha2, B.current.tD, B, beta, t.current.tD, t)
 }
 
 //OpSqrt does squareroot Operation C = op ( alpha1[0] * A ) + beta[0] * C,
@@ -178,7 +178,7 @@ func (t *Volume) OpSqrt(h *cudnn.Handler, A *Volume, alpha1, beta float64) error
 		if err != nil {
 			return errorappend("NewOpTensorDescriptor: ", err)
 		}
-		return t.op.sqrt.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
+		return t.op.sqrt.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, 0, nil, nil, beta, t.current.tD, t)
 	}
-	return t.op.sqrt.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A.memgpu, 0, nil, nil, beta, t.current.tD, t.memgpu)
+	return t.op.sqrt.desc.OpTensor(h.Cudnn(), alpha1, A.current.tD, A, 0, nil, nil, beta, t.current.tD, t)
 }

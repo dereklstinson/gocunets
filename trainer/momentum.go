@@ -49,10 +49,10 @@ func (t *Momentum) SetRate(rate float32) {
 }
 
 //SetTrainingMem will load the gsum values
-func (t *Momentum) SetTrainingMem(handle *cudnn.Handler, weights *layers.IO) error {
+func (t *Momentum) SetTrainingMem(handle *cudnn.Handler, w *layers.Tensor) error {
 
 	var err error
-	t.gsum, err = weights.T().ZeroClone(handle)
+	t.gsum, err = tensor.ZeroClone(handle, w.Volume)
 	return err
 }
 func errorappender(comment string, err error) error {
@@ -61,51 +61,29 @@ func errorappender(comment string, err error) error {
 
 }
 
-/*
-func (t *Momentum) UpdateWeights2(handle *gocudnn.Handle, weights *layers.IO, batch float64) error {
-	var err error
-	err = weights.DeltaT().ScaleValues(handle, 1.0/batch)
-	if err != nil {
-
-		return errorappender("updateweights2: ScaleValues", err)
-	}
-	err = t.gsum.OpAdd(handle, weights.DeltaT(), weights.DeltaT(), -t.rate, 0.0, t.momentum)
-	if err != nil {
-
-		return errorappender("updateweights2: OpAdd Momentum", err)
-	}
-
-	err = weights.T().OpAdd(handle, t.gsum, t.gsum, 1.0, 0.0, 1.0)
-	if err != nil {
-		return errorappender("updateweights2: OpAdd Weights", err)
-	}
-	return weights.DeltaT().SetValues(handle, 0.0)
-}
-*/
-
 //UpdateWeights for now is just the momentum operation.  I might have to make a new cuda library for gocudnn. I will have to check that out.
-func (t *Momentum) UpdateWeights(handle *cudnn.Handler, weights *layers.IO, batch int) error {
+func (t *Momentum) UpdateWeights(handle *cudnn.Handler, dw, w *layers.Tensor, batch int) error {
 
 	var err error
 
-	err = weights.DeltaT().ScaleValues(handle, 1.0/float64(batch))
+	err = dw.ScaleValues(handle, 1.0/float64(batch))
 	if err != nil {
 
 		return errorappender("updateweights: ScaleValues", err)
 	}
 
 	//gsum = weights.DeltaT()*(-t.rate)+(gsum*t.momentum)
-	err = t.gsum.AddTo(handle, weights.DeltaT(), -t.rate, t.momentum)
+	err = t.gsum.AddTo(handle, dw.Volume, -t.rate, t.momentum)
 	if err != nil {
 		return err
 	}
 	// weights.T()=weights.T()*1 +t.gsum*1
-	err = weights.T().AddTo(handle, t.gsum, 1.0, 1.0)
+	err = w.AddTo(handle, t.gsum, 1.0, 1.0)
 
 	if err != nil {
 		return err
 	}
 
-	return weights.DeltaT().SetValues(handle, 0.0)
+	return dw.SetValues(handle, 0.0)
 
 }

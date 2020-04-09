@@ -43,8 +43,10 @@ func Stage(reduceop gocudnn.ReduceTensorOp, dtype gocudnn.DataType, nanprop gocu
 
 //Reduce performs the reduce operation with input/output being y where y= alpha* Op(x) +beta*y
 func (o *Ops) Reduce(handle *cudnn.Handler, indicies *nvidia.Malloced, workspace *nvidia.Malloced, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
-
-	return o.desc.ReduceTensorOp(handle.Cudnn(), indicies, indicies.TotalBytes(), workspace, workspace.TotalBytes(), alpha, x.TD(), x.Memer(), beta, y.TD(), y.Memer())
+	if indicies == nil {
+		return o.desc.ReduceTensorOp(handle.Cudnn(), nil, 0, workspace, workspace.SIB(), alpha, x.TD(), x, beta, y.TD(), y)
+	}
+	return o.desc.ReduceTensorOp(handle.Cudnn(), indicies, indicies.SIB(), workspace, workspace.SIB(), alpha, x.TD(), x, beta, y.TD(), y)
 
 }
 

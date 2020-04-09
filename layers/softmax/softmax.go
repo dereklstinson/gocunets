@@ -1,8 +1,6 @@
 package softmax
 
 import (
-	"errors"
-
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/softmax"
 	"github.com/dereklstinson/GoCuNets/layers"
@@ -17,6 +15,8 @@ type Layer struct {
 	balpha float64
 	bbeta  float64
 }
+
+//OpMultiplier sets the alpha beta scalars for the forward and backward operations
 type OpMultiplier struct {
 	ForwardAlpha  float64
 	ForwardBeta   float64
@@ -203,45 +203,23 @@ func StageAccuratePerInstance(options *OpMultiplier) *Layer {
 }
 
 //ForwardProp performs the forward propigation y is the output
-func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.s.ForwardProp(handle, l.alpha, x.T(), l.beta, y.T())
-	//	err := s.Funcs.SoftMaxForward(handle, l.algo, l.mode, l.alpha, x.T().TD(), x.T().Memer(), l.beta, y.T().TD(), y.T().Memer())
-	//	return err
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.Tensor) error {
+	return l.s.ForwardProp(handle, l.alpha, x.Volume, l.beta, y.Volume)
+
 }
 
 //BackProp performs the backward propigation // x is the output
-func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
-	return l.s.BackProp(handle, l.balpha, y.T(), y.DeltaT(), l.bbeta, x.DeltaT())
-	//	err := s.Funcs.SoftMaxBackward(handle, l.algo, l.mode, l.alpha, y.T().TD(), y.T().Memer(), y.T().TD(), y.DMem(), l.beta, x.DeltaT().TD(), x.DeltaT().Memer())
-	//	return err
+func (l *Layer) BackProp(handle *cudnn.Handler, dx, dy, y *layers.Tensor) error {
+	return l.s.BackProp(handle, l.balpha, y.Volume, dy.Volume, l.bbeta, dx.Volume)
+
 }
 
-//SetAlphaScalars takes a slice of length 2 and sets the scalars in the order of fwd and bwd
-func (l *Layer) SetAlphaScalars(alphas []float64) error {
-	if len(alphas) != 2 {
-		return errors.New("length of alphas needs to be 2")
-	}
-	l.alpha = alphas[0]
-	l.balpha = alphas[1]
-	return nil
+//SetForwardScalars sets the forward alpha beta scalars
+func (l *Layer) SetForwardScalars(alpha, beta float64) {
+	l.alpha, l.beta = alpha, beta
 }
 
-//SetBetaScalars takes a slice of length 2 and sets the scalars in the order of fwd and bwd
-func (l *Layer) SetBetaScalars(betas []float64) error {
-	if len(betas) != 2 {
-		return errors.New("length of betas needs to be 2")
-	}
-	l.beta = betas[0]
-	l.bbeta = betas[1]
-	return nil
-}
-
-//NumAlphaScalars returns the number of alpha scalars for this layer
-func (l *Layer) NumAlphaScalars() int {
-	return 2
-}
-
-//NumBetaScalars returns the number of beta scalars for this layer
-func (l *Layer) NumBetaScalars() int {
-	return 2
+//SetBackwardScalars sets the backward alpha,beta scalars
+func (l *Layer) SetBackwardScalars(alpha, beta float64) {
+	l.balpha, l.bbeta = alpha, beta
 }

@@ -75,7 +75,7 @@ func MakeImager(handle *cudnn.Handler) (*Imager, error) {
 }
 
 //ByBatches will return the images by batches if h xor w is zero then the ration will be kept. if both are zero then the ratio is not
-func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]image.Image, error) {
+func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.Tensor, h, w uint) ([]image.Image, error) {
 	frmt, dtype, dims, err := x.Properties()
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 	if z == nil {
 		return nil, errors.New("Unsupported Datatype")
 	}
-	x.T().Memer().FillSlice(z)
+	x.FillSlice(handle, z)
 	images := make([]image.Image, 0)
 	batchvol := int(utils.FindVolumeInt32(dims[1:], nil))
 	batchdims := []int32{1, dims[1], dims[2], dims[3]}
@@ -120,124 +120,23 @@ func (im *Imager) ByBatches(handle *cudnn.Handler, x *layers.IO, h, w uint) ([]i
 	return images, nil
 }
 
-//TileBatchesXdX will take the batches and lay place them withing the HWC space like tiles.It will do both of the x and dx tensors in the layer.IO
-//Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatchesXdX(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int) (image.Image, image.Image, error) {
-
-	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{int32(h), int32(w)}, []int32{int32(hstride), int32(wstride)})
-	if err != nil {
-		return nil, nil, err
-	}
-	if im.cache == nil {
-		_, _, xdims, err := x.Properties()
-		if err != nil {
-			return nil, nil, err
-		}
-
-		xdims[0] = handle.GetMaxBatch()
-		im.cache, err = tensor.BuildWithMaxDims(handle, frmt, dtype, dims, xdims)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		_, _, cdims, err := im.cache.Properties()
-		if err != nil {
-			return nil, nil, err
-		}
-		if utils.CompareInt32(dims, cdims) == false {
-
-			err = im.cache.ChangeDims(dims)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-	}
-	err = im.shaper.S2BBackward(handle, im.cache, x.T(), []int32{int32(hstride), int32(wstride)})
-	if err != nil {
-		return nil, nil, err
-	}
-	var dflg gocudnn.DataType
-	vol := utils.FindVolumeInt32(dims, nil)
-	var z []float32
-	switch dtype {
-	case dflg.Double():
-		y := make([]float64, vol)
-		z = converttofloat32(y)
-	case dflg.Float():
-		y := make([]float32, vol)
-		z = converttofloat32(y)
-	case dflg.Int32():
-		y := make([]int32, vol)
-		z = converttofloat32(y)
-	case dflg.Int8():
-		y := make([]int8, vol)
-		z = converttofloat32(y)
-	case dflg.UInt8():
-		y := make([]uint8, vol)
-		z = converttofloat32(y)
-	}
-	if z == nil {
-		return nil, nil, errors.New("Unsupported Datatype")
-	}
-	err = im.cache.Memer().FillSlice(z)
-	if err != nil {
-		return nil, nil, err
-	}
-	img, err := makeimage(z, dims, frmt)
-	if err != nil {
-		return nil, nil, err
-	}
-	err = im.shaper.S2BBackward(handle, im.cache, x.DeltaT(), []int32{int32(hstride), int32(wstride)})
-	if err != nil {
-		return nil, nil, err
-	}
-	err = im.cache.Memer().FillSlice(z)
-	if err != nil {
-		return nil, nil, err
-	}
-	img2, err := makeimage(z, dims, frmt)
-	if err != nil {
-		return nil, nil, err
-	}
-	return img, img2, nil
-
-}
-
 //TileBatches will take the batches and lay place them withing the HWC space like tiles.
 //Channel dim is limited to 1-4. If c=1: [r,r,r,255]; If c=2: [r,g,avg(r,g),255]; c=3: [r,g,b,255]; c=4: [r,g,b,a];
-func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride, wstride int32) (image.Image, error) {
+func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.Tensor, h, w, hstride, wstride int32) (image.Image, error) {
 
-	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(handle, x.T(), []int32{(h), (w)}, []int32{(hstride), (wstride)})
+	frmt, dtype, dims, err := im.shaper.GetB2SOutputProperties(x.Volume, []int32{(h), (w)}, []int32{(hstride), (wstride)})
 	if err != nil {
 
 		return nil, err
 	}
 	if im.cache == nil {
-		_, _, xdims, err := x.Properties()
-		if err != nil {
-			return nil, err
-		}
 
-		xdims[0] = handle.GetMaxBatch()
-		im.cache, err = tensor.BuildWithMaxDims(handle, frmt, dtype, dims, xdims)
+		im.cache, err = tensor.Build(handle, frmt, dtype, dims)
 		if err != nil {
 			return nil, err
-		}
-	} else {
-		_, _, cdims, err := im.cache.Properties()
-		if err != nil {
-			return nil, err
-		}
-		if utils.CompareInt32(dims, cdims) == false {
-
-			err = im.cache.ChangeDims(dims)
-			if err != nil {
-				return nil, err
-			}
 		}
 	}
-
-	err = im.shaper.S2BBackward(handle, im.cache, x.T(), []int32{int32(hstride), int32(wstride)})
+	err = im.shaper.S2BBackward(handle, im.cache, x.Volume, []int32{int32(hstride), int32(wstride)})
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +163,7 @@ func (im *Imager) TileBatches(handle *cudnn.Handler, x *layers.IO, h, w, hstride
 	if z == nil {
 		return nil, errors.New("Unsupported Datatype")
 	}
-	im.cache.Memer().FillSlice(z)
+	im.cache.FillSlice(handle, z)
 	return makeimage(z, dims, frmt)
 
 }

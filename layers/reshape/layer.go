@@ -58,7 +58,7 @@ func SetupS2B(handle *cudnn.Handler, window, stride []int32, networkinput bool) 
 }
 
 //MakeOutputTensor returns a layer.IO for the network
-func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.IO, error) {
+func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.Tensor) (*layers.Tensor, error) {
 	var lmf ModeFlag
 	switch l.mode {
 
@@ -79,7 +79,7 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, x *layers.IO) (*layers.I
 }
 
 //MakeOutputTensorInference makes the output tensor for inference
-func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, x *layers.IO) (*layers.IO, error) {
+func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, x *layers.Tensor) (*layers.Tensor, error) {
 	var lmf ModeFlag
 	switch l.mode {
 
@@ -100,7 +100,7 @@ func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, x *layers.IO) (
 }
 
 //ForwardProp performs the forward prop x is the input and y is the input and output
-func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.Tensor) error {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():
@@ -121,7 +121,7 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
 }
 
 //BackProp performs the backprop prop x is the input and output and y is the input
-func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
+func (l *Layer) BackProp(handle *cudnn.Handler, x, y *layers.Tensor) error {
 	var lmf ModeFlag
 	switch l.mode {
 	case lmf.Transpose():

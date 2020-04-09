@@ -149,17 +149,17 @@ func onedoutputdim(x, p, w, s int32) int32 {
 //Forward does the pooling fwd operation
 func (p *Ops) Forward(handle *cudnn.Handler, alpha, beta float64, x, y *tensor.Volume) error {
 	if p.reverse {
-		return p.desc.Backward(handle.Cudnn(), alpha, x.TD(), x.Memer(), x.TD(), x.Memer(), y.TD(), y.Memer(), beta, y.TD(), y.Memer())
+		return p.desc.Backward(handle.Cudnn(), alpha, x.TD(), x, x.TD(), x, y.TD(), y, beta, y.TD(), y)
 	}
-	return p.desc.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), beta, y.TD(), y.Memer())
+	return p.desc.Forward(handle.Cudnn(), alpha, x.TD(), x, beta, y.TD(), y)
 }
 
 //Backward does the backward propagation operation
 func (p *Ops) Backward(handle *cudnn.Handler, alpha, beta float64, x, dx, y, dy *tensor.Volume) error {
 	if p.reverse {
-		return p.desc.Forward(handle.Cudnn(), alpha, dy.TD(), dy.Memer(), beta, dx.TD(), dx.Memer())
+		return p.desc.Forward(handle.Cudnn(), alpha, dy.TD(), dy, beta, dx.TD(), dx)
 	}
-	return p.desc.Backward(handle.Cudnn(), alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), x.TD(), x.Memer(), beta, dx.TD(), dx.Memer())
+	return p.desc.Backward(handle.Cudnn(), alpha, y.TD(), y, dy.TD(), dy, x.TD(), x, beta, dx.TD(), dx)
 
 }
 

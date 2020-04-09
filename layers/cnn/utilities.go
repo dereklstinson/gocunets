@@ -1,6 +1,12 @@
 package cnn
 
-import "github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+import (
+	"io"
+
+	"github.com/dereklstinson/GoCudnn/cudart/crtutil"
+
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+)
 
 /*
 //SaveImagesToFile saves images do file
@@ -21,7 +27,14 @@ func (c *Layer) LoadWValues(handle *cudnn.Handler, slice interface{}, length int
 			return err
 		}
 	*/
-	return c.w.LoadTValuesFromGoSlice(handle, slice, int32(length))
+	return c.w.LoadValuesFromSLice(handle, slice, int32(length))
+}
+
+//LoadWvaluesEX takes a reader and coppies the bytes over to the weights
+func (c *Layer) LoadWvaluesEX(handle *cudnn.Handler, r io.Reader) error {
+	rw := crtutil.NewReadWriter(c.w, c.w.SIB(), handle.Stream())
+	_, err := io.Copy(rw, r)
+	return err
 }
 
 //LoadBiasValues will load a slice into cuda memory for the Weights.
@@ -30,7 +43,14 @@ func (c *Layer) LoadBiasValues(handle *cudnn.Handler, slice interface{}, length 
 	if err != nil {
 		return err
 	}*/
-	return c.bias.LoadTValuesFromGoSlice(handle, slice, int32(length))
+	return c.bias.LoadValuesFromSLice(handle, slice, int32(length))
+}
+
+//LoadBiasValuesEX takes a reader and coppies the bytes over to the bias
+func (c *Layer) LoadBiasValuesEX(handle *cudnn.Handler, r io.Reader) error {
+	rw := crtutil.NewReadWriter(c.bias, c.bias.SIB(), handle.Stream())
+	_, err := io.Copy(rw, r)
+	return err
 }
 
 /*
@@ -53,18 +73,19 @@ func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
 */
 
 //WeightsFillSlice will fill a slice with the weight values
-func (c *Layer) WeightsFillSlice(input interface{}, length int) error {
-	return c.w.T().FillSlice(input, int32(length))
+func (c *Layer) WeightsFillSlice(h *cudnn.Handler, input interface{}, length int) error {
+	return c.w.FillSlice(h, input)
 	//	return c.w.T().Memer().FillSlice(input)
 
 }
 
 //DeltaWeightsFillSlice will fill the weights with values
-func (c *Layer) DeltaWeightsFillSlice(input interface{}, length int) error {
-	return c.w.DeltaT().FillSlice(input, int32(length))
+func (c *Layer) DeltaWeightsFillSlice(h *cudnn.Handler, input interface{}, length int) error {
+	return c.w.FillSlice(h, input)
 	//	return c.w.DeltaT().Memer().FillSlice(input)
 }
 
+/*
 //SetupWStatReducers builds the statistic reducers for the w part of the Weights and bias
 func (c *Layer) SetupWStatReducers(handle *cudnn.Handler) (err error) {
 	err = c.w.SetXStatReducers(handle)
@@ -81,17 +102,18 @@ func (c *Layer) SetupWStatReducers(handle *cudnn.Handler) (err error) {
 
 //SetupDWStatReducers b builds the statistic reducers for the dw part of the Weights and bias
 func (c *Layer) SetupDWStatReducers(handle *cudnn.Handler) (err error) {
-	err = c.w.SetDXStatReducers(handle)
+	err = c.dw.SetXStatReducers(handle)
 	if err != nil {
 		return err
 	}
-	err = c.bias.SetDXStatReducers(handle)
+	err = c.dbias.SetXStatReducers(handle)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
+*/
 
 /*
 
@@ -163,27 +185,27 @@ Delta Weights
 
 //DWMax returns the Max delta weight value for the layer
 func (c *Layer) DWMax(handle *cudnn.Handler) (float32, error) {
-	return c.w.MaxDX(handle)
+	return c.dw.MaxX(handle)
 }
 
 //DWMin returns the Min delta weight value for the layer
 func (c *Layer) DWMin(handle *cudnn.Handler) (float32, error) {
-	return c.w.MinDX(handle)
+	return c.dw.MinX(handle)
 }
 
 // DWAvg returns the avg delta weight value for the layer
 func (c *Layer) DWAvg(handle *cudnn.Handler) (float32, error) {
-	return c.w.AvgDX(handle)
+	return c.dw.AvgX(handle)
 }
 
 // DWNorm1 returns the norm1 delta weight value for the layer
 func (c *Layer) DWNorm1(handle *cudnn.Handler) (float32, error) {
-	return c.w.Norm1DX(handle)
+	return c.dw.Norm1X(handle)
 }
 
 // DWNorm2 returns the norm2 delta weight value for the layer
 func (c *Layer) DWNorm2(handle *cudnn.Handler) (float32, error) {
-	return c.w.Norm2DX(handle)
+	return c.dw.Norm2X(handle)
 }
 
 /*
@@ -194,25 +216,25 @@ Delta Bias
 
 //DBMax returns the Max delta bias value for the layer
 func (c *Layer) DBMax(handle *cudnn.Handler) (float32, error) {
-	return c.bias.MaxDX(handle)
+	return c.dbias.MaxX(handle)
 }
 
 //DBMin returns the Min delta bias value for the layer
 func (c *Layer) DBMin(handle *cudnn.Handler) (float32, error) {
-	return c.bias.MinDX(handle)
+	return c.dbias.MinX(handle)
 }
 
 // DBAvg returns the avg delta bias value for the layer
 func (c *Layer) DBAvg(handle *cudnn.Handler) (float32, error) {
-	return c.bias.AvgDX(handle)
+	return c.dbias.AvgX(handle)
 }
 
 // DBNorm1 returns the norm1 delta bias value for the layer
 func (c *Layer) DBNorm1(handle *cudnn.Handler) (float32, error) {
-	return c.bias.Norm1DX(handle)
+	return c.dbias.Norm1X(handle)
 }
 
 // DBNorm2 returns the norm2 delta bias value for the layer
 func (c *Layer) DBNorm2(handle *cudnn.Handler) (float32, error) {
-	return c.bias.Norm2DX(handle)
+	return c.dbias.Norm2X(handle)
 }

@@ -10,50 +10,38 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 	"github.com/dereklstinson/GoCudnn/cuda"
 	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/GoCudnn/curand"
 	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/GoCudnn/xtra"
 )
 
 //Handler contains the handles used in gocudnn and also the xtra kernals.
 type Handler struct {
-	cudnn    *gocudnn.Handle
-	xtra     *xtra.Handle
-	stream   gocu.Streamer
-	unified  bool
-	maxbatch int32
-	device   cudart.Device
+	*gocu.Worker
+	cudnn   *gocudnn.Handle
+	xtra    *xtra.Handle
+	stream  gocu.Streamer
+	unified bool
+	device  cudart.Device
+	rngtype curand.RngType
+	curng   *curand.Generator
+	seed    uint
 }
 
-//FindMaxVol will find the max vol for tensor.  This is going to hold two functions
+//FindVol will find the max vol for tensor.  This is going to hold two functions
 //pmax can be either the previous maxvol, or it could be
-func (h *Handler) FindMaxVol(outputdims []int32) int32 {
-	if h.maxbatch <= 0 {
-		utils.FindVolumeInt32(outputdims, nil)
-	}
-	return utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims)
+func (h *Handler) FindVol(outputdims []int32) int32 {
+	return utils.FindVolumeInt32(outputdims, nil)
 }
 
-//SetMaxBatch sets the max batch used behind the scenes to allow dynamic resizing of tensors.
-func (h *Handler) SetMaxBatch(maxbatchsize int32) {
-	h.maxbatch = maxbatchsize
-}
-
-//GetMaxBatch returns the max batch
-func (h *Handler) GetMaxBatch() int32 {
-	if h.maxbatch < 1 {
-		return 1
-	}
-	return h.maxbatch
-
-}
-
+/*
 //FindMaxUint returns the max sizeT
-func (h *Handler) FindMaxUint(outputdims []int32) uint {
-	if h.maxbatch <= 0 {
-		return uint(utils.FindVolumeInt32(outputdims, nil) * 4)
-	}
-	return uint(utils.FindMaxVolThroughMaxBatch(h.maxbatch, outputdims) * 4)
+func (h *Handler) FindSIB(outputdims []int32) uint {
+
+	return uint(utils.FindVolumeInt32(outputdims, nil) * 4)
+
 }
+*/
 
 //Unified returns if the device the handler is using uses unified memory
 func (h *Handler) Unified() bool {
@@ -72,6 +60,13 @@ func (h *Handler) Cudnn() *gocudnn.Handle {
 
 //Stream returns the stream
 func (h *Handler) Stream() gocu.Streamer {
+	if h.stream == nil {
+		var err error
+		h.stream, err = cudart.CreateNonBlockingStream()
+		if err != nil {
+			panic(err)
+		}
+	}
 	return h.stream
 }
 
@@ -103,35 +98,54 @@ func (h *Handler) SetDevice() error {
 	return h.device.Set()
 }
 
+//GetCuRNG returns the curand.Generator Handler is holding
+func (h *Handler) GetCuRNG() *curand.Generator {
+	return h.curng
+}
+
 //CreateHandler creates a the handlers
 //The handler is used in managing memory for all the packages that use cudnn.Handler. This function will raise a flag that will tell the program
 //to use unified memory management.  If that is not wanted call MakeNotUnified immediately to turn this off.
-func CreateHandler(dev cudart.Device) *Handler {
-	err := dev.Set()
-	if err != nil {
-		panic(err)
-	}
+func CreateHandler(w *gocu.Worker, dev cudart.Device, seed uint64) (h *Handler) {
+
+	h = new(Handler)
+	h.rngtype.PseudoDefault()
+	h.Worker = w
+	h.device = dev
 	var unified bool
 	major, err := dev.Major()
 	if err != nil {
-		return nil
+		panic(err)
 	}
 	if 6 < major {
 		unified = true
 	}
-	x := gocudnn.CreateHandle(true)
-	y, err := xtra.MakeHandle(dev, unified)
-	if err != nil {
-		panic(err)
+	h.unified = unified
+	if w != nil {
+		h.cudnn = gocudnn.CreateHandleEX(h.Worker, true)
+		h.curng = curand.CreateGeneratorEx(h.Worker, h.rngtype)
+		h.xtra, err = xtra.MakeHandleEx(h.Worker, unified)
+		if err != nil {
+			panic(err)
+		}
+		err = h.curng.SetPsuedoSeed(seed)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		h.cudnn = gocudnn.CreateHandle(true)
+		h.curng = curand.CreateGenerator(h.rngtype)
+		h.xtra, err = xtra.MakeHandle(dev, unified)
+		if err != nil {
+			panic(err)
+		}
+		err = h.curng.SetPsuedoSeed(seed)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	return &Handler{
-		cudnn:    x,
-		xtra:     y,
-		unified:  unified,
-		maxbatch: 0,
-		device:   dev,
-	}
+	return h
 }
 
 //SetStream sets the stream for the handles
@@ -141,6 +155,10 @@ func (h *Handler) SetStream(stream gocu.Streamer) error {
 		return err
 	}
 	err = h.xtra.SetStream(stream)
+	if err != nil {
+		return err
+	}
+	err = h.curng.SetStream(stream)
 	if err != nil {
 		return err
 	}

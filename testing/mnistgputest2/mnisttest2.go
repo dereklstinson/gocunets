@@ -2,167 +2,423 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
+
+	"github.com/dereklstinson/GoCudnn/gocu"
+
+	"github.com/dereklstinson/GoCudnn/cudart"
+
 	"math"
 	"math/rand"
-	"sync"
 	"time"
 
 	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/cudnn"
-	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers/activation"
-	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/layers/pooling"
-	"github.com/dereklstinson/GoCuNets/layers/softmax"
-	"github.com/dereklstinson/GoCuNets/testing/mnist/mnistgpu"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	"github.com/dereklstinson/GoCudnn" //	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
+	//	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
 	//	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+func filldatabuffer(target, data []float32, labeled []dfuncs.LabeledData, batchsize int32) {
+	randomlabeled := make([]dfuncs.LabeledData, batchsize)
+	for i := range randomlabeled {
+		randomlabeled[i] = labeled[rand.Int()%len(labeled)]
+	}
+	for i, rl := range randomlabeled {
+		for j := range rl.Data {
+			data[i*28*28+j] = rl.Data[j]
+		}
+		for j := range rl.Label {
+			target[i*10+j] = rl.Label[j]
+		}
+
+	}
+}
 func main() {
-	var mux sync.Mutex
+	args := os.Args[1:]
+	var err error
+	var devnum int
+	var bsize = 100
+	var savedir string
+
+	if len(args) > 0 {
+		devnum, err = strconv.Atoi(args[0])
+		cherror(err)
+	}
+	if len(args) > 1 {
+		bsize, err = strconv.Atoi(args[1])
+		cherror(err)
+	}
+	if len(args) > 2 {
+		savedir = args[2]
+		if !strings.HasSuffix(savedir, "/") {
+			savedir = savedir + "/"
+		}
+	}
+
+	batchsize := int32(bsize)
+	runtime.LockOSThread()
 	rand.Seed(time.Now().UnixNano())
 	//	savelocationforimages := "/home/derek/Desktop/GANMNIST/"
 	//	imagenames := "MNIST"
-	trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
-	gocudnn.Cuda{}.LockHostThread()
-	var cuda gocudnn.Cuda
-	devices, err := cuda.GetDeviceList()
+	//trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
+
+	devices, err := gocunets.GetDeviceList()
 	cherror(err)
-	devicenum := len(devices)
-	fmt.Println("Number of Devices:", devicenum)
-	device := devices[0]
-	if len(devices) == 2 {
-		device = devices[1]
+	if devnum >= len(devices) {
+		fmt.Printf("\nDevnum too hight must be 0 through %v\n", len(devices)-1)
+		return
 	}
+	device := devices[devnum]
 	err = device.Set()
 	cherror(err)
-	handle := cudnn.CreateHandler(device, trainingkernellocation)
-	stream, err := gocudnn.Cuda{}.CreateBlockingStream()
+	w := gocu.NewWorker(device)
+	handle := gocunets.CreateHandle(w, device, 32)
+	stream, err := cudart.CreateNonBlockingStream()
 	cherror(handle.SetStream(stream))
-	var dtypeflags cudnn.DataTypeFlag
-	var fmtflags cudnn.TensorFormatFlag
-	frmt := fmtflags.NCHW()
-	dtype := dtypeflags.Float()
-	CMode := convolution.Flags().Mode.CrossCorrelation() //.CrossCorrelation()
-
-	Pmode := gocudnn.PoolingModeFlag{}.Max()
-	NanProp := gocudnn.PropagationNANFlag{}.PropagateNan()
-	memmanaged := true
-
-	filter := dims
-	padding := dims
-	stride := dims
-	dilation := dims
-
+	builder := gocunets.CreateBuilder(handle)
+	builder.Cmode.CrossCorrelation()
+	builder.AMode.Leaky()
+	builder.Dtype.Float()
+	builder.Frmt.NCHW()
+	builder.Mtype.Default()
+	builder.Nan.NotPropigate()
 	/*
 	   Lets go ahead and start loading the training data
 
 	*/
 	//asdfas
+	filetrainbatchloss, err := os.Create(savedir + strconv.Itoa(int(batchsize)) + "TrainBatchLoss")
+	cherror(err)
+	defer filetrainbatchloss.Close()
+	filetestbatchloss, err := os.Create(savedir + strconv.Itoa(int(batchsize)) + "TestBatchLoss")
+	cherror(err)
+	defer filetestbatchloss.Close()
+	fileEpocLossTime, err := os.Create(savedir + strconv.Itoa(int(batchsize)) + "TestTrainEpocLossTime")
+	cherror(err)
+	defer fileEpocLossTime.Close()
+	fmt.Fprintf(fileEpocLossTime, "%10s,\t%10s,\t%10s,\t%10s\t\n", "\"Epoch\"", "\"TrainLoss\"", "\"TestLoss\"", "\"Time(s)\"")
+	fmt.Fprintf(filetrainbatchloss, "%10s\n", "\"Train\"")
+	fmt.Fprintf(filetestbatchloss, "%10s\n", "\"Test\"")
+	const filedirectory = "../mnist/files/"
+	const mnistfilelabeltrain = "train-labels.idx1-ubyte"
+	const mnistimagetrain = "train-images.idx3-ubyte"
+	const mnistfilelabeltest = "t10k-labels.idx1-ubyte"
+	const mnistimagetest = "t10k-images.idx3-ubyte"
+	decay1, decay2 := float32(0.00001), float32(0.0001)
+	mnistdatatest, err := dfuncs.LoadMNIST(filedirectory, mnistfilelabeltest, mnistimagetest)
+	mnistdatatrain, err := dfuncs.LoadMNIST(filedirectory, mnistfilelabeltrain, mnistimagetrain)
 
-	batchsize := 20 // how many forward and backward runs before updating weights.
+	var dtaverageimage float32
+	//	var wg sync.WaitGroup
+	//	wg.Add(1)
+	//	go func() {
+	for _, dt := range mnistdatatest {
+		var dtadder float32
+		for i := range dt.Data {
+			dtadder = dtadder + dt.Data[i]
+		}
+		dtaverageimage = dtaverageimage + dtadder/float32(len(dt.Data))
+	}
+	//		wg.Done()
+	//	}()
 
-	gputrainingdata, gpuanswersdata, gputestingdata, gputestansdata := mnistgpu.WithLabels(batchsize, frmt, dtype, memmanaged)
-	batchnum := len(gputrainingdata)
-	testbatchnum := len(gputestingdata)
+	var dtrainaverageimage float32
+	for _, dt := range mnistdatatrain {
+		var dtadder float32
+		for i := range dt.Data {
+			dtadder = dtadder + dt.Data[i]
+		}
+		dtrainaverageimage = dtaverageimage + dtadder/float32(len(dt.Data))
+	}
+	//	wg.Wait()
 
+	totalaverage := dtaverageimage/float32(len(mnistdatatest)) + dtrainaverageimage/float32(len(mnistdatatrain))
+	//normalizealldata
+	//	wg.Add(1)
+	//	go func() {
+	mnistdatatest = dfuncs.NormalizeData(mnistdatatest, totalaverage)
+	//		wg.Done()
+	//	}()
+
+	mnistdatatrain = dfuncs.NormalizeData(mnistdatatrain, totalaverage)
+	//	wg.Wait()
+	fmt.Println("Average Pixel is", totalaverage)
+	fmt.Println("TrainingSize", len(mnistdatatrain))
+	fmt.Println("Testing Size", len(mnistdatatest))
+	mnet := gocunets.CreateSimpleModuleNetwork(0, builder)
+	//databuffer := make([]float32, 28*28*batchsize)
+	//targetbuffer := make([]float32, 10*batchsize)
+	//outputbuffer := make([]float32, 10*batchsize)
+
+	ntrainbatches := int32(len(mnistdatatrain)) / batchsize
+	ntestbatches := int32(len(mnistdatatest)) / batchsize
+	inputdims := []int32{batchsize, 1, 28, 28}
+	fmt.Println("Train,Test Number of Batches", ntrainbatches, ntestbatches)
+
+	mods := make([]gocunets.Module, 5)
 	//AMode := gocudnn.ActivationModeFlag{}.Relu()
-	network := gocunets.CreateNetwork()
-	//Setting Up Network
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, filter(20, 1, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
-	)
-	network.AddLayer( //activation
-		activation.Leaky(handle),
-	)
-	network.AddLayer( //pooling
-		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
-	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, filter(20, 20, 5, 5), CMode, padding(2, 2), stride(1, 1), dilation(1, 1), memmanaged),
-	)
-	network.AddLayer( //activation
-		activation.Leaky(handle),
-	)
-	network.AddLayer( //pooling
-		pooling.SetupDims(Pmode, NanProp, 4, filter(2, 2), padding(0, 0), stride(2, 2), memmanaged),
-	)
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, filter(20, 20, 3, 3), CMode, padding(1, 1), stride(2, 2), dilation(1, 1), memmanaged),
-	)
-	network.AddLayer( //activation
-		activation.Leaky(handle),
-	)
 
-	network.AddLayer( //convolution
-		cnn.SetupDynamic(handle, frmt, dtype, filter(10, 20, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), memmanaged),
-		//fcnn.CreateFromshapeNoOut(handle.Cudnn(), 10, in(batchsize, 20, 4, 4), memmanaged, dtype, frmt),
-	)
-	network.AddLayer( //softmaxoutput
-		softmax.BuildNoErrorChecking(), nil,
-	)
-	cherror(network.DynamicHidden())
-	//cherror(network.StaticHidden(handle))
-	numoftrainers := network.TrainersNeeded()
-	fmt.Println("Number of Trainers:", numoftrainers)
-	decay1, decay2 := float32(0.000001), float32(0.0001)
-	wtrainer := make([]trainer.Trainer, numoftrainers)
-	btrainer := make([]trainer.Trainer, numoftrainers)
-	for i := 0; i < numoftrainers; i++ {
-		wtrainer[i], btrainer[i], err = trainer.SetupAdamWandB(handle.XHandle(), decay1, decay2, int32(batchsize))
+	//	mods[0], err = gocunets.CreateVanillaModule(0, builder, batchsize, []int32{16, 1, 2, 2}, []int32{1, 1}, []int32{1, 1}, []int32{2, 2}, 1, 0, 1, 0)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	mods[1], err = gocunets.CreateVanillaModule(1, builder, batchsize, []int32{16, 16, 2, 2}, []int32{3, 3}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	mods[2], err = gocunets.CreateVanillaModule(2, builder, batchsize, []int32{16, 16, 2, 2}, []int32{3, 3}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	mods[3], err = gocunets.CreateVanillaModule(3, builder, batchsize, []int32{16, 16, 2, 2}, []int32{3, 3}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	outputchannels := []int32{6, 6, 6}
+	var channeladder int32
+	for i := range outputchannels {
+		channeladder += outputchannels[i]
+	}
+
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, 1, outputchannels, []int32{2, 2}, -1, 1, 0, false, false)
+	if err != nil {
+		panic(err)
+	}
+	mods[1], err = gocunets.CreateCompressionModule(1, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[2], err = gocunets.CreateCompressionModule(2, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 1, 1, 0, false, false)
+	if err != nil {
+		panic(err)
+	}
+	mods[4], err = gocunets.CreateCompressionModule(4, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetModules(mods)
+	InputTensor, err := builder.CreateTensor(inputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorX(InputTensor)
+	outputdims, err := mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	//THis has to be NCHW
+	fmt.Println("OutputDims", outputdims)
+
+	outputfdims := []int32{10, channeladder, outputdims[2], outputdims[3]}
+	mnet.Output, err = gocunets.CreateOutputModule(5, builder, batchsize, outputfdims, []int32{0, 0}, []int32{1, 1}, []int32{1, 1}, 1, 0, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.SetSoftMaxClassifier()
+	if err != nil {
+		panic(err)
+	}
+	outputdims, err = mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("NewOutputDims", outputdims)
+	ohy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.Classifier.SetTensorY(ohy)
+	ohdy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.Classifier.SetTensorDY(ohdy)
+
+	err = mnet.InitHiddenLayers(decay1, decay2)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.InitWorkspace()
+	if err != nil {
+		panic(err)
+	}
+	var mux sync.Mutex
+	epochs := 100
+	trainloss := make([]float32, ntrainbatches)
+	testloss := make([]float32, ntestbatches)
+
+	//	for i := range testdatabuffers {
+	//		filldatabuffer(testtargetbuffers[i], testdatabuffers[i], mnistdatatest, batchsize)
+	//	}
+	testtensors := make([]*gocunets.Tensor, ntestbatches)
+	testtensorstarget := make([]*gocunets.Tensor, ntestbatches)
+	for i := range testtensors {
+		testtensors[i], err = builder.CreateTensor([]int32{batchsize, 1, 28, 28})
+		cherror(err)
+		testtensorstarget[i], err = builder.CreateTensor([]int32{batchsize, 10, 1, 1})
 		cherror(err)
 
 	}
+	trainingtensors := make([]*gocunets.Tensor, ntrainbatches)
+	traintargettesnors := make([]*gocunets.Tensor, ntrainbatches)
+	for i := range trainingtensors {
+		trainingtensors[i], err = builder.CreateTensor([]int32{batchsize, 1, 28, 28})
+		cherror(err)
+		traintargettesnors[i], err = builder.CreateTensor([]int32{batchsize, 10, 1, 1})
+		cherror(err)
+	}
 
-	network.LoadTrainers(handle, wtrainer, btrainer)
-	//imager, err := imaging.MakeImager(handle.XHandle())
-	epochs := 50
-	//	inputslicefromgpumem := make([]float32, 28*28)
+	for i := int32(0); i < ntrainbatches; i++ {
+		var trainingfloats []float32
+		var trainingtargets []float32
+		for j := int32(0); j < batchsize; j++ {
+			position := rand.Int63() % (int64)(len(mnistdatatrain))
+			trainingfloats = append(trainingfloats, mnistdatatrain[position].Data...)
+			trainingtargets = append(trainingtargets, mnistdatatrain[position].Label...)
+
+		}
+		cherror(trainingtensors[i].LoadValuesFromSLice(handle.Handler, trainingfloats, (int32)(len(trainingfloats))))
+		cherror(traintargettesnors[i].LoadValuesFromSLice(handle.Handler, trainingtargets, (int32)(len(trainingtargets))))
+	}
+	for i := int32(0); i < ntestbatches; i++ {
+		var testfloats []float32
+		var testtargets []float32
+		for j := int32(0); j < batchsize; j++ {
+			position := rand.Int63() % (int64)(len(mnistdatatest))
+			testfloats = append(testfloats, mnistdatatest[position].Data...)
+			testtargets = append(testtargets, mnistdatatest[position].Label...)
+		}
+		cherror(testtensors[i].LoadValuesFromSLice(handle.Handler, testfloats, (int32)(len(testfloats))))
+		cherror(testtensorstarget[i].LoadValuesFromSLice(handle.Handler, testtargets, (int32)(len(testtargets))))
+	}
+
+	//	filldatabuffer(traintargetbuffers[i], traindatabuffers[i], mnistdatatrain, batchsize)
+	var updatecounter int
+	var donessignal bool
+	fmt.Printf("%10s,\t%10s,\t%10s,\t%10s\t\n", "\"Epoch\"", "\"TrainLoss\"", "\"TestLoss\"", "\"Time(s)\"")
 	for k := 0; k < epochs; k++ {
+		timer := time.Now()
+		rand.Shuffle(len(trainingtensors), func(i, j int) {
+			trainingtensors[i], trainingtensors[j] = trainingtensors[j], trainingtensors[i]
+			traintargettesnors[i], traintargettesnors[j] = traintargettesnors[j], traintargettesnors[i]
+		})
+		batchratio := ntrainbatches / ntestbatches
+		for j := int32(0); j < ntestbatches; j++ {
+			if donessignal {
 
-		for j := 0; j < batchnum; j++ { //I add the j++ at the end of this
-
+				return
+			}
+			for l := j * batchratio; l < j*batchratio+batchratio; l++ {
+				cherror(InputTensor.LoadMem(handle.Handler, trainingtensors[l], trainingtensors[l].SIB()))
+				cherror(mnet.GetTensorDY().LoadMem(handle.Handler, traintargettesnors[l], traintargettesnors[l].SIB()))
+				cherror(stream.Sync())
+				cherror(mnet.Forward())
+				cherror(stream.Sync())
+				cherror(stream.Sync())
+				cherror(mnet.Backward())
+				cherror(stream.Sync())
+				loss := mnet.GetLoss()
+				if math.IsNaN(float64(loss)) {
+					panic(trainloss)
+				}
+				trainloss[l] = loss
+				cherror(mnet.Update(updatecounter))
+				updatecounter++
+				cherror(stream.Sync())
+			}
+			cherror(InputTensor.LoadMem(handle.Handler, testtensors[j], testtensors[j].SIB()))
+			cherror(mnet.GetTensorDY().LoadMem(handle.Handler, testtensorstarget[j], testtensorstarget[j].SIB()))
+			cherror(mnet.TestForward())
 			cherror(stream.Sync())
-			cherror(network.ForwardProp(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
-			cherror(stream.Sync())
-			cherror(network.BackPropFilterData(handle, nil, gputrainingdata[j], gpuanswersdata[j]))
-			cherror(stream.Sync())
-			cherror(network.UpdateWeights(handle, batchsize))
-			cherror(stream.Sync())
-
+			testloss[j] = mnet.GetLoss()
 		}
 		mux.Lock()
-		netoutput := make([][]float32, testbatchnum)
-		desiredoutput := make([][]float32, testbatchnum)
-		for j := 0; j < testbatchnum; j++ {
-
-			cherror(network.ForwardProp(handle, nil, gputestingdata[j], gputestansdata[j]))
-			cherror(stream.Sync())
-
-			netoutput[j] = make([]float32, 10*batchsize)
-
-			desiredoutput[j] = make([]float32, 10*batchsize)
-
-			cherror(gputestansdata[j].T().Memer().FillSlice(netoutput[j]))
-			cherror(stream.Sync())
-			cherror(gputestansdata[j].DeltaT().Memer().FillSlice(desiredoutput[j]))
-			cherror(stream.Sync())
-
-		}
+		testlosscopy := make([]float32, ntestbatches)
+		trainlosscopy := make([]float32, ntrainbatches)
+		copy(trainlosscopy, trainloss)
+		copy(testlosscopy, testloss)
 		mux.Unlock()
 		cherror(stream.Sync())
-		go func(netoutput [][]float32, desiredoutput [][]float32, k int, testbatchnum int, batchsize int) {
-			mux.Lock()
-			percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
-			fmt.Printf("Epoch Percent Correct: %-0.3f		 Epoch Loss: %-0.3f              Epoch Number: %d\n", percent, loss, k)
-			mux.Unlock()
-		}(netoutput, desiredoutput, k, testbatchnum, batchsize)
+		timetoepoch := float32(time.Now().Sub(timer).Seconds())
+		if k < epochs-1 {
+
+			go func(k int, trainlosscopy, testlosscopy []float32, timetoepoch float32, fileEpocLossTime, filetestbatchloss, filetrainbatchloss io.Writer) {
+				mux.Lock()
+				var trainlossadder float32
+				var testlossadder float32
+				for i := range trainlosscopy {
+					trainlossadder = trainlossadder + trainlosscopy[i]
+				}
+				trainlossadder /= float32(len(trainlosscopy))
+				for i := range testlosscopy {
+					testlossadder = testlossadder + testlosscopy[i]
+				}
+				testlossadder /= float32(len(testlosscopy))
+				fmt.Printf("%10d,\t%10.5f,\t%10.5f,\t%10.5f\n", k, trainlossadder, testlossadder, timetoepoch)
+				//	percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
+				fmt.Fprintf(fileEpocLossTime, "%10d,\t%10.5f,\t%10.5f,\t%10.5f\n", k, trainlossadder, testlossadder, timetoepoch) //sizes of strings 5,9,8,7
+				go func(trainlosscopy []float32) {
+					for i := range trainlosscopy {
+						fmt.Fprintf(filetrainbatchloss, "%10.5f\n", trainlosscopy[i])
+					}
+				}(trainlosscopy)
+				go func(testlosscopy []float32) {
+					for i := range testlosscopy {
+						fmt.Fprintf(filetestbatchloss, "%10.5f\n", testlosscopy[i])
+					}
+				}(testlosscopy)
+				if testlossadder < .005 {
+					donessignal = true
+				}
+				mux.Unlock()
+			}(k, trainlosscopy, testlosscopy, timetoepoch, fileEpocLossTime, filetestbatchloss, filetrainbatchloss)
+
+		} else {
+			var trainlossadder float32
+			var testlossadder float32
+			for i := range trainlosscopy {
+				trainlossadder = trainlossadder + trainlosscopy[i]
+			}
+			trainlossadder /= float32(len(trainlosscopy))
+			for i := range testlosscopy {
+				testlossadder = testlossadder + testlosscopy[i]
+			}
+			testlossadder /= float32(len(testlosscopy))
+			fmt.Printf("%10d,\t%10.5f,\t%10.5f,\t%10.5f\n", k, trainlossadder, testlossadder, timetoepoch)
+			//	percent, loss := epocoutputchecker(netoutput, desiredoutput, testbatchnum, batchsize, 10)
+			fmt.Fprintf(fileEpocLossTime, "%10d,\t%10.5f,\t%10.5f,\t%10.5f\n", k, trainlossadder, testlossadder, timetoepoch) //sizes of strings 5,9,8,7
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func(trainlosscopy []float32) {
+				for i := range trainlosscopy {
+					fmt.Fprintf(filetrainbatchloss, "%10.5f\n", trainlosscopy[i])
+				}
+				wg.Done()
+			}(trainlosscopy)
+			wg.Add(1)
+			go func(testlosscopy []float32) {
+				for i := range testlosscopy {
+					fmt.Fprintf(filetestbatchloss, "%10.5f\n", testlosscopy[i])
+				}
+				wg.Done()
+			}(testlosscopy)
+			wg.Wait()
+
+		}
 
 	}
 
-	gocudnn.Cuda{}.UnLockHostThread()
+	runtime.UnlockOSThread()
 
 }
 func printoutput(numofans, batchsize int, input []float32) {

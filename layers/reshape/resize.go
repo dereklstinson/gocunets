@@ -6,19 +6,19 @@ import (
 )
 
 //SpaceToBatchForwardProp does the forwardpropagation
-func (l *Layer) resizeforward(handle *cudnn.Handler, x, y *layers.IO) error {
-	err := l.op.ResizeForward(handle, x.T(), y.T())
+func (l *Layer) resizeforward(handle *cudnn.Handler, x, y *layers.Tensor) error {
+	err := l.op.ResizeForward(handle, x.Volume, y.Volume)
 	if err != nil {
 		return err
 	}
-	return l.op.ResizeForward(handle, x.DeltaT(), y.DeltaT())
+	return nil
 }
 
 //SpaceToBatchBackward does the backward propagation
-func (l *Layer) resizebackward(handle *cudnn.Handler, x, y *layers.IO) error {
-	err := l.op.ResizeBackward(handle, x.T(), y.T())
+func (l *Layer) resizebackward(handle *cudnn.Handler, x, y *layers.Tensor) error {
+	err := l.op.ResizeBackward(handle, x.Volume, y.Volume)
 	if err != nil {
 		return err
 	}
-	return l.op.ResizeBackward(handle, x.DeltaT(), y.DeltaT())
+	return nil
 }

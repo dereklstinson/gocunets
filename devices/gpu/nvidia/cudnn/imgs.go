@@ -10,6 +10,7 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
+//ToImagesColorFloat32 changes data passed to a bunch of images
 func ToImagesColorFloat32(data []float32, dims []int32, frmt gocudnn.TensorFormat) ([][]image.Image, error) {
 	if len(dims) > 4 {
 		return nil, errors.New("Dims of 4 only supported")

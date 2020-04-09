@@ -9,6 +9,8 @@ type Info struct {
 	Pad         []int32                 `json:"pad,omitempty"`
 	Stride      []int32                 `json:"stride,omitempty"`
 	Dilation    []int32                 `json:"dilation,omitempty"`
+	Format      gocudnn.TensorFormat    `json:"format,omitempty"`
+	MathType    gocudnn.MathType        `json:"math_type,omitempty"`
 	FwdAlgo     ForwardPerformance      `json:"fwd_algo,omitempty"`
 	BwdDataAlgo BackDataPerformance     `json:"bwd_data_algo,omitempty"`
 	BwdFiltAlgo BackFilterPerformance   `json:"bwd_filt_algo,omitempty"`
@@ -17,47 +19,24 @@ type Info struct {
 
 //Stage stages/sets up an Ops and returns a pointer to it with the info stored in the info type
 func (input Info) Stage() (*Ops, error) {
-	opfwd, err := gocudnn.CreateConvolutionDescriptor()
+	op, err := gocudnn.CreateConvolutionDescriptor()
 	if err != nil {
 		return nil, err
 	}
-	err = opfwd.Set(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
+	err = op.Set(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
 	if err != nil {
 		return nil, err
 	}
-	err = opfwd.SetMathType(input.FwdAlgo.MathType)
+	err = op.SetMathType(input.FwdAlgo.MathType)
 	if err != nil {
 		return nil, err
 	}
-	opbwdd, err := gocudnn.CreateConvolutionDescriptor()
+	err = op.SetGroupCount(input.Group)
 	if err != nil {
 		return nil, err
 	}
-	err = opbwdd.Set(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
-	if err != nil {
-		return nil, err
-	}
-	err = opbwdd.SetMathType(input.BwdDataAlgo.MathType)
-	if err != nil {
-		return nil, err
-	}
-	opbwdf, err := gocudnn.CreateConvolutionDescriptor()
-	if err != nil {
-		return nil, err
-	}
-	err = opbwdf.Set(input.CMode, input.Dtype, input.Pad, input.Stride, input.Dilation)
-	if err != nil {
-		return nil, err
-	}
-	err = opbwdf.SetMathType(input.BwdFiltAlgo.MathType)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Ops{
-		opfwd:        opfwd,
-		opbwdd:       opbwdd,
-		opbwdf:       opbwdf,
+		op:           op,
 		perfforward:  input.FwdAlgo,
 		perfbackdata: input.BwdDataAlgo,
 		perfbackfilt: input.BwdFiltAlgo,
@@ -70,7 +49,8 @@ func (input Info) Stage() (*Ops, error) {
 
 //Info returns an info struct and error.  Info is usually used for saving the data to a json file.
 func (c *Ops) Info() (Info, error) {
-	mode, dtype, pad, stride, dilation, err := c.opfwd.Get()
+	mode, dtype, pad, stride, dilation, err := c.op.Get()
+
 	return Info{
 		CMode:       mode,
 		Dtype:       dtype,

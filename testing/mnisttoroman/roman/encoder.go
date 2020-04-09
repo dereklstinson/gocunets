@@ -3,370 +3,327 @@ package roman
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/Nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers/batchnorm"
-
 	gocunets "github.com/dereklstinson/GoCuNets"
-
-	"github.com/dereklstinson/GoCuNets/layers/activation"
-	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
 const dropoutpercent = float32(.2)
 
 //RomanDecoder using regular method of increasing size of convolution...by just increasing the outer padding
-func RomanDecoder(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
-	CMode gocudnn.ConvolutionMode,
-	memmanaged bool,
+func RomanDecoder(
+	builder *gocunets.Builder,
 	batchsize int32,
-	metabatchsize int32,
-	learningrates float32,
-	codingvector int32,
-	numofneurons int32,
-	l1regularization float32,
-	l2regularization float32) *gocunets.Network {
+	outputchannel int32,
+	hiddenoutputchannels []int32,
+	learningrates, decay1, decay2 float32,
+	x, dx *gocunets.Tensor) (mnet *gocunets.SimpleModuleNetwork) {
+	mnet = gocunets.CreateSimpleModuleNetwork(2, builder)
+	mods := make([]gocunets.Module, 7)
 
-	filter := utils.Dims
-	padding := utils.Dims
-	stride := utils.Dims
-	dilation := utils.Dims
-	//var tmdf gocudnn.TrainingModeFlag
-	//tmode := tmdf.Adam()
-	//var aflg gocudnn.ActivationModeFlag
-	var cflg gocudnn.ConvolutionModeFlag
-	reversecmode := cflg.Convolution()
-	network := gocunets.CreateNetwork()
-
-	//Setting Up Network
-
-	/*
-		Convoultion Layer D1
-	*/
-
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(codingvector, numofneurons, 4, 4), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, 1),
-	) //7
-	/*
-		Activation Layer D2
-	*/
-	network.AddLayer(
-		activation.Leaky(handle),
-		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
-	)
-
-	/*
-		Convoultion Layer D3/4
-	*/
-	/*
-		network.AddLayer(
-			batchnorm.PerActivationPreset(handle, memmanaged),
-		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-		)
-	*/
-
-	network.AddLayer( // in(batchsize, numofneurons, 14, 14),
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 5, 5), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, 2),
-	) //7-8+(14)+1 =14
-	network.AddLayer(
-		batchnorm.PerActivationPreset(handle),
-	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-	)
-	/*
-		Activation Layer D5
-	*/
-	network.AddLayer(
-		activation.Leaky(handle),
-		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
-	)
-
-	/*
-		Convoultion Layer D6/7
-	*/
-
-	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, 3),
-	) //14-8 +14 +1 =21
-	network.AddLayer(
-		batchnorm.PerActivationPreset(handle),
-	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-	)
-
-	/*
-		Activation Layer D8
-	*/
-	network.AddLayer(
-		activation.Leaky(handle),
-	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
-	)
-	/*
-		Convoultion Layer D9/10
-	*/
-
-	network.AddLayer( //in(batchsize, numofneurons, 28, 28),
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, 4),
-	) //28
-
-	//var err error
-	numoftrainers := network.TrainersNeeded()
-
-	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
-	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
-	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), l1regularization, l2regularization, metabatchsize)
-		a.SetRate(learningrates) //This is here to change the rate if you so want to
-		b.SetRate(learningrates)
-
-		trainersbatch[i], trainerbias[i] = a, b
-
-		if err != nil {
-			panic(err)
-		}
-
+	var channeladder int32
+	for i := range hiddenoutputchannels {
+		channeladder += hiddenoutputchannels[i]
 	}
-	network.LoadTrainers(handle, trainersbatch, trainerbias) //Load the trainers in the order they are needed
-	return network
+	inputchannel := tensorchannelsize(x)
+	if inputchannel < 1 {
+		panic("input tensor channel is less than 1 or non supported tensor format ")
+	}
+	var err error
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{2, 2}, -3, 1, 0, false, true)
+	if err != nil {
+		panic(err)
+	}
+	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 1, 1, 0, false, true)
+	if err != nil {
+		panic(err)
+	}
+	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, -1, 1, 0, false, true)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetModules(mods)
+
+	mnet.SetTensorX(x)
+	mnet.SetTensorDX(dx)
+	outputdims, err := mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	//THis has to be NCHW
+	fmt.Println("OutputDims", outputdims)
+
+	outputfdims := []int32{outputchannel, channeladder, 3, 3}
+	mnet.Output, err = gocunets.CreateOutputModule(7, builder, batchsize, outputfdims, []int32{1, 1}, []int32{1, 1}, []int32{1, 1}, 1, 0, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.SetSoftMaxClassifier()
+	if err != nil {
+		panic(err)
+	}
+	outputdims, err = mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("NewOutputDims", outputdims)
+	ohy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorY(ohy)
+	ohdy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorDY(ohdy)
+
+	err = mnet.InitHiddenLayers(decay1, decay2)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.InitWorkspace()
+	if err != nil {
+		panic(err)
+	}
+	return mnet
+}
+func tensorchannelsize(x *gocunets.Tensor) int32 {
+
+	flg := x.Format()
+	switch x.Format() {
+	case flg.NCHW():
+		xdims := x.Dims()
+		return xdims[1]
+	case flg.NHWC():
+		xdims := x.Dims()
+		return xdims[len(xdims)-1]
+	default:
+		return -1
+	}
+
 }
 
 //ArabicEncoder encodes the arabic
-func ArabicEncoder(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
-	CMode gocudnn.ConvolutionMode,
-	memmanaged bool,
+func ArabicEncoder(
+	builder *gocunets.Builder,
 	batchsize int32,
-	metabatchsize int32,
-	learningrates float32,
-	codingvector int32,
-	numofneurons int32,
-	l1regularization float32,
-	l2regularization float32) *gocunets.Network {
-
-	filter := utils.Dims
-	padding := utils.Dims
-	stride := utils.Dims
-	dilation := utils.Dims
-
-	network := gocunets.CreateNetwork()
-	//Setting Up Network
-
-	/*
-		Convoultion Layer E1  0
-	*/
-	fmt.Println("Add Layer 0")
-	network.AddLayer(
-		cnn.Setup(handle, frmt, dtype, filter(numofneurons, 1, 6, 6), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), 5),
-	) //(28-6+4)/2 +1 = 14
-	/*
-		Activation Layer E2    1
-	*/
-	fmt.Println("Add Layer 1")
-	network.AddLayer(
-		activation.Leaky(handle),
-		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
-	)
-
-	/*
-		Convoultion Layer E3    2
-	*/
-	/*
-		network.AddLayer(
-			batchnorm.PerActivationPreset(handle, memmanaged),
-		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-		)
-	*/
-	fmt.Println("Add Layer 2")
-	network.AddLayer(
-		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), 6),
-	) //(14-6+4)/2 + 1 = 7
-	fmt.Println("Add Layer 3")
-	network.AddLayer(
-		batchnorm.PerActivationPreset(handle),
-		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-	)
-	/*
-		Activation Layer E4    3
-	*/
-	fmt.Println("Add Layer 4")
-	network.AddLayer(
-		activation.Leaky(handle),
-		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
-	)
-
-	/*
-		Convoultion Layer E5    4
-	*/
-	fmt.Println("Add Layer 5")
-	network.AddLayer(
-		cnn.Setup(handle, frmt, dtype, filter(numofneurons, numofneurons, 5, 5), CMode, padding(2, 2), stride(2, 2), dilation(1, 1), 7),
-	) // (7 -5 +4)/2 + 1 =4
-	fmt.Println("Add Layer 6")
-	network.AddLayer(
-		batchnorm.PerActivationPreset(handle),
-		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-	)
-	/*
-		Activation Layer E6    5
-	*/
-	fmt.Println("Add Layer 7")
-	network.AddLayer(
-		activation.Leaky(handle),
-	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 7, 7}, true),
-	)
-	/*
-		Convoultion Layer E7    6
-	*/
-
-	fmt.Println("Add Layer 8")
-	network.AddLayer(
-		cnn.Setup(handle, frmt, dtype, filter(codingvector, numofneurons, 4, 4), CMode, padding(0, 0), stride(1, 1), dilation(1, 1), 8),
-	) // 1
-
-	/*
-		Activation Layer MIDDLE    7
-	*/
-	fmt.Println("Add Layer 9")
-	network.AddLayer(
-
-		activation.Leaky(handle),
-
-	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 1, 1}, true),
-	)
-
-	//var err error
-	numoftrainers := network.TrainersNeeded()
-
-	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
-	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
-	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), l1regularization, l2regularization, metabatchsize)
-		a.SetRate(learningrates) //This is here to change the rate if you so want to
-		b.SetRate(learningrates)
-
-		trainersbatch[i], trainerbias[i] = a, b
-
-		if err != nil {
-			panic(err)
-		}
-
+	outputchannel int32,
+	hiddenoutputchannels []int32,
+	learningrates, decay1, decay2 float32,
+	x *gocunets.Tensor) (mnet *gocunets.SimpleModuleNetwork) {
+	var channeladder int32
+	for i := range hiddenoutputchannels {
+		channeladder += hiddenoutputchannels[i]
 	}
-	network.LoadTrainers(handle, trainersbatch, trainerbias) //Load the trainers in the order they are needed
-	return network
+
+	mnet = gocunets.CreateSimpleModuleNetwork(0, builder)
+	mods := make([]gocunets.Module, 7)
+	inputchannel := tensorchannelsize(x)
+	if inputchannel < 1 {
+		panic("input tensor channel is less than 1 or non supported tensor format ")
+	}
+	var err error
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{2, 2}, -1, 1, 0, false, false)
+	if err != nil {
+		panic(err)
+	}
+	mods[1], err = gocunets.CreateCompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[2], err = gocunets.CreateCompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 1, 1, 0, false, false)
+	if err != nil {
+		panic(err)
+	}
+	mods[4], err = gocunets.CreateCompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[5], err = gocunets.CreateCompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, -3, 1, 0, false, false)
+	if err != nil {
+		panic(err)
+	}
+
+	mnet.SetModules(mods)
+
+	mnet.SetTensorX(x)
+	outputdims, err := mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	//THis has to be NCHW
+	fmt.Println("OutputDims", outputdims)
+
+	outputfdims := []int32{outputchannel, channeladder, 3, 3}
+	mnet.Output, err = gocunets.CreateOutputModule(7, builder, batchsize, outputfdims, []int32{1, 1}, []int32{1, 1}, []int32{1, 1}, 1, 0, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+
+	outputdims, err = mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("NewOutputDims", outputdims)
+	ohy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorY(ohy)
+	ohdy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorDY(ohdy)
+
+	err = mnet.InitHiddenLayers(decay1, decay2)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.InitWorkspace()
+	if err != nil {
+		panic(err)
+	}
+	return mnet
 }
 
+// output = 1+ (input +2*pad - (((filterdims-1)*dilation)+1))/stride
+// ((output -1)*stride) - input - 2*pad +1 = ((filterdims-1)*dilation)
+// if output == input && stride ==1
+// output-1-input == -1 -> -1 -2*pad +1 = -2(pad)
+//
+
+// output = 1+ (input +2*pad - (((filterdims-1)*dilation)+1))/stride
+// (output-1)*stride =input+2*pad - ((filterdims-1)*dilation+1)
+// filter = 3
+// (output-1)*stride = input + 2*(pad - dilation) -1
+// pad = dilation
+// output = (input -1)/stride + 1
+
+// if variable filterdims it gets complicated
+//
+// (output-1)*stride = input + 2*pad - ((filterdims-1)*dilation+1)
+//   				 = input + 2*pad - (((filterdims-1)*dilation) + 1) 	// filter dims = 1+2n
+// 					 = input + 2*pad - (((2*n)*dilation) +1)
+// 					 = input + 2*(pad - n*dilation) -1                  // if pad = (n*dilation) dilation > 0
+//					 = input -1
+//	output = ((input -1)/stride) +1	if filterdims = 3 + 2n && pad = (n+1)*dilation	// This makes the output dependent on the stride.
+//
+
 //ArabicDecoder using regular method of increasing size of convolution...by just increasing the outer padding
-func ArabicDecoder(handle *cudnn.Handler,
-	frmt cudnn.TensorFormat,
-	dtype cudnn.DataType,
-	CMode gocudnn.ConvolutionMode,
-	memmanaged bool,
+func ArabicDecoder(builder *gocunets.Builder,
 	batchsize int32,
-	metabatchsize int32,
-	learningrates float32,
-	codingvector int32,
-	numofneurons int32,
-	l1regularization float32,
-	l2regularization float32) *gocunets.Network {
+	outputchannel int32,
+	hiddenoutputchannels []int32,
+	learningrates, decay1, decay2 float32,
+	x, dx *gocunets.Tensor) (mnet *gocunets.SimpleModuleNetwork) {
 
-	filter := utils.Dims
-	padding := utils.Dims
-	stride := utils.Dims
-	dilation := utils.Dims
-	//var tmdf gocudnn.TrainingModeFlag
-	//tmode := tmdf.Adam()
-	//var aflg gocudnn.ActivationModeFlag
-	var cflg gocudnn.ConvolutionModeFlag
-	reversecmode := cflg.Convolution()
-	network := gocunets.CreateNetwork()
-	//Setting Up Network
-
-	/*
-		Convoultion Layer D1
-	*/
-
-	network.AddLayer(
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(codingvector, numofneurons, 4, 4), reversecmode, padding(0, 0), stride(1, 1), dilation(1, 1), false, 12),
-	) //7
-	/*
-		Activation Layer D2
-	*/
-	network.AddLayer(
-		activation.Leaky(handle),
-		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 14, 14}, true),
-	)
-
-	/*
-		Convoultion Layer D3/4
-	*/
-	/*
-		network.AddLayer(
-			batchnorm.PerActivationPreset(handle, memmanaged),
-		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-		)
-	*/
-	network.AddLayer( // in(batchsize, numofneurons, 14, 14),
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 5, 5), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, 9),
-	) //7-8+(14)+1 =14
-	network.AddLayer(
-		batchnorm.PerActivationPreset(handle),
-	//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-	)
-	/*
-		Activation Layer D5
-	*/
-	network.AddLayer(
-		activation.Leaky(handle),
-		//activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 21, 21}, true),
-	)
-
-	/*
-		Convoultion Layer D6/7
-	*/
-
-	network.AddLayer( //in(batchsize, numofneurons, 21, 21),
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, numofneurons, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, 10),
-	) //14-8 +14 +1 =21
-	/*
-		Activation Layer D8
-	*/
-	network.AddLayer(
-		batchnorm.PerActivationPreset(handle),
-		//	dropout.Preset(handle, dropoutpercent, uint64(rand.Int()), memmanaged),
-	)
-	network.AddLayer(
-		activation.Leaky(handle),
-	//	activation.AdvancedThreshRandRelu(handle, dtype, []int32{batchsize, numofneurons, 28, 28}, true),
-	)
-	/*
-		Convoultion Layer D9/10
-	*/
-
-	network.AddLayer( //in(batchsize, numofneurons, 28, 28),
-		cnntranspose.ReverseBuild(handle, frmt, dtype, filter(numofneurons, 1, 6, 6), reversecmode, padding(2, 2), stride(2, 2), dilation(1, 1), false, 11),
-	) //28
-
-	//var err error
-	numoftrainers := network.TrainersNeeded()
-
-	trainersbatch := make([]trainer.Trainer, numoftrainers) //If these were returned then you can do some training parameter adjustements on the fly
-	trainerbias := make([]trainer.Trainer, numoftrainers)   //If these were returned then you can do some training parameter adjustements on the fly
-	for i := 0; i < numoftrainers; i++ {
-		a, b, err := trainer.SetupAdamWandB(handle.XHandle(), l1regularization, l2regularization, metabatchsize)
-		a.SetRate(learningrates) //This is here to change the rate if you so want to
-		b.SetRate(learningrates)
-
-		trainersbatch[i], trainerbias[i] = a, b
-
-		if err != nil {
-			panic(err)
-		}
-
+	var channeladder int32
+	for i := range hiddenoutputchannels {
+		channeladder += hiddenoutputchannels[i]
 	}
-	network.LoadTrainers(handle, trainersbatch, trainerbias) //Load the trainers in the order they are needed
-	return network
+	mnet = gocunets.CreateSimpleModuleNetwork(1, builder)
+	mods := make([]gocunets.Module, 7)
+	inputchannel := tensorchannelsize(x)
+	if inputchannel < 1 {
+		panic("input tensor channel is less than 1 or non supported tensor format ")
+	}
+	var err error
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{2, 2}, -3, 1, 0, false, true)
+	if err != nil {
+		panic(err)
+	}
+	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 1, 1, 0, false, true)
+	if err != nil {
+		panic(err)
+	}
+	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, -1, 1, 0, false, true)
+	if err != nil {
+		panic(err)
+	}
+
+	mnet.SetModules(mods)
+	mnet.SetTensorX(x)
+	mnet.SetTensorDX(dx)
+	outputdims, err := mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	//THis has to be NCHW
+	fmt.Println("OutputDims", outputdims)
+
+	outputfdims := []int32{outputchannel, channeladder, 3, 3}
+	mnet.Output, err = gocunets.CreateOutputModule(7, builder, batchsize, outputfdims, []int32{1, 1}, []int32{1, 1}, []int32{1, 1}, 1, 0, 1, 0)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.SetSoftMaxClassifier()
+	if err != nil {
+		panic(err)
+	}
+	outputdims, err = mnet.FindOutputDims()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("NewOutputDims", outputdims)
+	ohy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorY(ohy)
+	ohdy, err := builder.CreateTensor(outputdims)
+	if err != nil {
+		panic(err)
+	}
+	mnet.SetTensorDY(ohdy)
+
+	err = mnet.InitHiddenLayers(decay1, decay2)
+	if err != nil {
+		panic(err)
+	}
+	err = mnet.InitWorkspace()
+	if err != nil {
+		panic(err)
+	}
+	return mnet
+
 }

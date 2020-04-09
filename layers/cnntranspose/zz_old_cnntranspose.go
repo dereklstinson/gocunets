@@ -1,5 +1,8 @@
 package cnntranspose
 
+/*
+
+This is old
 import (
 	"errors"
 
@@ -12,13 +15,13 @@ import (
 	gocudnn "github.com/dereklstinson/GoCudnn"
 )
 
-/*
-There is a few ways to test..
-1) using transformtensor and increase the size of the tensor. If done correctly you can make it so that every other value has 0.
-2) Using batch to shape then shape to batch. This takes at least twice the mem
-3) Use resize and then do a resize back prop which back propigates the errors to the source pixel. -- might not work on NCHW
 
-*/
+//There is a few ways to test..
+//1) using transformtensor and increase the size of the tensor. If done correctly you can make it so that every other value has 0.
+//2) Using batch to shape then shape to batch. This takes at least twice the mem
+//3) Use resize and then do a resize back prop which back propigates the errors to the source pixel. -- might not work on NCHW
+
+
 
 //Layer contains the ops need for ConvTranspose
 type Layer struct {
@@ -35,20 +38,27 @@ const (
 )
 
 //Weights exposes the inner convolutional layer that does the convolution method for the transpose
-func (l *Layer) Weights() *layers.IO {
+func (l *Layer) Weights() *layers.Tensor {
 	return l.conv.Weights()
 }
 
+//DeltaWeights returns the delta weights
+func (l *Layer) DeltaWeights() *layers.Tensor {
+	return l.conv.DeltaWeights()
+}
+
 //Bias returns the bias of the cnn tranpose
-func (l *Layer) Bias() *layers.IO {
+func (l *Layer) Bias() *layers.Tensor {
 	return l.conv.Bias()
 }
+
+//SetMathType sets the mathtype
 func (l *Layer) SetMathType(mtype gocudnn.MathType) error {
 	return l.conv.SetMathType(mtype)
 }
 
 //ForwardProp does the forward propagation of convolution transpose
-func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.Tensor) error {
 	switch l.mode {
 
 	case convtransposereverse:
@@ -58,7 +68,7 @@ func (l *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 }
 
 //BackPropData does the back propigation data of convolution transpose
-func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.Tensor) error {
 	switch l.mode {
 
 	case convtransposereverse:
@@ -69,22 +79,24 @@ func (l *Layer) BackPropData(handle *cudnn.Handler, wspace *nvidia.Malloced, x, 
 }
 
 //BackPropFilter performs the backprop for the filter.
-func (l *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.IO) error {
+func (l *Layer) BackPropFilter(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y *layers.Tensor) error {
 	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspace, x, y))
 }
 
 //BackPropFilterData does the back propigation filter and data of convolution transpose
-func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, y *layers.IO) error {
-	if x.IsInput() {
-		return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilter(handle, wspacefilter, x, y))
+func (l *Layer) BackPropFilterData(handle *cudnn.Handler, wspacedata, wspacefilter *nvidia.Malloced, x, dx, dy *layers.Tensor) error {
+	if dx == nil {
+		return utils.ErrorWrapper("cnntranspose reverse back filterdata dx is nil", l.reverseBackPropFilter(handle, wspacefilter, x, dy))
 	}
-	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspacedata, wspacefilter, x, y))
+	return utils.ErrorWrapper("cnntranspose reverse back filterdata", l.reverseBackPropFilterData(handle, wspacedata, wspacefilter, x, dx, dy))
 }
 
 //Transform sets up a transform version of cnn transpose
 func build(handle *cudnn.Handler,
 	frmt gocudnn.TensorFormat,
 	dtype gocudnn.DataType,
+	mtype gocudnn.MathType,
+	groupcount int32,
 	upscaleddims []int32, //UpscaledDims will be the dims of the input before the convolution
 	filterdims []int32,
 	convmode gocudnn.ConvolutionMode,
@@ -93,7 +105,7 @@ func build(handle *cudnn.Handler,
 	dilation []int32,
 	mode convtransposemode,
 	seed uint64) (*Layer, error) {
-	conv, err := cnn.Setup(handle, frmt, dtype, filterdims, convmode, pad, stride, dilation, seed)
+	conv, err := cnn.Setup(handle, frmt, dtype, mtype, groupcount, filterdims, convmode, pad, stride, dilation, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -104,23 +116,42 @@ func build(handle *cudnn.Handler,
 		resizeddims: upscaleddims,
 	}, nil
 }
+func SetupBasic(handle *cudnn.Handler,
+	frmt gocudnn.TensorFormat,
+	dtype gocudnn.DataType,
+	mtype gocudnn.MathType,
+	groupcount int32,
+	w, dw, b, db *layers.Tensor,
+	convmode gocudnn.ConvolutionMode,
+	pad,
+	stride,
+	dilation []int32) (*Layer, error) {
+	x, err := cnn.SetupBasic(handle, frmt, dtype, mtype, groupcount, w, dw, b, db, convmode, pad, stride, dilation)
+	if err != nil {
+		return nil, err
+	}
+	return &Layer{
+		conv: x,
+		mode: convtransposereverse,
+	}, nil
+}
 
 //MakeRandom makes the weights random
-func (l *Layer) MakeRandom(h *cudnn.Handler) error {
-	return l.conv.MakeRandom(h)
+func (l *Layer) MakeRandom(inputdims []int32) error {
+	return l.conv.MakeRandom(inputdims)
 }
 
 //FindOutputDims will return the output dims of the reverse convolution
-func (l *Layer) FindOutputDims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
+func (l *Layer) FindOutputDims(input *layers.Tensor) ([]int32, error) {
 	switch l.mode {
 	case convtransposereverse:
-		return l.conv.FindReverseOutputDims(handle, input)
+		return l.conv.FindReverseOutputDims(input)
 	}
 	return nil, errors.New("Unsupported Mode")
 }
 
 //MakeOutputTensor makes the output tensor
-func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
+func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.Tensor) (*layers.Tensor, error) {
 	switch l.mode {
 
 	case convtransposereverse:
@@ -129,15 +160,17 @@ func (l *Layer) MakeOutputTensor(handle *cudnn.Handler, input *layers.IO) (*laye
 	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
 }
 
-//MakeOutputTensorInference makes the output tensor for inference only
-func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, input *layers.IO) (*layers.IO, error) {
-	switch l.mode {
 
-	case convtransposereverse:
-		return l.reverseOutputInference(handle, input)
-	}
-	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
-}
+////MakeOutputTensorInference makes the output tensor for inference only
+//func (l *Layer) MakeOutputTensorInference(handle *cudnn.Handler, input *layers.Tensor) (*layers.Tensor, error) {
+//	switch l.mode {
+//
+//	case convtransposereverse:
+//		return l.reverseOutputInference(handle, input)
+//	}
+//	return nil, errors.New("ConvTranspose BackProp - Shouldn't have reached here")
+//}
+
 
 //LoadTrainer loads a trainer into the layer
 func (l *Layer) LoadTrainer(handle *cudnn.Handler, wtrainer, btrainer trainer.Trainer) error {
@@ -155,3 +188,4 @@ func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch int) error {
 
 	return l.conv.UpdateWeights(handle, batch)
 }
+*/

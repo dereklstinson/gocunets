@@ -1,25 +1,26 @@
 package nvidia
 
 import (
-	"fmt"
-	"io"
 	"unsafe"
 
 	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/GoCudnn/cudart/crtutil"
 	"github.com/dereklstinson/GoCudnn/gocu"
 	"github.com/dereklstinson/cutil"
 )
-
-//Handler is a gpu device handler that can set the device and tell if the memory is under the nvidia unified memory management
-type Handler interface {
-	SetDevice() error //
-}
 
 //Malloced is a pointer to some nvidia memory
 type Malloced struct {
 	ptr      unsafe.Pointer
 	numbytes uint
 	host     bool
+}
+type reader struct {
+	m       *Malloced
+	counter uint
+}
+type Worker interface {
+	Work(func() error) error
 }
 
 const defaultmemcopykind = cudart.MemcpyKind(4) //enum of 4 is the default memcopy kind
@@ -54,26 +55,32 @@ func (m *Malloced) OffSet(bybytes uint) *Malloced {
 	}
 }
 
-//TotalBytes returns the total bytes the malloced has
-func (m *Malloced) TotalBytes() uint {
+//SIB returns the size in bytes
+func (m *Malloced) SIB() uint {
 	if m == nil {
 		return 0
 	}
 	return m.numbytes
 }
 
+//NewReadWriter creates a devio.Buffer for the malloced memory.
+//If s is nil then copies will be synced if not then copies will be async
+func (m *Malloced) NewReadWriter(s gocu.Streamer) *crtutil.ReadWriter {
+	return crtutil.NewReadWriter(m, m.numbytes, s)
+}
+
 //MallocHost allocates memory onto the host used by nvidia devices.
 //Handler will set the device it is allocating to. Besure to set back if wanting to use another device
-func MallocHost(h Handler, sizebytes uint) (*Malloced, error) {
-	err := h.SetDevice()
-	if err != nil {
-		return nil, err
-	}
-
-	x := new(Malloced)
+func MallocHost(w Worker, sizebytes uint) (x *Malloced, err error) {
+	x = new(Malloced)
 	x.numbytes = sizebytes
 	x.host = true
-	err = cudart.MallocManagedHost(x, sizebytes)
+	if w == nil {
+		return nil, cudart.MallocManagedGlobal(x, sizebytes)
+	}
+	err = w.Work(func() error {
+		return cudart.MallocManagedHost(x, sizebytes)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -82,95 +89,67 @@ func MallocHost(h Handler, sizebytes uint) (*Malloced, error) {
 
 }
 
+type copier struct {
+	async bool
+	s     gocu.Streamer
+}
+
+func (c copier) CopyHostToDevice(dest, src cutil.Pointer, sib uint) error {
+	if c.s != nil {
+		return cudart.MemcpyAsync(dest, src, sib, defaultmemcopykind, c.s)
+	}
+	return cudart.MemCpy(dest, src, sib, defaultmemcopykind)
+}
+func (c copier) CopyDeviceToHost(dest, src cutil.Pointer, sib uint) error {
+	if c.s != nil {
+		return cudart.MemcpyAsync(dest, src, sib, defaultmemcopykind, c.s)
+	}
+	return cudart.MemCpy(dest, src, sib, defaultmemcopykind)
+}
+func (c copier) Sync() error {
+	if c.s != nil {
+		return c.s.Sync()
+	}
+	return nil
+}
+
 //Memcpy is like cudart.Memcpy but it is using the cudart.Memcpykind{}.Default() flag
 func Memcpy(dest, src cutil.Pointer, sizeinbytes uint) error {
+	//	if w != nil {
+	//		return w.Work(func() error {
+	//			return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
+	//		})
+	//	}
 	return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
 }
 
 //SetAll sets the memory to whatever integer value passed
 func (m *Malloced) SetAll(val int32) error {
-	return cudart.Memset(m, val, m.TotalBytes())
+	//if w != nil {
+	//	return w.Work(func() error {
+	//		return cudart.Memset(m, val, m.numbytes)
+	//	})
+	//}
+	return cudart.Memset(m, val, m.numbytes)
 }
 
 //MallocGlobal allocates memory to the nvidia gpu
 //Handler will set the device it is allocating to. Besure to set back if wanting to use another device
-func MallocGlobal(h Handler, sizebytes uint) (*Malloced, error) {
-	err := h.SetDevice()
-	if err != nil {
-		return nil, err
+func MallocGlobal(w Worker, sizebytes uint) (x *Malloced, err error) {
+	if w == nil {
+		x = new(Malloced)
+		x.numbytes = sizebytes
+		err = cudart.MallocManagedGlobal(x, sizebytes)
+		return x, err
 	}
-	x := new(Malloced)
-	x.numbytes = sizebytes
-	err = cudart.MallocManagedGlobal(x, sizebytes)
+	err = w.Work(func() error {
+		x = new(Malloced)
+		x.numbytes = sizebytes
+		return cudart.MallocManagedGlobal(x, sizebytes)
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return x, nil
-}
-
-func (m *Malloced) Write(p []byte) (int, error) {
-	gomem, err := gocu.MakeGoMem(p)
-	if err != nil {
-		return 0, err
-	}
-	var errholder error
-	size := uint(len(p))
-	if (m.TotalBytes()) < size {
-		size = m.TotalBytes()
-		errholder = fmt.Errorf("Total Size of Malloced is %d < bytes passed %d.  Still wrote to Nvidia Device", size, len(p))
-	}
-	err = cudart.MemCpy(m, gomem, size, defaultmemcopykind)
-	if err != nil {
-		return 0, err
-	}
-	return int(size), errholder
-
-}
-
-func (m *Malloced) Read(p []byte) (n int, err error) {
-	gomem, err := gocu.MakeGoMem(p)
-	if err != nil {
-		return 0, err
-	}
-	var errholder error
-	size := uint(len(p))
-	if (m.TotalBytes()) < size {
-		size = m.TotalBytes()
-		errholder = fmt.Errorf("Total Size of Malloced is %d < bytes passed %d.  Still read from Nvidia Device", size, len(p))
-	}
-	err = cudart.MemCpy(gomem, m, size, defaultmemcopykind)
-	if err != nil {
-		return 0, err
-	}
-	return int(size), errholder
-}
-
-//WriteTo writes data to w until there is no more data to write or when an error occures. If w is a *Malloced then it will do a Memcpy
-//The return value n is the number of bytes written. Any error encountered during the write is also returned
-func (m *Malloced) WriteTo(w io.Writer) (n int64, err error) {
-	var size = m.TotalBytes()
-	var errholder error
-	wmalloced, ok := w.(*Malloced)
-	if ok {
-
-		if wmalloced.TotalBytes() < size {
-			size = wmalloced.TotalBytes()
-			errholder = fmt.Errorf("Total Size of Malloced is %d. Than MallocedWriter's passed bytes %d.  Still read from Nvidia Device", size, wmalloced.TotalBytes())
-		}
-		err = Memcpy(wmalloced, m, size)
-		if err != nil {
-			return 0, err
-		}
-		err = errholder
-		return (int64)(size), err
-	}
-	somebytes := make([]byte, m.TotalBytes())
-	bytesread, err := m.Read(somebytes)
-	if err != nil {
-		return 0, errholder
-	}
-	totalwritten, err := w.Write(somebytes[:bytesread])
-	return (int64)(totalwritten), err
-
 }

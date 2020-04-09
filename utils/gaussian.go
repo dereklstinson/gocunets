@@ -4,7 +4,13 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+	"time"
 )
+
+func init() {
+
+	rand.Seed(time.Now().UnixNano())
+}
 
 //Gaussian returns the gaussien at zero
 func Gaussian(mean float64, std float64) float64 {
@@ -23,8 +29,8 @@ func gauassian() float64 {
 }
 
 //RandWeightSet sets a randomweight based on min max values
-func RandWeightSet(mean, std, fanin float64) float64 {
-	return Gaussian(mean, std) * (math.Sqrt((2.0) / (fanin)))
+func RandWeightSet(mean, std, ninputelements float64) float64 {
+	return Gaussian(mean, std) * (math.Sqrt((2.0) / (ninputelements)))
 }
 
 //RandomFloat32 returns a random float32

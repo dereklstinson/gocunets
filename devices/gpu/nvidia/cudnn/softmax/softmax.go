@@ -131,7 +131,7 @@ func (s *Ops) Info() OpInfo {
 
 //ForwardProp performs the forward propigation
 func (s *Ops) ForwardProp(handle *cudnn.Handler, alpha float64, x *tensor.Volume, beta float64, y *tensor.Volume) error {
-	return s.op.Forward(handle.Cudnn(), alpha, x.TD(), x.Memer(), beta, y.TD(), y.Memer())
+	return s.op.Forward(handle.Cudnn(), alpha, x.TD(), x, beta, y.TD(), y)
 
 }
 
@@ -147,5 +147,5 @@ func (s *Ops) BackProp(handle *cudnn.Handler, alpha float64, y, dy *tensor.Volum
 	if dx == nil {
 		panic("dx is nil")
 	}
-	return s.op.Backward(handle.Cudnn(), alpha, y.TD(), y.Memer(), dy.TD(), dy.Memer(), beta, dx.TD(), dx.Memer())
+	return s.op.Backward(handle.Cudnn(), alpha, y.TD(), y, dy.TD(), dy, beta, dx.TD(), dx)
 }

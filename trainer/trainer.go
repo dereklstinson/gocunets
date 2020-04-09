@@ -12,18 +12,18 @@ import (
 
 //Trainer will be used for updating weights.  Only momentum and adam are available right now
 type Trainer interface {
-	UpdateWeights(ctx *cudnn.Handler, weights *layers.IO, batch int) error
+	UpdateWeights(ctx *cudnn.Handler, dw, w *layers.Tensor, batch, counter int) error
 	L1L2Loss() (float32, float32)
 	SetRates(rate, dwalpha float32)
 	SetDecays(l1, l2 float32)
 }
 
 //CreateTrainingMem creates trainingmem for the trainer
-func CreateTrainingMem(handle *cudnn.Handler, trainer Trainer, weights *layers.IO) error {
+func CreateTrainingMem(handle *cudnn.Handler, trainer Trainer, w *layers.Tensor) error {
 
 	switch x := trainer.(type) {
 	case *Adam:
-		return x.SetTrainingMem(handle, weights)
+		return x.SetTrainingMem(handle, w)
 	default:
 		return errors.New("only adam is supported")
 	}

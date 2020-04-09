@@ -1,47 +1,41 @@
 package gocunets
 
-import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers"
-)
-
+/*
 const debuglayerperformance = false
 
-func (l *layer) setcudnnperformancefwd(handle *cudnn.Handler, fwd convolution.ForwardPerformance) {
+func (l *Layer) setcudnnperformancefwd(fwd convolution.ForwardPerformance) {
 	if l.cnn != nil {
-		l.cnn.SetFwdAlgoPerformance(handle, fwd)
+		l.cnn.SetFwdAlgoPerformance(fwd)
 		return
 	}
 	if l.cnntranspose != nil {
 		//Since cnntranspose runs backwards the forward prop is actually the backprop data algo.
-		l.cnntranspose.SetBwdDataAlgoPerformance(handle, fwd)
+		l.cnntranspose.SetBwdDataAlgoPerformance(fwd)
 		return
 	}
 }
-func (l *layer) setcudnnperformancebwdd(handle *cudnn.Handler, bwdd convolution.BackDataPerformance) {
+func (l *Layer) setcudnnperformancebwdd(bwdd convolution.BackDataPerformance) {
 	if l.cnn != nil {
-		l.cnn.SetBwdDataAlgoPerformance(handle, bwdd)
+		l.cnn.SetBwdDataAlgoPerformance(bwdd)
 		return
 	}
 	if l.cnntranspose != nil {
 		//Since cnntranspose runs backwards the backprop for the data is actually the forward propagation algo
-		l.cnntranspose.SetFwdAlgoPerformance(handle, bwdd)
+		l.cnntranspose.SetFwdAlgoPerformance(bwdd)
 		return
 	}
 }
-func (l *layer) setcudnnperformancebwdf(handle *cudnn.Handler, bwdf convolution.BackFilterPerformance) {
+func (l *Layer) setcudnnperformancebwdf(bwdf convolution.BackFilterPerformance) {
 	if l.cnn != nil {
-		l.cnn.SetBwdFiltAlgoPerformance(handle, bwdf)
+		l.cnn.SetBwdFiltAlgoPerformance(bwdf)
 		return
 	}
 	if l.cnntranspose != nil {
-		l.cnntranspose.SetBwdFiltAlgoPerformance(handle, bwdf)
+		l.cnntranspose.SetBwdFiltAlgoPerformance(bwdf)
 		return
 	}
 }
-func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO, workspace *nvidia.Malloced) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
+func (l *Layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.Tensor, workspace *nvidia.Malloced) (fwd []convolution.ForwardPerformance, bwddata []convolution.BackDataPerformance, bwdfilt []convolution.BackFilterPerformance, err error) {
 
 	if l.cnn != nil {
 		if debuglayerperformance {
@@ -80,3 +74,4 @@ func (l *layer) getcudnnperformance(handle *cudnn.Handler, x, y *layers.IO, work
 	}
 	return nil, nil, nil, nil
 }
+*/

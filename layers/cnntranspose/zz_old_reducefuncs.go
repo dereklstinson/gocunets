@@ -1,28 +1,30 @@
 package cnntranspose
 
+/*
 import (
 	"errors"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 )
 
-//SetupWStatReducers sets up the minmax reducers for the bias and weights
-func (l *Layer) SetupWStatReducers(handle *cudnn.Handler) (err error) {
-	err = l.conv.SetupWStatReducers(handle)
-
-	return err
-}
-
-//SetupDWStatReducers sets up the Delta W stat reducers for the bias and weights
-func (l *Layer) SetupDWStatReducers(handle *cudnn.Handler) (err error) {
-	return l.conv.SetupDWStatReducers(handle)
-}
-
-/*
-
-Weights
-
-*/
+//
+////SetupWStatReducers sets up the minmax reducers for the bias and weights
+//func (l *Layer) SetupWStatReducers(handle *cudnn.Handler) (err error) {
+//	err = l.conv.SetupWStatReducers(handle)
+//
+//	return err
+//}
+//
+////SetupDWStatReducers sets up the Delta W stat reducers for the bias and weights
+//func (l *Layer) SetupDWStatReducers(handle *cudnn.Handler) (err error) {
+//	return l.conv.SetupDWStatReducers(handle)
+//}
+//
+//
+//
+//Weights
+//
+//
 
 //WMax returns the Max weight value for the layer.
 func (l *Layer) WMax(handle *cudnn.Handler) (float32, error) {
@@ -73,11 +75,11 @@ func (l *Layer) WNorm2(handle *cudnn.Handler) (float32, error) {
 
 }
 
-/*
 
-Bias
+//
+//Bias
+//
 
-*/
 
 //BMax returns the Max bias value for the layer
 func (l *Layer) BMax(handle *cudnn.Handler) (float32, error) {
@@ -129,11 +131,11 @@ func (l *Layer) BNorm2(handle *cudnn.Handler) (float32, error) {
 
 }
 
-/*
 
-Delta Weights
+//
+//Delta Weights
+//
 
-*/
 
 //DWMax returns the Max delta weight value for the layer
 func (l *Layer) DWMax(handle *cudnn.Handler) (float32, error) {
@@ -185,11 +187,11 @@ func (l *Layer) DWNorm2(handle *cudnn.Handler) (float32, error) {
 
 }
 
-/*
 
-Delta Bias
+//
+//Delta Bias
+//
 
-*/
 
 //DBMax returns the Max delta bias value for the layer
 func (l *Layer) DBMax(handle *cudnn.Handler) (float32, error) {
@@ -240,3 +242,4 @@ func (l *Layer) DBNorm2(handle *cudnn.Handler) (float32, error) {
 	return x, nil
 
 }
+*/

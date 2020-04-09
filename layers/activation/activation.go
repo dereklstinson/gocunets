@@ -1,8 +1,6 @@
 package activation
 
 import (
-	"errors"
-
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/activation"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
@@ -17,6 +15,8 @@ type Layer struct {
 	reduce                       *reduce.Ops
 	fwd                          Scalars
 	bwd                          Scalars
+	bwp                          Scalars
+	mode                         activation.Mode
 	memmanaged                   bool
 	updatable                    bool
 	nanproped                    gocudnn.NANProp
@@ -28,9 +28,12 @@ type Layer struct {
 	poscotrain                   trainer.Trainer
 	thresholdtrain               trainer.Trainer
 	l1n, l2n, l1p, l2p, l1t, l2t float32
-	posCoefs                     *layers.IO
-	negCoefs                     *layers.IO
-	threshold                    *layers.IO
+	posCoefs                     *layers.Tensor
+	negCoefs                     *layers.Tensor
+	threshold                    *layers.Tensor
+	dposCoefs                    *layers.Tensor
+	dnegCoefs                    *layers.Tensor
+	dthreshold                   *layers.Tensor
 	numofios                     int
 }
 
@@ -66,8 +69,8 @@ func setup(handle *cudnn.Handler, mode activation.Mode, dtype gocudnn.DataType, 
 	}
 
 	return &Layer{
-
-		act: act,
+		mode: mode,
+		act:  act,
 		fwd: Scalars{
 			Alpha: af,
 			Beta:  bf,
@@ -79,36 +82,48 @@ func setup(handle *cudnn.Handler, mode activation.Mode, dtype gocudnn.DataType, 
 	}, nil
 }
 
+//ContainsWeights returns true if the layer is trainable
+func (a *Layer) ContainsWeights() bool {
+	flg := a.mode
+	switch a.mode {
+	case flg.PRelu():
+		return true
+	case flg.Threshhold():
+		return true
+	}
+	return false
+}
+
 //ResetWeightsHiddenMem will reset the weights to random, and the delta storage will be set to zero.
 func (a *Layer) ResetWeightsHiddenMem(h *cudnn.Handler) error {
-	fanin := float64(a.posCoefs.T().MaxVol())
+	fanin := float64(a.posCoefs.Vol())
 	var err error
 	if a.posCoefs != nil {
-		err = a.posCoefs.T().SetRandom(h, 0, 1, fanin)
+		err = a.posCoefs.SetRandom(0, 1, fanin)
 		if err != nil {
 			return err
 		}
-		err = a.posCoefs.DeltaT().SetValues(h, 0)
+		err = a.dposCoefs.SetValues(h, 0)
 		if err != nil {
 			return err
 		}
 	}
 	if a.negCoefs != nil {
-		err = a.negCoefs.T().SetRandom(h, 0, 1, fanin)
+		err = a.negCoefs.SetRandom(0, 1, fanin)
 		if err != nil {
 			return err
 		}
-		err = a.negCoefs.DeltaT().SetValues(h, 0)
+		err = a.dnegCoefs.SetValues(h, 0)
 		if err != nil {
 			return err
 		}
 	}
 	if a.threshold != nil {
-		err := a.threshold.T().SetRandom(h, 0, 1, fanin)
+		err := a.threshold.SetRandom(0, 1, fanin)
 		if err != nil {
 			return err
 		}
-		err = a.threshold.DeltaT().SetValues(h, 0)
+		err = a.dthreshold.SetValues(h, 0)
 		if err != nil {
 			return err
 		}
@@ -173,6 +188,7 @@ func (a *Layer) Info() (Info, error) {
 	}, nil
 }
 
+/*
 //SetAlphaScalars sets the alpha scalers for the forward and backward in that order in the array
 func (a *Layer) SetAlphaScalars(alphas []float64) error {
 	if len(alphas) != 2 {
@@ -202,65 +218,77 @@ func (a *Layer) NumAlphaScalars() int {
 func (a *Layer) NumBetaScalars() int {
 	return 2
 }
+*/
 
-//UpDateFwdCScalars updates the alpha and beta scalars
-func (a *Layer) UpDateFwdCScalars(alpha, beta float64) {
+//SetForwardScalars updates the alpha and beta scalars
+func (a *Layer) SetForwardScalars(alpha, beta float64) {
 	a.fwd.Alpha, a.fwd.Beta = alpha, beta
 }
 
-//UpDateBwdCScalars update the alpha and beta scalars
-func (a *Layer) UpDateBwdCScalars(alpha, beta float64) {
+//SetBackwardScalars update the alpha and beta scalars
+func (a *Layer) SetBackwardScalars(alpha, beta float64) {
 	a.bwd.Alpha, a.bwd.Beta = alpha, beta
 }
 
+//SetOtherScalars sets the parameter scalars if the activation function uses it.
+func (a *Layer) SetOtherScalars(alpha, beta float64) {
+	a.bwp.Alpha, a.bwp.Beta = alpha, beta
+}
+
 //ForwardProp does the forward propigation of the activation layer
-func (a *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.IO) error {
+func (a *Layer) ForwardProp(handle *cudnn.Handler, x, y *layers.Tensor) error {
 	var flg activation.Mode
 	switch a.act.Mode() {
 	case flg.Leaky():
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.Volume, a.fwd.Beta, y.Volume, nil, nil, nil)
 	case flg.Threshhold():
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.negCoefs.T(), a.threshold.T(), a.posCoefs.T())
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.Volume, a.fwd.Beta, y.Volume, a.negCoefs.Volume, a.threshold.Volume, a.posCoefs.Volume)
 	case flg.PRelu():
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), a.negCoefs.T(), nil, nil)
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.Volume, a.fwd.Beta, y.Volume, a.negCoefs.Volume, nil, nil)
 	default:
-		return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
+		return a.act.FwdProp(handle, a.fwd.Alpha, x.Volume, a.fwd.Beta, y.Volume, nil, nil, nil)
 	}
-	//	return a.act.FwdProp(handle, a.fwd.Alpha, x.T(), a.fwd.Beta, y.T(), nil, nil, nil)
+	//	return a.act.FwdProp(handle, a.fwd.Alpha, x.Volume, a.fwd.Beta, y.Volume, nil, nil, nil)
 }
 
 //BackProp does the backward propigation of the activation layer
-func (a *Layer) BackProp(handle *cudnn.Handler, x, y *layers.IO) error {
+//
+//In-place operation is allowed for this routine; meaning dy and dx pointers may be equal. However, this requires the corresponding tensor descriptors to be identical (particularly, the strides of the input and output must match for an in-place operation to be allowed).
+//
+//All tensor formats are supported for 4 and 5 dimensions, however, the best performance is obtained when the strides of yDesc and xDesc are equal and HW-packed. For more than 5 dimensions the tensors must have their spatial dimensions packed.
+func (a *Layer) BackProp(handle *cudnn.Handler, x, dx, y, dy *layers.Tensor) error {
 	var flg activation.Mode
 	switch a.act.Mode() {
 	case flg.Leaky():
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil, nil)
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.Volume, dy.Volume, x.Volume, a.fwd.Beta, dx.Volume, nil, nil, nil, nil, nil, nil)
 	case flg.Threshhold():
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), a.threshold.T(), a.threshold.DeltaT(), a.posCoefs.T(), a.posCoefs.DeltaT())
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.Volume, dy.Volume, x.Volume, a.fwd.Beta, dx.Volume, a.negCoefs.Volume, a.dnegCoefs.Volume, a.threshold.Volume, a.dthreshold.Volume, a.posCoefs.Volume, a.dposCoefs.Volume)
 	case flg.PRelu():
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), a.negCoefs.T(), a.negCoefs.DeltaT(), nil, nil, nil, nil)
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.Volume, dy.Volume, x.Volume, a.fwd.Beta, dx.Volume, a.negCoefs.Volume, a.dnegCoefs.Volume, nil, nil, nil, nil)
 	default:
-		return a.act.BwdProp(handle, a.fwd.Alpha, y.T(), y.DeltaT(), x.T(), a.fwd.Beta, x.DeltaT(), nil, nil, nil, nil, nil, nil)
+		return a.act.BwdProp(handle, a.fwd.Alpha, y.Volume, dy.Volume, x.Volume, a.fwd.Beta, dx.Volume, nil, nil, nil, nil, nil, nil)
 	}
 
 }
 
 //PosCoefs If activation layer has pos coefs for threshhold activation this would be it
-func (a *Layer) PosCoefs() *layers.IO {
+func (a *Layer) PosCoefs() *layers.Tensor {
 	return a.posCoefs
 }
 
 //NegCoefs - If activation has neg coefs for prelu or threshould activation this would be it
-func (a *Layer) NegCoefs() *layers.IO {
+func (a *Layer) NegCoefs() *layers.Tensor {
 	return a.negCoefs
 }
 
 //Threshhold - If activation  threshold values for threshould activation this would be it
-func (a *Layer) Threshhold() *layers.IO {
+func (a *Layer) Threshhold() *layers.Tensor {
 	return a.threshold
 }
 
+/*
 //Destroy destroys the cuda allocated memory for activation
 func (a *Layer) Destroy() error {
 	return a.act.Destroy()
 }
+*/

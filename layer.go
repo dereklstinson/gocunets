@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCuNets/layers/activation"
@@ -13,24 +14,209 @@ import (
 	"github.com/dereklstinson/GoCuNets/layers/dropout"
 	"github.com/dereklstinson/GoCuNets/layers/pooling"
 	"github.com/dereklstinson/GoCuNets/layers/reshape"
-	"github.com/dereklstinson/GoCuNets/layers/softmax"
 	"github.com/dereklstinson/GoCuNets/trainer"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
-type layer struct {
-	name                          string
-	activation                    *activation.Layer
-	cnn                           *cnn.Layer
-	softmax                       *softmax.Layer
-	pool                          *pooling.Layer
-	drop                          *dropout.Layer
-	batch                         *batchnorm.Layer
-	reshape                       *reshape.Layer
-	cnntranspose                  *cnntranspose.Layer
-	scalarnumalpha, scalarnumbeta int
+//Operation is a generic operation that a layer uses.
+//
+//The forward and backward don't need to use all the x,dx,y,and dy, but they do need to be passed.
+//
+type Operation interface {
+	Forward(handle *cudnn.Handler, x, dx, y, dy *layers.Tensor) error
+	Inference(handle *cudnn.Handler, x, y *layers.Tensor) error
+	Backward(handle *cudnn.Handler, x, dx, y, dy *Tensor) error
+	UpdateWeights(handle *cudnn.Handler) error
+	LoadTrainers(handle *cudnn.Handler, trainers ...trainer.Trainer) error
+	TrainersNeeded() int
+	SetOtherScalars(alpha, beta float64)
+	SetForwardScalars(alpha, beta float64)
+	SetBackwardScalars(alpha, beta float64)
+	GetOutputDims(input *layers.Tensor) ([]int32, error)
 }
 
-func (l *layer) loadtrainer(handle *cudnn.Handler, trainers ...trainer.Trainer) error {
+//Layer is a layer inside a network it holds inputs and outputs
+type Layer struct {
+	id              int64
+	name            string
+	h               *Handle
+	activation      *activation.Layer
+	cnn             *cnn.Layer
+	pool            *pooling.Layer
+	drop            *dropout.Layer
+	batch           *batchnorm.Layer
+	reshape         *reshape.Layer
+	cnntranspose    *cnntranspose.Layer
+	other           Operation //Operation will eventually take over
+	x, dx, y, dy    *Tensor
+	memoryeffecient bool
+
+	s                                        gocu.Streamer
+	workspacefwd, workspacebwd, workspacebwf *nvidia.Malloced
+	batchsize                                int
+	//scalarnumalpha, scalarnumbeta            int
+}
+
+//ToggleWPrint If layer contains weights or hidden values it will toggle the printing
+func (l *Layer) ToggleWPrint() {
+	if l.cnn != nil {
+		l.cnn.ToggleWeightsPrintValueForStringer()
+		return
+	}
+	if l.cnntranspose != nil {
+		l.cnntranspose.ToggleWeightsPrintValueForStringer()
+		return
+	}
+	return
+}
+
+//ToggleDWPrint If layer contains delta weights
+func (l *Layer) ToggleDWPrint() {
+	if l.cnn != nil {
+		l.cnn.ToggleDWeightsPrintValueForStringer()
+		return
+	}
+	if l.cnntranspose != nil {
+		l.cnntranspose.ToggleDWeightsPrintValueForStringer()
+		return
+	}
+	return
+}
+func (l *Layer) String() string {
+	if l.cnn != nil {
+		return l.cnn.String()
+	}
+	if l.cnntranspose != nil {
+		return l.cnntranspose.String()
+	}
+	if l.activation != nil {
+		return "NO Activation Stringer Yet"
+	}
+	if l.drop == nil {
+		return "No Dropout stringer yet"
+	}
+	if l.reshape == nil {
+		return "No Reshape stringer yet"
+	}
+	return "Unsupported Stringer for now"
+}
+
+//ToggleBiasPrint If layer contains bias.
+func (l *Layer) ToggleBiasPrint() {
+	if l.cnn != nil {
+		l.cnn.ToggleBiasPrintValueForStringer()
+		return
+	}
+	if l.cnntranspose != nil {
+		l.cnntranspose.ToggleBiasPrintValueForStringer()
+		return
+	}
+	return
+}
+
+//ToggleDBiasPrint If layer contains dbias
+func (l *Layer) ToggleDBiasPrint() {
+	if l.cnn != nil {
+		l.cnn.ToggleDBiasPrintValueForStringer()
+		return
+	}
+	if l.cnntranspose != nil {
+		l.cnntranspose.ToggleDBiasPrintValueForStringer()
+		return
+	}
+	return
+}
+
+//ToggleAllHiddenLayerValues toggles all hidden values on
+func (l *Layer) ToggleAllHiddenLayerValues() {
+	l.ToggleBiasPrint()
+	l.ToggleDBiasPrint()
+	l.ToggleDWPrint()
+	l.ToggleWPrint()
+}
+
+//CreateOperationLayer creates an operation layer
+func CreateOperationLayer(id int64, handle *Handle, op Operation) (l *Layer, err error) {
+	l, err = createlayer(id, handle, op)
+	return l, err
+}
+
+//CreateLayer creates a layer with generic
+func createlayer(id int64, handle *Handle, op interface{}) (l *Layer, err error) {
+	l = new(Layer)
+	switch x := op.(type) {
+	case *activation.Layer:
+		l.activation = x
+	case *cnn.Layer:
+		l.cnn = x
+	case *pooling.Layer:
+		l.pool = x
+	case *dropout.Layer:
+		l.drop = x
+	case *batchnorm.Layer:
+		l.batch = x
+	case *reshape.Layer:
+		l.reshape = x
+	case *cnntranspose.Layer:
+		l.cnntranspose = x
+	case Operation:
+		l.other = x
+	default:
+		return nil, errors.New("Unsupported Layer")
+
+	}
+	l.h = handle
+	return l, err
+
+}
+
+//ID is the ID of the layer
+func (l *Layer) ID() int64 {
+	return l.id
+}
+
+//SetIOs sets the x,dx,y,dy used by the layer
+func (l *Layer) SetIOs(x, dx, y, dy *Tensor) {
+	l.x, l.dx, l.y, l.dy = x, dx, y, dy
+}
+
+//SetInputs sets the inputs
+func (l *Layer) SetInputs(x, dx *Tensor) {
+	l.x, l.dx = x, dx
+}
+
+//SetOutputs sets the outputs
+func (l *Layer) SetOutputs(y, dy *Tensor) {
+	l.y, l.dy = y, dy
+}
+
+//Forward performs the forward propagation
+func (l *Layer) Forward() error {
+	return l.forwardprop()
+}
+
+//Backward performs the backward propagation
+func (l *Layer) Backward() error {
+	return l.backpropfilterdata()
+}
+
+//Update updates weights if layer has them
+func (l *Layer) Update(epoch int) error {
+	return l.updateWeights(epoch)
+}
+
+//ChangeBatchSize will change the batch size
+func (l *Layer) ChangeBatchSize(batchsize int) {
+	l.batchsize = batchsize
+}
+
+//LoadTrainer Loas the trainer to the layer
+func (l *Layer) LoadTrainer(handle *cudnn.Handler, batchsize int, trainers ...trainer.Trainer) error {
+
+	return l.loadtrainer(handle, batchsize, trainers...)
+}
+func (l *Layer) loadtrainer(handle *cudnn.Handler, batchsize int, trainers ...trainer.Trainer) error {
+	l.batchsize = batchsize
 	if l.cnn != nil {
 		if len(trainers) != 2 {
 			fmt.Println(len(trainers))
@@ -64,11 +250,22 @@ func (l *layer) loadtrainer(handle *cudnn.Handler, trainers ...trainer.Trainer) 
 		}
 		return l.activation.LoadTrainer(handle, trainers)
 	}
+	if l.other != nil {
+		tneed := l.other.TrainersNeeded()
+		if tneed > 0 {
+
+			if len(trainers) != tneed {
+
+				return fmt.Errorf("l.other got %d should get %d", len(trainers), tneed)
+			}
+		}
+		l.other.LoadTrainers(handle, trainers...)
+	}
 
 	return errors.New("inbedded error doesn't support trainers")
 }
 
-func (l *layer) trainersneeded() int {
+func (l *Layer) trainersneeded() int {
 	if l.cnn != nil {
 		return 2
 	}
@@ -82,58 +279,60 @@ func (l *layer) trainersneeded() int {
 		return l.activation.TrainersNeeded()
 
 	}
+	if l.activation != nil {
+		return l.activation.TrainersNeeded()
+
+	}
+	if l.other != nil {
+		return l.other.TrainersNeeded()
+	}
 	return 0
 
 }
 
-func wraplayer(input interface{}) (hidden *layer, ios int) {
+func wraplayer(input interface{}) (hidden *Layer, ios int) {
 	switch l := input.(type) {
 
 	case *activation.Layer:
 		if l.TrainersNeeded() > 0 {
-			return &layer{
+			return &Layer{
 				activation: l,
 				name:       "Activation",
 			}, 1 + l.TrainersNeeded()
 		}
-		return &layer{
+		return &Layer{
 			activation: l,
 			name:       "Activation",
 		}, 1
 
 	case *cnn.Layer:
-		return &layer{
+		return &Layer{
 			cnn:  l,
 			name: "CNN",
 		}, 2
 
-	case *softmax.Layer:
-		return &layer{
-			softmax: l,
-			name:    "SoftMax",
-		}, 1
 	case *pooling.Layer:
-		return &layer{
+		return &Layer{
 			pool: l,
 			name: "Pooling",
 		}, 1
 	case *dropout.Layer:
-		return &layer{
+		return &Layer{
 			drop: l,
 			name: "DropOut",
 		}, 1
 	case *batchnorm.Layer:
-		return &layer{
+		return &Layer{
 			batch: l,
 			name:  "BatchNorm",
 		}, 1
 	case *reshape.Layer:
-		return &layer{
+		return &Layer{
 			reshape: l,
 			name:    "Reshape",
 		}, 1
 	case *cnntranspose.Layer:
-		return &layer{
+		return &Layer{
 			cnntranspose: l,
 			name:         "CNN-Transpose",
 		}, 2
@@ -143,174 +342,50 @@ func wraplayer(input interface{}) (hidden *layer, ios int) {
 	}
 }
 
-func (l *layer) initalphascalarsamount() int {
-
+//SetForwardScalars sets the forward scalars.
+func (l *Layer) SetForwardScalars(alpha, beta float64) {
 	if l.cnn != nil {
-		l.scalarnumalpha = l.cnn.NumAlphaScalars()
-		return l.scalarnumalpha
-	}
+		l.cnn.SetForwardScalars(alpha, beta)
+	} else if l.cnntranspose != nil {
+		l.cnntranspose.SetForwardScalars(alpha, beta)
+	} else if l.pool != nil {
+		l.pool.SetForwardScalars(alpha, beta)
 
-	if l.pool != nil {
-		l.scalarnumalpha = l.pool.NumAlphaScalars()
-		return l.scalarnumalpha
-
+	} else if l.other != nil {
+		l.other.SetForwardScalars(alpha, beta)
 	}
-	if l.drop != nil {
-
-		return 0
-	}
-	if l.activation != nil {
-		l.scalarnumalpha = l.activation.NumAlphaScalars()
-		return l.scalarnumalpha
-
-	}
-	if l.batch != nil {
-		l.scalarnumalpha = l.batch.NumAlphaScalars()
-		return l.scalarnumalpha
-	}
-
-	if l.softmax != nil {
-		l.scalarnumalpha = l.softmax.NumAlphaScalars()
-		return l.scalarnumalpha
-
-	}
-	if l.reshape != nil {
-		return 0
-	}
-	if l.cnntranspose != nil {
-		l.scalarnumalpha = l.cnntranspose.NumAlphaScalars()
-		return l.scalarnumalpha
-
-	}
-	return 0
-
+	return
 }
-func (l *layer) initbetascalarsamount() int {
 
+//SetBackwardScalars sets backward scalars
+func (l *Layer) SetBackwardScalars(alpha, beta float64) {
 	if l.cnn != nil {
-		l.scalarnumbeta = l.cnn.NumBetaScalars()
-		return l.scalarnumbeta
-	}
+		l.cnn.SetBackwardScalars(alpha, beta)
+	} else if l.cnntranspose != nil {
+		l.cnntranspose.SetBackwardScalars(alpha, beta)
+	} else if l.pool != nil {
+		l.pool.SetBackwardScalars(alpha, beta)
 
-	if l.pool != nil {
-		l.scalarnumbeta = l.pool.NumBetaScalars()
-		return l.scalarnumbeta
-
+	} else if l.other != nil {
+		l.other.SetBackwardScalars(alpha, beta)
 	}
-	if l.drop != nil {
-
-		return 0
-	}
-	if l.activation != nil {
-		l.scalarnumbeta = l.activation.NumBetaScalars()
-		return l.scalarnumbeta
-
-	}
-	if l.batch != nil {
-		l.scalarnumbeta = l.batch.NumBetaScalars()
-		return l.scalarnumbeta
-	}
-
-	if l.softmax != nil {
-		l.scalarnumbeta = l.softmax.NumBetaScalars()
-		return l.scalarnumbeta
-
-	}
-	if l.reshape != nil {
-		return 0
-	}
-	if l.cnntranspose != nil {
-		l.scalarnumbeta = l.cnntranspose.NumBetaScalars()
-		return l.scalarnumbeta
-
-	}
-	return 0
-
+	return
 }
-func (l *layer) updateabetascalar(scalars []float64) (offset []float64) {
+
+//SetOtherScalars sets other scalars that the layer might have scalars
+func (l *Layer) SetOtherScalars(alpha, beta float64) {
 	if l.cnn != nil {
-
-		l.cnn.SetBetaScalars(scalars[:l.scalarnumbeta])
-		return scalars[l.scalarnumbeta:]
+		l.cnn.SetOtherScalars(alpha, beta)
+	} else if l.cnntranspose != nil {
+		l.cnntranspose.SetOtherScalars(alpha, beta)
+	} else if l.other != nil {
+		l.other.SetOtherScalars(alpha, beta)
 	}
-
-	if l.pool != nil {
-		l.pool.SetBetaScalars(scalars[:l.scalarnumbeta])
-		return scalars[l.scalarnumbeta:]
-
-	}
-	if l.drop != nil {
-
-		return scalars
-	}
-	if l.activation != nil {
-		l.activation.SetBetaScalars(scalars[:l.scalarnumbeta])
-		return scalars[l.scalarnumbeta:]
-
-	}
-	if l.batch != nil {
-		l.batch.SetBetaScalars(scalars[:l.scalarnumbeta])
-		return scalars[l.scalarnumbeta:]
-	}
-
-	if l.softmax != nil {
-		l.softmax.SetBetaScalars(scalars[:l.scalarnumbeta])
-		return scalars[l.scalarnumbeta:]
-
-	}
-	if l.reshape != nil {
-		return scalars
-	}
-	if l.cnntranspose != nil {
-		l.cnntranspose.SetBetaScalars(scalars[:l.scalarnumbeta])
-		return scalars[l.scalarnumbeta:]
-
-	}
-	return scalars
+	return
 }
-func (l *layer) updatealphascalar(scalars []float64) (offset []float64) {
-	if l.cnn != nil {
 
-		l.cnn.SetAlphaScalars(scalars[:l.scalarnumalpha])
-		return scalars[l.scalarnumalpha:]
-	}
-
-	if l.pool != nil {
-		l.pool.SetAlphaScalars(scalars[:l.scalarnumalpha])
-		return scalars[l.scalarnumalpha:]
-
-	}
-	if l.drop != nil {
-
-		return scalars
-	}
-	if l.activation != nil {
-		l.activation.SetAlphaScalars(scalars[:l.scalarnumalpha])
-		return scalars[l.scalarnumalpha:]
-
-	}
-	if l.batch != nil {
-		l.batch.SetAlphaScalars(scalars[:l.scalarnumalpha])
-		return scalars[l.scalarnumalpha:]
-
-	}
-
-	if l.softmax != nil {
-		l.softmax.SetAlphaScalars(scalars[:l.scalarnumalpha])
-		return scalars[l.scalarnumalpha:]
-
-	}
-	if l.reshape != nil {
-		return scalars
-	}
-	if l.cnntranspose != nil {
-		l.cnntranspose.SetAlphaScalars(scalars[:l.scalarnumalpha])
-		return scalars[l.scalarnumalpha:]
-
-	}
-	return scalars
-}
-func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*layers.IO, string, error) {
+/*
+func (l *Layer) getoutputwithname(handle *cudnn.Handler, input *layers.Tensor) (*layers.Tensor, string, error) {
 
 	if l.cnn != nil {
 		x, err := l.cnn.MakeOutputTensor(handle, input)
@@ -318,7 +393,7 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 	}
 
 	if l.pool != nil {
-		x, err := l.pool.MakeOutputLayer(handle, input)
+		x, err := l.pool.MakeOutputTensor(handle, input)
 		return x, "Pooling-Output", err
 	}
 	if l.drop != nil {
@@ -328,11 +403,11 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 
 			return nil, "", err
 		}
-		x, err := input.ZeroClone(handle)
+		x, err := layers.ZeroClone(handle, input)
 		return x, "DropOut-Output", err
 	}
 	if l.activation != nil {
-		x, err := input.ZeroClone(handle)
+		x, err := layers.ZeroClone(handle, input)
 		return x, "Activation-Output", err
 	}
 	if l.batch != nil {
@@ -340,14 +415,10 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 		if err != nil {
 			return nil, "", err
 		}
-		x, err := input.ZeroClone(handle)
+		x, err := layers.ZeroClone(handle, input)
 		return x, "BatchNorm-Output", err
 	}
 
-	if l.softmax != nil {
-		x, err := input.ZeroClone(handle)
-		return x, "SoftMax-Output", err
-	}
 	if l.reshape != nil {
 		x, err := l.reshape.MakeOutputTensor(handle, input)
 		return x, "Reshape-Output", err
@@ -358,18 +429,47 @@ func (l *layer) getoutputwithname(handle *cudnn.Handler, input *layers.IO) (*lay
 	}
 	return nil, "", errors.New("Layer Needs Support")
 }
+*/
+
+//GetOutputDims gets the dims of the output tensor
+func (l *Layer) GetOutputDims(input *Tensor) (output []int32, err error) {
+	if l.cnn != nil {
+		return l.cnn.FindOutputDims(input.Tensor)
+	}
+	if l.pool != nil {
+		return l.pool.GetOutputDims(input.Tensor)
+	}
+	if l.batch != nil {
+		output = make([]int32, len(input.Dims()))
+		copy(output, input.Dims())
+		return output, nil
+	}
+	if l.cnntranspose != nil {
+		return l.cnntranspose.FindOutputDims(input.Tensor)
+	}
+	if l.activation != nil {
+		output = make([]int32, len(input.Dims()))
+		copy(output, input.Dims())
+		return output, nil
+	}
+	if l.drop != nil {
+		output = make([]int32, len(input.Dims()))
+		copy(output, input.Dims())
+		return output, nil
+	}
+	if l.other != nil {
+		return l.other.GetOutputDims(input.Tensor)
+	}
+	return nil, errors.New("Unsupported Layer")
+}
 
 /*
-func (l *layer) getoutputdims(handle *cudnn.Handler, input *layers.IO) ([]int32, error) {
-
-}
-*/
-func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.IO, err error) {
+func (l *Layer) getoutput(handle *cudnn.Handler, input *layers.Tensor) (io *layers.Tensor, err error) {
 
 	if l.cnn != nil {
 		io, err = l.cnn.MakeOutputTensor(handle, input)
 		if io == nil {
-			fmt.Println("input is", input.T().Dims())
+			fmt.Println("input is", input.Dims())
 
 		}
 		if err != nil {
@@ -389,7 +489,7 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.I
 		if err != nil {
 			return nil, err
 		}
-		io, err = input.ZeroClone(handle)
+		io, err = layers.ZeroClone(handle, input)
 		if io == nil {
 			panic("IO IS NILL")
 		}
@@ -397,7 +497,7 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.I
 
 	}
 	if l.activation != nil {
-		io, err = input.ZeroClone(handle)
+		io, err = layers.ZeroClone(handle, input)
 		if err != nil {
 			fmt.Println("Error in activation Make Output Tensor input is:", input)
 		}
@@ -414,7 +514,7 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.I
 			return nil, err
 		}
 
-		io, err = input.ZeroClone(handle)
+		io, err = layers.ZeroClone(handle, input)
 		if err != nil {
 			fmt.Println("Error in batch Make Output Tensor input is:", input)
 		}
@@ -425,14 +525,6 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.I
 		return io, err
 	}
 
-	if l.softmax != nil {
-		io, err = input.ZeroClone(handle)
-		if io == nil {
-			panic("IO IS NILL")
-		}
-		return io, err
-
-	}
 	if l.reshape != nil {
 		io, err = l.reshape.MakeOutputTensor(handle, input)
 		if io == nil {
@@ -443,7 +535,7 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.I
 	if l.cnntranspose != nil {
 		io, err = l.cnntranspose.MakeOutputTensor(handle, input)
 		if err != nil {
-			fmt.Println("DIMS Reverse", io.T().Dims())
+			fmt.Println("DIMS Reverse", io.Dims())
 			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
 		}
 		if io == nil {
@@ -453,32 +545,37 @@ func (l *layer) getoutput(handle *cudnn.Handler, input *layers.IO) (io *layers.I
 	}
 	return nil, errors.New("Layer Needs Support")
 }
-
+*/
 //UpdateWeights updates the weights of layer
-func (l *layer) updateWeights(handle *cudnn.Handler, batch int) error {
+func (l *Layer) updateWeights(epoch int) error {
 
+	batch := l.batchsize
 	if l.cnn != nil {
-		return l.cnn.UpdateWeights(handle, batch)
+		return l.cnn.UpdateWeights(l.h.Handler, batch, epoch)
 	}
 
 	if l.cnntranspose != nil {
-		return l.cnntranspose.UpdateWeights(handle, batch)
+		return l.cnntranspose.UpdateWeights(l.h.Handler, batch, epoch)
 
 	}
 	if l.batch != nil {
-		return l.batch.UpdateWeights(handle, batch)
+		return l.batch.UpdateWeights(l.h.Handler, batch, epoch)
 	}
 	if l.activation != nil {
 		if l.activation.TrainersNeeded() > 0 {
-			return l.activation.UpdateWeights(handle, batch)
+			return l.activation.UpdateWeights(l.h.Handler, batch, epoch)
 
 		}
 
 	}
+	if l.other != nil {
+		return l.other.UpdateWeights(l.h.Handler)
+	}
 	return nil
+
 }
 
-func (l *layer) l1l2loss() (l1, l2 float32) {
+func (l *Layer) l1l2loss() (l1, l2 float32) {
 
 	if l.cnn != nil {
 		return l.cnn.L1L2Loss()

@@ -20,18 +20,19 @@ type Ops struct {
 //BackProp does the back propagation for dropoutlayer
 func (op *Ops) BackProp(handle *cudnn.Handler, dx, dy *tensor.Volume) error {
 
-	return op.dropout.Backward(handle.Cudnn(), dy.TD(), dy.Memer(), dx.TD(), dx.Memer(), op.reserve, op.reserve.TotalBytes())
+	return op.dropout.Backward(handle.Cudnn(), dy.TD(), dy, dx.TD(), dx, op.reserve, op.reserve.SIB())
 }
 
 //ForwardProp does the feed forward
 func (op *Ops) ForwardProp(handle *cudnn.Handler, x, y *tensor.Volume) error {
 
-	return op.dropout.Forward(handle.Cudnn(), x.TD(), x.Memer(), y.TD(), y.Memer(), op.reserve, op.reserve.TotalBytes())
+	return op.dropout.Forward(handle.Cudnn(), x.TD(), x, y.TD(), y, op.reserve, op.reserve.SIB())
 }
 
 //Stage stages the op
 func Stage(handle *cudnn.Handler, x *tensor.Volume, dropout float32, seed uint64) (*Ops, error) {
 	desc, err := gocudnn.CreateDropOutDescriptor()
+
 	if err != nil {
 		return nil, err
 	}

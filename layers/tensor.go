@@ -2,17 +2,175 @@
 package layers
 
 import (
-	"errors"
+
+	//"math/rand"
+	"fmt"
 	"sync"
 
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
 	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCudnn/gocu"
-
 	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/GoCudnn/gocu"
 )
 
+//Tensor is a tensor with volume
+type Tensor struct {
+	*tensor.Volume
+	goptr                            *gocu.Wrapper
+	minx, maxx, avgx, norm1x, norm2x *reduceop
+	mux                              sync.Mutex
+}
+
+//ZeroClone returns a zeroed out clone of the tensor passed
+func ZeroClone(h *cudnn.Handler, t *Tensor) (c *Tensor, err error) {
+	c = new(Tensor)
+	c.Volume, err = tensor.ZeroClone(h, t.Volume)
+	return c, err
+}
+
+//MinX returns the minx value per batch in the tensor or if it is used for the filter it would be the minx value per neuron
+func (t *Tensor) MinX(handle *cudnn.Handler) (x float32, err error) {
+
+	if t.minx == nil {
+		t.minx, err = buildminreduce(handle, t.Volume)
+		if err != nil {
+			return 0, err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return 0, err
+		}
+	}
+	t.mux.Lock()
+	x, err = t.minx.Reduce(handle, t.Volume)
+	t.mux.Unlock()
+	return x, err
+
+}
+
+//MaxX returns the MaxX per batch value in the tensor or if it is used for the filter it would be the MaxX value per neuron
+func (t *Tensor) MaxX(handle *cudnn.Handler) (x float32, err error) {
+	if t.maxx == nil {
+		t.maxx, err = buildmaxreduce(handle, t.Volume)
+		if err != nil {
+			return 0, err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return 0, err
+		}
+	}
+	t.mux.Lock()
+	x, err = t.maxx.Reduce(handle, t.Volume)
+	t.mux.Unlock()
+	return x, err
+
+}
+
+//AvgX returns the Avg X value for the IO
+func (t *Tensor) AvgX(handle *cudnn.Handler) (x float32, err error) {
+	if t.avgx == nil {
+		t.avgx, err = buildavgreduce(handle, t.Volume)
+		if err != nil {
+			return 0, err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return 0, err
+		}
+	}
+	t.mux.Lock()
+	x, err = t.avgx.Reduce(handle, t.Volume)
+	t.mux.Unlock()
+	return x, err
+
+}
+
+//Norm1X returns Norm1 X value for IO
+func (t *Tensor) Norm1X(handle *cudnn.Handler) (x float32, err error) {
+	if t.norm1x == nil {
+		t.norm1x, err = buildnorm1reduce(handle, t.Volume)
+		if err != nil {
+			return 0, err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return 0, err
+		}
+	}
+	t.mux.Lock()
+	x, err = t.norm1x.Reduce(handle, t.Volume)
+	t.mux.Unlock()
+	return x, err
+
+}
+
+//Norm2X returns Norm2 X value for IO
+func (t *Tensor) Norm2X(handle *cudnn.Handler) (x float32, err error) {
+	if t.norm2x == nil {
+		t.norm2x, err = buildnorm2reduce(handle, t.Volume)
+		if err != nil {
+			return 0, err
+		}
+		err = handle.Sync()
+		if err != nil {
+			return 0, err
+		}
+	}
+	t.mux.Lock()
+	x, err = t.norm2x.Reduce(handle, t.Volume)
+	t.mux.Unlock()
+	return x, err
+
+}
+
+//CreateTensor creates a tensor.
+func CreateTensor(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (t *Tensor, err error) {
+	t = new(Tensor)
+	t.Volume, err = tensor.Build(handle, frmt, dtype, dims)
+
+	return t, err
+
+}
+
+//LoadValuesFromSLice takes a go slice and fills it into the tensor sitting in the gpu.  If the length of goslice doesn't fit the input it will return an error
+func (t *Tensor) LoadValuesFromSLice(handle *cudnn.Handler, input interface{}, length int32) error {
+	if utils.FindVolumeInt32(t.Dims(), nil) != length {
+
+		return fmt.Errorf("InputCurrent length (%v) not matching IO dims volume (%v)", length, utils.FindVolumeInt32(t.Dims(), nil))
+	}
+	var err error
+	t.goptr, err = gocu.MakeGoMem(input)
+	if err != nil {
+		return err
+	}
+	err = t.LoadMem(handle, t.goptr, (t.goptr.TotalBytes()))
+	if err != nil {
+		return err
+	}
+	return handle.Sync()
+}
+
+//BuildRandomTensor builds a fix sized input
+func BuildRandomTensor(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32) (*Tensor, error) {
+	return buildRandIO(handle, frmt, dtype, dims, mean, std)
+
+}
+func buildRandIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32) (*Tensor, error) {
+
+	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Tensor{
+		Volume: x,
+	}, nil
+
+}
+
+/*
 //IO is an all purpose struct that contains an x tensor and a dx tensor used for training
 type IO struct {
 	x                                     *tensor.Volume
@@ -45,12 +203,7 @@ type Info struct {
 	Dx           tensor.Info `json:"dX"`
 }
 
-/*
-//IsManaged returns if it is managed by cuda memory management system
-func (i *IO) IsManaged() bool {
-	return i.managed
-}
-*/
+
 
 //StoreDeltas will flip a flag to allow deltas to be stored on this IO.
 //Useful when training gans when you don't want the errors when training the descriminator to propigate through this.
@@ -268,6 +421,8 @@ func (i *IO) SetDXStatReducers(handle *cudnn.Handler) (err error) {
 	}
 	return err
 }
+
+//ZeroCloneInference does zeroclone inferenence
 func (i *IO) ZeroCloneInference(handle *cudnn.Handler) (*IO, error) {
 	frmt, dtype, dims, err := i.Properties()
 	if err != nil {
@@ -308,48 +463,14 @@ func BuildNormRandIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype goc
 
 }
 
-//BuildStaticRandInputIO builds a fix sized input
-func BuildStaticRandInputIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
-	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true, true)
 
-}
 
 //BuildNormRandInputIO builds a regular IO but the input is set to nil
 func BuildNormRandInputIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64) (*IO, error) {
 	return buildRandIO(handle, frmt, dtype, dims, mean, std, seed, true, false)
 
 }
-func buildRandIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32, mean, std float32, seed uint64, input, static bool) (*IO, error) {
-	if input {
 
-		x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, static)
-		if err != nil {
-			return nil, err
-		}
-
-		return &IO{
-			x:     x,
-			dx:    nil,
-			input: true,
-		}, nil
-
-	}
-	x, err := tensor.BuildRandNorm(handle, frmt, dtype, dims, mean, std, seed, static)
-	if err != nil {
-
-		return nil, err
-	}
-	dx, err := tensor.Build(handle, frmt, dtype, dims)
-	if err != nil {
-
-		return nil, err
-	}
-	return &IO{
-		x:  x,
-		dx: dx,
-	}, nil
-
-}
 
 //BuildNetworkInputHost build the input tensor to paged memory on host ram
 func BuildNetworkInputHost(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
@@ -371,25 +492,6 @@ func BuildNetworkInputIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype
 	return buildIO(handle, frmt, dtype, dims, true, false)
 }
 
-//ResizeIO will resize the tensor descriptors for the volumes that reside in the IO
-func (i *IO) ResizeIO(handle *cudnn.Handler, dims []int32) error {
-	var err error
-	if i.x != nil {
-		err = i.x.ChangeDims(dims)
-		if err != nil {
-			return err
-		}
-	}
-	if i.dx != nil {
-		err = i.dx.ChangeDims(dims)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 //BuildInferenceIO builds an IO used for only inference.  It doesn't contain a tensor for the errors.
 func BuildInferenceIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dims []int32) (*IO, error) {
 	return buildIO(handle, frmt, dtype, dims, true, false)
@@ -406,7 +508,7 @@ func BuildNetworkOutputIOFromSlice(handle *cudnn.Handler, frmt gocudnn.TensorFor
 		return nil, errors.New("Slice passed length don't match dim volume")
 	}
 
-	slice2 := make([]float32, handle.FindMaxVol(dims))
+	slice2 := make([]float32, handle.FindVol(dims))
 	copy(slice2, slice)
 
 	newio, err := BuildIO(handle, frmt, dtype, dims)
@@ -480,17 +582,7 @@ func buildIO(handle *cudnn.Handler, frmt gocudnn.TensorFormat, dtype gocudnn.Dat
 	}, nil
 }
 
-//LoadTValues loads a piece of memory that was made in golang and loads into an already created tensor volume in cuda.
-func (i *IO) LoadTValues(handle *cudnn.Handler, input *tensor.Volume) error {
-	if utils.FindVolumeInt32(i.x.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
-		return errors.New("InputCurrent dims not matching IO current dims")
-	}
-	err := i.x.LoadMem(handle, input.Memer(), input.CurrentSizeT())
-	if err != nil {
-		return err
-	}
-	return handle.Sync()
-}
+
 
 //LoadTValuesFromGoSlice takes a go slice and fills it into the tensor sitting in the gpu.  If the length of goslice doesn't fit the input it will return an error
 func (i *IO) LoadTValuesFromGoSlice(handle *cudnn.Handler, input interface{}, length int32) error {
@@ -546,37 +638,11 @@ func (i *IO) LoadDeltaTValues(handle *cudnn.Handler, input *tensor.Volume) error
 	if utils.FindVolumeInt32(i.dx.Dims(), nil) != utils.FindVolumeInt32(input.Dims(), nil) {
 		return errors.New("InputCurrent dims not matching IO current dims")
 	}
-	err := i.dx.LoadMem(handle, input.Memer(), input.CurrentSizeT())
+	err := i.dx.LoadMem(handle, input.Memer(), input.SIB())
 	if err != nil {
 		return err
 	}
 	return handle.Sync()
 }
 
-/*
-//Destroy frees all the memory assaciated with the tensor inside of IO
-func (i *IO) Destroy() error {
-	var flag bool
-	var (
-		err  error
-		err1 error
-	)
-	if i.dx != nil {
-		err = i.dx.Destroy()
-		if err != nil {
-			flag = true
-		}
-	}
-	if i.x != nil {
-		err1 = i.x.Destroy()
-		if err1 != nil {
-			flag = true
-		}
-	}
-
-	if flag == true {
-		return fmt.Errorf("error:x: %s,dx: %s", err, err1)
-	}
-	return nil
-}
 */
