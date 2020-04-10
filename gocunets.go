@@ -1,31 +1,67 @@
 package gocunets
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/trainer"
 	"github.com/dereklstinson/GoCudnn/cudart"
 	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/nccl"
 )
 
 //Tensor is contains 2 tensors the x and dx.  Input IOs will contain only the X tensor.
 type Tensor struct {
 	*layers.Tensor
 }
-type Workspace struct {
-	*nvidia.Malloced
-}
 
-//Trainer is a trainer.Trainer
-type Trainer interface {
-	trainer.Trainer
-}
+//type Workspace struct {
+//	*nvidia.Malloced
+//}
+
+////Trainer is a trainer.Trainer
+//type Trainer interface {
+//	trainer.Trainer
+//}
 
 //Handle handles the functions of the libraries used in gocunet
 type Handle struct {
 	*cudnn.Handler
 	w *gocu.Worker
+}
+
+//GetWorker returns the gocu.Worker.
+func (h *Handle) GetWorker() *gocu.Worker {
+	return h.w
+}
+
+//Comm is a communicator
+type Comm struct {
+	c   *nccl.Comm
+	h   *Handle
+	uid nccl.UniqueID
+}
+
+//CreateComms creates Communicators for parallel processes.
+func CreateComms(hs []*Handle) (comm []*Comm, err error) {
+	uid, err := nccl.GetUniqueID()
+	if err != nil {
+		return nil, err
+	}
+	nrank := int32(len(hs))
+	comm = make([]*Comm, len(hs))
+	for i := range hs {
+		err = hs[i].Work(func() error {
+			comm[i].c, err = nccl.CommInitRank(nrank, uid, int32(i))
+			if err != nil {
+				return err
+			}
+			comm[i].h = hs[i]
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return comm, err
 }
 
 //Stream is a stream for gpu instructions
@@ -40,6 +76,29 @@ func CreateHandle(w *gocu.Worker, d Device, seed uint64) (h *Handle) {
 	h.w = gocu.NewWorker(d.Device)
 
 	return h
+}
+
+//CreateHandles creates parrallel handles.  With there own workers.  It also creates non blocking streams
+func CreateHandles(ws []*gocu.Worker, ds []Device, seeds []uint64) []*Handle {
+
+	hs := make([]*Handle, len(ds))
+	var err error
+	for i := range ds {
+		hs[i] = CreateHandle(ws[i], ds[i], seeds[i])
+		err = hs[i].Work(func() error {
+			var err error
+			stream, err := cudart.CreateNonBlockingStream()
+			if err != nil {
+				panic(err)
+			}
+			hs[i].SetStream(stream)
+			return nil
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+	return hs
 }
 
 //Close closes the work thread
@@ -82,13 +141,13 @@ func GetDeviceList() (devices []Device, err error) {
 	return devices, nil
 }
 
-func trainerstooriginal(t []Trainer) (x []trainer.Trainer) {
-	x = make([]trainer.Trainer, len(t))
-	for i := range t {
-		x[i] = t[i]
-	}
-	return x
-}
+//func trainerstooriginal(t []Trainer) (x []trainer.Trainer) {
+//	x = make([]trainer.Trainer, len(t))
+//	for i := range t {
+//		x[i] = t[i]
+//	}
+//	return x
+//}
 
 //import (
 //	"errors"

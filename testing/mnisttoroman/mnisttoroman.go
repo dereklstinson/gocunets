@@ -36,6 +36,8 @@ func main() {
 	const filedirectory = "../mnist/files/"
 	const mnistfilelabel = "train-labels.idx1-ubyte"
 	const mnistimage = "train-images.idx3-ubyte"
+	const mnistfilelabeltest = "test-labels.idx1-ubyte"
+	const mnistimagetest = "test-images.idx3-ubyte"
 	const imagesave = "/home/derek/Desktop/RomanOutput/"
 	romannums := roman.GetRoman(romanimagelocation)
 	mnistdata, err := dfuncs.LoadMNIST(filedirectory, mnistfilelabel, mnistimage)
@@ -74,7 +76,7 @@ func main() {
 	hiddenoutputchannels := []int32{8, 8, 8}
 
 	ArabicInputTensor, err := builder.CreateTensor(intputdimss)
-	decoderoutputchannels := int32(32)
+	decoderoutputchannels := int32(8)
 	utils.CheckError(err)
 	var outputchannels = int32(2)
 	fmt.Println("Making Encoder")
@@ -118,7 +120,7 @@ func main() {
 	fmt.Println("Put Roman Images into gpu")
 
 	romanoutput := putintogpumemRoman(handles, batchedoutput, []int32{10, 2, 28, 28}, builder)
-	fmt.Println(romanoutput)
+	//fmt.Println(romanoutput)
 	//Load the batches into gpu mem this is basically the Arabic numbers are place in arabicoutput.T() and arabicnums.DeltaT()
 	fmt.Println("Put Arabic Images into GPU")
 	arabicoutput, arabicnums := putintogpumemArabic(handles, builder, batchesofinputbatches, []int32{10, 1, 28, 28}, batchesofoutputbatches, []int32{10, 2, 28, 28})
@@ -179,9 +181,9 @@ func main() {
 				ToRoman.SetTensorDX(RomanDX)
 			}
 			utils.CheckError(ArabicInputTensor.LoadMem(handles.Handler, arabicnums[j], arabicnums[j].SIB()))
-			//	utils.CheckError(ToRoman.GetTensorDY().LoadMem(handles.Handler, romanoutput, romanoutput.SIB()))
+			utils.CheckError(ToRoman.GetTensorDY().LoadMem(handles.Handler, romanoutput, romanoutput.SIB()))
 			utils.CheckError(ToArabic.GetTensorDY().LoadMem(handles.Handler, arabicoutput[j], arabicoutput[j].SIB()))
-			utils.CheckError(ToRoman.GetTensorDY().LoadMem(handles.Handler, arabicoutput[j], arabicoutput[j].SIB()))
+			//utils.CheckError(ToRoman.GetTensorDY().LoadMem(handles.Handler, arabicoutput[j], arabicoutput[j].SIB()))
 			//Encode Image
 			utils.CheckError(Encoder.Forward())
 			utils.CheckError(stream.Sync())

@@ -28,31 +28,31 @@ func RomanDecoder(
 		panic("input tensor channel is less than 1 or non supported tensor format ")
 	}
 	var err error
-	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{2, 2}, -3, 1, 0, false, true)
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{4, 4}, -3, 1, 0, false, true)
 	if err != nil {
 		panic(err)
 	}
-	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 1, 1, 0, false, true)
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 1, 1, 0, false, true)
 	if err != nil {
 		panic(err)
 	}
-	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, -1, 1, 0, false, true)
+	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, -1, 1, 0, false, true)
 	if err != nil {
 		panic(err)
 	}
@@ -138,31 +138,31 @@ func ArabicEncoder(
 		panic("input tensor channel is less than 1 or non supported tensor format ")
 	}
 	var err error
-	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{2, 2}, -1, 1, 0, false, false)
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{4, 4}, -1, 1, 0, false, false)
 	if err != nil {
 		panic(err)
 	}
-	mods[1], err = gocunets.CreateCompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[1], err = gocunets.CreateCompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[2], err = gocunets.CreateCompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[2], err = gocunets.CreateCompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 1, 1, 0, false, false)
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 1, 1, 0, false, false)
 	if err != nil {
 		panic(err)
 	}
-	mods[4], err = gocunets.CreateCompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[4], err = gocunets.CreateCompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[5], err = gocunets.CreateCompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[5], err = gocunets.CreateCompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, -3, 1, 0, false, false)
+	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, -3, 1, 0, false, false)
 	if err != nil {
 		panic(err)
 	}
@@ -252,31 +252,31 @@ func ArabicDecoder(builder *gocunets.Builder,
 		panic("input tensor channel is less than 1 or non supported tensor format ")
 	}
 	var err error
-	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{2, 2}, -3, 1, 0, false, true)
+	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{4, 4}, -3, 1, 0, false, true)
 	if err != nil {
 		panic(err)
 	}
-	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 1, 1, 0, false, true)
+	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 1, 1, 0, false, true)
 	if err != nil {
 		panic(err)
 	}
-	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, 2, 1, 0)
+	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
 	if err != nil {
 		panic(err)
 	}
-	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{2, 2}, -1, 1, 0, false, true)
+	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, -1, 1, 0, false, true)
 	if err != nil {
 		panic(err)
 	}

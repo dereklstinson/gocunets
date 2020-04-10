@@ -19,10 +19,12 @@ type Concat struct {
 }
 
 //CreateConcat creates a concat handler.  It contains the kernel that does the concat operation on the gpu
+//Default alpha, beta are set to alpha = 1, beta =0.
 func CreateConcat(h *cudnn.Handler) (c *Concat, err error) {
 	c = new(Concat)
 
 	c.c, err = xtra.CreateConcatEx(h.XHandle())
+	c.fa, c.ba, c.fb, c.bb = 1, 1, 0, 0
 	return c, err
 }
 
