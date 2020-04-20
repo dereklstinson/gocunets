@@ -19,8 +19,8 @@ func TestTensorFormat_NCHW(t *testing.T) {
 		t.Error("Flag NCHWvectC not working", flag, tester)
 	}
 
-	if flag.Strided() != (TensorFormat)(tester.Strided()) {
-		t.Error("Flag Strided not working", flag, tester)
+	if flag.Unknown() != (TensorFormat)(tester.Unknown()) {
+		t.Error("Flag Unknown not working", flag, tester)
 	}
 
 }
