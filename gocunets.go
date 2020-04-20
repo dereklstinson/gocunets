@@ -1,6 +1,7 @@
 package gocunets
 
 import (
+	"fmt"
 	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/GoCuNets/layers"
 	"github.com/dereklstinson/GoCudnn/cudart"
@@ -50,6 +51,7 @@ func CreateComms(hs []*Handle) (comm []*Comm, err error) {
 	comm = make([]*Comm, len(hs))
 	for i := range hs {
 		err = hs[i].Work(func() error {
+
 			comm[i].c, err = nccl.CommInitRank(nrank, uid, int32(i))
 			if err != nil {
 				return err
@@ -67,6 +69,32 @@ func CreateComms(hs []*Handle) (comm []*Comm, err error) {
 //Stream is a stream for gpu instructions
 type Stream struct {
 	*cudart.Stream
+}
+
+//SetPeerAccess sets peer access accross all devices
+func SetPeerAccess(devs []Device) (connections int, err error) {
+	for i := 0; i < len(devs)-1; i++ {
+		for j := i + 1; j < len(devs); j++ {
+			ok, err := devs[i].CanAccessPeer(devs[j].Device)
+			if err != nil {
+				return connections, err
+			}
+			if ok {
+				err = devs[i].EnablePeerAccess(devs[j].Device)
+				if err != nil {
+					return connections, err
+				}
+				fmt.Println("Connecting i,j", i, j)
+
+				connections++
+			} else {
+
+				fmt.Println("Can't Connect i,j", i, j)
+			}
+
+		}
+	}
+	return connections, nil
 }
 
 //CreateHandle creates a handle for gocunets

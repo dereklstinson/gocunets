@@ -215,10 +215,10 @@ func (c *Ops) GetBwdDataAlgoPerfList(handle *cudnn.Handler, dx, w, dy *tensor.Vo
 	if workspace == nil {
 		bwddata, err = c.op.FindBackwardDataAlgorithm(handle.Cudnn(), w.FD(), dy.TD(), dx.TD())
 		//	bwddata, err = c.op.GetBackwardDataAlgorithmV7(handle.Cudnn(), w.FD(), dy.TD(), dx.TD())
-		fmt.Println("Did Algo7")
+		//fmt.Println("Did Algo7")
 	} else {
 		bwddata, err = c.op.FindBackwardDataAlgorithmEx(handle.Cudnn(), w.FD(), w, dy.TD(), dy, dx.TD(), dx, workspace, workspace.SIB())
-		fmt.Println("Did regular algo")
+		//	fmt.Println("Did regular algo")
 	}
 
 	if err != nil {

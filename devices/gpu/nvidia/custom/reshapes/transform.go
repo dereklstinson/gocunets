@@ -64,7 +64,7 @@ func (o *Ops) MakeTransformHelper(src, dest *tensor.Volume) (*TransFormHelper, e
 	if err != nil {
 		return nil, err
 	}
-	err = stridedtensordescriptor.Set(fflg.Strided(), dtype, sdims, strides)
+	err = stridedtensordescriptor.Set(fflg.Unknown(), dtype, sdims, strides)
 	//	stridedtensordescriptor, err := gocudnn.NewTensor4dDescriptorEx(dtype, sdims, strides)
 	if err != nil {
 		return nil, err

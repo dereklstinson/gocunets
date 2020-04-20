@@ -98,13 +98,13 @@ func (c copier) CopyHostToDevice(dest, src cutil.Pointer, sib uint) error {
 	if c.s != nil {
 		return cudart.MemcpyAsync(dest, src, sib, defaultmemcopykind, c.s)
 	}
-	return cudart.MemCpy(dest, src, sib, defaultmemcopykind)
+	return cudart.Memcpy(dest, src, sib, defaultmemcopykind)
 }
 func (c copier) CopyDeviceToHost(dest, src cutil.Pointer, sib uint) error {
 	if c.s != nil {
 		return cudart.MemcpyAsync(dest, src, sib, defaultmemcopykind, c.s)
 	}
-	return cudart.MemCpy(dest, src, sib, defaultmemcopykind)
+	return cudart.Memcpy(dest, src, sib, defaultmemcopykind)
 }
 func (c copier) Sync() error {
 	if c.s != nil {
@@ -120,7 +120,7 @@ func Memcpy(dest, src cutil.Pointer, sizeinbytes uint) error {
 	//			return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
 	//		})
 	//	}
-	return cudart.MemCpy(dest, src, sizeinbytes, defaultmemcopykind)
+	return cudart.Memcpy(dest, src, sizeinbytes, defaultmemcopykind)
 }
 
 //SetAll sets the memory to whatever integer value passed

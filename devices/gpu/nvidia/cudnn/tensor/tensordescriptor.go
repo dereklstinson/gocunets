@@ -36,7 +36,7 @@ func maketensordescriptor(frmt gocudnn.TensorFormat, dtype gocudnn.DataType, dim
 	if err != nil {
 		return nil, err
 	}
-	err = tenstrided.Set(flg.Strided(), dtype, dims, utils.FindStridesInt32(dims))
+	err = tenstrided.Set(flg.Unknown(), dtype, dims, utils.FindStridesInt32(dims))
 	if err != nil {
 		return nil, err
 	}

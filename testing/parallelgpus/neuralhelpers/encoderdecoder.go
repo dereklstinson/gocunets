@@ -1,4 +1,4 @@
-package roman
+package neuralhelpers
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 
 const dropoutpercent = float32(.2)
 
-//RomanDecoder using regular method of increasing size of convolution...by just increasing the outer padding
-func RomanDecoder(
+//Decoder decodes a vector
+func Decoder(
 	builder *gocunets.Builder,
 	batchsize int32,
 	outputchannel int32,
@@ -118,8 +118,8 @@ func tensorchannelsize(x *gocunets.Tensor) int32 {
 
 }
 
-//ArabicEncoder encodes the arabic
-func ArabicEncoder(
+//Encoder encodes an image
+func Encoder(
 	builder *gocunets.Builder,
 	batchsize int32,
 	outputchannel int32,
@@ -234,97 +234,3 @@ func ArabicEncoder(
 //
 
 //ArabicDecoder using regular method of increasing size of convolution...by just increasing the outer padding
-func ArabicDecoder(builder *gocunets.Builder,
-	batchsize int32,
-	outputchannel int32,
-	hiddenoutputchannels []int32,
-	learningrates, decay1, decay2 float32,
-	x, dx *gocunets.Tensor) (mnet *gocunets.SimpleModuleNetwork) {
-
-	var channeladder int32
-	for i := range hiddenoutputchannels {
-		channeladder += hiddenoutputchannels[i]
-	}
-	mnet = gocunets.CreateSimpleModuleNetwork(1, builder)
-	mods := make([]gocunets.Module, 7)
-	inputchannel := tensorchannelsize(x)
-	if inputchannel < 1 {
-		panic("input tensor channel is less than 1 or non supported tensor format ")
-	}
-	var err error
-	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, inputchannel, hiddenoutputchannels, []int32{4, 4}, -3, 1, 0, false, true)
-	if err != nil {
-		panic(err)
-	}
-	mods[1], err = gocunets.CreateDecompressionModule(1, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
-	if err != nil {
-		panic(err)
-	}
-
-	mods[2], err = gocunets.CreateDecompressionModule(2, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
-	if err != nil {
-		panic(err)
-	}
-	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 1, 1, 0, false, true)
-	if err != nil {
-		panic(err)
-	}
-	mods[4], err = gocunets.CreateDecompressionModule(4, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
-	if err != nil {
-		panic(err)
-	}
-	mods[5], err = gocunets.CreateDecompressionModule(5, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, 2, 1, 0)
-	if err != nil {
-		panic(err)
-	}
-	mods[6], err = gocunets.CreateSingleStridedModule(6, builder, batchsize, channeladder, hiddenoutputchannels, []int32{4, 4}, -1, 1, 0, false, true)
-	if err != nil {
-		panic(err)
-	}
-
-	mnet.SetModules(mods)
-	mnet.SetTensorX(x)
-	mnet.SetTensorDX(dx)
-	outputdims, err := mnet.FindOutputDims()
-	if err != nil {
-		panic(err)
-	}
-	//THis has to be NCHW
-	fmt.Println("OutputDims", outputdims)
-
-	outputfdims := []int32{outputchannel, channeladder, 3, 3}
-	mnet.Output, err = gocunets.CreateOutputModule(7, builder, batchsize, outputfdims, []int32{1, 1}, []int32{1, 1}, []int32{1, 1}, 1, 0, 1, 0)
-	if err != nil {
-		panic(err)
-	}
-	err = mnet.SetSoftMaxClassifier()
-	if err != nil {
-		panic(err)
-	}
-	outputdims, err = mnet.FindOutputDims()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("NewOutputDims", outputdims)
-	ohy, err := builder.CreateTensor(outputdims)
-	if err != nil {
-		panic(err)
-	}
-	mnet.SetTensorY(ohy)
-	ohdy, err := builder.CreateTensor(outputdims)
-	if err != nil {
-		panic(err)
-	}
-	mnet.SetTensorDY(ohdy)
-
-	err = mnet.InitHiddenLayers(decay1, decay2)
-	if err != nil {
-		panic(err)
-	}
-	err = mnet.InitWorkspace()
-	if err != nil {
-		panic(err)
-	}
-	return mnet
-
-}

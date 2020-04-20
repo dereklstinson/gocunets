@@ -15,7 +15,7 @@ import (
 	"github.com/dereklstinson/GoCudnn/gocu"
 
 	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
-	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
+
 	"github.com/dereklstinson/GoCuNets/ui"
 	"github.com/dereklstinson/GoCuNets/utils"
 	"github.com/dereklstinson/GoCuNets/utils/imaging"
