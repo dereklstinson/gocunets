@@ -87,9 +87,9 @@ func (t *TensorFormat) NCHWvectC() TensorFormat {
 	return *t
 }
 
-//Strided sets and returns the NHWC flag
-func (t *TensorFormat) Strided() TensorFormat {
-	t.TensorFormat.Strided()
+//Unknown sets and returns the NHWC flag
+func (t *TensorFormat) Unknown() TensorFormat {
+	t.TensorFormat.Unknown()
 	return *t
 }
 
