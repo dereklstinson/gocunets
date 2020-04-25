@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-//Module is a wrapper around a neural network set of operations
+//Module is a wrapper around a neural network or set of operations
 type Module interface {
 	ID() int64
 	Forward() error
@@ -23,8 +23,6 @@ type Module interface {
 	SetTensorDX(dx *Tensor)
 	SetTensorY(y *Tensor)
 	SetTensorDY(dy *Tensor)
-	//GetWeights()([]*Tensor)
-	//GetTrainers()([]*Tensor)
 }
 
 var moduleforwarddebugging bool

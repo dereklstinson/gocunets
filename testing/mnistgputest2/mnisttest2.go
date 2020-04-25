@@ -45,7 +45,7 @@ func main() {
 	var devnum int
 	var bsize = 200
 	var savedir string
-
+	epochs := 3
 	if len(args) > 0 {
 		devnum, err = strconv.Atoi(args[0])
 		cherror(err)
@@ -61,7 +61,7 @@ func main() {
 		}
 	}
 	runtime.LockOSThread()
-	var nruns = 200
+	var nruns = 1
 	for nrunindex := 0; nrunindex < nruns; nrunindex++ {
 		batchsize := int32(bsize)
 
@@ -257,7 +257,7 @@ func main() {
 			panic(err)
 		}
 		var mux sync.Mutex
-		epochs := 100
+
 		trainloss := make([]float32, ntrainbatches)
 		testloss := make([]float32, ntestbatches)
 
@@ -310,7 +310,7 @@ func main() {
 		var updatecounter int
 		var donessignal bool
 		fmt.Printf("%10s,\t%10s,\t%10s,\t%10s\t\n", "\"Epoch\"", "\"TrainLoss\"", "\"TestLoss\"", "\"Time(s)\"")
-		for k := 0; k < 10; k++ {
+		for k := 0; k < epochs; k++ {
 			timer := time.Now()
 			rand.Shuffle(len(trainingtensors), func(i, j int) {
 				trainingtensors[i], trainingtensors[j] = trainingtensors[j], trainingtensors[i]
