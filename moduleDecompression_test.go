@@ -68,7 +68,7 @@ func TestCreateDecompressionModule(t *testing.T) {
 
 	check(inputx.SetValues(handle.Handler, 1))
 	fmt.Println("Start Init Hidden Layers")
-	check(dmod.InitHiddenLayers(.000001, .0001))
+	check(dmod.InitHiddenLayers(.01, .000001, .0001))
 	fmt.Println("Done Init Hidden Layers")
 	fmt.Println("Start Init Workspace")
 	check(dmod.InitWorkspace())
@@ -153,7 +153,7 @@ func TestCreateCompresionModule(t *testing.T) {
 
 	check(inputx.SetValues(handle.Handler, 2))
 	fmt.Println("Start Init Hidden Layers")
-	check(dmod.InitHiddenLayers(.000001, .0001))
+	check(dmod.InitHiddenLayers(.01, .000001, .0001))
 	fmt.Println("Done Init Hidden Layers")
 	fmt.Println("Start Init Workspace")
 	check(dmod.InitWorkspace())
@@ -238,7 +238,7 @@ func TestNeurtralModule(t *testing.T) {
 
 	check(inputx.SetValues(handle.Handler, 2))
 	fmt.Println("Start Init Hidden Layers")
-	check(dmod.InitHiddenLayers(.000001, .0001))
+	check(dmod.InitHiddenLayers(.01, .000001, .0001))
 	fmt.Println("Done Init Hidden Layers")
 	fmt.Println("Start Init Workspace")
 	check(dmod.InitWorkspace())

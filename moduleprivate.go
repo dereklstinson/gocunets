@@ -347,7 +347,7 @@ func (m *module) FindOutputDims() (dims []int32, err error) {
 }
 
 //InitHiddenLayers will init the hidden layers. If
-func (m *module) InitHiddenLayers(decay1, decay2 float32) (err error) {
+func (m *module) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
 	if m.x == nil || m.dy == nil || m.y == nil {
 		return errors.New("(m *module) InitHiddenLayers(): inputtensor x is nil || dy is nil || y is nil")
 	}
@@ -385,6 +385,8 @@ func (m *module) InitHiddenLayers(decay1, decay2 float32) (err error) {
 		if err != nil {
 			return errors.New("(m *module) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
 		}
+		w.SetRates(rate, 0)
+		bias.SetRates(rate, 0)
 		err = m.layers[i].LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
 		if err != nil {
 			return errors.New("(m *module) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())

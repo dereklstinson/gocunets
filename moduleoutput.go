@@ -68,7 +68,7 @@ func CreateOutputModule(id int64, bldr *Builder, batch int32, fdims, pad, stride
 }
 
 //InitHiddenLayers will init the hidden operation
-func (m *OutputModule) InitHiddenLayers(decay1, decay2 float32) (err error) {
+func (m *OutputModule) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
 
 	if m.op.cnn != nil {
 		err := m.op.cnn.MakeRandom(m.op.h.Handler, m.op.x.Dims())
@@ -93,8 +93,8 @@ func (m *OutputModule) InitHiddenLayers(decay1, decay2 float32) (err error) {
 	if err != nil {
 		return errors.New("(m *OutputModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
 	}
-	w.SetRates(.001, 0)
-	bias.SetRates(.001, 0)
+	w.SetRates(rate, 0)
+	bias.SetRates(rate, 0)
 
 	err = m.op.LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
 	if err != nil {

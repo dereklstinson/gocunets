@@ -57,7 +57,7 @@ func CreateVanillaModule(id int64, bldr *Builder, batch int32, fdims, pad, strid
 }
 
 //InitHiddenLayers will init the hidden operation
-func (m *VanillaModule) InitHiddenLayers(decay1, decay2 float32) (err error) {
+func (m *VanillaModule) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
 
 	if m.conv.cnn != nil {
 		err := m.conv.cnn.MakeRandom(m.conv.h.Handler, m.conv.x.Dims())
@@ -98,8 +98,8 @@ func (m *VanillaModule) InitHiddenLayers(decay1, decay2 float32) (err error) {
 	if err != nil {
 		return errors.New("(m *VanillaModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
 	}
-	w.SetRates(.001, 0)
-	bias.SetRates(.001, 0)
+	w.SetRates(rate, 0)
+	bias.SetRates(rate, 0)
 	err = m.conv.LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
 	if err != nil {
 		return errors.New("(m *VanillaModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())

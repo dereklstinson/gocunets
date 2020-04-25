@@ -13,7 +13,7 @@ type Module interface {
 	Update(counter int) error //counter can count updates or it can count epochs.  I found updates to work best.
 	FindOutputDims() ([]int32, error)
 	Inference() error
-	InitHiddenLayers(decay1, decay2 float32) (err error)
+	InitHiddenLayers(rate, decay1, decay2 float32) (err error)
 	InitWorkspace() (err error)
 	GetTensorX() (x *Tensor)
 	GetTensorDX() (dx *Tensor)
@@ -112,13 +112,13 @@ func dimoutputreverse(i, f, p, s, d int32) (o int32) {
 
 //SimpleModuleNetwork is a simple module network
 type SimpleModuleNetwork struct {
-	id             int64
-	decay1, decay2 float32
-	C              *Concat
-	Modules        []Module
-	Output         *OutputModule
-	Classifier     *ClassifierModule
-	b              *Builder
+	id                   int64
+	rate, decay1, decay2 float32
+	C                    *Concat
+	Modules              []Module
+	Output               *OutputModule
+	Classifier           *ClassifierModule
+	b                    *Builder
 
 	//	x, dx, y, dy        *Tensor
 	//	firstinithiddenfirstinithidden    bool
@@ -293,8 +293,8 @@ func (m *SimpleModuleNetwork) SetTensorDY(dy *Tensor) {
 }
 
 //InitHiddenLayers satisfies the Module interface
-func (m *SimpleModuleNetwork) InitHiddenLayers(decay1, decay2 float32) (err error) {
-	m.decay1, m.decay2 = decay1, decay2
+func (m *SimpleModuleNetwork) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
+	m.rate, m.decay1, m.decay2 = rate, decay1, decay2
 	if m.Modules == nil {
 		return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: %s", "Modules are nil")
 	}
@@ -310,13 +310,13 @@ func (m *SimpleModuleNetwork) InitHiddenLayers(decay1, decay2 float32) (err erro
 
 	}
 	for i, mod := range m.Modules {
-		err = mod.InitHiddenLayers(decay1, decay2)
+		err = mod.InitHiddenLayers(rate, decay1, decay2)
 		if err != nil {
 			return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: index %v\n %v", i, err)
 		}
 	}
 
-	err = m.Output.InitHiddenLayers(decay1, decay2)
+	err = m.Output.InitHiddenLayers(rate, decay1, decay2)
 	if err != nil {
 		return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: m.Output: %v", err)
 	}
