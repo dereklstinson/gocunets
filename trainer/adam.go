@@ -38,6 +38,7 @@ type Adam struct {
 	params    xtra.TrainingParams
 	regparams xtra.RegParams
 	dims      []int32
+	counter   uint64
 }
 
 const defaultadambeta1 = 0.9

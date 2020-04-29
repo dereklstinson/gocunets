@@ -92,7 +92,7 @@ func Decoder(
 	}
 	mnet.SetTensorDY(ohdy)
 
-	err = mnet.InitHiddenLayers(decay1, decay2)
+	err = mnet.InitHiddenLayers(learningrates, decay1, decay2)
 	if err != nil {
 		panic(err)
 	}
@@ -199,7 +199,7 @@ func Encoder(
 	}
 	mnet.SetTensorDY(ohdy)
 
-	err = mnet.InitHiddenLayers(decay1, decay2)
+	err = mnet.InitHiddenLayers(learningrates, decay1, decay2)
 	if err != nil {
 		panic(err)
 	}

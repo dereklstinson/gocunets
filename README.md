@@ -4,7 +4,7 @@
 The kame ha me ha of neural networks in go.
 
 packages needed
-'''
+'''text
 go get github.com/nfnt/resize
 go get github.com/dereklstinson/gpu-monitoring-tools/bindings/go/nvml
 go get github.com/pkg/browser

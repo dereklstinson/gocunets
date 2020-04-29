@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/dereklstinson/GoCuNets/testing/parallelgpus/neuralhelpers"
 	"math"
 	"math/rand"
 	"os"
@@ -50,32 +51,7 @@ func main() {
 	}
 
 	rand.Seed(time.Now().UnixNano())
-	//gocunets.PerformanceDebugging()
-	const romanimagelocation = "../mnist/roman/"
-	const filedirectory = "../mnist/files/"
-	const mnistfilelabel = "train-labels.idx1-ubyte"
-	const mnistimage = "train-images.idx3-ubyte"
-	const mnistfilelabeltest = "test-labels.idx1-ubyte"
-	const mnistimagetest = "test-images.idx3-ubyte"
-	const imagesave = "/home/derek/Desktop/RomanOutput/"
-	romannums := roman.GetRoman(romanimagelocation)
-	mnistdata, err := dfuncs.LoadMNIST(filedirectory, mnistfilelabel, mnistimage)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(len(romannums))
-	fmt.Println(len(mnistdata))
-	avg := dfuncs.FindAverage(mnistdata)
-	mnistpixelsoft := dfuncs.MakeEncodeeSoftmaxPerPixelCopy(mnistdata)
-	mnistdata = dfuncs.NormalizeData(mnistdata, avg)
 
-	romannums = roman.EncodeSoftmaxPerPixel(romannums)
-	sectioned := makenumbers(romannums, mnistdata, mnistpixelsoft)
-
-	batchedoutput := makeoutputbatch(sectioned)
-	batchesofinputbatches, batchesofoutputbatches := makemnistbatches(sectioned, 28*28, 28*28*2)
-	fmt.Println(len(batchedoutput)) //batch is 10 chanel is 1 and dims are 28 by 28
-	fmt.Println(len(batchesofinputbatches))
 	//runsize := len(batchesofinputbatches)
 	devs, err := gocunets.GetDeviceList()
 	utils.CheckError(err)
@@ -130,8 +106,8 @@ func main() {
 	utils.CheckError(err)
 	var outputchannels = int32(2)
 	fmt.Println("Making Encoder")
-	Encoder := roman.ArabicEncoder(builder, batchsize, decoderoutputchannels, hiddenoutputchannels, learningrates, l1regularization, l2regularization, ArabicInputTensor)
-	fmt.Println("Making ToArabic")
+	Encoder := neuralhelpers.Encoder(builder, batchsize, decoderoutputchannels, hiddenoutputchannels, learningrates, l1regularization, l2regularization, ArabicInputTensor)
+
 	EncoderOutputY := Encoder.GetTensorY()
 	EncoderOutputDY := Encoder.GetTensorDY()
 	ReverseConcat, err := gocunets.CreateReverseConcat(handles)
@@ -164,17 +140,16 @@ func main() {
 	}
 	ReverseConcat.SetOutputDests([]*gocunets.Tensor{ArabicX, RomanX})
 	ReverseConcat.SetOutputDeltaDests([]*gocunets.Tensor{ArabicDX, RomanDX})
-	ToArabic := roman.ArabicDecoder(builder, batchsize, outputchannels, hiddenoutputchannels, learningrates, l1regularization, l2regularization, ArabicX, ArabicDX)
+	AutoDecoder := neuralhelpers.Decoder(builder, batchsize, outputchannels, hiddenoutputchannels, learningrates, l1regularization, l2regularization, ArabicX, ArabicDX)
 
-	ToRoman := roman.RomanDecoder(builder2, batchsize, outputchannels, hiddenoutputchannels, learningrates, l1regularization, l2regularization, RomanX, RomanDX)
+	AnotherDecoder := neuralhelpers.Decoder(builder2, batchsize, outputchannels, hiddenoutputchannels, learningrates, l1regularization, l2regularization, RomanX, RomanDX)
 	fmt.Println("Done Making Networks")
 	fmt.Println("Put Roman Images into gpu")
 
-	romanoutput := putintogpumemRoman(handles, batchedoutput, []int32{10, 2, 28, 28}, builder)
 	//fmt.Println(romanoutput)
 	//Load the batches into gpu mem this is basically the Arabic numbers are place in arabicoutput.T() and arabicnums.DeltaT()
 	fmt.Println("Put Arabic Images into GPU")
-	arabicoutput, arabicnums := putintogpumemArabic(handles, builder, batchesofinputbatches, []int32{10, 1, 28, 28}, batchesofoutputbatches, []int32{10, 2, 28, 28})
+
 	fmt.Println("Done putting images into GPU")
 	epocs := 200
 	///snapshotsize := 500
@@ -220,7 +195,7 @@ func main() {
 
 	//LossDataChan <- EpocLosses
 	//	outsidecounter := 0
-	var updatecounter int
+
 	for i := 0; i < epocs; i++ {
 
 		//Making a lossaray to calculate the loss per batch
@@ -228,53 +203,28 @@ func main() {
 		epoclossroman := float32(0)
 		starttime := time.Now()
 		for j := range arabicnums {
-			if updatecounter > 100 {
-				ToRoman.SetTensorDX(RomanDX)
-			}
-			utils.CheckError(ArabicInputTensor.LoadMem(handles.Handler, arabicnums[j], arabicnums[j].SIB()))
-			utils.CheckError(ToRoman.GetTensorDY().LoadMem(handles.Handler, romanoutput, romanoutput.SIB()))
-			utils.CheckError(ToArabic.GetTensorDY().LoadMem(handles.Handler, arabicoutput[j], arabicoutput[j].SIB()))
-			//utils.CheckError(ToRoman.GetTensorDY().LoadMem(handles.Handler, arabicoutput[j], arabicoutput[j].SIB()))
-			//Encode Image
+
 			utils.CheckError(Encoder.Forward())
 			utils.CheckError(stream.Sync())
-			//Split output from encoder
 			utils.CheckError(ReverseConcat.Forward())
 			utils.CheckError(stream.Sync())
-			//Decode Splitted Outputs
-			//Encoder.GetTensorY().TogglePrintValueForStringer()
-			//fmt.Println(Encoder.GetTensorY())
-			//Encoder.GetTensorY().TogglePrintValueForStringer()
-			//ToArabic.GetTensorX().TogglePrintValueForStringer()
-			//fmt.Println(ToArabic.GetTensorX())
-			//ToArabic.GetTensorX().TogglePrintValueForStringer()
-			//for {
-			//
-			//}
-			go utils.CheckError(ToArabic.Forward())
-			go utils.CheckError(ToRoman.Forward())
-			//utils.CheckError(ToArabic.Forward())
-			//	utils.CheckError(ToRoman.Forward())
+			go utils.CheckError(AutoDecoder.Forward())
+			go utils.CheckError(AnotherDecoder.Forward())
 			utils.CheckError(stream.Sync())
 			utils.CheckError(stream2.Sync())
 			//Send the errors Backward
-			go utils.CheckError(ToArabic.Backward())
-			go utils.CheckError(ToRoman.Backward())
-			//	utils.CheckError(ToArabic.Backward())
-			//	utils.CheckError(ToRoman.Backward())
+			go utils.CheckError(AutoDecoder.Backward())
+			go utils.CheckError(AnotherDecoder.Backward())
 			utils.CheckError(stream.Sync())
 			utils.CheckError(stream2.Sync())
 			utils.CheckError(ReverseConcat.Backward())
 			utils.CheckError(stream.Sync())
 			utils.CheckError(Encoder.Backward())
 			utils.CheckError(stream.Sync())
-			go utils.CheckError(ToArabic.Update(updatecounter))
+			go utils.CheckError(AutoDecoder.Update(updatecounter))
 			go utils.CheckError(Encoder.Update(updatecounter))
-			go utils.CheckError(ToRoman.Update(updatecounter))
-			//	utils.CheckError(ToArabic.Update(updatecounter))
-			//	utils.CheckError(Encoder.Update(updatecounter))
-			//	utils.CheckError(ToRoman.Update(updatecounter))
-			updatecounter++
+			go utils.CheckError(AnotherDecoder.Update(updatecounter))
+
 			utils.CheckError(stream.Sync())
 			utils.CheckError(stream2.Sync())
 			outputs := []*gocunets.Tensor{arabicnums[j], ToArabic.GetTensorY(), ToRoman.GetTensorY()}

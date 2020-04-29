@@ -42,6 +42,17 @@ func (data LabeledData) MakeJPG(folder, name string, index int) error {
 	image := data.convert()
 	return jpeg.Encode(newfile, image, nil)
 }
+func (data LabeledData) MakeJPGsimple(index int) error {
+
+	newfile, err := os.Create(strconv.Itoa(index) + ".jpg")
+	if err != nil {
+		return err
+	}
+	defer newfile.Close()
+	image := data.convert()
+	return jpeg.Encode(newfile, image, nil)
+}
+
 func (data LabeledData) convert() image.Image {
 	var rect image.Rectangle
 

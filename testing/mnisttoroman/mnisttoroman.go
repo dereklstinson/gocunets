@@ -271,9 +271,6 @@ func main() {
 			go utils.CheckError(ToArabic.Update(updatecounter))
 			go utils.CheckError(Encoder.Update(updatecounter))
 			go utils.CheckError(ToRoman.Update(updatecounter))
-			//	utils.CheckError(ToArabic.Update(updatecounter))
-			//	utils.CheckError(Encoder.Update(updatecounter))
-			//	utils.CheckError(ToRoman.Update(updatecounter))
 			updatecounter++
 			utils.CheckError(stream.Sync())
 			utils.CheckError(stream2.Sync())
