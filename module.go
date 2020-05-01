@@ -112,14 +112,13 @@ func dimoutputreverse(i, f, p, s, d int32) (o int32) {
 
 //SimpleModuleNetwork is a simple module network
 type SimpleModuleNetwork struct {
-	id                   int64
-	rate, decay1, decay2 float32
-	C                    *Concat
-	Modules              []Module
-	Output               *OutputModule
-	Classifier           *ClassifierModule
+	Id                   int64             `json:"id,omitempty"`
+	C                    *Concat           `json:"c,omitempty"`
+	Modules              []Module          `json:"modules,omitempty"`
+	Output               *OutputModule     `json:"output,omitempty"`
+	Classifier           *ClassifierModule `json:"classifier,omitempty"`
 	b                    *Builder
-
+	Rate, Decay1, Decay2 float32
 	//	x, dx, y, dy        *Tensor
 	//	firstinithiddenfirstinithidden    bool
 	//	firstinitworkspace bool
@@ -130,7 +129,7 @@ type SimpleModuleNetwork struct {
 func CreateSimpleModuleNetwork(id int64, b *Builder) (smn *SimpleModuleNetwork) {
 	smn = new(SimpleModuleNetwork)
 	smn.b = b
-	smn.id = id
+	smn.Id = id
 
 	return smn
 }
@@ -200,7 +199,7 @@ func (m *SimpleModuleNetwork) SetModules(modules []Module) {
 
 //ID satisfies Module interface
 func (m *SimpleModuleNetwork) ID() int64 {
-	return m.id
+	return m.Id
 }
 
 //GetTensorX Gets x tensor
@@ -294,7 +293,7 @@ func (m *SimpleModuleNetwork) SetTensorDY(dy *Tensor) {
 
 //InitHiddenLayers satisfies the Module interface
 func (m *SimpleModuleNetwork) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
-	m.rate, m.decay1, m.decay2 = rate, decay1, decay2
+	m.Rate, m.Decay1, m.Decay2 = rate, decay1, decay2
 	if m.Modules == nil {
 		return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: %s", "Modules are nil")
 	}

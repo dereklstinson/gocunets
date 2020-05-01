@@ -11,8 +11,6 @@ import (
 
 	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
 
-	"github.com/dereklstinson/gocudnn/gocu"
-
 	"github.com/dereklstinson/gocudnn/cudart"
 
 	"math"
@@ -39,13 +37,16 @@ func filldatabuffer(target, data []float32, labeled []dfuncs.LabeledData, batchs
 
 	}
 }
+
+//This will make a file with loss timings and losses for each epoch and run.
 func main() {
+	var learningrate = float32(.001)
 	args := os.Args[1:]
 	var err error
-	var devnum int
-	var bsize = 200
+	var devnum = int(1)
+	var bsize = 1000
 	var savedir string
-	epochs := 3
+	epochs := 200
 	if len(args) > 0 {
 		devnum, err = strconv.Atoi(args[0])
 		cherror(err)
@@ -79,7 +80,7 @@ func main() {
 		device := devices[devnum]
 		err = device.Set()
 		cherror(err)
-		w := gocu.NewWorker(device)
+		w := gocunets.CreateWorker(device)
 		handle := gocunets.CreateHandle(w, device, 32)
 		stream, err := cudart.CreateNonBlockingStream()
 		cherror(handle.SetStream(stream))
@@ -141,47 +142,38 @@ func main() {
 		//	wg.Wait()
 
 		totalaverage := dtaverageimage/float32(len(mnistdatatest)) + dtrainaverageimage/float32(len(mnistdatatrain))
-		//normalizealldata
-		//	wg.Add(1)
-		//	go func() {
+
 		mnistdatatest = dfuncs.NormalizeData(mnistdatatest, totalaverage)
-		//		wg.Done()
-		//	}()
 
 		mnistdatatrain = dfuncs.NormalizeData(mnistdatatrain, totalaverage)
-		//	wg.Wait()
+
 		fmt.Println("Average Pixel is", totalaverage)
 		fmt.Println("TrainingSize", len(mnistdatatrain))
 		fmt.Println("Testing Size", len(mnistdatatest))
 		mnet := gocunets.CreateSimpleModuleNetwork(0, builder)
-		//databuffer := make([]float32, 28*28*batchsize)
-		//targetbuffer := make([]float32, 10*batchsize)
-		//outputbuffer := make([]float32, 10*batchsize)
 
 		ntrainbatches := int32(len(mnistdatatrain)) / batchsize
 		ntestbatches := int32(len(mnistdatatest)) / batchsize
 		inputdims := []int32{batchsize, 1, 28, 28}
 		fmt.Println("Train,Test Number of Batches", ntrainbatches, ntestbatches)
 
-		mods := make([]gocunets.Module, 4)
-		//AMode := gocudnn.ActivationModeFlag{}.Relu()
-
-		mods[0], err = gocunets.CreateVanillaModule(0, builder, batchsize, []int32{20, 1, 4, 4}, []int32{3, 3}, []int32{2, 2}, []int32{2, 2}, 1, 0, 1, 0)
+		mods := make([]gocunets.Module, 3)
+		mods[0], err = gocunets.CreateVanillaModule(0, builder, batchsize, []int32{20, 1, 4, 4}, []int32{6, 6}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
 		if err != nil {
 			panic(err)
 		}
-		mods[1], err = gocunets.CreateVanillaModule(1, builder, batchsize, []int32{20, 20, 4, 4}, []int32{3, 3}, []int32{2, 2}, []int32{2, 2}, 1, 0, 1, 0)
+		mods[1], err = gocunets.CreateVanillaModule(1, builder, batchsize, []int32{20, 20, 4, 4}, []int32{4, 4}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
 		if err != nil {
 			panic(err)
 		}
-		mods[2], err = gocunets.CreateVanillaModule(2, builder, batchsize, []int32{20, 20, 4, 4}, []int32{3, 3}, []int32{2, 2}, []int32{2, 2}, 1, 0, 1, 0)
+		mods[2], err = gocunets.CreateVanillaModule(2, builder, batchsize, []int32{20, 20, 4, 4}, []int32{4, 4}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
 		if err != nil {
 			panic(err)
 		}
-		mods[3], err = gocunets.CreateVanillaModule(3, builder, batchsize, []int32{20, 20, 4, 4}, []int32{3, 3}, []int32{2, 2}, []int32{2, 2}, 1, 0, 1, 0)
-		if err != nil {
-			panic(err)
-		}
+		//	mods[3], err = gocunets.CreateVanillaModule(3, builder, batchsize, []int32{20, 20, 4, 4}, []int32{4, 4}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
+		//	if err != nil {
+		//		panic(err)
+		//	}
 		channeladder := int32(20)
 		//	outputchannels := []int32{6, 6, 6}
 		//	var channeladder int32
@@ -248,7 +240,7 @@ func main() {
 		}
 		mnet.Classifier.SetTensorDY(ohdy)
 
-		err = mnet.InitHiddenLayers(decay1, decay2)
+		err = mnet.InitHiddenLayers(learningrate, decay1, decay2)
 		if err != nil {
 			panic(err)
 		}
@@ -317,6 +309,10 @@ func main() {
 				traintargettesnors[i], traintargettesnors[j] = traintargettesnors[j], traintargettesnors[i]
 			})
 			batchratio := ntrainbatches / ntestbatches
+			if donessignal {
+
+				break
+			}
 			for j := int32(0); j < ntestbatches; j++ {
 				if donessignal {
 
@@ -346,7 +342,10 @@ func main() {
 				cherror(stream.Sync())
 				testloss[j] = mnet.GetLoss()
 			}
+			if donessignal {
 
+				break
+			}
 			mux.Lock()
 			testlosscopy := make([]float32, ntestbatches)
 			trainlosscopy := make([]float32, ntrainbatches)

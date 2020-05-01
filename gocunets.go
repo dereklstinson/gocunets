@@ -2,10 +2,11 @@ package gocunets
 
 import (
 	"fmt"
-	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/gocunets/layers"
+
 	"github.com/dereklstinson/gocudnn/cudart"
 	"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
 	"github.com/dereklstinson/nccl"
 )
 
@@ -23,15 +24,29 @@ type Tensor struct {
 //	trainer.Trainer
 //}
 
+//CreateWorker assigns a locked host thread to a device.
+func CreateWorker(d Device) (w *Worker) {
+	w = new(Worker)
+	w.Worker = gocu.NewWorker(d.Device)
+	return w
+}
+
+//Worker is a wrapper for *gocu.Worker  it assigns a locked host thread to a device.
+//A device can have more than one worker.
+type Worker struct {
+	*gocu.Worker
+}
+
 //Handle handles the functions of the libraries used in gocunet
 type Handle struct {
 	*cudnn.Handler
-	w *gocu.Worker
 }
 
 //GetWorker returns the gocu.Worker.
-func (h *Handle) GetWorker() *gocu.Worker {
-	return h.w
+func (h *Handle) GetWorker() *Worker {
+	return &Worker{
+		Worker: h.Handler.Worker,
+	}
 }
 
 //Comm is a communicator
@@ -98,16 +113,15 @@ func SetPeerAccess(devs []Device) (connections int, err error) {
 }
 
 //CreateHandle creates a handle for gocunets
-func CreateHandle(w *gocu.Worker, d Device, seed uint64) (h *Handle) {
+func CreateHandle(w *Worker, d Device, seed uint64) (h *Handle) {
 	h = new(Handle)
-	h.Handler = cudnn.CreateHandler(w, d.Device, seed)
-	h.w = gocu.NewWorker(d.Device)
+	h.Handler = cudnn.CreateHandler(w.Worker, d.Device, seed)
 
 	return h
 }
 
 //CreateHandles creates parrallel handles.  With there own workers.  It also creates non blocking streams
-func CreateHandles(ws []*gocu.Worker, ds []Device, seeds []uint64) []*Handle {
+func CreateHandles(ws []*Worker, ds []Device, seeds []uint64) []*Handle {
 
 	hs := make([]*Handle, len(ds))
 	var err error
@@ -127,11 +141,6 @@ func CreateHandles(ws []*gocu.Worker, ds []Device, seeds []uint64) []*Handle {
 		}
 	}
 	return hs
-}
-
-//Close closes the work thread
-func (h *Handle) Close() {
-	h.w.Close()
 }
 
 //CreateStream creates a stream

@@ -6,8 +6,6 @@ import (
 	"runtime"
 	"testing"
 	"time"
-
-	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 func TestCreateDecompressionModule(t *testing.T) {
@@ -28,7 +26,7 @@ func TestCreateDecompressionModule(t *testing.T) {
 	check(err)
 	dev := dlist[0]
 	check(dev.Set())
-	w := gocu.NewWorker(dev)
+	w := CreateWorker(dev)
 	handle := CreateHandle(w, dev, rng.Uint64())
 	bldr := CreateBuilder(handle)
 	s, err := CreateStream()
@@ -111,7 +109,7 @@ func TestCreateCompresionModule(t *testing.T) {
 	check(err)
 	dev := dlist[0]
 	check(dev.Set())
-	w := gocu.NewWorker(dev)
+	w := CreateWorker(dev)
 	handle := CreateHandle(w, dev, rng.Uint64())
 	bldr := CreateBuilder(handle)
 	s, err := CreateStream()
@@ -196,7 +194,7 @@ func TestNeurtralModule(t *testing.T) {
 	check(err)
 	dev := dlist[0]
 	check(dev.Set())
-	w := gocu.NewWorker(dev)
+	w := CreateWorker(dev)
 	handle := CreateHandle(w, dev, rng.Uint64())
 	bldr := CreateBuilder(handle)
 	s, err := CreateStream()

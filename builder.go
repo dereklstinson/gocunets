@@ -75,7 +75,7 @@ func CreateBuilder(h *Handle) (b *Builder) {
 	b.Pmode.AverageCountExcludePadding()
 	b.BNMode.Spatial()
 	b.curngtype.PseudoDefault()
-	b.gpurng = curand.CreateGeneratorEx(b.h.w, b.curngtype)
+	b.gpurng = curand.CreateGeneratorEx(b.h.Handler.Worker, b.curngtype)
 	return b
 }
 
@@ -86,7 +86,7 @@ func (l *Builder) GetHandle() *Handle {
 
 //AllocateMemory allocates memory
 func (l *Builder) AllocateMemory(sib uint) (cutil.Pointer, error) {
-	return nvidia.MallocGlobal(l.h.w, sib)
+	return nvidia.MallocGlobal(l.h.Handler.Worker, sib)
 }
 
 //CreateTensor creates a tensor
