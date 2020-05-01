@@ -11,10 +11,12 @@ packages needed
 go get github.com/nfnt/resize     // Will eventually get rid of this.
 go get github.com/dereklstinson/gpu-monitoring-tools/bindings/go/nvml  //Will eventually get bindings in gocudnn. 
 go get github.com/pkg/browser     // This is used with ui it auto launches browser.  Not so useful when used with a headless machine
+go get github.com/dereklstinson/nccl
 go get github.com/dereklstinson/gocudnn
 go get github.com/dereklstinson/cutil
 go get -u gonum.org/v1/gonum/...  // Will eventually get rid of this
 go get gonum.org/v1/plot/...      // Will want to get rid of this and use javascript plotting.
+ 
 
 ```
 
@@ -29,6 +31,7 @@ github.com/dereklstinson/gocunets/loss
 github.com/dereklstinson/gocunets/ui
 github.com/dereklstinson/gocunets/trainer
 github.com/dereklstinson/gocunets
+
 ```
 
 The sub-package devices contains sub-packages for wrappers to device library bindings.  
