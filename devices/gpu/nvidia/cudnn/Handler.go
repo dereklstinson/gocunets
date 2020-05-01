@@ -6,13 +6,13 @@ Like DataType and NanProp and TensorFormat, and even algorithm for convolution.
 package cudnn
 
 import (
-	"github.com/dereklstinson/gocunets/utils"
 	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocudnn/cuda"
 	"github.com/dereklstinson/gocudnn/cudart"
 	"github.com/dereklstinson/gocudnn/curand"
 	"github.com/dereklstinson/gocudnn/gocu"
 	"github.com/dereklstinson/gocudnn/xtra"
+	"github.com/dereklstinson/gocunets/utils"
 )
 
 //Handler contains the handles used in gocudnn and also the xtra kernals.

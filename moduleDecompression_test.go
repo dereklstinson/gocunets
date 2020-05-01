@@ -176,7 +176,7 @@ func TestCreateCompresionModule(t *testing.T) {
 	fmt.Println("OutputTensordx", inputdx)
 	inputdx.TogglePrintValueForStringer()
 	t.Error("CheckOutput")
-	handle.Close()
+	//	handle.Close()
 }
 
 func TestNeurtralModule(t *testing.T) {
