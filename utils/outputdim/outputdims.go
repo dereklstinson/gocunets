@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCuNets/utils/outputdim/dimlayer"
+	"github.com/dereklstinson/gocunets/utils"
+	"github.com/dereklstinson/gocunets/utils/outputdim/dimlayer"
 )
 
 type ConvolutionCombo struct {

@@ -3,9 +3,9 @@ package trainer
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 //Momentum is a stuct that is used for the momentum operation in updating weights.  E
@@ -33,8 +33,8 @@ func (t *Momentum) SetDecays(l1, l2 float32) {
 //SetupMomentum sets up the trainer for one and zero put the cscalar of 1 and 0 that matches the datatype there.
 //(example gocudnn.CFloat(1.0) and gocudnn.CFloat(0.0).  this is a hack, but it has to be done for sanity sake. (my sanity not yours :) )
 //I know of a way to fix this, but I am not able to do that right now.  That being said. Maybe the reflect package might help (idk maybe not).
-//The best thing I can think of is a type switch, but I would  have to do that for every types, and I might add some more types in the GoCudnn package.
-//Or I could make some training stuff in C in the GoCudnn Package.
+//The best thing I can think of is a type switch, but I would  have to do that for every types, and I might add some more types in the gocudnn package.
+//Or I could make some training stuff in C in the gocudnn Package.
 func SetupMomentum(decay1, decay2, rate, momentum, batch float64) *Momentum {
 	return &Momentum{
 		decay1:   decay1,

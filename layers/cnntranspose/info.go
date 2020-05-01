@@ -1,12 +1,12 @@
 package cnntranspose
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/deconvolution"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/deconvolution"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
 )
 
-//"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
-//	"github.com/dereklstinson/GoCuNets/layers"
+//"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/convolution"
+//	"github.com/dereklstinson/gocunets/layers"
 
 //Info contains the info that is needed to build a CNN layer
 type Info struct {

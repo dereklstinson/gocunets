@@ -3,7 +3,7 @@ package neuralhelpers
 import (
 	"fmt"
 
-	gocunets "github.com/dereklstinson/GoCuNets"
+	gocunets "github.com/dereklstinson/gocunets"
 )
 
 const dropoutpercent = float32(.2)

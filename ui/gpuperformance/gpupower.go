@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/ui/plot"
+	"github.com/dereklstinson/gocunets/ui/plot"
 )
 
 type Power struct {

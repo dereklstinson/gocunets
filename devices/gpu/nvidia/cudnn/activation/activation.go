@@ -3,10 +3,10 @@ package activation
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/xtra"
 )
 
 //Ops is the non linear function that is used in neural networks. This structure holds the information used to performing the activation function.

@@ -1,9 +1,9 @@
 package swapper
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocudnn/xtra"
 )
 
 //Swapper holds kernels that do swap functions

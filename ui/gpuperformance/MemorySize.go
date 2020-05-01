@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/ui/plot"
+	"github.com/dereklstinson/gocunets/ui/plot"
 	"gonum.org/v1/plot/plotter"
 )
 

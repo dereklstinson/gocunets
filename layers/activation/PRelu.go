@@ -1,9 +1,9 @@
 package activation
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/activation"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/activation"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //TrainersNeeded returns the number of trainers needed

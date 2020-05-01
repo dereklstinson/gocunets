@@ -1,8 +1,8 @@
 package activation
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //OpInfo contains the necissary information to build an activation Ops

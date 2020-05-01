@@ -6,8 +6,8 @@ package trainer
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 //Trainer will be used for updating weights.  Only momentum and adam are available right now

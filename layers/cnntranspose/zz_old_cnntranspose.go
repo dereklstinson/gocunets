@@ -6,13 +6,13 @@ This is old
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/layers/cnn"
+	"github.com/dereklstinson/gocunets/trainer"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 

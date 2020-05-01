@@ -3,7 +3,7 @@ package gocunets
 import (
 	"errors"
 	"fmt"
-	//"github.com/dereklstinson/GoCuNets/layers"
+	//"github.com/dereklstinson/gocunets/layers"
 )
 
 //ForwardProp does the forward prop for a layer

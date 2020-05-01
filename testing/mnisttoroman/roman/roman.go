@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/dereklstinson/gocunets/utils"
 	"github.com/nfnt/resize"
 )
 

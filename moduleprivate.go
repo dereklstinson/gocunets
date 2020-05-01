@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 
-	"github.com/dereklstinson/GoCuNets/trainer"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/trainer"
+	gocudnn "github.com/dereklstinson/gocudnn"
 	//	"github.com/dereklstinson/cutil"
 )
 

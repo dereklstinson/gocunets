@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/convolution"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //This stuff is experimental and it is just easier to set it up this way than to make a whole new package.  This is only for the convtranspose layer.

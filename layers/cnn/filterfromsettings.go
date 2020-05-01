@@ -2,9 +2,9 @@ package cnn
 
 /*
 import (
-	"github.com/dereklstinson/GoCuNets/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/cudnn/convolution"
+	"github.com/dereklstinson/gocunets/layers"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Settings is used with a json to Build a layer from a json file

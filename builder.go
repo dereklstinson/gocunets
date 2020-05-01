@@ -4,16 +4,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/layers/activation"
-	"github.com/dereklstinson/GoCuNets/layers/batchnorm"
-	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
-	"github.com/dereklstinson/GoCuNets/layers/dropout"
-	"github.com/dereklstinson/GoCuNets/layers/pooling"
-	"github.com/dereklstinson/GoCudnn/curand"
 	"github.com/dereklstinson/cutil"
+	"github.com/dereklstinson/gocudnn/curand"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/layers/activation"
+	"github.com/dereklstinson/gocunets/layers/batchnorm"
+	"github.com/dereklstinson/gocunets/layers/cnn"
+	"github.com/dereklstinson/gocunets/layers/cnntranspose"
+	"github.com/dereklstinson/gocunets/layers/dropout"
+	"github.com/dereklstinson/gocunets/layers/pooling"
 )
 
 //Builder will create layers with the flags set within the struct

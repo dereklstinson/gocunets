@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 
-	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/gocudnn/cudart"
 )
 
 //FillSlice will fill a slice that was passed in the input

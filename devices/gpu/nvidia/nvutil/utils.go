@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/jpeg"
 
-	"github.com/dereklstinson/GoCudnn/npp"
+	"github.com/dereklstinson/gocudnn/npp"
 )
 
 //ImageToNppi Converts an jpeg.Image to a npp.type with its npp.Size

@@ -3,7 +3,7 @@ package cnndots
 import (
 	"sync"
 
-	arrays "github.com/dereklstinson/GoCuNets/OBSOLETE-ARRAYS"
+	arrays "github.com/dereklstinson/gocunets/OBSOLETE-ARRAYS"
 )
 
 //hdots contains host side dot product methods for harrays. Like feedforward and backprop functions. It also contains info on

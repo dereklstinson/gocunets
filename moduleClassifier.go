@@ -1,8 +1,8 @@
 package gocunets
 
 import (
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/loss"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/loss"
 )
 
 //LossLayer performs two functions. Be able to calculate loss, and to be able to calculate the inference forward.

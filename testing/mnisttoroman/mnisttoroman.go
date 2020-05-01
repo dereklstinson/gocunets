@@ -11,14 +11,14 @@ import (
 
 	"github.com/dereklstinson/half"
 
-	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	gocunets "github.com/dereklstinson/gocunets"
+	"github.com/dereklstinson/gocudnn/gocu"
 
-	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
-	"github.com/dereklstinson/GoCuNets/testing/mnisttoroman/roman"
-	"github.com/dereklstinson/GoCuNets/ui"
-	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCuNets/utils/imaging"
+	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/gocunets/testing/mnisttoroman/roman"
+	"github.com/dereklstinson/gocunets/ui"
+	"github.com/dereklstinson/gocunets/utils"
+	"github.com/dereklstinson/gocunets/utils/imaging"
 )
 
 const ipAddress = "http://192.168.55.21" //"http://localhost"

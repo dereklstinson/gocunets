@@ -1,10 +1,10 @@
 package reshapes
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //TransformForward fills tensor y with x to the best of its ability.

@@ -5,17 +5,17 @@ import (
 	"os"
 	"runtime"
 
-	//"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/npp"
+	//"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/npp"
 
-	"github.com/dereklstinson/GoCudnn/nvjpeg"
+	"github.com/dereklstinson/gocudnn/nvjpeg"
 
-	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/gocudnn/cudart"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/nvutil"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/jpeg"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/nvutil"
 )
 
 func main() {

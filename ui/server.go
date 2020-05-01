@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/dereklstinson/GoCuNets/ui/gpuperformance"
+	"github.com/dereklstinson/gocunets/ui/gpuperformance"
 	"github.com/pkg/browser"
 )
 

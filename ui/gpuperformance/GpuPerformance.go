@@ -3,8 +3,8 @@ package gpuperformance
 import (
 	"time"
 
-	"github.com/dereklstinson/GoCuNets/ui/plot"
-	"github.com/dereklstinson/GoCuNets/utils/hwperf"
+	"github.com/dereklstinson/gocunets/ui/plot"
+	"github.com/dereklstinson/gocunets/utils/hwperf"
 )
 
 //CreateGPUPerformanceHandlers returns the performance handlers for memory used gpu temp and power.

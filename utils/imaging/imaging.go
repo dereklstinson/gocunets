@@ -9,12 +9,12 @@ import (
 	"image/png"
 	"io"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/reshapes"
-	"github.com/dereklstinson/GoCuNets/layers" //	"github.com/dereklstinson/GoCuNets/thirdparty/github.com/nfnt/resize"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/custom/reshapes"
+	"github.com/dereklstinson/gocunets/layers" //	"github.com/dereklstinson/gocunets/thirdparty/github.com/nfnt/resize"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/nfnt/resize"
 )
 

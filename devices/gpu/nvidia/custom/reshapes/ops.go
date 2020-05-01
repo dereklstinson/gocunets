@@ -1,8 +1,8 @@
 package reshapes
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocudnn/xtra"
 )
 
 //Ops holds kernel functions.  More will be in the making

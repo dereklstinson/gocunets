@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/ui/plot"
+	"github.com/dereklstinson/gocunets/ui/plot"
 )
 
 //MemClock handles the info for the clocks of gpu mem

@@ -5,12 +5,12 @@ import (
 	"math"
 	"runtime"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/loss"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/cudart"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/loss"
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/cudart"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 func main() {

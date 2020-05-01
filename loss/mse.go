@@ -3,16 +3,16 @@ package loss
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/reduce"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
 	"github.com/dereklstinson/half"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/xloss"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/custom/xloss"
+	"github.com/dereklstinson/gocudnn/xtra"
 
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 //MSE is Mean Squared Error

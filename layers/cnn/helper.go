@@ -3,11 +3,11 @@ package cnn
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/convolution"
+	"github.com/dereklstinson/gocunets/layers"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //MakeOutputTensor makes the output tensor of the layer

@@ -2,9 +2,9 @@ package pool
 
 import (
 	"errors"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Ops holds what the data that is need to perform the pooling operations

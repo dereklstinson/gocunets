@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/utils/outputdim"
+	"github.com/dereklstinson/gocunets/utils/outputdim"
 )
 
 func main() {

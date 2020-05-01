@@ -1,12 +1,12 @@
 /*
-Package softmax uses the softmax functions from GoCudnn which is from cudnn.   Except it doesn't use any of the flags.
+Package softmax uses the softmax functions from gocudnn which is from cudnn.   Except it doesn't use any of the flags.
 */
 package softmax
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Ops does the softmax algo

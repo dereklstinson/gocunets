@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/dereklstinson/cutil"
 
-	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/dereklstinson/gocunets/utils"
 
-	//"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/npp"
+	//"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/npp"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 type MemCopier interface {

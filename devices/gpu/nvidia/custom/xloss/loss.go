@@ -1,8 +1,8 @@
 package xloss
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocudnn/xtra"
 )
 
 //Ops contains the operation to do the loss function

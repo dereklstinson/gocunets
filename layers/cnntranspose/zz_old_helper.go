@@ -3,10 +3,10 @@ package cnntranspose
 /*
 This is old
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/convolution"
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/convolution"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 //GetBwdDataAlgoPerfList gets a list of forward performance algos

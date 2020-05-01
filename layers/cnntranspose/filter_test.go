@@ -5,14 +5,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/gocudnn"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCudnn/cudart"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocudnn/cudart"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 func TestSetupBasic(t *testing.T) {

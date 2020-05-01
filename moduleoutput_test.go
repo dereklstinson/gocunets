@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 func TestCreateSoftmaxModule(t *testing.T) {

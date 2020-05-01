@@ -4,9 +4,9 @@ import (
 	"errors"
 	"github.com/dereklstinson/cutil"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	//	"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/npp"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	//	"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/npp"
 )
 
 func findPlanarChansForUint8(x *npp.Uint8, size, n int) ([]*npp.Uint8, error) {

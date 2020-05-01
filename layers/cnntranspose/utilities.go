@@ -3,9 +3,9 @@ package cnntranspose
 import (
 	"io"
 
-	"github.com/dereklstinson/GoCudnn/cudart/crtutil"
+	"github.com/dereklstinson/gocudnn/cudart/crtutil"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 )
 
 /*

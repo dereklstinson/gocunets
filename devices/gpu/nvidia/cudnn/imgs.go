@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"sync"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //ToImagesColorFloat32 changes data passed to a bunch of images

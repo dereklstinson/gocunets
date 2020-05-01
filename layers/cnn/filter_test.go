@@ -6,12 +6,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/cudart"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/cudart"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 func evenpadformula(dilation, filter, offset int32) int32 {

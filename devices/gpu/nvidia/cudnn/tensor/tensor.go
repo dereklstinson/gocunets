@@ -11,11 +11,11 @@ import (
 
 	//"github.com/dereklstinson/cutil"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it

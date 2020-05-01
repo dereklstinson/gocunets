@@ -4,7 +4,7 @@ package gocunets
 //	"errors"
 //	"strings"
 //
-//	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+//	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 //)
 //
 //func (l *Layer) loadparams(handle *cudnn.Handler, params *Params) error {

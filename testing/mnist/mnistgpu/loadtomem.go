@@ -4,16 +4,16 @@ package mnistgpu
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 //WithLabels return trainingimages,traininglabels, testimages,testlabels
 func WithLabels(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType) ([]*layers.IO, []*layers.IO, []*layers.IO, []*layers.IO) {
-	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
+	filedirectory := "/home/derek/go/src/github.com/dereklstinson/gocunets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
 	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")
@@ -100,7 +100,7 @@ type Labelbatch struct {
 
 //WithCPULabels return trainingimages,traininglabels, testimages,testlabels
 func WithCPULabels(handle *cudnn.Handler, batchsize int, frmt cudnn.TensorFormat, dtype cudnn.DataType) ([]*layers.IO, []Labelbatch) {
-	filedirectory := "/home/derek/go/src/github.com/dereklstinson/GoCuNets/testing/mnist/files/"
+	filedirectory := "/home/derek/go/src/github.com/dereklstinson/gocunets/testing/mnist/files/"
 	trainingdata, err := dfuncs.LoadMNIST(filedirectory, "train-labels.idx1-ubyte", "train-images.idx3-ubyte")
 	cherror(err)
 	testingdata, err := dfuncs.LoadMNIST(filedirectory, "t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte")

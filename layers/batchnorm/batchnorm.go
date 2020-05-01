@@ -3,11 +3,11 @@ package batchnorm
 import (
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/batchnorm"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/batchnorm"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/trainer"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 const alphaforwarddefault = 1

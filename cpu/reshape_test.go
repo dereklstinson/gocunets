@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/dereklstinson/GoCuNets/cpu"
+	"github.com/dereklstinson/gocunets/cpu"
 )
 
 /*

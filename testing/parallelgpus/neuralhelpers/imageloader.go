@@ -3,13 +3,13 @@ package neuralhelpers
 import (
 	"errors"
 	"github.com/anthonynsimon/bild/transform"
-	//	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCudnn/cudart"
+	//	gocunets "github.com/dereklstinson/gocunets"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocudnn/cudart"
 	"github.com/dereklstinson/cutil"
 	"sync"
 
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocudnn/gocu"
 	"github.com/dereklstinson/cvdh"
 	"image"
 	"image/jpeg"

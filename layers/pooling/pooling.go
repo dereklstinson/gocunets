@@ -1,10 +1,10 @@
 package pooling
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/pool"
-	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/pool"
+	"github.com/dereklstinson/gocunets/layers"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Layer holds everything it needs on the pooling side in order

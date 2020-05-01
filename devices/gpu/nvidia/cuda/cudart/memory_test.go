@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dereklstinson/GoCuNets/devices"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 func TestMake(t *testing.T) {

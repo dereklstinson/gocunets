@@ -4,8 +4,8 @@ package gocunets
 //	"fmt"
 //	"html/template"
 //
-//	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-//	"github.com/dereklstinson/GoCuNets/ui/uihelper"
+//	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+//	"github.com/dereklstinson/gocunets/ui/uihelper"
 //)
 
 ////GetHTMLedStats gets the stats put into html form

@@ -1,8 +1,8 @@
 package tensor
 
 import (
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 type tensordescriptor struct {

@@ -5,12 +5,12 @@ package gocunets
 //	//	"fmt"
 //	"image"
 //
-//	"github.com/dereklstinson/GoCuNets/layers/activation"
+//	"github.com/dereklstinson/gocunets/layers/activation"
 //
-//	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-//	"github.com/dereklstinson/GoCuNets/layers"
-//	"github.com/dereklstinson/GoCuNets/layers/cnn"
-//	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
+//	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+//	"github.com/dereklstinson/gocunets/layers"
+//	"github.com/dereklstinson/gocunets/layers/cnn"
+//	"github.com/dereklstinson/gocunets/layers/cnntranspose"
 //)
 //
 ////LayerIOStats contains the minmax for an layer

@@ -3,9 +3,9 @@ package batchnorm
 import (
 	"io/ioutil"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Info is used to save the layer for later use.

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/ui/plot"
+	"github.com/dereklstinson/gocunets/ui/plot"
 )
 
 //DifLossHandler draws a vs chart for loss.  You might want to put several things in it like Training Loss Vs Testing Loss.

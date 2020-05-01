@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/ui/plot"
+	"github.com/dereklstinson/gocunets/ui/plot"
 )
 
 //CoreClock handles the device core clock speed info

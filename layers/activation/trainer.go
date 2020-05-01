@@ -3,8 +3,8 @@ package activation
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/trainer"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/trainer"
 )
 
 //LoadTrainer loads the trainer and sets up the training memory

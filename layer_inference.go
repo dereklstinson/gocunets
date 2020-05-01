@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	//"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	//"github.com/dereklstinson/gocunets/layers"
 )
 
 func (l *Layer) inference(handle *cudnn.Handler, fwdwspace, bwddwspace *nvidia.Malloced) error {

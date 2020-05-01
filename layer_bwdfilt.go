@@ -3,8 +3,8 @@ package gocunets
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/layers"
-	//"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/layers"
+	//"github.com/dereklstinson/gocunets/layers"
 )
 
 func (l *Layer) backpropfilter() error {

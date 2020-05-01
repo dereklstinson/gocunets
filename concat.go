@@ -2,7 +2,7 @@ package gocunets
 
 import (
 	"errors"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
 )
 
 //ReverseConcat is just a simple solution to split a source into multiple dests. If the source channel is not divisible by

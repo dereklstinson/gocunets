@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/deconvolution"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/deconvolution"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/trainer"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 const alphadefault = 1.0

@@ -1,7 +1,7 @@
 package gocunets
 
 //"strconv"
-//	"github.com/dereklstinson/GoCuNets/layers"
+//	"github.com/dereklstinson/gocunets/layers"
 
 /*
 const debugconvolutionperformance = false

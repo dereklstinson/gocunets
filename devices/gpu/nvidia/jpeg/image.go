@@ -1,8 +1,8 @@
 package jpeg
 
 import (
-	"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/nvjpeg"
+	"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/nvjpeg"
 	"github.com/dereklstinson/cutil"
 	"io"
 	"io/ioutil"

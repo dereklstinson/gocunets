@@ -2,10 +2,10 @@ package gocunets
 
 import (
 	"fmt"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCudnn/cudart"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocudnn/cudart"
+	"github.com/dereklstinson/gocudnn/gocu"
 	"github.com/dereklstinson/nccl"
 )
 
@@ -181,10 +181,10 @@ func GetDeviceList() (devices []Device, err error) {
 //	"errors"
 //	"math/rand"
 //
-//	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
-//	"github.com/dereklstinson/GoCuNets/layers/reshape"
-//	"github.com/dereklstinson/GoCuNets/trainer"
-//	gocudnn "github.com/dereklstinson/GoCudnn"
+//	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+//	"github.com/dereklstinson/gocunets/layers/reshape"
+//	"github.com/dereklstinson/gocunets/trainer"
+//	gocudnn "github.com/dereklstinson/gocudnn"
 //	//	"strconv"
 //)
 //

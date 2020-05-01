@@ -3,9 +3,9 @@ package dropout
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/dropout"
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/dropout"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 //Layer holds the op for the dropout

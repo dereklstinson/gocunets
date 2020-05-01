@@ -3,11 +3,11 @@ package loss
 import (
 	"math"
 
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocudnn/xtra"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/layers/softmax"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/layers/softmax"
 )
 
 //SoftMax Holds the methods to do softmax loss

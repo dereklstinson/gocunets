@@ -1,10 +1,10 @@
 package softmax
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/softmax"
-	"github.com/dereklstinson/GoCuNets/layers"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/softmax"
+	"github.com/dereklstinson/gocunets/layers"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Layer is a layer that holds the algos for softmax

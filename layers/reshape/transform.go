@@ -1,9 +1,9 @@
 package reshape
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/custom/reshapes"
-	"github.com/dereklstinson/GoCuNets/layers"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/custom/reshapes"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 func (l *Layer) transformtensforward(handle *cudnn.Handler, x, y *layers.Tensor, hlpr *TransFormHelper) error {

@@ -9,19 +9,19 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
 
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocudnn/gocu"
 
-	"github.com/dereklstinson/GoCudnn/cudart"
+	"github.com/dereklstinson/gocudnn/cudart"
 
 	"math"
 	"math/rand"
 	"time"
 
-	gocunets "github.com/dereklstinson/GoCuNets"
-	//	"github.com/dereklstinson/GoCuNets/gocudnn/tensor"
-	//	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocunets "github.com/dereklstinson/gocunets"
+	//	"github.com/dereklstinson/gocunets/gocudnn/tensor"
+	//	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 func filldatabuffer(target, data []float32, labeled []dfuncs.LabeledData, batchsize int32) {
@@ -68,7 +68,7 @@ func main() {
 		rand.Seed(time.Now().UnixNano())
 		//	savelocationforimages := "/home/derek/Desktop/GANMNIST/"
 		//	imagenames := "MNIST"
-		//trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/"
+		//trainingkernellocation := "/home/derek/go/src/github.com/dereklstinson/gocudnn/kernels/"
 
 		devices, err := gocunets.GetDeviceList()
 		cherror(err)

@@ -1,6 +1,6 @@
 package convolution
 
-import gocudnn "github.com/dereklstinson/GoCudnn"
+import gocudnn "github.com/dereklstinson/gocudnn"
 
 //Info is the contains the info to make the op
 type Info struct {

@@ -1,8 +1,8 @@
 package gocunets
 
 import (
-	act "github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/activation"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	act "github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/activation"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //DataType struct wrapper for gocudnn.Datatype.  Look up methods in gocudnn.

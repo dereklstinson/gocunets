@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/dereklstinson/GoCudnn/npp"
+	"github.com/dereklstinson/gocudnn/npp"
 )
 
 func TestFindSrcROIandDstROI(t *testing.T) {

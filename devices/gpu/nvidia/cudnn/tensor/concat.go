@@ -1,11 +1,11 @@
 package tensor
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocudnn/xtra"
 	"github.com/dereklstinson/cutil"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Concat concats the channels of multiple tensors into a new tensor. Concats are seperated by batch.

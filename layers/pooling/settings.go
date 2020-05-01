@@ -1,6 +1,6 @@
 package pooling
 
-import gocudnn "github.com/dereklstinson/GoCudnn"
+import gocudnn "github.com/dereklstinson/gocudnn"
 
 //Settings contains all the info needed to build a pooing layer
 type Settings struct {

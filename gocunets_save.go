@@ -9,11 +9,11 @@ package gocunets
 //	"io/ioutil"
 //	"strings"
 //
-//	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-//	"github.com/dereklstinson/GoCuNets/layers"
-//	"github.com/dereklstinson/GoCuNets/utils"
-//	gocudnn "github.com/dereklstinson/GoCudnn"
-//	"github.com/dereklstinson/GoCudnn/gocu"
+//	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+//	"github.com/dereklstinson/gocunets/layers"
+//	"github.com/dereklstinson/gocunets/utils"
+//	gocudnn "github.com/dereklstinson/gocudnn"
+//	"github.com/dereklstinson/gocudnn/gocu"
 //)
 //
 ////TensorInfo are the Tensor that are used to save and load data to a layer

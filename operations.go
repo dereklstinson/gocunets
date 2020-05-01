@@ -4,7 +4,7 @@ package gocunets
 
 
 import (
-	"github.com/dereklstinson/GoCuNets/layers/cnn"
+	"github.com/dereklstinson/gocunets/layers/cnn"
 )
 
 //Convolution inherits *cnn.Layer

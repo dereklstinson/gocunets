@@ -1,6 +1,6 @@
 package loss
 
-import "github.com/dereklstinson/GoCuNets/utils"
+import "github.com/dereklstinson/gocunets/utils"
 
 //Huber holds the methods to do the huber loss
 type Huber struct {

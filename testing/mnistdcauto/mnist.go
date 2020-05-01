@@ -5,15 +5,15 @@ import (
 	"image"
 	"math/rand"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/loss"
-	"github.com/dereklstinson/GoCuNets/testing/mnist/dfuncs"
-	"github.com/dereklstinson/GoCuNets/testing/mnistdcauto/dcnetworks"
-	"github.com/dereklstinson/GoCuNets/utils"
-	"github.com/dereklstinson/GoCuNets/utils/filing"
-	"github.com/dereklstinson/GoCuNets/utils/imaging"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/loss"
+	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
+	"github.com/dereklstinson/gocunets/testing/mnistdcauto/dcnetworks"
+	"github.com/dereklstinson/gocunets/utils"
+	"github.com/dereklstinson/gocunets/utils/filing"
+	"github.com/dereklstinson/gocunets/utils/imaging"
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/nfnt/resize"
 )
 
@@ -28,7 +28,7 @@ func network() {
 	utils.CheckError(err)
 	utils.CheckError(devs[0].Set())
 
-	handle := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/GoCudnn/kernels/")
+	handle := cudnn.CreateHandler(devs[0], "/home/derek/go/src/github.com/dereklstinson/gocudnn/kernels/")
 	//stream, err := gocudnn.Cuda{}.CreateBlockingStream()
 
 	//	utils.CheckError(handles.SetStream(stream))

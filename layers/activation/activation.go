@@ -1,12 +1,12 @@
 package activation
 
 import (
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/activation"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/reduce"
-	"github.com/dereklstinson/GoCuNets/layers"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/activation"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/reduce"
+	"github.com/dereklstinson/gocunets/layers"
+	"github.com/dereklstinson/gocunets/trainer"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Layer is an activation layer

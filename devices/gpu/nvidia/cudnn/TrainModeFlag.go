@@ -1,7 +1,7 @@
 package cudnn
 
 import (
-	"github.com/dereklstinson/GoCudnn/xtra"
+	"github.com/dereklstinson/gocudnn/xtra"
 )
 
 //TrainMode is a flag to set the TrainingMode

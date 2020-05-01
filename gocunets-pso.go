@@ -1,8 +1,8 @@
 package gocunets
 
 //import (
-//	//"github.com/dereklstinson/GoCuNets/loss"
-//	"github.com/dereklstinson/GoCuNets/trainer"
+//	//"github.com/dereklstinson/gocunets/loss"
+//	"github.com/dereklstinson/gocunets/trainer"
 //	"github.com/dereklstinson/pso"
 //)
 

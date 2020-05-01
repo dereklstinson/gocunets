@@ -1,8 +1,8 @@
 package activation
 
 import (
-	gocudnn "github.com/dereklstinson/GoCudnn"
-	"github.com/dereklstinson/GoCudnn/xtra"
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/xtra"
 )
 
 //Mode passes Mode flags

@@ -3,12 +3,12 @@ package nvutil
 import (
 	"errors"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
-	"github.com/dereklstinson/GoCuNets/utils"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/jpeg"
+	"github.com/dereklstinson/gocunets/utils"
 	"github.com/dereklstinson/cutil"
-	//"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/npp"
+	//"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/npp"
 )
 
 type BatchBuffer struct {

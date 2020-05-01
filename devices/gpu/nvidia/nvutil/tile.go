@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/jpeg"
-	"github.com/dereklstinson/GoCudnn/gocu"
-	"github.com/dereklstinson/GoCudnn/npp"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/jpeg"
+	"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocudnn/npp"
 )
 
 //TileHelper will help tile an image

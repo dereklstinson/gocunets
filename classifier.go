@@ -3,8 +3,8 @@ package gocunets
 import (
 	"math"
 
-	"github.com/dereklstinson/GoCuNets/layers/activation"
-	"github.com/dereklstinson/GoCuNets/layers/softmax"
+	"github.com/dereklstinson/gocunets/layers/activation"
+	"github.com/dereklstinson/gocunets/layers/softmax"
 )
 
 //Classifier will take the outputs of a neural network and find the error of it.  To be passed back to the rest of the network.

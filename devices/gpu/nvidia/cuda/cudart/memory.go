@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocudnn/gocu"
 	"github.com/dereklstinson/cutil"
 	"github.com/dereklstinson/half"
 
-	"github.com/dereklstinson/GoCuNets/devices"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 )
 
 //CudaSlice is cuda memory.

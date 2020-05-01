@@ -1,14 +1,14 @@
 package dcnetworks
 
 import (
-	gocunets "github.com/dereklstinson/GoCuNets"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/layers/activation"
-	"github.com/dereklstinson/GoCuNets/layers/cnn"
-	"github.com/dereklstinson/GoCuNets/layers/cnntranspose"
-	"github.com/dereklstinson/GoCuNets/trainer"
-	"github.com/dereklstinson/GoCuNets/utils"
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocunets "github.com/dereklstinson/gocunets"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers/activation"
+	"github.com/dereklstinson/gocunets/layers/cnn"
+	"github.com/dereklstinson/gocunets/layers/cnntranspose"
+	"github.com/dereklstinson/gocunets/trainer"
+	"github.com/dereklstinson/gocunets/utils"
+	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //DCAutoReverse using regular method of increasing size of convolution...by just increasing the outer padding

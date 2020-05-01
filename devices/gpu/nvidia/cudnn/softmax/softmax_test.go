@@ -1,5 +1,5 @@
 /*
-Package softmax uses the softmax functions from GoCudnn which is from cudnn.   Except it doesn't use any of the flags.
+Package softmax uses the softmax functions from gocudnn which is from cudnn.   Except it doesn't use any of the flags.
 */
 package softmax
 
@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	gocudnn "github.com/dereklstinson/GoCudnn"
+	gocudnn "github.com/dereklstinson/gocudnn"
 
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/GoCuNets/devices/gpu/nvidia/cudnn/tensor"
-	"github.com/dereklstinson/GoCudnn/cudart"
-	"github.com/dereklstinson/GoCudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
+	"github.com/dereklstinson/gocudnn/cudart"
+	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 func TestSoftMax(t *testing.T) {
