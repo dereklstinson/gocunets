@@ -3,23 +3,70 @@
 
 The kame ha me ha of neural networks in go.
 
+Pull requests are welcomed.
+
 packages needed
-'''text
-go get github.com/nfnt/resize
-go get github.com/dereklstinson/gpu-monitoring-tools/bindings/go/nvml
-go get github.com/pkg/browser
-go get -u gonum.org/v1/gonum/...
-go get gonum.org/v1/plot/...
-'''
-gocunets is basically 100% cuda computing using the gocudnn package.  So, you will need to go get that. I eventually want to get this to the point were I can straight up build a system through a json file/files.  
 
-Each of the layers has its own package.  I like doing that way to keep things seperated. Because a lot of neural network parts are similar, and I didn't want to have to keep on comming up with elaborate names for structs.  Its just easier to call up the packages to set up the different layers. cnn1:= cnn.LayerSetup(blah blah blah), and then act1:=activation.LayerSetup(bla bla bla). Then you get a cool flow with cnn1.ForwardProp(x,y) act1.ForwardProp(x,y).
+```text
+go get github.com/nfnt/resize     // Will eventually get rid of this.
+go get github.com/dereklstinson/gpu-monitoring-tools/bindings/go/nvml  //Will eventually get bindings in gocudnn. 
+go get github.com/pkg/browser     // This is used with ui it auto launches browser.  Not so useful when used with a headless machine
+go get github.com/dereklstinson/gocudnn
+go get github.com/dereklstinson/cutil
+go get -u gonum.org/v1/gonum/...  // Will eventually get rid of this
+go get gonum.org/v1/plot/...      // Will want to get rid of this and use javascript plotting.
 
-I might later add some cpu algos, because you just can't have the cpu sit there while the gpu is doing the heavy lifting.  Especially with something like inference. Where it is not as computationally demanding as when training the networks.  
+```
 
-There is one thing I need to work on is the use of cudnn flags.  Right now you still need to use the gocudnn package to access those flags.  I want to move away from that, and that will happen when I can think of a simple intuitive method of handling those flags. I think I will make it so it there are defaults and can be adjusted through methods.... we will see.
+GoCuNets is basically 100% GPU computing using the gocudnn package.  Right now the only gpu support is Nvidia.  Eventually, AMD GPUs will have support through HIP and MIOpen.
+I want to make it so that when using this package you don't have to download both cuda and hip libraries.  
 
+This package is separated into a few parts parts
+```text
+github.com/dereklstinson/gocunets/devices
+github.com/dereklstinson/gocunets/layers
+github.com/dereklstinson/gocunets/loss
+github.com/dereklstinson/gocunets/ui
+github.com/dereklstinson/gocunets/trainer
+github.com/dereklstinson/gocunets
+```
 
+The sub-package devices contains sub-packages for wrappers to device library bindings.  
 
-This is a working package, but it is pre alpha. 
+The sub-package layers contains other sub-packages to layers.  
+
+The sub-package loss contains different loss algorithms.
+
+The sub-package ui contains a makeshift real time neural network monitoring server.  Eventually, I would like to have it create a report / reports.     
+
+The sub-package trainer contains weight trainers.
+
+The main package contains a higher level interface.  
+
+## More on GoCuNets
+
+A lot has changed since the beginning of GoCuNets.  A lot of features that used to be available are not available for the moment.  Like ui interface and model saving and loading.  Saving and loading will be implemented soon.  It will be part an upcoming Model interface.    
+
+type Builder has exposed flags that can be set through their methods.  You only need to set the ones that are going to be used.  A builder builds layers, tensors, randomly initialized tensors and more.  This makes it easier to build networks without having pass flags all the time.  
+
+These flags are 	
+```text 
+    Frmt TensorFormat
+	Dtype     DataType
+	Cmode     ConvolutionMode
+	Mtype     MathType
+	Pmode     PoolingMode
+	AMode     ActivationMode
+	BNMode    BatchNormMode
+	Nan       NanProp
+```text
+
+Type Handle is a handle to a GPU.  A GPU can have more than one Handle.  One worker can be used on multiple handles.
+Handle and worker must use the same device.
+
+Module interface is new.  Modules will eventually be used to implement graphs.  There are a few modules that I have made.
+Eventually everything from layer sub-package will have wrappers in gocunets and will be made into a module.  
+
+This is a working package, but it is pre alpha.
+Better version management will be coming.  
 
