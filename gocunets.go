@@ -8,21 +8,97 @@ import (
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/layers"
 	"github.com/dereklstinson/nccl"
+	"gonum.org/v1/gonum/graph"
 )
 
 //Tensor is contains 2 tensors the x and dx.  Input IOs will contain only the X tensor.
 type Tensor struct {
 	*layers.Tensor
+	id       int64
+	to, from Module
 }
 
-//type Workspace struct {
-//	*nvidia.Malloced
-//}
+//ID implements gonum's graph.Line and Node interfaces
+func (t *Tensor) ID() int64 {
+	return t.id
+}
 
-////Trainer is a trainer.Trainer
-//type Trainer interface {
-//	trainer.Trainer
-//}
+//From implements gonum's graph.Line interface
+func (t *Tensor) From() graph.Node {
+	return t.from
+}
+
+//To implements gonum's graph.Line interface
+func (t *Tensor) To() graph.Node {
+	return t.to
+}
+
+//ReversedEdge implements graph.Edge interface
+func (t *Tensor) ReversedEdge() graph.Edge {
+	return &Tensor{
+		Tensor: t.Tensor,
+		id:     t.id,
+		to:     t.from,
+		from:   t.to,
+	}
+}
+
+//ReversedLine implements gonum's graph.Line interface
+func (t *Tensor) ReversedLine() graph.Line {
+	return &Tensor{
+		Tensor: t.Tensor,
+		id:     t.id,
+		to:     t.from,
+		from:   t.to,
+	}
+}
+
+//Connection is a connection between two operations. It is used for Edge and Line
+//This is a test type.  Tensor might be good enough.
+type Connection struct {
+	y, dy    *layers.Tensor
+	id       int64
+	to, from Module
+}
+
+//ReversedEdge implements graph.Edge interface
+func (c *Connection) ReversedEdge() graph.Edge {
+	//dy,y might need to be reversed
+	return &Connection{
+		id:   c.id,
+		y:    c.y,
+		dy:   c.dy,
+		to:   c.from,
+		from: c.to,
+	}
+}
+
+//From implements gonum's graph.Line and graph.Edge interfaces.
+func (c *Connection) From() graph.Node {
+	return c.from
+}
+
+//To implements gonum's graph.Line  and graph.Edge interfaces.
+func (c *Connection) To() graph.Node {
+	return c.to
+}
+
+//ReversedLine implements gonum's graph.Line interface
+func (c *Connection) ReversedLine() graph.Line {
+	//dy,y might need to be reversed
+	return &Connection{
+		id:   c.id,
+		y:    c.y,
+		dy:   c.dy,
+		to:   c.from,
+		from: c.to,
+	}
+}
+
+//ID implements gonum's graph.Line and graph.Node interfaces
+func (c *Connection) ID() int64 {
+	return c.id
+}
 
 //CreateWorker assigns a locked host thread to a device.
 func CreateWorker(d Device) (w *Worker) {

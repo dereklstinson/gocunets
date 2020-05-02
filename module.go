@@ -112,7 +112,7 @@ func dimoutputreverse(i, f, p, s, d int32) (o int32) {
 
 //SimpleModuleNetwork is a simple module network
 type SimpleModuleNetwork struct {
-	Id                   int64             `json:"id,omitempty"`
+	id                   int64             `json:"id,omitempty"`
 	C                    *Concat           `json:"c,omitempty"`
 	Modules              []Module          `json:"modules,omitempty"`
 	Output               *OutputModule     `json:"output,omitempty"`
@@ -129,7 +129,7 @@ type SimpleModuleNetwork struct {
 func CreateSimpleModuleNetwork(id int64, b *Builder) (smn *SimpleModuleNetwork) {
 	smn = new(SimpleModuleNetwork)
 	smn.b = b
-	smn.Id = id
+	smn.id = id
 
 	return smn
 }
@@ -199,7 +199,7 @@ func (m *SimpleModuleNetwork) SetModules(modules []Module) {
 
 //ID satisfies Module interface
 func (m *SimpleModuleNetwork) ID() int64 {
-	return m.Id
+	return m.id
 }
 
 //GetTensorX Gets x tensor
