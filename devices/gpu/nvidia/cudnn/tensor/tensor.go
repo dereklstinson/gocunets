@@ -11,27 +11,26 @@ import (
 
 	//"github.com/dereklstinson/cutil"
 
+	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocudnn/gocu"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/utils"
-	gocudnn "github.com/dereklstinson/gocudnn"
-	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 //Volume holds both a gocudnn.TensorD and gocudnn.FilterD and the allocated memory associated with it
 type Volume struct {
 	*nvidia.Malloced
 	printvals bool
-	//	dims      []int32
-	current  *tensordescriptor
-	op       tensops
-	dtype    gocudnn.DataType
-	propnan  gocudnn.NANProp
-	frmt     gocudnn.TensorFormat
-	min, max float32
-	sizet    uint
-	vol      int32
-	ongpu    bool
+	current   *tensordescriptor
+	op        tensops
+	dtype     gocudnn.DataType
+	propnan   gocudnn.NANProp
+	frmt      gocudnn.TensorFormat
+	min, max  float32
+	sizet     uint
+	vol       int32
+	ongpu     bool
 }
 
 //SetPropNan will change the default nan propigation flag from PropNanNon to PropNaN

@@ -29,8 +29,6 @@ type Builder struct {
 	BNMode    BatchNormMode
 	Nan       NanProp
 	curngtype curand.RngType
-	//	rng       *rand.Rand
-	//	src       rand.Source
 }
 
 var bprflags struct {
@@ -64,8 +62,6 @@ var bprflags struct {
 func CreateBuilder(h *Handle) (b *Builder) {
 	b = new(Builder)
 	b.h = h
-	//	b.src = rand.NewSource(seed)
-	//	b.rng = rand.New(b.src)
 	b.Frmt.NCHW()
 	b.Mtype.Default()
 	b.Cmode.CrossCorrelation()
@@ -89,11 +85,9 @@ func (l *Builder) AllocateMemory(sib uint) (cutil.Pointer, error) {
 	return nvidia.MallocGlobal(l.h.Handler.Worker, sib)
 }
 
-//CreateTensor creates a tensor
+//CreateTensor creates a tensor initialed with all zeros.
 func (l *Builder) CreateTensor(dims []int32) (t *Tensor, err error) {
-	//	err = l.h.w.Work(func() error {
 	t = new(Tensor)
-
 	t.Tensor, err = layers.CreateTensor(l.h.Handler, l.Frmt.TensorFormat, l.Dtype.DataType, dims)
 	if err != nil {
 		err = fmt.Errorf(" (l *Builder) CreateTensor, Err: %v, input dims: %v", err, dims)
@@ -102,39 +96,31 @@ func (l *Builder) CreateTensor(dims []int32) (t *Tensor, err error) {
 
 }
 
-//CreateRandomTensor creates a random tensor
+//CreateRandomTensor creates a random gaussian tensor.
 func (l *Builder) CreateRandomTensor(dims []int32, mean, std float32, seed uint64) (t *Tensor, err error) {
-	//	err = l.h.w.Work(func() error {
-	//	var err1 error
 	t = new(Tensor)
 	t.Tensor, err = layers.BuildRandomTensor(l.h.Handler, l.Frmt.TensorFormat, l.Dtype.DataType, dims, mean, std)
-	//return nil, err1
-	//	})
 	return t, err
 
 }
 
-//FindBiasTensor finds the bias tensor according to the dims
-func (l *Builder) FindBiasTensor(dims []int32) (b *Tensor, err error) {
-	//	err = l.h.w.Work(func() error {
-	//var err1 error
+//CreateBiasTensor is a helper function that will create the bias tensor considering the weight dims.
+func (l *Builder) CreateBiasTensor(dims []int32) (b *Tensor, err error) {
 	var biasdims = make([]int32, len(dims))
 	for i := range biasdims {
 		biasdims[i] = 1
 	}
 	biasdims[0] = dims[0] //this is number of batches
+	bprflg := bprflags
 	switch l.Frmt {
-	case bprflags.Frmt.NCHW():
+	case bprflg.Frmt.NCHW():
 		biasdims[1] = dims[1]
-
-	case bprflags.Frmt.NHWC():
+	case bprflg.Frmt.NHWC():
 		biasdims[len(dims)-1] = dims[len(dims)-1]
 	default:
 		return nil, errors.New("unsupported tensor format in builder")
 	}
 	b, err = l.CreateTensor(biasdims)
-	//	return nil, err1
-	//	})
 	return b, err
 
 }
@@ -149,26 +135,11 @@ func (l *Builder) CreateDeconvolutionWeights(dims []int32) (w, dw, b, db *Tensor
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	flg := l.Frmt
-	bdims := make([]int32, len(dims))
-	for i := range bdims {
-		bdims[i] = 1
-	}
-	switch l.Frmt {
-	case flg.NCHW():
-		bdims[1] = dims[1]
-
-	case flg.NHWC():
-		bdims[len(bdims)-1] = dims[len(dims)-1]
-	default:
-		return nil, nil, nil, nil, errors.New("(l *Builder) CreateDeconvolutionWeights: Unsupported Format")
-	}
-
-	b, err = l.CreateTensor(bdims)
+	b, err = l.CreateBiasTensor(dims)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	db, err = l.CreateTensor(bdims)
+	db, err = l.CreateBiasTensor(dims)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -176,8 +147,8 @@ func (l *Builder) CreateDeconvolutionWeights(dims []int32) (w, dw, b, db *Tensor
 }
 
 //CreateConvolutionWeights creates the weights and delta weights of a convolution layer
-func (l *Builder) CreateConvolutionWeights(dims []int32) (w, dw, b, db *Tensor, err error) {
-
+func (l *Builder) CreateConvolutionWeights(dims []int32) (
+	w, dw, b, db *Tensor, err error) {
 	w, err = l.CreateTensor(dims)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -186,26 +157,11 @@ func (l *Builder) CreateConvolutionWeights(dims []int32) (w, dw, b, db *Tensor, 
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	flg := l.Frmt
-	bdims := make([]int32, len(dims))
-	for i := range bdims {
-		bdims[i] = 1
-	}
-	switch l.Frmt {
-	case flg.NCHW():
-		bdims[1] = dims[0]
-
-	case flg.NHWC():
-		bdims[len(bdims)-1] = dims[0]
-	default:
-		return nil, nil, nil, nil, errors.New("(l *Builder) CreateConvolutionWeights: Unsupported Format")
-	}
-
-	b, err = l.CreateTensor(bdims)
+	b, err = l.CreateBiasTensor(dims)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	db, err = l.CreateTensor(bdims)
+	db, err = l.CreateBiasTensor(dims)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -233,8 +189,14 @@ func (l *Builder) ConnectLayers(layer1, layer2 *Layer) error {
 	if err != nil {
 		return err
 	}
-	layer1.SetOutputs(t, dt)
-	layer2.SetInputs(t, dt)
+	//	t.to=layer2
+	//	t.from=layer1
+	//	dt.to=layer2
+	//	dt.from=layer1
+	layer1.SetTensorY(t)
+	layer1.SetTensorDY(dt)
+	layer2.SetTensorX(t)
+	layer2.SetTensorDX(dt)
 
 	return nil
 }
@@ -254,13 +216,13 @@ func (l *Builder) PoolingLayer(id int64, window, padding, stride []int32) (p *La
 //BatchNorm is the batch norm layer
 func (l *Builder) BatchNorm(id int64) (batch *Layer, err error) {
 	var blayer *batchnorm.Layer
-
+	bprflg := bprflags
 	switch l.BNMode {
-	case bprflags.BNMode.PerActivation():
+	case bprflg.BNMode.PerActivation():
 		blayer, err = batchnorm.PerActivationPreset(l.h.Handler)
-	case bprflags.BNMode.Spatial():
+	case bprflg.BNMode.Spatial():
 		blayer, err = batchnorm.SpatialPreset(l.h.Handler)
-	case bprflags.BNMode.SpatialPersistent():
+	case bprflg.BNMode.SpatialPersistent():
 		blayer, err = batchnorm.SpatialPersistantPreset(l.h.Handler)
 	}
 	if err != nil {
@@ -273,7 +235,6 @@ func (l *Builder) BatchNorm(id int64) (batch *Layer, err error) {
 
 //ConvolutionLayer creates a convolution layer
 func (l *Builder) ConvolutionLayer(id int64, groupcount int32, w, dw, b, db *Tensor, pad, stride, dilation []int32) (conv *Layer, err error) {
-	//err = l.h.w.Work(func() error {
 	clayer, err := cnn.SetupBasic(
 		l.h.Handler,
 		l.Frmt.TensorFormat,
@@ -289,8 +250,6 @@ func (l *Builder) ConvolutionLayer(id int64, groupcount int32, w, dw, b, db *Ten
 		return nil, err
 	}
 	conv, err = createlayer(id, l.h, clayer)
-	//	return nil, nil
-	//	})
 	if err != nil {
 		return nil, err
 	}
@@ -340,8 +299,8 @@ func (l *Builder) Activation(id int64) (a *Layer, err error) {
 	return a, err
 }
 
-//ReverseConvolutionLayer creates a reverse convolution layer
-func (l *Builder) ReverseConvolutionLayer(id int64, groupcount int32, w, dw, b, db *Tensor, pad, stride, dilation []int32) (rconv *Layer, err error) {
+//DeConvolutionLayer creates a reverse convolution layer
+func (l *Builder) DeConvolutionLayer(id int64, groupcount int32, w, dw, b, db *Tensor, pad, stride, dilation []int32) (rconv *Layer, err error) {
 	clayer, err := cnntranspose.SetupBasic(l.h.Handler,
 		l.Frmt.TensorFormat,
 		l.Dtype.DataType,

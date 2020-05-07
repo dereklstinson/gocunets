@@ -69,7 +69,7 @@ func recommendedpaddilation(filterdim, index, stride, offset int32) (dilation, p
 		if stride == 1 {
 			dilation = 2 * (index + 1)
 			if (((filterdim-1)*dilation + 1 + offset) % 2) != 0 {
-				return -1, -1, fmt.Errorf("(((filterdim-1)*dilation +1 + offset) modual 2) != 0, (((%v-1)*%v)+1+%v)", filterdim, dilation, offset)
+				return -1, -1, fmt.Errorf("(((filterdim-1)*dilation +1 + offset) module 2) != 0, (((%v-1)*%v)+1+%v)", filterdim, dilation, offset)
 			}
 			pad = ((filterdim-1)*dilation + 1 + offset) / 2
 
@@ -112,7 +112,7 @@ func dimoutputreverse(i, f, p, s, d int32) (o int32) {
 
 //SimpleModuleNetwork is a simple module network
 type SimpleModuleNetwork struct {
-	id                   int64             `json:"id,omitempty"`
+	id                   int64
 	C                    *Concat           `json:"c,omitempty"`
 	Modules              []Module          `json:"modules,omitempty"`
 	Output               *OutputModule     `json:"output,omitempty"`
@@ -339,9 +339,9 @@ func (m *SimpleModuleNetwork) InitWorkspace() (err error) {
 	return nil
 }
 
-//FindOutputDims satisifis the Module interface
+//FindOutputDims satisfies the Module interface
 //
-//Have to run (m *SimpleModuleNetwork)SetTensorX().  If module network requres backpropdata to go to another module network.
+//Have to run (m *SimpleModuleNetwork)SetTensorX().  If module network requires backpropdata to go to another module network.
 //Then also run (m *SimpleModuleNetwork)SetTensorDX()
 func (m *SimpleModuleNetwork) FindOutputDims() (dims []int32, err error) {
 	//	if m.x == nil {
@@ -462,22 +462,26 @@ func (m *SimpleModuleNetwork) FindOutputDims() (dims []int32, err error) {
 	return outputdims, nil
 }
 
-//Forward does a forward without a concat
+//Forward performs the forward operation
+//of the simple module network.
+//Forward satisfies the Module Interface.
 func (m *SimpleModuleNetwork) Forward() (err error) {
-	for i := range m.Modules {
-		err = m.Modules[i].Forward()
+	for _, mod := range m.Modules {
+		err = mod.Forward()
 		if err != nil {
 			return err
 		}
 	}
-	err = m.Output.Forward()
-	if err != nil {
-		return err
+	if m.Output != nil {
+		err = m.Output.Forward()
+		if err != nil {
+			return err
+		}
 	}
-	if m.Classifier == nil {
-		return nil
+	if m.Classifier != nil {
+		return m.Classifier.PerformError()
 	}
-	return m.Classifier.PerformError()
+	return nil
 }
 
 //Update updates the hidden weights

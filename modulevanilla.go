@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 	"github.com/dereklstinson/gocunets/trainer"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //VanillaModule has a convolution and an activation
@@ -254,7 +254,7 @@ func (m *VanillaModule) InitWorkspace() (err error) {
 	return nil
 }
 
-//FindOutputDims satisifies module interface
+//FindOutputDims satisfies module interface
 func (m *VanillaModule) FindOutputDims() ([]int32, error) {
 	if m.conv.x == nil {
 		return nil, errors.New("m *VanillaModule) FindOutputDims(): X tensor is not set")
@@ -269,7 +269,7 @@ func (m *VanillaModule) FindOutputDims() ([]int32, error) {
 
 }
 
-//Update satisifies module interface
+//Update satisfies module interface
 func (m *VanillaModule) Update(epoch int) error {
 	err := m.conv.Update(epoch)
 	if err != nil {
@@ -281,6 +281,7 @@ func (m *VanillaModule) Update(epoch int) error {
 }
 
 //Forward  satisfies module interface
+//
 func (m *VanillaModule) Forward() error {
 
 	err := m.conv.Forward()

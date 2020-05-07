@@ -6,8 +6,8 @@ import (
 
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 
-	"github.com/dereklstinson/gocunets/trainer"
 	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocunets/trainer"
 	//	"github.com/dereklstinson/cutil"
 )
 
@@ -25,7 +25,7 @@ type initialization struct {
 	dims                         []int32
 	strides                      []int32
 	batch                        int32
-	nearuons                     []int32
+	neurons                      []int32
 	falpha, fbeta, balpha, bbeta float64
 }
 
@@ -81,7 +81,7 @@ func createModule(id int64, bldr *Builder,
 				return nil, err
 			}
 
-			m.layers[i], err = bldr.ReverseConvolutionLayer(int64(i), 1, w, dw, b, db, pads, strides, dilations)
+			m.layers[i], err = bldr.DeConvolutionLayer(int64(i), 1, w, dw, b, db, pads, strides, dilations)
 			if err != nil {
 				return nil, err
 			}

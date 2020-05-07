@@ -15,7 +15,6 @@ import (
 	"github.com/dereklstinson/gocunets/layers/pooling"
 	"github.com/dereklstinson/gocunets/layers/reshape"
 	"github.com/dereklstinson/gocunets/trainer"
-	"github.com/dereklstinson/gocudnn/gocu"
 )
 
 //Operation is a generic operation that a layer uses.
@@ -37,24 +36,22 @@ type Operation interface {
 
 //Layer is a layer inside a network it holds inputs and outputs
 type Layer struct {
-	id              int64
-	name            string
-	h               *Handle
-	activation      *activation.Layer
-	cnn             *cnn.Layer
-	pool            *pooling.Layer
-	drop            *dropout.Layer
-	batch           *batchnorm.Layer
-	reshape         *reshape.Layer
-	cnntranspose    *cnntranspose.Layer
-	other           Operation //Operation will eventually take over
-	x, dx, y, dy    *Tensor
-	memoryeffecient bool
-
-	s                                        gocu.Streamer
-	workspacefwd, workspacebwd, workspacebwf *nvidia.Malloced
-	batchsize                                int
-	//scalarnumalpha, scalarnumbeta            int
+	id           int64
+	name         string
+	h            *Handle
+	activation   *activation.Layer
+	cnn          *cnn.Layer
+	pool         *pooling.Layer
+	drop         *dropout.Layer
+	batch        *batchnorm.Layer
+	reshape      *reshape.Layer
+	cnntranspose *cnntranspose.Layer
+	workspacefwd *nvidia.Malloced
+	workspacebwd *nvidia.Malloced
+	workspacebwf *nvidia.Malloced
+	batchsize    int
+	other        Operation
+	x, dx, y, dy *Tensor
 }
 
 //ToggleWPrint If layer contains weights or hidden values it will toggle the printing
@@ -175,19 +172,47 @@ func (l *Layer) ID() int64 {
 	return l.id
 }
 
-//SetIOs sets the x,dx,y,dy used by the layer
-func (l *Layer) SetIOs(x, dx, y, dy *Tensor) {
-	l.x, l.dx, l.y, l.dy = x, dx, y, dy
+//GetTensorX Gets x tensor
+func (l *Layer) GetTensorX() *Tensor {
+	return l.x
 }
 
-//SetInputs sets the inputs
-func (l *Layer) SetInputs(x, dx *Tensor) {
-	l.x, l.dx = x, dx
+//GetTensorDX Gets dx tensor
+func (l *Layer) GetTensorDX() *Tensor {
+	return l.dx
 }
 
-//SetOutputs sets the outputs
-func (l *Layer) SetOutputs(y, dy *Tensor) {
-	l.y, l.dy = y, dy
+//GetTensorY Gets y tensor
+func (l *Layer) GetTensorY() *Tensor {
+	return l.y
+}
+
+//GetTensorDY Gets dy tensor
+func (l *Layer) GetTensorDY() *Tensor {
+	return l.dy
+	//return m.dy
+}
+
+//SetTensorX sets x tensor
+func (l *Layer) SetTensorX(x *Tensor) {
+	l.x = x
+}
+
+//SetTensorDX sets dx tensor
+func (l *Layer) SetTensorDX(dx *Tensor) {
+	l.dx = dx
+}
+
+//SetTensorY sets y tensor
+func (l *Layer) SetTensorY(y *Tensor) {
+	l.y = y
+
+}
+
+//SetTensorDY sets dy tensor
+func (l *Layer) SetTensorDY(dy *Tensor) {
+	l.dy = dy
+
 }
 
 //Forward performs the forward propagation
@@ -210,7 +235,7 @@ func (l *Layer) ChangeBatchSize(batchsize int) {
 	l.batchsize = batchsize
 }
 
-//LoadTrainer Loas the trainer to the layer
+//LoadTrainer loads the trainer to the layer
 func (l *Layer) LoadTrainer(handle *cudnn.Handler, batchsize int, trainers ...trainer.Trainer) error {
 
 	return l.loadtrainer(handle, batchsize, trainers...)
@@ -262,7 +287,7 @@ func (l *Layer) loadtrainer(handle *cudnn.Handler, batchsize int, trainers ...tr
 		l.other.LoadTrainers(handle, trainers...)
 	}
 
-	return errors.New("inbedded error doesn't support trainers")
+	return errors.New("in bedded error doesn't support trainers")
 }
 
 func (l *Layer) trainersneeded() int {
@@ -384,53 +409,6 @@ func (l *Layer) SetOtherScalars(alpha, beta float64) {
 	return
 }
 
-/*
-func (l *Layer) getoutputwithname(handle *cudnn.Handler, input *layers.Tensor) (*layers.Tensor, string, error) {
-
-	if l.cnn != nil {
-		x, err := l.cnn.MakeOutputTensor(handle, input)
-		return x, "CNN-Output", err
-	}
-
-	if l.pool != nil {
-		x, err := l.pool.MakeOutputTensor(handle, input)
-		return x, "Pooling-Output", err
-	}
-	if l.drop != nil {
-
-		err := l.drop.BuildFromPreset(handle, input)
-		if err != nil {
-
-			return nil, "", err
-		}
-		x, err := layers.ZeroClone(handle, input)
-		return x, "DropOut-Output", err
-	}
-	if l.activation != nil {
-		x, err := layers.ZeroClone(handle, input)
-		return x, "Activation-Output", err
-	}
-	if l.batch != nil {
-		err := l.batch.SetupPreset(handle, input)
-		if err != nil {
-			return nil, "", err
-		}
-		x, err := layers.ZeroClone(handle, input)
-		return x, "BatchNorm-Output", err
-	}
-
-	if l.reshape != nil {
-		x, err := l.reshape.MakeOutputTensor(handle, input)
-		return x, "Reshape-Output", err
-	}
-	if l.cnntranspose != nil {
-		x, err := l.cnntranspose.MakeOutputTensor(handle, input)
-		return x, "CnnTranspose-Output", err
-	}
-	return nil, "", errors.New("Layer Needs Support")
-}
-*/
-
 //GetOutputDims gets the dims of the output tensor
 func (l *Layer) GetOutputDims(input *Tensor) (output []int32, err error) {
 	if l.cnn != nil {
@@ -463,89 +441,6 @@ func (l *Layer) GetOutputDims(input *Tensor) (output []int32, err error) {
 	return nil, errors.New("Unsupported Layer")
 }
 
-/*
-func (l *Layer) getoutput(handle *cudnn.Handler, input *layers.Tensor) (io *layers.Tensor, err error) {
-
-	if l.cnn != nil {
-		io, err = l.cnn.MakeOutputTensor(handle, input)
-		if io == nil {
-			fmt.Println("input is", input.Dims())
-
-		}
-		if err != nil {
-			fmt.Println("Error in CNN Make Output Tensor input is:", input)
-		}
-		return io, err
-	}
-	if l.pool != nil {
-		io, err = l.pool.MakeOutputLayer(handle, input)
-		if io == nil {
-			panic("IO IS NILL")
-		}
-		return io, err
-	}
-	if l.drop != nil {
-		err = l.drop.BuildFromPreset(handle, input)
-		if err != nil {
-			return nil, err
-		}
-		io, err = layers.ZeroClone(handle, input)
-		if io == nil {
-			panic("IO IS NILL")
-		}
-		return io, err
-
-	}
-	if l.activation != nil {
-		io, err = layers.ZeroClone(handle, input)
-		if err != nil {
-			fmt.Println("Error in activation Make Output Tensor input is:", input)
-		}
-		if io == nil {
-			panic("IO IS NILL")
-		}
-
-		return io, err
-	}
-	if l.batch != nil {
-		err := l.batch.SetupPreset(handle, input)
-		if err != nil {
-			fmt.Println("error in batch initialization")
-			return nil, err
-		}
-
-		io, err = layers.ZeroClone(handle, input)
-		if err != nil {
-			fmt.Println("Error in batch Make Output Tensor input is:", input)
-		}
-		if io == nil {
-			panic("IO IS NILL")
-		}
-
-		return io, err
-	}
-
-	if l.reshape != nil {
-		io, err = l.reshape.MakeOutputTensor(handle, input)
-		if io == nil {
-			panic("IO IS NILL")
-		}
-		return io, err
-	}
-	if l.cnntranspose != nil {
-		io, err = l.cnntranspose.MakeOutputTensor(handle, input)
-		if err != nil {
-			fmt.Println("DIMS Reverse", io.Dims())
-			fmt.Println("Error in cnntranspose Make Output Tensor input is:", input)
-		}
-		if io == nil {
-			panic("IO IS NILL")
-		}
-		return io, err
-	}
-	return nil, errors.New("Layer Needs Support")
-}
-*/
 //UpdateWeights updates the weights of layer
 func (l *Layer) updateWeights(epoch int) error {
 
