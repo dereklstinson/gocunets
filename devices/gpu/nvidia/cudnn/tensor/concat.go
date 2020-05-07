@@ -1,9 +1,9 @@
 package tensor
 
 import (
-	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/gocudnn/xtra"
 	"github.com/dereklstinson/cutil"
+	"github.com/dereklstinson/gocudnn/xtra"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 
 	gocudnn "github.com/dereklstinson/gocudnn"
 )
@@ -69,7 +69,7 @@ func (c *Concat) Forward(h *cudnn.Handler, srcs []*Volume, dest *Volume) error {
 	smemory := make([]cutil.Mem, len(srcs))
 	for i := range srcs {
 		sdescriptors[i] = srcs[i].TD()
-		smemory[i] = srcs[i].Malloced
+		smemory[i] = srcs[i]
 	}
 	return c.c.Op(h.XHandle(), sdescriptors, smemory, c.fa, dest.TD(), dest, c.fb, true)
 }
