@@ -1,8 +1,5 @@
 {
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
-    "cSpell.enableFiletypes": [
-        "go"
-    ],
     "cSpell.words": [
         "aflg",
         "concatdy",

@@ -12,7 +12,7 @@ import (
 
 //Trainer will be used for updating weights.  Only momentum and adam are available right now
 type Trainer interface {
-	UpdateWeights(ctx *cudnn.Handler, dw, w *layers.Tensor, batch, counter int) error
+	UpdateWeights(ctx *cudnn.Handler, dw, w *layers.Tensor, batch int32) error
 	L1L2Loss() (float32, float32)
 	SetRates(rate, dwalpha float32)
 	SetDecays(l1, l2 float32)

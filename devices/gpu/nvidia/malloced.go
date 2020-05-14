@@ -3,10 +3,10 @@ package nvidia
 import (
 	"unsafe"
 
+	"github.com/dereklstinson/cutil"
 	"github.com/dereklstinson/gocudnn/cudart"
 	"github.com/dereklstinson/gocudnn/cudart/crtutil"
 	"github.com/dereklstinson/gocudnn/gocu"
-	"github.com/dereklstinson/cutil"
 )
 
 //Malloced is a pointer to some nvidia memory

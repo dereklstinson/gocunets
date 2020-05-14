@@ -2,6 +2,7 @@ package gocunets
 
 import (
 	"errors"
+
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
 )
 
@@ -114,8 +115,8 @@ func (c *ReverseConcat) FindOutputDimsfromInputDims(src []int32, ndests int32, f
 
 }
 
-//FindOutputDims finds the output dims for the dests
-func (c *ReverseConcat) FindOutputDims(Source *Tensor, ndests int32) (outputdims [][]int32, err error) {
+//OutputDims finds the output dims for the dests
+func (c *ReverseConcat) OutputDims(Source *Tensor, ndests int32) (outputdims [][]int32, err error) {
 
 	var tf TensorFormat
 	tf.TensorFormat = Source.Format()
@@ -181,19 +182,15 @@ func (c *Concat) SetDeltaDest(deltadest *Tensor) {
 	c.deltadest = deltadest.Volume
 }
 
-//FindOutputDimsfromInputDims finds the input dims from output dims
-func (c *Concat) FindOutputDimsfromInputDims(srcs [][]int32, frmt TensorFormat) (outputdims []int32, err error) {
+//OutputDimsfromInputDims finds the input dims from output dims
+func (c *Concat) OutputDimsfromInputDims(srcs [][]int32, frmt TensorFormat) (outputdims []int32, err error) {
 
 	return c.c.GetOutputDimsfromInputDims(srcs, frmt.TensorFormat)
 }
 
-//FindOutputDims finds the output dims
-func (c *Concat) FindOutputDims(srcs []*Tensor) (outputdims []int32, err error) {
-	vols := make([]*tensor.Volume, len(srcs))
-	for i := range vols {
-		vols[i] = srcs[i].Volume
-	}
-	outputdims, err = c.c.GetOutputdims(vols)
+//OutputDims finds the output dims.  InputSources need to be set first
+func (c *Concat) OutputDims() (outputdims []int32, err error) {
+	outputdims, err = c.c.GetOutputdims(c.srcs)
 	return outputdims, err
 }
 

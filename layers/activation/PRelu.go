@@ -1,15 +1,10 @@
 package activation
 
 import (
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/activation"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
-
-//TrainersNeeded returns the number of trainers needed
-func (l *Layer) TrainersNeeded() int {
-	return l.numofios
-}
 
 //PRelu returns an activation layer set to PRelu
 func PRelu(handle *cudnn.Handler, dtype gocudnn.DataType, managedmem bool) (*Layer, error) {

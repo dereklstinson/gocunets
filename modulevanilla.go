@@ -6,7 +6,6 @@ import (
 
 	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
-	"github.com/dereklstinson/gocunets/trainer"
 )
 
 //VanillaModule has a convolution and an activation
@@ -29,6 +28,7 @@ func (m *VanillaModule) ID() int64 {
 //}
 
 //CreateVanillaModule creates an output module
+
 func CreateVanillaModule(id int64, bldr *Builder, batch int32, fdims, pad, stride, dilation []int32, balpha, bbeta, falpha, fbeta float64) (m *VanillaModule, err error) {
 	m = new(VanillaModule)
 	m.b = bldr
@@ -57,7 +57,7 @@ func CreateVanillaModule(id int64, bldr *Builder, batch int32, fdims, pad, strid
 }
 
 //InitHiddenLayers will init the hidden operation
-func (m *VanillaModule) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
+func (m *VanillaModule) InitHiddenLayers() (err error) {
 
 	if m.conv.cnn != nil {
 		err := m.conv.cnn.MakeRandom(m.conv.h.Handler, m.conv.x.Dims())
@@ -74,7 +74,7 @@ func (m *VanillaModule) InitHiddenLayers(rate, decay1, decay2 float32) (err erro
 	} else {
 		return errors.New("(m *VanillaModule)InitHiddenLayers. CreateModule needs to be ran first")
 	}
-	odims, err := m.conv.GetOutputDims(m.conv.x)
+	odims, err := m.conv.OutputDims()
 	if err != nil {
 		return err
 	}
@@ -93,16 +93,6 @@ func (m *VanillaModule) InitHiddenLayers(rate, decay1, decay2 float32) (err erro
 	err = m.b.h.Sync()
 	if err != nil {
 		return err
-	}
-	w, bias, err := trainer.SetupAdamWandB(m.b.h.XHandle(), decay1, decay2, int32(m.batchsize))
-	if err != nil {
-		return errors.New("(m *VanillaModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
-	}
-	w.SetRates(rate, 0)
-	bias.SetRates(rate, 0)
-	err = m.conv.LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
-	if err != nil {
-		return errors.New("(m *VanillaModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
 	}
 
 	return nil
@@ -255,7 +245,7 @@ func (m *VanillaModule) InitWorkspace() (err error) {
 }
 
 //FindOutputDims satisfies module interface
-func (m *VanillaModule) FindOutputDims() ([]int32, error) {
+func (m *VanillaModule) OutputDims() ([]int32, error) {
 	if m.conv.x == nil {
 		return nil, errors.New("m *VanillaModule) FindOutputDims(): X tensor is not set")
 	}
@@ -266,17 +256,6 @@ func (m *VanillaModule) FindOutputDims() ([]int32, error) {
 		return m.conv.cnntranspose.FindOutputDims(m.conv.x.Tensor)
 	}
 	return nil, errors.New("(m *VanillaModule) FindOutputDims(): Major error both cnn and cnntranspose haven't been added")
-
-}
-
-//Update satisfies module interface
-func (m *VanillaModule) Update(epoch int) error {
-	err := m.conv.Update(epoch)
-	if err != nil {
-		return err
-	}
-
-	return m.act.Update(epoch)
 
 }
 
@@ -345,4 +324,30 @@ func (m *VanillaModule) SetTensorY(y *Tensor) {
 func (m *VanillaModule) SetTensorDY(dy *Tensor) {
 	m.act.dy = dy
 
+}
+func (m *VanillaModule) GetDeltaWeights() []*Tensor {
+	convweights := m.conv.GetDeltaWeights()
+	actweights := m.act.GetDeltaWeights()
+	if actweights == nil {
+		return convweights
+	}
+	newweights := make([]*Tensor, 0)
+	newweights = append(newweights, convweights...)
+	newweights = append(newweights, actweights...)
+	return newweights
+}
+
+func (m *VanillaModule) GetWeights() []*Tensor {
+	convweights := m.conv.GetWeights()
+	if len(convweights) == 0 {
+		panic("len(convweights)==0")
+	}
+	actweights := m.act.GetWeights()
+	if actweights == nil {
+		return convweights
+	}
+	newweights := make([]*Tensor, 0)
+	newweights = append(newweights, convweights...)
+	newweights = append(newweights, actweights...)
+	return newweights
 }

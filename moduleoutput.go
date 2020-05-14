@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
-	"github.com/dereklstinson/gocunets/trainer"
 	gocudnn "github.com/dereklstinson/gocudnn"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 )
 
 //OutputModule is just a single single convolution before it goes into the loss function
@@ -20,6 +19,12 @@ type OutputModule struct {
 //ID satisfies module interface
 func (m *OutputModule) ID() int64 {
 	return m.id
+}
+func (m *OutputModule) GetWeights() []*Tensor {
+	return m.op.GetWeights()
+}
+func (m *OutputModule) GetDeltaWeights() []*Tensor {
+	return m.op.GetDeltaWeights()
 }
 func xgeqy(x, y []int32, fmt gocudnn.TensorFormat) bool {
 	flg := fmt
@@ -68,7 +73,7 @@ func CreateOutputModule(id int64, bldr *Builder, batch int32, fdims, pad, stride
 }
 
 //InitHiddenLayers will init the hidden operation
-func (m *OutputModule) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
+func (m *OutputModule) InitHiddenLayers() (err error) {
 
 	if m.op.cnn != nil {
 		err := m.op.cnn.MakeRandom(m.op.h.Handler, m.op.x.Dims())
@@ -89,19 +94,15 @@ func (m *OutputModule) InitHiddenLayers(rate, decay1, decay2 float32) (err error
 	if err != nil {
 		return err
 	}
-	w, bias, err := trainer.SetupAdamWandB(m.b.h.XHandle(), decay1, decay2, int32(m.batchsize))
-	if err != nil {
-		return errors.New("(m *OutputModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
-	}
-	w.SetRates(rate, 0)
-	bias.SetRates(rate, 0)
 
-	err = m.op.LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
-	if err != nil {
-		return errors.New("(m *OutputModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
-	}
-
+	/*
+		err = m.op.LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
+		if err != nil {
+			return errors.New("(m *OutputModule) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
+		}
+	*/
 	return nil
+
 }
 
 //InitWorkspace inits the workspace
@@ -263,16 +264,6 @@ func (m *OutputModule) FindOutputDims() ([]int32, error) {
 	}
 	return nil, errors.New("(m *OutputModule) FindOutputDims(): Major error both cnn and cnntranspose haven't been added")
 
-}
-
-//Update satisifies module interface
-func (m *OutputModule) Update(epoch int) error {
-	err := m.op.Update(epoch)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 //Forward  satisfies module interface

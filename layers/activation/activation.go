@@ -1,12 +1,11 @@
 package activation
 
 import (
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/activation"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/reduce"
 	"github.com/dereklstinson/gocunets/layers"
-	"github.com/dereklstinson/gocunets/trainer"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Layer is an activation layer
@@ -24,9 +23,6 @@ type Layer struct {
 	posmin, posmax               float32
 	negmin, negmax               float32
 	threshmin, threshmax         float32
-	negcotrain                   trainer.Trainer
-	poscotrain                   trainer.Trainer
-	thresholdtrain               trainer.Trainer
 	l1n, l2n, l1p, l2p, l1t, l2t float32
 	posCoefs                     *layers.Tensor
 	negCoefs                     *layers.Tensor
@@ -80,6 +76,31 @@ func setup(handle *cudnn.Handler, mode activation.Mode, dtype gocudnn.DataType, 
 			Beta:  bb,
 		},
 	}, nil
+}
+
+func (a *Layer) GetWeights() (w []*layers.Tensor) {
+	if a.negCoefs != nil {
+		w = append(w, a.negCoefs)
+	}
+	if a.posCoefs != nil {
+		w = append(w, a.posCoefs)
+	}
+	if a.threshold != nil {
+		w = append(w, a.threshold)
+	}
+	return w
+}
+func (a *Layer) GetDeltaWeights() (dw []*layers.Tensor) {
+	if a.dnegCoefs != nil {
+		dw = append(dw, a.dnegCoefs)
+	}
+	if a.dposCoefs != nil {
+		dw = append(dw, a.dposCoefs)
+	}
+	if a.dthreshold != nil {
+		dw = append(dw, a.dthreshold)
+	}
+	return dw
 }
 
 //ContainsWeights returns true if the layer is trainable

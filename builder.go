@@ -105,23 +105,37 @@ func (l *Builder) CreateRandomTensor(dims []int32, mean, std float32, seed uint6
 }
 
 //CreateBiasTensor is a helper function that will create the bias tensor considering the weight dims.
-func (l *Builder) CreateBiasTensor(dims []int32) (b *Tensor, err error) {
-	var biasdims = make([]int32, len(dims))
+func (l *Builder) CreateBiasTensor(weightdims []int32, deconvolution bool) (b *Tensor, err error) {
+	var biasdims = make([]int32, len(weightdims))
 	for i := range biasdims {
 		biasdims[i] = 1
 	}
-	biasdims[0] = dims[0] //this is number of batches
-	bprflg := bprflags
+
+	//biasdims[0] = dims[0] //this is number of batches
+	fmtflg := l.Frmt
 	switch l.Frmt {
-	case bprflg.Frmt.NCHW():
-		biasdims[1] = dims[1]
-	case bprflg.Frmt.NHWC():
-		biasdims[len(dims)-1] = dims[len(dims)-1]
+	case fmtflg.NCHW():
+		if deconvolution {
+			biasdims[1] = weightdims[1]
+		} else {
+			biasdims[1] = weightdims[0]
+		}
+
+	case fmtflg.NHWC():
+		if deconvolution {
+			biasdims[len(weightdims)-1] = weightdims[len(weightdims)-1]
+		} else {
+			biasdims[len(weightdims)-1] = weightdims[0]
+		}
+
 	default:
 		return nil, errors.New("unsupported tensor format in builder")
 	}
 	b, err = l.CreateTensor(biasdims)
-	return b, err
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 
 }
 
@@ -135,11 +149,11 @@ func (l *Builder) CreateDeconvolutionWeights(dims []int32) (w, dw, b, db *Tensor
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	b, err = l.CreateBiasTensor(dims)
+	b, err = l.CreateBiasTensor(w.Dims(), true)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	db, err = l.CreateBiasTensor(dims)
+	db, err = l.CreateBiasTensor(dw.Dims(), true)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -157,17 +171,18 @@ func (l *Builder) CreateConvolutionWeights(dims []int32) (
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	b, err = l.CreateBiasTensor(dims)
+	b, err = l.CreateBiasTensor(w.Dims(), false)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	db, err = l.CreateBiasTensor(dims)
+	db, err = l.CreateBiasTensor(dw.Dims(), false)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	return w, dw, b, db, nil
 }
 
+/*
 //ConnectLayers Creates the output of layer1 and connects it as the input to layer2.
 func (l *Builder) ConnectLayers(layer1, layer2 *Layer) error {
 	var err error
@@ -200,7 +215,7 @@ func (l *Builder) ConnectLayers(layer1, layer2 *Layer) error {
 
 	return nil
 }
-
+*/
 //PoolingLayer creates a pooling layer with flags set in Builder
 func (l *Builder) PoolingLayer(id int64, window, padding, stride []int32) (p *Layer, err error) {
 

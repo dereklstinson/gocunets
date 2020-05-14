@@ -1,7 +1,7 @@
 # gocunets
 
 
-The kame ha me ha of neural networks in go.
+The kame ha me ha of neural networks for Go.  GoCuNets is a GPU centric deep learning framework.  
 
 Pull requests are welcomed.
 
@@ -14,7 +14,7 @@ go get github.com/pkg/browser     // This is used with ui it auto launches brows
 go get github.com/dereklstinson/nccl
 go get github.com/dereklstinson/gocudnn
 go get github.com/dereklstinson/cutil
-go get -u gonum.org/v1/gonum/...  // Will eventually get rid of this
+go get -u gonum.org/v1/gonum/...  
 go get gonum.org/v1/plot/...      // Will want to get rid of this and use javascript plotting.
  
 
@@ -69,6 +69,8 @@ Handle and worker must use the same device.
 
 Module interface is new.  Modules will eventually be used to implement graphs.  There are a few modules that I have made.
 Eventually everything from layer sub-package will have wrappers in gocunets and will be made into a module.  
+
+Example in how to build a network can be found in ~/go/src/github.com/dereklstinson/gocunets/testing/mnistgputest2
 
 This is a working package, but it is pre alpha.
 Better version management will be coming.  

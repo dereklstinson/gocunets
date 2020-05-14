@@ -3,11 +3,10 @@ package batchnorm
 import (
 	"fmt"
 
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/batchnorm"
 	"github.com/dereklstinson/gocunets/layers"
-	"github.com/dereklstinson/gocunets/trainer"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 const alphaforwarddefault = 1
@@ -33,8 +32,6 @@ type Layer struct {
 	counter                uint64
 	countermax             uint64
 	managed                bool
-	scaletrain             trainer.Trainer
-	biastrain              trainer.Trainer
 	premadeweightsfromfile bool
 }
 type abscalars struct {
@@ -161,11 +158,6 @@ func (l *Layer) Scale() *layers.Tensor {
 	return l.scale
 }
 
-//Trainers returns the trainers
-func (l *Layer) Trainers() (scale, bias trainer.Trainer) {
-	return l.scaletrain, l.biastrain
-}
-
 //SetupPreset will allocate all the memory needed for the batch norm with the values passed when using one of the Preset functions
 func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.Tensor) (err error) {
 
@@ -195,16 +187,7 @@ func (l *Layer) SetupPreset(handle *cudnn.Handler, x *layers.Tensor) (err error)
 		fmt.Println("error in set random normal bias")
 		return err
 	}
-	err = trainer.CreateTrainingMem(handle, l.scaletrain, l.scale)
-	if err != nil {
-		fmt.Println("Creating Training Mem for scale")
-		return err
-	}
-	err = trainer.CreateTrainingMem(handle, l.biastrain, l.bias)
-	if err != nil {
-		fmt.Println("Creating Training Mem for bias")
-		return err
-	}
+
 	l.af = 1
 	return err
 }
@@ -244,36 +227,14 @@ func (l *Layer) BackProp(handle *cudnn.Handler, x, dx, dy *layers.Tensor) error 
 		dy.Volume)
 }
 
-//UpdateWeights does the weight update
-func (l *Layer) UpdateWeights(handle *cudnn.Handler, batch,epoch int) error {
-	var err error
-
-	err = l.biastrain.UpdateWeights(handle, l.dbias, l.bias, batch,epoch)
-	if err != nil {
-		return err
-	}
-
-	err = l.scaletrain.UpdateWeights(handle, l.dscale, l.scale, batch,epoch)
-	if err != nil {
-		return err
-	}
-
-	return nil
+//GetWeights gets the weights of the batchnorm operation
+func (l *Layer) GetWeights() []*layers.Tensor {
+	return []*layers.Tensor{l.scale, l.bias}
 }
 
-//LoadTrainer sets up the momentum trainer
-func (l *Layer) LoadTrainer(handle *cudnn.Handler, trainerscale, trainerbias trainer.Trainer) error {
-	if trainerscale == nil {
-		fmt.Println("Batch Norm load trainer scale nil")
-	}
-	if trainerscale == nil {
-		fmt.Println("Batch Norm load trainer bias nil")
-	}
-	l.scaletrain = trainerscale
-	l.biastrain = trainerbias
-	l.scaletrain.SetDecays(0.0, 0.0)
-	l.biastrain.SetDecays(0.0, 0.0)
-	return nil
+//GetDeltaWeights gets the deltaweights of the batchnorm operation
+func (l *Layer) GetDeltaWeights() []*layers.Tensor {
+	return []*layers.Tensor{l.dscale, l.dbias}
 }
 
 //SetForwardScalars sets the forward scalars

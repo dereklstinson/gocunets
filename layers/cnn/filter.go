@@ -4,13 +4,11 @@ package cnn
 import (
 	"errors"
 	"fmt"
-	"sync"
 
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/convolution"
 	"github.com/dereklstinson/gocunets/layers"
-	"github.com/dereklstinson/gocunets/trainer"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 const alphadefault = 1.0
@@ -32,16 +30,16 @@ type Layer struct {
 	bwdf       xtras
 	datatype   gocudnn.DataType
 	mathtype   gocudnn.MathType
-	train      trainer.Trainer
-	btrain     trainer.Trainer
-	pad        []int32
-	dilation   []int32
-	stride     []int32
-	l1b        float32
-	l2b        float32
-	l1w        float32
-	l2w        float32
-	mux        sync.Mutex
+	//train      trainer.Trainer
+	//btrain     trainer.Trainer
+	pad      []int32
+	dilation []int32
+	stride   []int32
+	//	l1b      float32
+	//	l2b      float32
+	//	l1w      float32
+	//	l2w      float32
+	//	mux      sync.Mutex
 }
 
 type xtras struct {
@@ -77,16 +75,17 @@ func (c *Layer) String() string {
 	return fmt.Sprintf("CnnTranspose Layer {\n%v\nWeights: %v\nBias: %v\nDWeights: %v\nDBias: %v\n}\n", c.conv, c.w, c.bias, c.dw, c.dbias)
 }
 
+/*
 //UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch ,epoch int) error {
+func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch, epoch int) error {
 
-	err := c.train.UpdateWeights(handle, c.dw, c.w, batch,epoch)
+	err := c.train.UpdateWeights(handle, c.dw, c.w, batch, epoch)
 
 	if err != nil {
 		return err
 	}
 	c.l1w, c.l2w = c.train.L1L2Loss()
-	err = c.btrain.UpdateWeights(handle, c.dbias, c.bias, batch,epoch)
+	err = c.btrain.UpdateWeights(handle, c.dbias, c.bias, batch, epoch)
 	if err != nil {
 		return err
 	}
@@ -99,7 +98,18 @@ func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch ,epoch int) error {
 func (c *Layer) L1L2Loss() (L1 float32, L2 float32) {
 	return c.l1b + c.l1w, c.l2b + c.l2w
 }
+*/
+//GetWeights gets the weights.  Order returned is weights, bias
+func (c *Layer) GetWeights() []*layers.Tensor {
+	return []*layers.Tensor{c.w, c.bias}
+}
 
+//GetDeltaWeights gets the delta weights.  Order returned is weights,bias
+func (c *Layer) GetDeltaWeights() []*layers.Tensor {
+	return []*layers.Tensor{c.dw, c.dbias}
+}
+
+/*
 //LoadTrainer sets up the momentum trainer
 func (c *Layer) LoadTrainer(handle *cudnn.Handler, forweights, forbias trainer.Trainer) error {
 	var err error
@@ -115,10 +125,16 @@ func (c *Layer) LoadTrainer(handle *cudnn.Handler, forweights, forbias trainer.T
 	}
 	return err
 }
+*/
 
 //Bias returns the Bias
 func (c *Layer) Bias() *layers.Tensor {
 	return c.bias
+}
+
+//DeltaBias returns DeltaBias
+func (c *Layer) DeltaBias() *layers.Tensor {
+	return c.dbias
 }
 
 //DeltaWeights returns the deltaweights

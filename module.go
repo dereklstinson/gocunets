@@ -10,10 +10,14 @@ type Module interface {
 	ID() int64
 	Forward() error
 	Backward() error
-	Update(counter int) error //counter can count updates or it can count epochs.  I found updates to work best.
-	FindOutputDims() ([]int32, error)
+	OutputDims() ([]int32, error)
 	Inference() error
-	InitHiddenLayers(rate, decay1, decay2 float32) (err error)
+	//GetWeights()  tensor order should be same as GetDeltaWeights().  Can return nil
+	GetWeights() []*Tensor
+	//GetDeltaWeights() tensor order should be same as GetWeights().  Can return nil
+	//Some trainers don't require deltaweights.  So, it is not required.
+	GetDeltaWeights() []*Tensor
+	InitHiddenLayers() (err error)
 	InitWorkspace() (err error)
 	GetTensorX() (x *Tensor)
 	GetTensorDX() (dx *Tensor)
@@ -112,13 +116,13 @@ func dimoutputreverse(i, f, p, s, d int32) (o int32) {
 
 //SimpleModuleNetwork is a simple module network
 type SimpleModuleNetwork struct {
-	id                   int64
-	C                    *Concat           `json:"c,omitempty"`
-	Modules              []Module          `json:"modules,omitempty"`
-	Output               *OutputModule     `json:"output,omitempty"`
-	Classifier           *ClassifierModule `json:"classifier,omitempty"`
-	b                    *Builder
-	Rate, Decay1, Decay2 float32
+	id         int64
+	C          *Concat           `json:"c,omitempty"`
+	Modules    []Module          `json:"modules,omitempty"`
+	Output     *OutputModule     `json:"output,omitempty"`
+	Classifier *ClassifierModule `json:"classifier,omitempty"`
+	b          *Builder
+
 	//	x, dx, y, dy        *Tensor
 	//	firstinithiddenfirstinithidden    bool
 	//	firstinitworkspace bool
@@ -132,6 +136,32 @@ func CreateSimpleModuleNetwork(id int64, b *Builder) (smn *SimpleModuleNetwork) 
 	smn.id = id
 
 	return smn
+}
+func (m *SimpleModuleNetwork) GetWeights() []*Tensor {
+	weights := make([]*Tensor, 0)
+
+	for i := range m.Modules {
+		miweights := m.Modules[i].GetWeights()
+		if len(miweights) == 0 {
+			panic(len(miweights))
+		}
+
+		weights = append(weights, miweights...)
+
+	}
+	weights = append(weights, m.Output.GetWeights()...)
+	return weights
+
+}
+func (m *SimpleModuleNetwork) GetDeltaWeights() []*Tensor {
+	dweights := make([]*Tensor, 0)
+
+	for i := range m.Modules {
+		dweights = append(dweights, m.Modules[i].GetDeltaWeights()...)
+
+	}
+	dweights = append(dweights, m.Output.GetDeltaWeights()...)
+	return dweights
 }
 
 //SetMSEClassifier needs to be made
@@ -292,8 +322,8 @@ func (m *SimpleModuleNetwork) SetTensorDY(dy *Tensor) {
 }
 
 //InitHiddenLayers satisfies the Module interface
-func (m *SimpleModuleNetwork) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
-	m.Rate, m.Decay1, m.Decay2 = rate, decay1, decay2
+func (m *SimpleModuleNetwork) InitHiddenLayers() (err error) {
+
 	if m.Modules == nil {
 		return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: %s", "Modules are nil")
 	}
@@ -309,13 +339,13 @@ func (m *SimpleModuleNetwork) InitHiddenLayers(rate, decay1, decay2 float32) (er
 
 	}
 	for i, mod := range m.Modules {
-		err = mod.InitHiddenLayers(rate, decay1, decay2)
+		err = mod.InitHiddenLayers()
 		if err != nil {
 			return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: index %v\n %v", i, err)
 		}
 	}
 
-	err = m.Output.InitHiddenLayers(rate, decay1, decay2)
+	err = m.Output.InitHiddenLayers()
 	if err != nil {
 		return fmt.Errorf("(m *SimpleModuleNetwork) InitHiddenLayers: m.Output: %v", err)
 	}
@@ -376,7 +406,7 @@ func (m *SimpleModuleNetwork) FindOutputDims() (dims []int32, err error) {
 			}
 		}
 		poutputdims := outputdims
-		outputdims, err = mod.FindOutputDims()
+		outputdims, err = mod.OutputDims()
 
 		if err != nil {
 			fmt.Println("previous outputdims", poutputdims)
@@ -404,7 +434,7 @@ func (m *SimpleModuleNetwork) FindOutputDims() (dims []int32, err error) {
 
 	}
 
-	outputdims, err = m.Modules[len(m.Modules)-1].FindOutputDims()
+	outputdims, err = m.Modules[len(m.Modules)-1].OutputDims()
 	if m.Output == nil {
 		return outputdims, err
 	}
@@ -466,39 +496,28 @@ func (m *SimpleModuleNetwork) FindOutputDims() (dims []int32, err error) {
 //of the simple module network.
 //Forward satisfies the Module Interface.
 func (m *SimpleModuleNetwork) Forward() (err error) {
-	for _, mod := range m.Modules {
+	for i, mod := range m.Modules {
+
 		err = mod.Forward()
 		if err != nil {
+			fmt.Println("Forward: Error in hidden mod,", i)
 			return err
 		}
 	}
 	if m.Output != nil {
 		err = m.Output.Forward()
 		if err != nil {
+			fmt.Println("Forward: Error in Output mod")
 			return err
 		}
 	}
 	if m.Classifier != nil {
-		return m.Classifier.PerformError()
-	}
-	return nil
-}
-
-//Update updates the hidden weights
-//Update can count epochs or updates.  I found counting updates works the best.
-func (m *SimpleModuleNetwork) Update(counter int) (err error) {
-	err = m.Output.Update(counter)
-	if err != nil {
-		return err
-	}
-	for i := range m.Modules {
-		if i == 0 {
-			//	trainer.DebuggingAdam()
-		}
-		err = m.Modules[i].Update(counter)
+		err := m.Classifier.PerformError()
 		if err != nil {
+			fmt.Println("Forward: Error in Classifier mod")
 			return err
 		}
+
 	}
 	return nil
 }

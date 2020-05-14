@@ -7,7 +7,6 @@ import (
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 
 	gocudnn "github.com/dereklstinson/gocudnn"
-	"github.com/dereklstinson/gocunets/trainer"
 	//	"github.com/dereklstinson/cutil"
 )
 
@@ -314,26 +313,15 @@ func (m *module) Backward() (err error) {
 	return nil
 }
 
-//Update updates the weights of the hidden convolution layer
-func (m *module) Update(epoch int) (err error) {
-	for _, l := range m.layers {
-		err = l.updateWeights(epoch)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-//FindOutputDims returns the output dims of the module
-func (m *module) FindOutputDims() (dims []int32, err error) {
+//OutputDims returns the output dims of the module
+func (m *module) OutputDims() (dims []int32, err error) {
 	if m.x == nil {
-		return nil, errors.New(" (m *SimpleModule) FindOutputDims() : input tensor is nil")
+		return nil, errors.New(" (m *SimpleModule) OutputDims() : input tensor is nil")
 	}
 
 	preconcatdims := make([][]int32, len(m.layers))
 	for i := range m.layers {
-		preconcatdims[i], err = m.layers[i].GetOutputDims(m.x)
+		preconcatdims[i], err = m.layers[i].OutputDims()
 		if err != nil {
 			return nil, err
 		}
@@ -347,18 +335,18 @@ func (m *module) FindOutputDims() (dims []int32, err error) {
 }
 
 //InitHiddenLayers will init the hidden layers. If
-func (m *module) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
+func (m *module) InitHiddenLayers() (err error) {
 	if m.x == nil || m.dy == nil || m.y == nil {
 		return errors.New("(m *module) InitHiddenLayers(): inputtensor x is nil || dy is nil || y is nil")
 	}
 
 	for i := range m.layers {
 
-		outputdims, err := m.layers[i].GetOutputDims(m.x)
+		outputdims, err := m.layers[i].OutputDims()
 		if err != nil {
 			return err
 		}
-		m.layers[i].x, m.layers[i].dx = m.x, m.dx
+		//	m.layers[i].x, m.layers[i].dx = m.x, m.dx
 		m.layers[i].y, err = m.b.CreateTensor(outputdims)
 		if err != nil {
 			return err
@@ -370,26 +358,14 @@ func (m *module) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
 
 		if m.layers[i].cnn != nil {
 			err = m.layers[i].cnn.MakeRandom(m.layers[i].h.Handler, m.layers[i].x.Dims())
-			m.b.h.Sync()
 
 		} else if m.layers[i].cnntranspose != nil {
 			err = m.layers[i].cnntranspose.MakeRandom(m.layers[i].h.Handler, m.layers[i].x.Dims())
-			m.b.h.Sync()
 
 		}
-		m.b.h.Sync()
+
 		if err != nil {
 			return err
-		}
-		w, bias, err := trainer.SetupAdamWandB(m.b.h.XHandle(), decay1, decay2, int32(m.batchsize))
-		if err != nil {
-			return errors.New("(m *module) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
-		}
-		w.SetRates(rate, 0)
-		bias.SetRates(rate, 0)
-		err = m.layers[i].LoadTrainer(m.b.h.Handler, m.batchsize, w, bias)
-		if err != nil {
-			return errors.New("(m *module) InitHiddenLayers(b *Builder, decay1,decay2 float32, batch int32)" + err.Error())
 		}
 
 	}
@@ -400,8 +376,9 @@ func (m *module) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
 		srcs[i] = m.layers[i].y
 		deltasrcs[i] = m.layers[i].dy
 	}
-
-	outputdims, err := m.c.FindOutputDims(srcs)
+	m.c.SetInputSrcs(srcs)
+	m.c.SetInputDeltaSrcs(deltasrcs)
+	outputdims, err := m.c.OutputDims()
 	if err != nil {
 		return err
 	}
@@ -413,11 +390,8 @@ func (m *module) InitHiddenLayers(rate, decay1, decay2 float32) (err error) {
 	if err != nil {
 		return err
 	}
-	m.c.SetInputSrcs(srcs)
-	m.c.SetInputDeltaSrcs(deltasrcs)
 	m.c.SetDest(concaty)
 	m.c.SetDeltaDest(concatdy)
-
 	m.activ.dy, m.activ.dx = m.dy, concatdy
 	m.activ.y, m.activ.x = m.y, concaty
 	return nil
@@ -588,17 +562,27 @@ func (m *module) GetTensorDY() (dy *Tensor) { return m.dy }
 //SetTensorX sets x tensor
 func (m *module) SetTensorX(x *Tensor) {
 	m.x = x
-	if m.layers[0] != nil {
-		m.layers[0].x = x
+	for i := range m.layers {
+		m.layers[i].SetTensorX(x)
 	}
 
+}
+func (m *module) GetWeights() []*Tensor {
+	t := make([]*Tensor, 0)
+	for _, layer := range m.layers {
+		t = append(t, layer.GetWeights()...)
+	}
+	if m.activ.GetWeights() != nil {
+		t = append(t, m.activ.GetWeights()...)
+	}
+	return t
 }
 
 //SetTensorDX sets dx tensor
 func (m *module) SetTensorDX(dx *Tensor) {
 	m.dx = dx
-	if m.layers[0] != nil {
-		m.layers[0].dx = dx
+	for i := range m.layers {
+		m.layers[i].SetTensorDX(dx)
 	}
 }
 

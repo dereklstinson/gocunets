@@ -3,21 +3,18 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
-
-	"github.com/dereklstinson/gocudnn/cudart"
-
-	"math"
-	"math/rand"
 	"time"
 
-	gocunets "github.com/dereklstinson/gocunets"
+	"github.com/dereklstinson/gocudnn/cudart"
+	"github.com/dereklstinson/gocunets"
+	"github.com/dereklstinson/gocunets/testing/mnist/dfuncs"
 	//	"github.com/dereklstinson/gocunets/gocudnn/tensor"
 	//	gocudnn "github.com/dereklstinson/gocudnn"
 )
@@ -40,13 +37,15 @@ func filldatabuffer(target, data []float32, labeled []dfuncs.LabeledData, batchs
 
 //This will make a file with loss timings and losses for each epoch and run.
 func main() {
-	var learningrate = float32(.001)
+	var learningrate = float32(.005)
+	decay1, decay2 := float32(0.0001), float32(0.001)
 	args := os.Args[1:]
 	var err error
 	var devnum = int(1)
 	var bsize = 1000
 	var savedir string
 	epochs := 200
+	convergedtestloss := float32(.01)
 	if len(args) > 0 {
 		devnum, err = strconv.Atoi(args[0])
 		cherror(err)
@@ -113,7 +112,7 @@ func main() {
 		const mnistimagetrain = "train-images.idx3-ubyte"
 		const mnistfilelabeltest = "t10k-labels.idx1-ubyte"
 		const mnistimagetest = "t10k-images.idx3-ubyte"
-		decay1, decay2 := float32(0.00001), float32(0.0001)
+
 		mnistdatatest, err := dfuncs.LoadMNIST(filedirectory, mnistfilelabeltest, mnistimagetest)
 		mnistdatatrain, err := dfuncs.LoadMNIST(filedirectory, mnistfilelabeltrain, mnistimagetrain)
 
@@ -240,7 +239,7 @@ func main() {
 		}
 		mnet.Classifier.SetTensorDY(ohdy)
 
-		err = mnet.InitHiddenLayers(learningrate, decay1, decay2)
+		err = mnet.InitHiddenLayers()
 		if err != nil {
 			panic(err)
 		}
@@ -248,6 +247,14 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		allmnetweights := mnet.GetWeights()
+		allmnetdeltaweights := mnet.GetDeltaWeights()
+		trainhandler := gocunets.CreateTrainerHandler(builder)
+		adamtrainers, err := trainhandler.SetupAdamTrainers(allmnetweights, allmnetdeltaweights, learningrate, decay1, decay2, batchsize)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Number of trainers is", len(adamtrainers))
 		var mux sync.Mutex
 
 		trainloss := make([]float32, ntrainbatches)
@@ -299,7 +306,7 @@ func main() {
 		}
 
 		//	filldatabuffer(traintargetbuffers[i], traindatabuffers[i], mnistdatatrain, batchsize)
-		var updatecounter int
+
 		var donessignal bool
 		fmt.Printf("%10s,\t%10s,\t%10s,\t%10s\t\n", "\"Epoch\"", "\"TrainLoss\"", "\"TestLoss\"", "\"Time(s)\"")
 		for k := 0; k < epochs; k++ {
@@ -332,40 +339,43 @@ func main() {
 						panic(trainloss)
 					}
 					trainloss[l] = loss
-					cherror(mnet.Update(updatecounter))
-					updatecounter++
+
 					cherror(stream.Sync())
 				}
+				cherror(trainhandler.UpdateWeights())
 				cherror(InputTensor.LoadMem(handle.Handler, testtensors[j], testtensors[j].SIB()))
 				cherror(mnet.GetTensorDY().LoadMem(handle.Handler, testtensorstarget[j], testtensorstarget[j].SIB()))
 				cherror(mnet.TestForward())
 				cherror(stream.Sync())
 				testloss[j] = mnet.GetLoss()
 			}
+
 			if donessignal {
 
 				break
 			}
-			mux.Lock()
-			testlosscopy := make([]float32, ntestbatches)
-			trainlosscopy := make([]float32, ntrainbatches)
-			copy(trainlosscopy, trainloss)
-			copy(testlosscopy, testloss)
-			mux.Unlock()
+
 			cherror(stream.Sync())
 			timetoepoch := float32(time.Now().Sub(timer).Seconds())
 			if k < epochs-1 {
 
-				go func(k int, trainlosscopy, testlosscopy []float32, timetoepoch float32, fileEpocLossTime, filetestbatchloss, filetrainbatchloss io.Writer) {
+				go func(k int, timetoepoch float32, fileEpocLossTime, filetestbatchloss, filetrainbatchloss io.Writer) {
+
+					testlosscopy := make([]float32, ntestbatches)
+					trainlosscopy := make([]float32, ntrainbatches)
 					mux.Lock()
+					copy(trainlosscopy, trainloss)
+					copy(testlosscopy, testloss)
+					mux.Unlock()
+
 					var trainlossadder float32
 					var testlossadder float32
 					for i := range trainlosscopy {
-						trainlossadder = trainlossadder + trainlosscopy[i]
+						trainlossadder += trainlosscopy[i]
 					}
 					trainlossadder /= float32(len(trainlosscopy))
 					for i := range testlosscopy {
-						testlossadder = testlossadder + testlosscopy[i]
+						testlossadder += testlosscopy[i]
 					}
 					testlossadder /= float32(len(testlosscopy))
 					fmt.Printf("%10d,\t%10.5f,\t%10.5f,\t%10.5f\n", k, trainlossadder, testlossadder, timetoepoch)
@@ -381,13 +391,19 @@ func main() {
 							fmt.Fprintf(filetestbatchloss, "%10.5f\n", testlosscopy[i])
 						}
 					}(testlosscopy)
-					if testlossadder < .005 {
+					if testlossadder < convergedtestloss {
 						donessignal = true
 					}
-					mux.Unlock()
-				}(k, trainlosscopy, testlosscopy, timetoepoch, fileEpocLossTime, filetestbatchloss, filetrainbatchloss)
+
+				}(k, timetoepoch, fileEpocLossTime, filetestbatchloss, filetrainbatchloss)
 
 			} else {
+				testlosscopy := make([]float32, ntestbatches)
+				trainlosscopy := make([]float32, ntrainbatches)
+				mux.Lock()
+				copy(trainlosscopy, trainloss)
+				copy(testlosscopy, testloss)
+				mux.Unlock()
 				var trainlossadder float32
 				var testlossadder float32
 				for i := range trainlosscopy {

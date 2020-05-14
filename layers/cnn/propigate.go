@@ -1,6 +1,8 @@
 package cnn
 
 import (
+	"fmt"
+
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/layers"
@@ -21,7 +23,13 @@ func (c *Layer) ForwardProp(handle *cudnn.Handler, wspace *nvidia.Malloced, x, y
 	if err != nil {
 		return err
 	}
-	return y.Volume.AddTo(handle, c.bias.Volume, 1.0, 1.0)
+	err = y.Volume.AddTo(handle, c.bias.Volume, 1.0, 1.0)
+	if err != nil {
+		fmt.Println("y: ", y)
+		fmt.Println("bias:", c.bias)
+		return err
+	}
+	return nil
 }
 
 //BackPropFilterData does the backprop for the data and the filter

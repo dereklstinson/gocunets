@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"sync"
 
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/deconvolution"
 	"github.com/dereklstinson/gocunets/layers"
-	"github.com/dereklstinson/gocunets/trainer"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 const alphadefault = 1.0
@@ -31,16 +30,16 @@ type Layer struct {
 	bwdf       xtras
 	datatype   gocudnn.DataType
 	mathtype   gocudnn.MathType
-	train      trainer.Trainer
-	btrain     trainer.Trainer
-	pad        []int32
-	dilation   []int32
-	stride     []int32
-	l1b        float32
-	l2b        float32
-	l1w        float32
-	l2w        float32
-	mux        sync.Mutex
+	//	train      trainer.Trainer
+	//	btrain     trainer.Trainer
+	pad      []int32
+	dilation []int32
+	stride   []int32
+	//	l1b        float32
+	//	l2b        float32
+	//	l1w        float32
+	//	l2w        float32
+	mux sync.Mutex
 }
 
 type xtras struct {
@@ -76,6 +75,7 @@ func (c *Layer) String() string {
 	return fmt.Sprintf("CnnTranspose Layer {\n%v\nWeights: %v\nBias: %v\nDWeights: %v\nDBias: %v\n}\n", c.conv, c.w, c.bias, c.dw, c.dbias)
 }
 
+/*
 //UpdateWeights does the weight update
 func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch, epoch int) error {
 
@@ -114,6 +114,21 @@ func (c *Layer) LoadTrainer(handle *cudnn.Handler, forweights, forbias trainer.T
 		return err
 	}
 	return err
+}
+*/
+//GetWeights gets the weights
+func (c *Layer) GetWeights() []*layers.Tensor {
+	return []*layers.Tensor{c.w, c.bias}
+}
+
+//GetDeltaWeights gets the delta weights
+func (c *Layer) GetDeltaWeights() []*layers.Tensor {
+	return []*layers.Tensor{c.dw, c.dbias}
+}
+
+//DeltaBias returns DeltaBias
+func (c *Layer) DeltaBias() *layers.Tensor {
+	return c.dbias
 }
 
 //Bias returns the Bias

@@ -2,7 +2,6 @@ package gocunets
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
@@ -14,7 +13,6 @@ import (
 	"github.com/dereklstinson/gocunets/layers/dropout"
 	"github.com/dereklstinson/gocunets/layers/pooling"
 	"github.com/dereklstinson/gocunets/layers/reshape"
-	"github.com/dereklstinson/gocunets/trainer"
 )
 
 //Operation is a generic operation that a layer uses.
@@ -25,13 +23,13 @@ type Operation interface {
 	Forward(handle *cudnn.Handler, x, dx, y, dy *layers.Tensor) error
 	Inference(handle *cudnn.Handler, x, y *layers.Tensor) error
 	Backward(handle *cudnn.Handler, x, dx, y, dy *Tensor) error
-	UpdateWeights(handle *cudnn.Handler) error
-	LoadTrainers(handle *cudnn.Handler, trainers ...trainer.Trainer) error
-	TrainersNeeded() int
+	GetWeights() []*layers.Tensor
+	GetDeltaWeights() []*layers.Tensor
 	SetOtherScalars(alpha, beta float64)
 	SetForwardScalars(alpha, beta float64)
 	SetBackwardScalars(alpha, beta float64)
 	GetOutputDims(input *layers.Tensor) ([]int32, error)
+	InitHiddenValues() (err error)
 }
 
 //Layer is a layer inside a network it holds inputs and outputs
@@ -54,31 +52,6 @@ type Layer struct {
 	x, dx, y, dy *Tensor
 }
 
-//ToggleWPrint If layer contains weights or hidden values it will toggle the printing
-func (l *Layer) ToggleWPrint() {
-	if l.cnn != nil {
-		l.cnn.ToggleWeightsPrintValueForStringer()
-		return
-	}
-	if l.cnntranspose != nil {
-		l.cnntranspose.ToggleWeightsPrintValueForStringer()
-		return
-	}
-	return
-}
-
-//ToggleDWPrint If layer contains delta weights
-func (l *Layer) ToggleDWPrint() {
-	if l.cnn != nil {
-		l.cnn.ToggleDWeightsPrintValueForStringer()
-		return
-	}
-	if l.cnntranspose != nil {
-		l.cnntranspose.ToggleDWeightsPrintValueForStringer()
-		return
-	}
-	return
-}
 func (l *Layer) String() string {
 	if l.cnn != nil {
 		return l.cnn.String()
@@ -98,38 +71,113 @@ func (l *Layer) String() string {
 	return "Unsupported Stringer for now"
 }
 
-//ToggleBiasPrint If layer contains bias.
-func (l *Layer) ToggleBiasPrint() {
+//GetWeights gets the weights of the layer
+//will return nil if layer doesn't have weights
+func (l *Layer) GetWeights() []*Tensor {
 	if l.cnn != nil {
-		l.cnn.ToggleBiasPrintValueForStringer()
-		return
+		x := l.cnn.GetWeights()
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
 	}
 	if l.cnntranspose != nil {
-		l.cnntranspose.ToggleBiasPrintValueForStringer()
-		return
+		x := l.cnntranspose.GetWeights()
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
 	}
-	return
+	if l.activation != nil {
+		x := l.activation.GetWeights()
+		if len(x) == 0 {
+			return nil
+		}
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
+	}
+	if l.other != nil {
+
+		x := l.other.GetWeights()
+		if len(x) == 0 {
+			return nil
+		}
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
+	}
+	return nil
+
 }
 
-//ToggleDBiasPrint If layer contains dbias
-func (l *Layer) ToggleDBiasPrint() {
+//GetDeltaWeights gets the weights of the layer
+//will return nil if layer doesn't have weights
+func (l *Layer) GetDeltaWeights() []*Tensor {
 	if l.cnn != nil {
-		l.cnn.ToggleDBiasPrintValueForStringer()
-		return
+		x := l.cnn.GetDeltaWeights()
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+
+		return tensors
 	}
 	if l.cnntranspose != nil {
-		l.cnntranspose.ToggleDBiasPrintValueForStringer()
-		return
+		x := l.cnntranspose.GetDeltaWeights()
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
 	}
-	return
-}
+	if l.activation != nil {
+		x := l.activation.GetDeltaWeights()
+		if len(x) == 0 {
+			return nil
+		}
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
+	}
+	if l.other != nil {
 
-//ToggleAllHiddenLayerValues toggles all hidden values on
-func (l *Layer) ToggleAllHiddenLayerValues() {
-	l.ToggleBiasPrint()
-	l.ToggleDBiasPrint()
-	l.ToggleDWPrint()
-	l.ToggleWPrint()
+		x := l.other.GetDeltaWeights()
+		if len(x) == 0 {
+			return nil
+		}
+		tensors := make([]*Tensor, len(x))
+		for i := range tensors {
+			tensors[i] = new(Tensor)
+			tensors[i].Tensor = x[i]
+			tensors[i].id = l.id
+		}
+		return tensors
+	}
+	return nil
+
 }
 
 //CreateOperationLayer creates an operation layer
@@ -225,106 +273,96 @@ func (l *Layer) Backward() error {
 	return l.backpropfilterdata()
 }
 
-//Update updates weights if layer has them
-func (l *Layer) Update(epoch int) error {
-	return l.updateWeights(epoch)
+//Module is a wrapper around a neural network or set of operations
+type tempModule interface {
+	ID() int64
+	Forward() error
+	Backward() error
+	Inference() error
+	InitHiddenLayers() (err error)
+	InitWorkspace() (err error)
+	GetTensorX() (x *Tensor)
+	GetTensorDX() (dx *Tensor)
+	GetTensorY() (y *Tensor)
+	GetTensorDY() (dy *Tensor)
+	SetTensorX(x *Tensor)
+	SetTensorDX(dx *Tensor)
+	SetTensorY(y *Tensor)
+	SetTensorDY(dy *Tensor)
 }
 
-//ChangeBatchSize will change the batch size
-func (l *Layer) ChangeBatchSize(batchsize int) {
-	l.batchsize = batchsize
-}
-
-//LoadTrainer loads the trainer to the layer
-func (l *Layer) LoadTrainer(handle *cudnn.Handler, batchsize int, trainers ...trainer.Trainer) error {
-
-	return l.loadtrainer(handle, batchsize, trainers...)
-}
-func (l *Layer) loadtrainer(handle *cudnn.Handler, batchsize int, trainers ...trainer.Trainer) error {
-	l.batchsize = batchsize
+//InitHiddenLayers inits hidden values after they are all set.  It doesn't init the output tensor though.
+func (l *Layer) InitHiddenLayers() (err error) {
+	if l.x == nil {
+		return errors.New("Input X Tensor not set")
+	}
 	if l.cnn != nil {
-		if len(trainers) != 2 {
-			fmt.Println(len(trainers))
-			return fmt.Errorf("l.cnn got %d should get %d", len(trainers), 2)
+		err := l.cnn.MakeRandom(l.h.Handler, l.x.Dims())
+		if err != nil {
+			return err
 		}
-		return l.cnn.LoadTrainer(handle, trainers[0], trainers[1])
-	}
-
-	if l.batch != nil {
-		if len(trainers) != 2 {
-			return fmt.Errorf("l.batch got %d should get %d", len(trainers), 2)
+	} else if l.cnntranspose != nil {
+		err := l.cnntranspose.MakeRandom(l.h.Handler, l.x.Dims())
+		if err != nil {
+			return err
 		}
-		return l.batch.LoadTrainer(handle, trainers[0], trainers[1])
+	} else if l.other != nil {
+		return l.other.InitHiddenValues()
+
 	}
-	if l.cnntranspose != nil {
-		if len(trainers) != 2 {
-
-			return fmt.Errorf("l.cnntranspose got %d should get %d", len(trainers), 2)
-
-		}
-		return l.cnntranspose.LoadTrainer(handle, trainers[0], trainers[1])
-	}
-	if l.activation != nil {
-		tneed := l.activation.TrainersNeeded()
-		if tneed > 0 {
-
-			if len(trainers) != tneed {
-
-				return fmt.Errorf("l.activation got %d should get %d", len(trainers), tneed)
-			}
-		}
-		return l.activation.LoadTrainer(handle, trainers)
-	}
-	if l.other != nil {
-		tneed := l.other.TrainersNeeded()
-		if tneed > 0 {
-
-			if len(trainers) != tneed {
-
-				return fmt.Errorf("l.other got %d should get %d", len(trainers), tneed)
-			}
-		}
-		l.other.LoadTrainers(handle, trainers...)
-	}
-
-	return errors.New("in bedded error doesn't support trainers")
+	return nil
 }
 
-func (l *Layer) trainersneeded() int {
-	if l.cnn != nil {
-		return 2
+func (l *Layer) Inference() error {
+	return l.inference(l.h.Handler, l.workspacefwd, l.workspacebwd)
+}
+
+/*
+func (l *Layer) InitWorkspace() (err error) {
+	//if l.cnn.GetFwdAlgoPerfList()
+
+}
+*/
+//FindOutputDims gets the dims of the output tensor
+func (l *Layer) OutputDims() (output []int32, err error) {
+	if l.x == nil {
+		return nil, errors.New("(l *Layer) FindOutputDims():x tensor not set")
 	}
-	if l.cnntranspose != nil {
-		return 2
+	if l.cnn != nil {
+		return l.cnn.FindOutputDims(l.x.Tensor)
+	}
+	if l.pool != nil {
+		return l.pool.GetOutputDims(l.x.Tensor)
 	}
 	if l.batch != nil {
-		return 2
+		output = make([]int32, len(l.x.Dims()))
+		copy(output, l.x.Dims())
+		return output, nil
+	}
+	if l.cnntranspose != nil {
+		return l.cnntranspose.FindOutputDims(l.x.Tensor)
 	}
 	if l.activation != nil {
-		return l.activation.TrainersNeeded()
-
+		output = make([]int32, len(l.x.Dims()))
+		copy(output, l.x.Dims())
+		return output, nil
 	}
-	if l.activation != nil {
-		return l.activation.TrainersNeeded()
-
+	if l.drop != nil {
+		output = make([]int32, len(l.x.Dims()))
+		copy(output, l.x.Dims())
+		return output, nil
 	}
 	if l.other != nil {
-		return l.other.TrainersNeeded()
+		return l.other.GetOutputDims(l.x.Tensor)
 	}
-	return 0
-
+	return nil, errors.New("Unsupported Layer")
 }
 
 func wraplayer(input interface{}) (hidden *Layer, ios int) {
 	switch l := input.(type) {
 
 	case *activation.Layer:
-		if l.TrainersNeeded() > 0 {
-			return &Layer{
-				activation: l,
-				name:       "Activation",
-			}, 1 + l.TrainersNeeded()
-		}
+
 		return &Layer{
 			activation: l,
 			name:       "Activation",
@@ -407,78 +445,4 @@ func (l *Layer) SetOtherScalars(alpha, beta float64) {
 		l.other.SetOtherScalars(alpha, beta)
 	}
 	return
-}
-
-//GetOutputDims gets the dims of the output tensor
-func (l *Layer) GetOutputDims(input *Tensor) (output []int32, err error) {
-	if l.cnn != nil {
-		return l.cnn.FindOutputDims(input.Tensor)
-	}
-	if l.pool != nil {
-		return l.pool.GetOutputDims(input.Tensor)
-	}
-	if l.batch != nil {
-		output = make([]int32, len(input.Dims()))
-		copy(output, input.Dims())
-		return output, nil
-	}
-	if l.cnntranspose != nil {
-		return l.cnntranspose.FindOutputDims(input.Tensor)
-	}
-	if l.activation != nil {
-		output = make([]int32, len(input.Dims()))
-		copy(output, input.Dims())
-		return output, nil
-	}
-	if l.drop != nil {
-		output = make([]int32, len(input.Dims()))
-		copy(output, input.Dims())
-		return output, nil
-	}
-	if l.other != nil {
-		return l.other.GetOutputDims(input.Tensor)
-	}
-	return nil, errors.New("Unsupported Layer")
-}
-
-//UpdateWeights updates the weights of layer
-func (l *Layer) updateWeights(epoch int) error {
-
-	batch := l.batchsize
-	if l.cnn != nil {
-		return l.cnn.UpdateWeights(l.h.Handler, batch, epoch)
-	}
-
-	if l.cnntranspose != nil {
-		return l.cnntranspose.UpdateWeights(l.h.Handler, batch, epoch)
-
-	}
-	if l.batch != nil {
-		return l.batch.UpdateWeights(l.h.Handler, batch, epoch)
-	}
-	if l.activation != nil {
-		if l.activation.TrainersNeeded() > 0 {
-			return l.activation.UpdateWeights(l.h.Handler, batch, epoch)
-
-		}
-
-	}
-	if l.other != nil {
-		return l.other.UpdateWeights(l.h.Handler)
-	}
-	return nil
-
-}
-
-func (l *Layer) l1l2loss() (l1, l2 float32) {
-
-	if l.cnn != nil {
-		return l.cnn.L1L2Loss()
-	}
-
-	if l.cnntranspose != nil {
-		return l.cnntranspose.L1L2Loss()
-
-	}
-	return -123, -123
 }
