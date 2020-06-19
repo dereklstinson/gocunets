@@ -30,16 +30,9 @@ type Layer struct {
 	bwdf       xtras
 	datatype   gocudnn.DataType
 	mathtype   gocudnn.MathType
-	//train      trainer.Trainer
-	//btrain     trainer.Trainer
-	pad      []int32
-	dilation []int32
-	stride   []int32
-	//	l1b      float32
-	//	l2b      float32
-	//	l1w      float32
-	//	l2w      float32
-	//	mux      sync.Mutex
+	pad        []int32
+	dilation   []int32
+	stride     []int32
 }
 
 type xtras struct {
@@ -75,30 +68,6 @@ func (c *Layer) String() string {
 	return fmt.Sprintf("CnnTranspose Layer {\n%v\nWeights: %v\nBias: %v\nDWeights: %v\nDBias: %v\n}\n", c.conv, c.w, c.bias, c.dw, c.dbias)
 }
 
-/*
-//UpdateWeights does the weight update
-func (c *Layer) UpdateWeights(handle *cudnn.Handler, batch, epoch int) error {
-
-	err := c.train.UpdateWeights(handle, c.dw, c.w, batch, epoch)
-
-	if err != nil {
-		return err
-	}
-	c.l1w, c.l2w = c.train.L1L2Loss()
-	err = c.btrain.UpdateWeights(handle, c.dbias, c.bias, batch, epoch)
-	if err != nil {
-		return err
-	}
-	c.l1b, c.l2b = c.btrain.L1L2Loss()
-
-	return nil
-}
-
-//L1L2Loss will return the L1 loss and L2 loss for the layer
-func (c *Layer) L1L2Loss() (L1 float32, L2 float32) {
-	return c.l1b + c.l1w, c.l2b + c.l2w
-}
-*/
 //GetWeights gets the weights.  Order returned is weights, bias
 func (c *Layer) GetWeights() []*layers.Tensor {
 	return []*layers.Tensor{c.w, c.bias}
@@ -108,24 +77,6 @@ func (c *Layer) GetWeights() []*layers.Tensor {
 func (c *Layer) GetDeltaWeights() []*layers.Tensor {
 	return []*layers.Tensor{c.dw, c.dbias}
 }
-
-/*
-//LoadTrainer sets up the momentum trainer
-func (c *Layer) LoadTrainer(handle *cudnn.Handler, forweights, forbias trainer.Trainer) error {
-	var err error
-	c.train = forweights
-	err = trainer.CreateTrainingMem(handle, c.train, c.w)
-	if err != nil {
-		return err
-	}
-	c.btrain = forbias
-	err = trainer.CreateTrainingMem(handle, c.btrain, c.bias)
-	if err != nil {
-		return err
-	}
-	return err
-}
-*/
 
 //Bias returns the Bias
 func (c *Layer) Bias() *layers.Tensor {
@@ -243,29 +194,6 @@ func (c *Layer) SetMathType(mtype gocudnn.MathType) error {
 
 }
 
-/*
-//SetupEx creates a convolution layer
-func SetupEx(handle *cudnn.Handler,
-	frmt gocudnn.TensorFormat,
-	dtype gocudnn.DataType,
-	mtype gocudnn.MathType,
-	groupcount int32,
-	w, dw *layers.Tensor,
-	b, db *layers.Tensor,
-	cmode gocudnn.ConvolutionMode,
-	pad,
-	stride,
-	dialation []int32) (c *Layer, err error) {
-	c = new(Layer)
-	c.conv, err = convolution.StageOperation(cmode, dtype, mtype, groupcount, pad, stride, dialation)
-	if err != nil {
-		return nil, err
-	}
-	c.w, c.dw, c.bias, c.dbias = w, dw, b, db
-	return c, nil
-}
-*/
-
 //MakeRandom does what it says it will make the weights random considering the fanin
 func (c *Layer) MakeRandom(h *cudnn.Handler, inputdims []int32) error {
 	//	dims := c.w.T().Dims()
@@ -351,41 +279,6 @@ func layersetup(
 		datatype: dtype,
 	}, nil
 }
-
-/*
-//SetAlphaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
-func (c *Layer) SetAlphaScalars(alphas []float64) error {
-	if len(alphas) != 3 {
-		return errors.New("alpha Scalar length needs to be 3")
-	}
-
-	c.fwd.alpha = alphas[0]
-	c.bwdd.alpha = alphas[1]
-	c.bwdf.alpha = alphas[2]
-	return nil
-}
-
-//SetBetaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
-func (c *Layer) SetBetaScalars(betas []float64) error {
-	if len(betas) != 3 {
-		return errors.New("alpha Scalar length needs to be 3")
-	}
-
-	c.fwd.beta = betas[0]
-	c.bwdd.beta = betas[1]
-	c.bwdf.beta = betas[2]
-	return nil
-}
-//NumAlphaScalars returns the number of alpha scalars which is used for fwd,bwd-data,bwd-filter.
-func (c *Layer) NumAlphaScalars() int {
-	return 3
-}
-
-//NumBetaScalars returns the number of beta scalars which is used for fwd,bwd-data,bwd-filter.
-func (c *Layer) NumBetaScalars() int {
-	return 3
-}
-*/
 
 //SetForwardScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
 func (c *Layer) SetForwardScalars(alpha, beta float64) {

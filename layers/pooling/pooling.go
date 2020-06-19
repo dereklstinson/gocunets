@@ -1,10 +1,10 @@
 package pooling
 
 import (
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/pool"
 	"github.com/dereklstinson/gocunets/layers"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
 //Layer holds everything it needs on the pooling side in order
@@ -166,45 +166,6 @@ func Setup(handle *cudnn.Handler, mode gocudnn.PoolingMode, nan gocudnn.NANProp,
 	}
 	return l, y, dy, err
 }
-
-/*
-//Destroy destroys the pooling descriptor
-func (l *Layer) Destroy() error {
-	return l.pD.Destroy()
-}
-*/
-/*
-
-//SetAlphaScalars takes a slice of float64 of length of 2 and sets the alphas in fwd and bwd order
-func (l *Layer) SetAlphaScalars(alphas []float64) error {
-	if len(alphas) != 2 {
-		return errors.New("Length of alphas needs to be 2")
-	}
-	l.fwd.alpha = alphas[0]
-	l.bwd.alpha = alphas[1]
-	return nil
-}
-
-//SetBetaScalars takes a slice of float64 of length of 2 and sets the betas in fwd and bwd order
-func (l *Layer) SetBetaScalars(betas []float64) error {
-	if len(betas) != 2 {
-		return errors.New("Length of betas needs to be 2")
-	}
-	l.fwd.beta = betas[0]
-	l.bwd.beta = betas[1]
-	return nil
-}
-
-//NumAlphaScalars returns the number of alpha scalars this layers has for the forward and backward prop
-func (l *Layer) NumAlphaScalars() int {
-	return 2
-}
-
-//NumBetaScalars returns the number of beta scalars this layers has for the forward and backward prop
-func (l *Layer) NumBetaScalars() int {
-	return 2
-}
-*/
 
 //SetForwardScalars will change the default fwd scalars to whatever is passsed
 func (l *Layer) SetForwardScalars(alpha, beta float64) {

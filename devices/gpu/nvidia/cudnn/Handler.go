@@ -34,15 +34,6 @@ func (h *Handler) FindVol(outputdims []int32) int32 {
 	return utils.FindVolumeInt32(outputdims, nil)
 }
 
-/*
-//FindMaxUint returns the max sizeT
-func (h *Handler) FindSIB(outputdims []int32) uint {
-
-	return uint(utils.FindVolumeInt32(outputdims, nil) * 4)
-
-}
-*/
-
 //Unified returns if the device the handler is using uses unified memory
 func (h *Handler) Unified() bool {
 	return h.unified

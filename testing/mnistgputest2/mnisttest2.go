@@ -169,38 +169,9 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		//	mods[3], err = gocunets.CreateVanillaModule(3, builder, batchsize, []int32{20, 20, 4, 4}, []int32{4, 4}, []int32{2, 2}, []int32{3, 3}, 1, 0, 1, 0)
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		channeladder := int32(20)
-		//	outputchannels := []int32{6, 6, 6}
-		//	var channeladder int32
-		//	for i := range outputchannels {
-		//		channeladder += outputchannels[i]
-		//	}
 
-		//	mods := make([]gocunets.Module, 5)
-		//	mods[0], err = gocunets.CreateSingleStridedModule(0, builder, batchsize, 1, outputchannels, []int32{2, 2}, -1, 1, 0, false, false)
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		//	mods[1], err = gocunets.CreateCompressionModule(1, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 2, 1, 0)
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		//	mods[2], err = gocunets.CreateCompressionModule(2, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 2, 1, 0)
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		//	mods[3], err = gocunets.CreateSingleStridedModule(3, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 1, 1, 0, false, false)
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		//	mods[4], err = gocunets.CreateCompressionModule(4, builder, batchsize, channeladder, outputchannels, []int32{2, 2}, 2, 1, 0)
-		//	if err != nil {
-		//		panic(err)
-		//	}
+		channeladder := int32(20)
+
 		mnet.SetModules(mods)
 		InputTensor, err := builder.CreateTensor(inputdims)
 		if err != nil {

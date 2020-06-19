@@ -8,18 +8,6 @@ import (
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 )
 
-/*
-//SaveImagesToFile saves images do file
-func (c *Layer) SaveImagesToFile(dir string) error {
-	return c.w.SaveImagesToFile(dir)
-}
-
-//WeightImgs returns 2d array of images
-func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
-	return c.w.Images()
-}
-*/
-
 //LoadWValues will load a slice into cuda memory for the Weights.
 func (c *Layer) LoadWValues(handle *cudnn.Handler, slice interface{}, length int) error {
 	/*	ptr, err := gocudnn.MakeGoPointer(slice)

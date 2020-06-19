@@ -209,38 +209,6 @@ func (a *Layer) Info() (Info, error) {
 	}, nil
 }
 
-/*
-//SetAlphaScalars sets the alpha scalers for the forward and backward in that order in the array
-func (a *Layer) SetAlphaScalars(alphas []float64) error {
-	if len(alphas) != 2 {
-		return errors.New("SetAllScalars needs to have the size of 2")
-	}
-	a.fwd.Alpha = alphas[0]
-	a.bwd.Alpha = alphas[1]
-	return nil
-}
-
-//SetBetaScalars sets the beta scalers for the forward and backward in that order in the array
-func (a *Layer) SetBetaScalars(betas []float64) error {
-	if len(betas) != 2 {
-		return errors.New("SetAllScalars needs to have the size of 2")
-	}
-	a.fwd.Beta = betas[0]
-	a.bwd.Beta = betas[1]
-	return nil
-}
-
-//NumAlphaScalars returns the number of scalars the activation layer has both the forward and backward propigation.
-func (a *Layer) NumAlphaScalars() int {
-	return 2
-}
-
-//NumBetaScalars returns the number of scalars the activation layer has both the forward and backward propigation.
-func (a *Layer) NumBetaScalars() int {
-	return 2
-}
-*/
-
 //SetForwardScalars updates the alpha and beta scalars
 func (a *Layer) SetForwardScalars(alpha, beta float64) {
 	a.fwd.Alpha, a.fwd.Beta = alpha, beta
@@ -306,10 +274,3 @@ func (a *Layer) NegCoefs() *layers.Tensor {
 func (a *Layer) Threshhold() *layers.Tensor {
 	return a.threshold
 }
-
-/*
-//Destroy destroys the cuda allocated memory for activation
-func (a *Layer) Destroy() error {
-	return a.act.Destroy()
-}
-*/

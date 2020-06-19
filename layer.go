@@ -313,6 +313,7 @@ func (l *Layer) InitHiddenLayers() (err error) {
 	return nil
 }
 
+//Inference is forward propagation.  Some functions behave differently in a forward propagation than in inference.
 func (l *Layer) Inference() error {
 	return l.inference(l.h.Handler, l.workspacefwd, l.workspacebwd)
 }
@@ -323,7 +324,8 @@ func (l *Layer) InitWorkspace() (err error) {
 
 }
 */
-//FindOutputDims gets the dims of the output tensor
+
+//OutputDims gets the dims for an output tensor
 func (l *Layer) OutputDims() (output []int32, err error) {
 	if l.x == nil {
 		return nil, errors.New("(l *Layer) FindOutputDims():x tensor not set")

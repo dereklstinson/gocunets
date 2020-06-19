@@ -358,41 +358,6 @@ func layersetup(
 	}, nil
 }
 
-/*
-//SetAlphaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
-func (c *Layer) SetAlphaScalars(alphas []float64) error {
-	if len(alphas) != 3 {
-		return errors.New("alpha Scalar length needs to be 3")
-	}
-
-	c.fwd.alpha = alphas[0]
-	c.bwdd.alpha = alphas[1]
-	c.bwdf.alpha = alphas[2]
-	return nil
-}
-
-//SetBetaScalars updates the alpha scalars in order of fwd, bwd-data,bwd-filter.
-func (c *Layer) SetBetaScalars(betas []float64) error {
-	if len(betas) != 3 {
-		return errors.New("alpha Scalar length needs to be 3")
-	}
-
-	c.fwd.beta = betas[0]
-	c.bwdd.beta = betas[1]
-	c.bwdf.beta = betas[2]
-	return nil
-}
-//NumAlphaScalars returns the number of alpha scalars which is used for fwd,bwd-data,bwd-filter.
-func (c *Layer) NumAlphaScalars() int {
-	return 3
-}
-
-//NumBetaScalars returns the number of beta scalars which is used for fwd,bwd-data,bwd-filter.
-func (c *Layer) NumBetaScalars() int {
-	return 3
-}
-*/
-
 //SetForwardScalars sets the alpha and beta scalars, the defaults are alpha, 1, beta=0 and are initialized in the function FilterSetup
 func (c *Layer) SetForwardScalars(alpha, beta float64) {
 	c.fwd.alpha, c.fwd.beta = alpha, beta

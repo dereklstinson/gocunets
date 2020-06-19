@@ -216,6 +216,7 @@ func (l *Builder) ConnectLayers(layer1, layer2 *Layer) error {
 	return nil
 }
 */
+
 //PoolingLayer creates a pooling layer with flags set in Builder
 func (l *Builder) PoolingLayer(id int64, window, padding, stride []int32) (p *Layer, err error) {
 

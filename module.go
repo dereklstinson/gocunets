@@ -137,6 +137,8 @@ func CreateSimpleModuleNetwork(id int64, b *Builder) (smn *SimpleModuleNetwork) 
 
 	return smn
 }
+
+//GetWeights gets the weights of the network.
 func (m *SimpleModuleNetwork) GetWeights() []*Tensor {
 	weights := make([]*Tensor, 0)
 
@@ -153,6 +155,8 @@ func (m *SimpleModuleNetwork) GetWeights() []*Tensor {
 	return weights
 
 }
+
+//GetDeltaWeights returns the deltaweights simple module network
 func (m *SimpleModuleNetwork) GetDeltaWeights() []*Tensor {
 	dweights := make([]*Tensor, 0)
 

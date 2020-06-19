@@ -8,18 +8,6 @@ import (
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 )
 
-/*
-//SaveImagesToFile saves images do file
-func (c *Layer) SaveImagesToFile(dir string) error {
-	return c.w.SaveImagesToFile(dir)
-}
-
-//WeightImgs returns 2d array of images
-func (c *Layer) WeightImgs() ([][]image.Image, [][]image.Image, error) {
-	return c.w.Images()
-}
-*/
-
 //LoadWValues will load a slice into cuda memory for the Weights.
 func (c *Layer) LoadWValues(handle *cudnn.Handler, slice interface{}, length int) error {
 	/*	ptr, err := gocudnn.MakeGoPointer(slice)
@@ -53,25 +41,6 @@ func (c *Layer) LoadBiasValuesEX(handle *cudnn.Handler, r io.Reader) error {
 	return err
 }
 
-/*
-
-//LoaddWValues will load a slice into cuda memory for the delta Weights.
-func (c *Layer) LoaddWValues(handle *cudnn.Handler, slice interface{}) error {
-	ptr, err := gocudnn.MakeGoPointer(slice)
-	if err != nil {
-		return err
-	}
-	return c.w.LoadDeltaTValues(handle, ptr)
-}
-
-/*
-//BiasImgs returns 2d array of images
-func (c *Layer) BiasImgs() ([][]image.Image, [][]image.Image, error) {
-	return c.bias.Images()
-}
-
-*/
-
 //WeightsFillSlice will fill a slice with the weight values
 func (c *Layer) WeightsFillSlice(h *cudnn.Handler, input interface{}, length int) error {
 	return c.w.FillSlice(h, input)
@@ -84,36 +53,6 @@ func (c *Layer) DeltaWeightsFillSlice(h *cudnn.Handler, input interface{}, lengt
 	return c.w.FillSlice(h, input)
 	//	return c.w.DeltaT().Memer().FillSlice(input)
 }
-
-/*
-//SetupWStatReducers builds the statistic reducers for the w part of the Weights and bias
-func (c *Layer) SetupWStatReducers(handle *cudnn.Handler) (err error) {
-	err = c.w.SetXStatReducers(handle)
-	if err != nil {
-		return err
-	}
-	err = c.bias.SetXStatReducers(handle)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-//SetupDWStatReducers b builds the statistic reducers for the dw part of the Weights and bias
-func (c *Layer) SetupDWStatReducers(handle *cudnn.Handler) (err error) {
-	err = c.dw.SetXStatReducers(handle)
-	if err != nil {
-		return err
-	}
-	err = c.dbias.SetXStatReducers(handle)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-*/
 
 /*
 

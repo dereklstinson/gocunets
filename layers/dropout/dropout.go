@@ -45,13 +45,7 @@ func Preset(handle *cudnn.Handler, dropout float32, seed uint64) (*Layer, error)
 //This can also be called again if input size has changed
 func (l *Layer) BuildFromPreset(handle *cudnn.Handler, input *layers.Tensor) error {
 	var err error
-	/*	if l.op != nil {
-			err = l.op.Destroy()
-			if err != nil {
-				return err
-			}
-		}
-	*/
+
 	l.op, err = dropout.Stage(handle, input.Volume, l.dropout, l.seed)
 	return err
 }

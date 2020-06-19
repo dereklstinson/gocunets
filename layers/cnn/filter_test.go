@@ -6,12 +6,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
-	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
-	"github.com/dereklstinson/gocunets/layers"
 	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocudnn/cudart"
 	"github.com/dereklstinson/gocudnn/gocu"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
+	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
+	"github.com/dereklstinson/gocunets/layers"
 )
 
 func evenpadformula(dilation, filter, offset int32) int32 {
@@ -167,9 +167,6 @@ func TestSetupBasic(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	//fmt.Println(bwdlago0[0])
-	//fmt.Println(dinputTensor)
-	//fmt.Println(doutputTensor)
 	err = layer0.ForwardProp(handle, wspace, inputTensor, outputTensor)
 	if err != nil {
 		t.Error(err)

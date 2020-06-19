@@ -3,81 +3,13 @@ package deconvolution
 import (
 	"fmt"
 
+	gocudnn "github.com/dereklstinson/gocudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn"
 	"github.com/dereklstinson/gocunets/devices/gpu/nvidia/cudnn/tensor"
-	gocudnn "github.com/dereklstinson/gocudnn"
 )
 
-/*
-func FindConvolution2DParams(x, w, y *tensor.Volume) (pad, stride, dilation []int32) {
-	var (
-		maxpadh      int32
-		maxpadw      int32
-		maxstrideh   int32
-		maxstridew   int32
-		maxdilationh int32
-		maxdilationw int32
-	)
-	switch w.Format() {
-	case cudnn.TensorFormatFlag{}.NHWC():
-		wdims := w.Dims()
-		maxstrideh = wdims[1]
-		maxstridew = wdims[2]
-		maxpadh = wdims[1] - 1
-		maxpadw = wdims[2] - 1
-	default:
-		wdims := w.Dims()
-		maxstrideh = wdims[2]
-		maxstridew = wdims[3]
-		maxpadh = wdims[2] - 1
-		maxpadw = wdims[3] - 1
-
-	}
-	fmt.Println(maxpadh, maxpadw, maxstrideh, maxstridew, maxdilationh, maxdilationw)
-	w.Dims()
-	return
-}
-
-func findoutputdim(x, w, s, p, d int32) int32 {
-	return 1 + (x+2*p-(((w-1)*d)+1))/s
-}
-func findpad(x, w, s, d, y int32) int32 {
-
-	return (((y - 1) * s) - x + (((w - 1) * d) + 1)) / 2
-}
-func findslide(x, w, p, d, y int32) int32 {
-	return (x + 2*p - (((w - 1) * d) + 1)) / (y - 1)
-}
-func finddilation(x, w, p, s, y int32) int32 {
-	return -((s * (y - 1)) - x - (2 * p) + 1) / (w - 1)
-
-}
-func findpadandstrideanddilation(x, y, w int32) (s, p, d int32) {
-	//	output = 1+ (input + (2*padding) - (((filter-1)*dilation)+1))/slide
-
-	//first lets asume only slide of one and dilation of one we will see if the it fits inside the padding
-	minwithpad := findoutputdim(x, w, 1, 0, 1)
-	maxwithpad := findoutputdim(x, w, 1, w-1, 1)
-	if y >= minwithpad && y <= maxwithpad {
-		findpad()
-	}
-	return
-}
-*/
-
-/*
-ForwardPerformance is wrapper for gocudnn.DeConvFwdAlgoPerformance with its exported Values
-
-type ConvFwdAlgoPerformance struct{
-	Algo        ConvFwdAlgo --Algo is the flag for the cudnn algorithm
-	Status      Status    -- error occurance while running test
-	Time        float32  -- time it takes to do the algo
-	Memory      SizeT  --size of workspace memory to be passed
-	Determinism Determinism  --flag
-	MathType    MathType -- flag
-}
-*/
+//ForwardPerformance is used to find the forward performance of a deconvolution algorithm
 type ForwardPerformance gocudnn.DeConvFwdAlgoPerformance
 
 func (f ForwardPerformance) String() string {
@@ -99,18 +31,7 @@ func tofwrdperf(x gocudnn.DeConvFwdAlgoPerformance) ForwardPerformance {
 	}
 }
 
-/*
-BackDataPerformance is a wrapper for gocudnn.DeConvBwdDataAlgoPerformance
-
-type ConvBwdDataAlgoPerformance struct {
-	Algo        ConvFwdAlgo --flag --- Algo is the flag for the cudnn algorithm
-	Status      Status    -- error occurance while running test
-	Time        float32  -- time it takes to do the algo
-	Memory      SizeT  --size of workspace memory to be passed
-	Determinism Determinism  --flag determins if the algo is deterministic
-	MathType    MathType -- flag chooses the mathtype - tensorcores?
-}
-*/
+//BackDataPerformance is used to find the backward data performance of a deconvolution algorithm
 type BackDataPerformance gocudnn.DeConvBwdDataAlgoPerformance
 
 func (b BackDataPerformance) String() string {
@@ -133,17 +54,6 @@ func tobwddperf(x gocudnn.DeConvBwdDataAlgoPerformance) BackDataPerformance {
 	}
 }
 
-/*
-BackFilterPerformance is a wrapper for gocudnn.DeConvBwdFiltAlgoPerformance
-type ConvBwdFiltAlgoPerformance struct {
-	Algo        ConvFwdAlgo --flag --- Algo is the flag for the cudnn algorithm
-	Status      Status    -- error occurance while running test
-	Time        float32  -- time it takes to do the algo
-	Memory      SizeT  --size of workspace memory to be passed
-	Determinism Determinism  --flag determins if the algo is deterministic
-	MathType    MathType -- flag chooses the mathtype - tensorcores?
-}
-*/
 type BackFilterPerformance gocudnn.DeConvBwdFiltAlgoPerformance
 
 func (b BackFilterPerformance) String() string {
